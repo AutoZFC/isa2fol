@@ -7,7 +7,7 @@ allowed-tools: Read Grep Glob Bash Edit Write
 
 # /align — the math is proved; a blocker is yours until shown otherwise
 
-The mathematics is settled (`rs/docs/FOUNDATION.md`). Of the whole corpus **four**
+The mathematics is settled (`docs/FOUNDATION.md`). Of the whole corpus **four**
 constants are refused by the specification — R6's `split`/`setclass` (S5) and
 `cond`/`update` (S4). **Everything else that does not emit is an implementation
 problem.** This skill exists because the project has repeatedly recorded an
@@ -55,9 +55,9 @@ session to the wrong file.
 3. **Reproduce.** Dump the rendered body and the real refusal. Never read a chain
    shape off a definition — print the `Formula`.
 4. **Probe** (rule 4), then **implement**, peeling (rule 5).
-5. **Gate.** All of: `cargo test --release` green · `w.failed` empty ·
-   `gate::align`'s `omitted` count **fell** · size ratchet holds · comment density
-   under 5% · no new `axiom`.
+5. **Gate.** All of: `MEM=16G scripts/capped.sh swift test` green · `legalize`
+   passes on every graph a test builds · comment density falling toward 5%
+   (rule 9) · no new `axiom` outside `base/`.
 6. **Record.** Update `STATE.md` §7 with the *measured* result and any correction
    owed to `FOUNDATION.md`. Corrections go in as standing warnings, not as history.
 
@@ -77,14 +77,13 @@ session to the wrong file.
 
 ## Anti-sprawl
 
-`FOUNDATION.md` is the mathematics. `FOUNDATION_TO_FOLZFC.md` is the map to the
-implementation (§13 spec map, §14 frozen source interface). `.claude/STATE.md` is
-the handoff. `gate::align`'s `LEDGER` is the live account of what is left. Update
-those; do not create new plan docs. One node per commit.
+`FOUNDATION.md` is the mathematics and the only design doc — its companions were
+deleted 2026-09-23 as Rust-era. `DESIGN.md` is the package structure.
+`.claude/STATE.md` is the handoff. Update those; do not create new plan docs.
+One node per commit.
 
-**Supersedes the operational half of `/chain`** — `rs/docs/CHAIN.md` and
-`ci/no_admit_gate.sh` no longer exist. `/chain`'s no-admit rule survives as rule 3
-above.
+**Absorbs `/chain`**, deleted 2026-09-23 with the Rust tree it drove. Its
+no-admit rule survives as rule 3 above.
 
 ## Facts worth not re-deriving
 
@@ -93,7 +92,7 @@ above.
   for the old path and simply fails every kernel test when it is absent.
   A base tier is a CHAINED unit: `$CK <def> <proof> <deps…> -- <dep_proofs…>`; run
   bare it reports `Failed`, which reads exactly like staleness and is not.
-- Release builds only, and everything through `rs/scripts/capped.sh`.
+- Release builds only, and everything through `scripts/capped.sh` (rule 10).
 - `exists_intro` at **two** arguments generalises *every* occurrence of the
   witness; a target the witness still occurs in needs the three-argument
   `let` form. `exists_elim`'s eigenvariable is discharged by a no-witness

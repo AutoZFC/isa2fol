@@ -164,7 +164,7 @@ them is free to be NBG.
 **The shape is load-bearing.** The two forms are logically equivalent and the
 kernel compares syntactically. Grouped guards are rejected at `qed`
 (`derived formula doesn't match goal`) and at every `implies_elim` joining
-`class::compile_at`'s emitted claim to `PrimReplace_EX`'s antecedent — both
+the compiled class claim to `PrimReplace_EX`'s antecedent — both
 interleave.
 
 **UNIFORM-INTERLEAVED — the shape is the same in `base/`, and that is a HOUSE
@@ -179,8 +179,8 @@ costs nothing to keep and only ever removes an adapter.
 
 **But it is an aspiration in `base/`, not a fact, and this paragraph used to
 read as though it were one.** Measured: **25 of 114** base declarations bind a
-`set(·)`-mentioned variable without the guard immediately following
-(`no_new_base_declaration_groups_its_guards`). Not all are debt — `upair_def`
+`set(·)`-mentioned variable without the guard immediately following. Not all are
+debt — `upair_def`
 conjoins sethood deliberately (a conditional guard would leave `upair`
 unconstrained off-domain and break R4), `members_are_sets` has `set(x)` as its
 *conclusion*, and `set_cong` consumes `set(A)` as a *premise*, where
@@ -190,12 +190,10 @@ join the list silently. That is the enforcement this rule never had — it is wh
 `the_UNIQ` sat grouped, in a file whose own header said everything was
 interleaved, for as long as nothing instantiated it.
 
-**⚠ THAT PIN IS CURRENTLY INERT AND THIS PARAGRAPH READS AS THOUGH IT RUNS.**
-`no_new_base_declaration_groups_its_guards` loads `base::chain()`, which fails
-`NotFound` while `base.rs`'s `TIERS` names two deleted tiers. The sweep cannot
-report, so nothing is being pinned. An instrument that cannot run is not weaker
-evidence than one that fails — it is NONE, and it looks identical to a pass in a
-red suite.
+**⚠ THAT PIN DOES NOT EXIST AND THIS PARAGRAPH READS AS THOUGH IT RUNS.**
+Nothing sweeps `base/` for grouped guards, so nothing is being pinned. An
+instrument that cannot run is not weaker evidence than one that fails — it is
+NONE, and it looks identical to a pass in a red suite.
 
 Two consequences worth stating, because both look like losses and are not:
 
@@ -236,7 +234,6 @@ stronger claim may simply be false.
 *Proof.* `pmem(u,v,X)` needs `kpair(u,v,p)`, which needs `upair(u,u,a)`, which by
 `upair_def` is `∀t.(t∈a ↔ t=u)`. At `t := u`, `eq_refl` gives `u∈a`, hence
 `set(u)` by `members_are_sets`. Symmetrically for `v` through `upair(u,v,b)`. ∎
-Kernel-checked: `constant::tests::a_tuple_slot_is_always_a_set`.
 
 So for `C(x⃗,F,r)` with `F` a class, `⟨x⃗,F,r⟩ ∈ G` is not merely *unavailable* —
 it is **false**. There is no graph to build.
@@ -245,8 +242,7 @@ it is **false**. There is no graph to build.
 concrete and `{⟨x⃗,r⟩ : C(x⃗,C_ψ,r)}` is a single legitimate class. That is R2's
 template pattern at a new site: not provable parametrically, so instantiate per
 occurrence. **138 of 197 bodies carry a λ** (§10), so this is the main line and
-not an exception — and `only_one_constant_is_class_free` measures exactly **1**
-constant as transitively class-free.
+not an exception — and exactly **1** constant is transitively class-free.
 
 **R5.** §3's compiler reads exactly three atoms: `elem`, `eq`, `pmem`. A raw
 relation atom `C(x,r)` has no rule, so a φ that mentions a constant does not
@@ -294,10 +290,9 @@ reason is structural. Write the seed as a block `b`; left-nesting flattens
 `⟨b,x,y⟩ = ⟨b₁,…,b_k,x,y⟩` only when `b` is in **coordinate 1**. B5 (append) and
 T2 (insert) keep it there and are block-generic; **T1 (prepend), T4 (swap) and
 Gödel's B6 put it in coordinate 2 or 3 and are not**. Measured: of the 13
-constants blocked on this, 7 need exactly T1 or T4. Kernel-checked at
-`class::graph::tests::permuted_and_non_prefix_placements_need_no_new_lemma`, and
-at `class::tests::a_wide_block_seed_is_unplaceable_at_the_third_upair_of_every_pair`,
-which is why `derive_node`'s Prepend arm may hand T1 only a single `ctx[lo]`.
+constants blocked on this, 7 need exactly T1 or T4. Both are kernel-checked, and
+a width-3 seed is unplaceable at the third `upair` of every pair — which is why a
+prepend may be handed only a single context slot.
 
 **This paragraph used to continue "since a class is opaque … the permutations a
 real body needs are unreachable". THAT IS FALSE, and the reason it is false
@@ -311,18 +306,15 @@ at
 ```
 
 with `A` a parameter: every atom is `elem`/`eq`/`pmem`, the pairing witnesses are
-guarded set existentials B4 eliminates, and `z` never occurs. **Kernel-checked**
-at `class::tests::a_block_can_be_prepended_and_the_kernel_accepts_it` — 34
-classes, 1532 lines, paid ONCE and parametrically in `A`. T1 is the `k=1` case of
-the same schema.
+guarded set existentials B4 eliminates, and `z` never occurs. **Kernel-checked** —
+34 classes, 1532 lines, paid ONCE and parametrically in `A`. T1 is the `k=1` case
+of the same schema.
 
 So the ceiling is a **missing lemma family**, indexed by block width, not an
 impossibility. What is NOT yet established: the derivation cost as `k` grows, and
-whether the emitter can be taught to cite such a family — `class::mem::generate`
-is the precedent for generating one.
+whether the emitter can be taught to cite such a family.
 
-**R6.** Two constants refuse *on their own account*
-(`r6s_two_refusals_are_the_meta_function_values`), and each is a violation of
+**R6.** Two constants refuse *on their own account*, and each is a violation of
 the specification rather than a gap in it. **The handle is STRUCTURAL, not a
 generator's output**: a constant whose value is a meta-function is one whose
 `@def` body is a top-level `λ`, and exactly two of the 197 are —
@@ -374,8 +366,8 @@ is `pair_ex`, `exists_elim` to a variable, instantiate at that. It also
 DELIVERS the R3 guard, the existential carrying `set(·)`.
 
 **⚠ THE GRAPH IS PER CONSTANT; THE VARIABLE INTRODUCTION IS PER SITE, AND AN
-EARLIER WORDING HERE SAID "PER CONSTANT, NOT PER PROOF STEP" OF BOTH.** Measured
-(`the_appt_expansion_is_per_site`): **676,001 of 797,924** `AppT` instantiate at a
+EARLIER WORDING HERE SAID "PER CONSTANT, NOT PER PROOF STEP" OF BOTH.**
+Measured: **676,001 of 797,924** `AppT` instantiate at a
 Const, Abs or App rather than a variable — **85%** of ⋀-eliminations carry the
 expansion. What the boundary buys is not a shorter proof but a MECHANICAL one:
 a fixed template, no search, and the guard arrives with it. The exception is a
@@ -402,7 +394,7 @@ function, and are not instantiable at one: `elem` is not in scope here.
 | CONG | `∀x⃗ y⃗ r. eq(x₁,y₁) → ⋯ → eq(xₙ,yₙ) → F(x⃗,r) → F(y⃗,r)` | `f` respects `eq` in its ARGUMENTS |
 
 **Every quantifier above is `set(·)`-guarded and interleaved** (R3); the guards
-are elided only to keep the shapes readable. `constant::generate` emits them and
+are elided only to keep the shapes readable. They are emitted in that shape and
 the kernel compares syntactically, so a consumer that drops one does not match.
 
 Three properties of the shapes, each of which a reader has otherwise had to
@@ -416,9 +408,8 @@ recover from the generator:
 - **CONG is CONDITIONAL on arity.** A nullary constant has no argument to
   transport and owes none: `zero` owes exactly `zero_EX` and `zero_UNIQ`
   Read it off CONG's own shape above: at `n = 0` there are no equations to state,
-  so the row degenerates. **16 of the 197 are nullary**
-  (`r6s_two_refusals_are_the_meta_function_values`). The generator-side check
-  went with the encoder; the claim never needed it. Ask the unit for the name; a
+  so the row degenerates. **16 of the 197 are nullary.** The claim needs no
+  generator-side check — it reads off the shape. Ask the unit for the name; a
   templated `{rel}_CONG` cites a lemma that is not there.
 
 Not audit findings — this is what "encodes a function" means. EX and UNIQ are the
@@ -490,8 +481,8 @@ not occur free in φ. Isabelle happens to name such a binder `uu_`, and that is
 corroboration only — matching on the name would be a list of names pretending to
 be a rule.
 
-*Consequence, measured* (`the_p4_blocker_census` — **HANDLE GONE, DELETED WITH
-THE ENCODER; the figures below are unevidenced until it is rebuilt.** A structural
+*Consequence, measured* (**the figures below are UNEVIDENCED — the measurement
+went with the encoder and has no live handle.** A structural
 proxy counts every vacuous `λ` in a body at **75 across 58 constants**, which is a
 strict SUPERSET: §2 counts only those in a class-ARGUMENT position, and telling
 them apart needs the S5 analysis, not an occurrence check alone): the refusal is **TWO**
@@ -530,9 +521,9 @@ constants in order, so EX/UNIQ/CONG propagate by induction. Three base cases:
   `Union` by the induction step like any composite, and the `∅`-default is
   *delivered* rather than assumed — `Replace` filters to the single-valued case
   and `⋃∅ = ∅`. §11's measured table bottoms out in five primitives and `The` is
-  not among them. **Now evidenced** (`the_is_defined_not_primitive`):
-  `ZF_Base.the_def` is serial 1928, and `The` is one of the 197 with arity 1 and
-  dependencies exactly `{Replace, Union, cons, zero}`.
+  not among them. **Now evidenced:** `ZF_Base.the_def` is serial 1928, and `The`
+  is one of the 197 with arity 1 and dependencies exactly
+  `{Replace, Union, cons, zero}`.
   **`docs/phase2_probes/zf_fst_conv_e2e` TOOK THE OTHER ROUTE** — "tier 6's `The`,
   with the empty-set default" — and has been DELETED as a relic. Under S3 `fst`
   needs no bespoke `qfst`/`ufst`/`fstrel` chain: it reduces through `The`, whose
@@ -548,8 +539,7 @@ mathematics does not have.
 
 **⚠ THIS SECTION IS ABOUT ARITY ZERO, AND USED TO SAY `?P` STAYS A SCHEMA AT
 EVERY ARITY.** At arity ≥ 1 a schematic `?P` is a CLASS VARIABLE: `P x` renders
-`elem(x,A)` — **built, in `statement::pred_class`** — and `⋀P. θ(P)` renders
-`∀A. θ*(A)`, **built, in `render_expr`'s `Quant` arm**. The class is allocated
+`elem(x,A)`, and `⋀P. θ(P)` renders `∀A. θ*(A)`. The class is allocated
 lazily at the first application, so the body renders BEFORE the binder is
 written, and the binder is **UNGUARDED** — guarding a class would make the claim
 false, not redundant — a quantifier the target
@@ -568,9 +558,9 @@ translated.
 
 **S5 — Set-valued meta-function arguments compile to classes**, then to sets by
 Replacement where the domain is a set. No graph is ever passed as an argument.
-`statement::meta_fn_graph` builds this: `f(x⃗) = r` becomes a lookup in a class
+`f(x⃗) = r` becomes a lookup in a class
 parameter, `pmem(x,r,C)` at arity 1 and `tmem(a,b,r,C)` at arity 2, with a
-`FunctionGraph` obligation carrying the arity. **⚠ `elem`/`pmem`/`tmem` ARE THE
+function-graph obligation carrying the arity. **⚠ `elem`/`pmem`/`tmem` ARE THE
 WHOLE VOCABULARY** — a wider `mem_n` is §3's placement family, so arity ≥ 3
 REFUSES rather than generating one.
 *Side condition:* class parameters may never occur to the **left** of `∈`. A
@@ -800,8 +790,7 @@ Position-indexing pays for coordinate *manipulation*; assignments pay for
 coordinate *access* — every variable occurrence becomes an existential. Which
 dominates is a property of the CORPUS, not of this derivation.
 
-*Measured*, `access_costs_less_than_placement_on_real_bodies`, over the 197
-term-constant bodies:
+*Measured* over the 197 term-constant bodies:
 
 | | |
 |---|---|
@@ -930,7 +919,7 @@ costs: an enclosing guarded binder (in scope), a relationalized term (the
 existential carries `set(·)`, so S1 DELIVERS it), or a constructor term (a
 sethood lemma — `pair_set`, `upair_set`, already in `tiers/pairs`).
 
-*Measured*, `the_appt_expansion_is_per_site`: **676,001 of 797,924** `AppT`
+*Measured*: **676,001 of 797,924** `AppT`
 instantiate at a Const, Abs or App rather than a variable, and 121,921 at a Free
 or Bound. The expansion is per SITE. What the boundary buys is not a shorter
 proof but a MECHANICAL one.
@@ -950,7 +939,7 @@ PROGRESS BY 3.5×.** A proof replays only if every theorem it cites replays too,
 so eligibility is the greatest fixed point over the citation graph, not a
 per-theorem test.
 
-*Measured*, `replay_eligibility_closes_over_citations`:
+*Measured*:
 
 | | |
 |---|---|
@@ -1003,16 +992,12 @@ the mechanism that made those proofs go through, and §3 cannot replace it (§3
 compiles a class per *concrete* φ). Removing reification breaks that whole class
 of proofs with no replacement, so the encoder could not be repaired incrementally.
 
-**What was kept**, because it is indifferent to the encoding: YXML parsing, the
-Isabelle AST, `linearize` up to IR1, the FOL AST, the `ir::Step` proof IR, and the
-emit skeleton — about 5.5k lines of 34k.
-
-**S1 and the `eq_subst` retirement are now enforced by the type system, not by
-discipline.** `FolTerm` has two variants, `Var` and `HandleRef` — there is no
-description term-former, so no encoder can emit one, and the parser rejects a
-term in parenthesised position outright. `Step` has no `EqSubst` and no
-`IotaElim`, so neither can appear in a proof. The rejected constructs are
-unrepresentable rather than discouraged.
+**S1 and the `eq_subst` retirement are properties of the TARGET LANGUAGE, not of
+any encoder's discipline.** A target term is a variable and nothing else, so the
+language has no description term-former to emit and rejects a term in
+parenthesised position outright; and its proof language has neither an `eq_subst`
+nor an `iota_elim` step. The rejected constructs are unrepresentable rather than
+discouraged.
 
 **⚠ THIS QUESTION IS NOW HALF ANSWERED AND THIS PARAGRAPH PREDATES THE ANSWER.**
 Pure's rules DO re-render: §3b's tier-7 probe states the nine as schemas, proves
@@ -1034,26 +1019,25 @@ cause.
 whose STATEMENT is expressible, so counting citations answers nothing. What
 follows is the statement half.
 
-*Measured*, `the_compound_term_blockers_are_bounded_by_constants` over all 16,798
-statements: **15,183 — 90% — refuse on a compound term, across 258 DISTINCT
-heads.** Blockage broad, cause narrow. **⚠ THAT 258 IS A WORK-LIST, NOT A SET
-THAT RESISTS** — the census renders against an EMPTY `ConstEnv`, so every
-constant in term position refuses by construction; it counts heads needing an
-entry, not heads that would still fail with one. And it is not 258 graphs:
-`the_constant_table_census` splits the same population as **197 term constants**
-(the S2/S3 route) + 54 predicates (S4) + 6 connectives + 1 neither.
+*Measured* over all 16,798 statements: **15,183 — 90% — refuse on a compound
+term, across 258 DISTINCT heads.** Blockage broad, cause narrow. **⚠ THAT 258 IS
+A WORK-LIST, NOT A SET THAT RESISTS** — the census renders with an EMPTY
+vocabulary, so every constant in term position refuses by construction; it counts
+heads needing an entry, not heads that would still fail with one. And it is not
+258 graphs: the same population splits as **197 term constants** (the S2/S3
+route) + 54 predicates (S4) + 6 connectives + 1 neither.
 
 The 197 are a TERMINATING work list, and that is what Isabelle's own validation
 buys. Its terms are total functions — `The` yields `0` when not unique — so EX
 and UNIQ are consequences of well-formedness, not hypotheses that might fail.
 They must still be *proved* in the target, which does not know Isabelle's
-typing, but the proof cannot fail for a mathematical reason.
-`the_constant_induction_is_well_founded`: all **197 reachable, 27 levels, no
-cycles, frontier 3**. S3's induction is executable, not merely stated.
+typing, but the proof cannot fail for a mathematical reason. Measured: all **197
+reachable, 27 levels, no cycles, frontier 3**. S3's induction is executable, not
+merely stated.
 
 **And the 15,183 are NOT the bottleneck.** Eligibility closes over citations
 (§3b), so the question is what the CLOSURE becomes, not how many statements
-unblock. *Measured*, `the_ceiling_is_gated_by_the_wide_atom_not_the_graphs`:
+unblock. *Measured*:
 
 | seed | closes to |
 |---|---|
@@ -1105,33 +1089,23 @@ compiled class. That is the dependency chain worth planning around.
 premises.** A count says what the translator happens to produce, never what it
 ought to. Every plan derived from counts has been invalidated by a later count.
 
-**⚠ NINE CLAIMS BELOW CITED HANDLES THAT NO LONGER EXIST; FIVE REMAIN**, all deleted with the
-position-indexed layer. A claim whose evidence is gone is a BELIEF, not state.
-Two groups, needing different treatment:
+**⚠ EVERY CORPUS FIGURE IN THIS DOCUMENT IS UNEVIDENCED.** All of them were
+measured by the deleted layer, and none can be reproduced as the tree stands. A
+claim whose evidence is gone is a BELIEF, not state; the figures are kept only
+because re-deriving one is cheaper than re-discovering the question it answered.
+The two groups differ in what re-establishing them would cost:
 
-*Superseded with §3a* — the claim is about the position-indexed construction, so
-re-establishing its test would rebuild what §3 removes:
-`constant::tests::a_tuple_slot_is_always_a_set` (R4's older reading, which R4
-already annotates), and the three behind §1's "missing lemma family indexed by
-block width" — `class::graph::tests::permuted_and_non_prefix_placements_need_no_new_lemma`,
-`class::tests::a_wide_block_seed_is_unplaceable_at_the_third_upair_of_every_pair`,
-`class::tests::a_block_can_be_prepended_and_the_kernel_accepts_it`. **That
-passage is the placement family §3 exists to remove; read it as §3a's.**
+- *Superseded with §3a* — R4's older reading, and §1's "missing lemma family
+  indexed by block width", are claims about the position-indexed construction, so
+  re-measuring them would rebuild exactly what §3 removes. **Read that passage as
+  §3a's.**
+- *Live but unevidenced* — the rest survive §3 and owe a new measurement. Two
+  need none: R6's two refusals are STRUCTURAL, and CONG at `n = 0` reads off its
+  own shape. §2's "TWO, not eight" is the one that still matters and still has
+  nothing behind it — a structural proxy gives 75 vacuous `λ` across 58
+  constants, a strict SUPERSET, since §2 counts only class-ARGUMENT positions.
 
-*Live but unevidenced* — survives §3 and owes a new handle. **Three of the five
-are now closed:**
-
-| was | now |
-|---|---|
-| `the_refusals_are_a_short_head_and_a_long_cascade` (R6) | **re-established** as `r6s_two_refusals_are_the_meta_function_values` — and structurally, so it no longer depends on a generator |
-| `a_nullary_constant_owes_no_cong` (S2) | **needed no handle** — it reads off CONG's shape at `n = 0`; 16 of 197 are nullary |
-| `class::compile_at` / `statement::tuple_mem` | **names dropped** — the concern is about any compiler of that shape, not those functions |
-| R3's proof-length measurement (§1) | **HANDLE DELETED WITH `zf_fst_conv_e2e`** — the finding stands, the artifact does not |
-| `the_p4_blocker_census` (§2's "TWO, not eight") | **STILL DEAD.** A structural proxy gives 75 vacuous `λ` across 58 constants — a strict superset, since §2 counts only class-ARGUMENT positions. Re-establishing it needs the S5 analysis rebuilt. |
-
-Found by sweeping this file's backticked identifiers against `src/`. **Nothing
-checks that automatically, and that is itself the gap** — every other claim here
-carries a handle precisely so it can rot loudly instead of silently.
+**Nothing detects this rot automatically, and that is itself the gap.**
 
 **Instruments must be able to fail.** A checker with no known-answer test — and
 in particular no case it is *required to reject* — proves nothing. Two rounds of
@@ -1146,12 +1120,11 @@ arity-free and its proof size was *proved* linear in width × atom count, but th
 context **width** grows with quantifier depth and §3's rule 2 costs a slot per
 `eq` atom. The two readers of a context had to widen **together** — widening
 either alone moves the refusal instead of removing it. This is where a
-linear-size result could fail in practice. *(The named code — `class::compile_at`,
-`statement::tuple_mem`, `class::read` — went with the encoder. The concern is
-about any compiler with this shape, so it survives the names.)*
+linear-size result could fail in practice. The concern is about any compiler with
+this shape, so it outlives whatever computes it.
 
 **⚠ THE WIDTH IS NOW MEASURED AND THIS PARAGRAPH ASKED FOR IT.** §3's
-`access_costs_less_than_placement_on_real_bodies`: the max FULL context width
+measurement: the max FULL context width
 (arity + binders) over all 197 term-constant bodies is **9**, median 3–4. What
 remains unmeasured is not the width but the *compiled* size at that width —
 these are raw bodies, and R5 compiles them against earlier graphs.
@@ -1164,28 +1137,22 @@ these are raw bodies, and R5 compiles them against earlier graphs.
 | no term-former beyond variables; no reified proposition; no reified graph | §2 S1, S4, S5 |
 | every quantifier and description relativized, and **interleaved** — swept over checked-in artifacts, not only generated ones | §1 R3, §2 S6 |
 
-`rs/docs/phase2_probes/` holds standalone `.fol.def`/`.fol.proof` pairs that the
+`docs/phase2_probes/` holds standalone `.fol.def`/`.fol.proof` pairs that the
 checker verifies directly. They are artifacts, not prose — keep them.
 
 Two rules, each with a test, because this paragraph previously asserted a
 cleanup that had not happened — of 108 probes, 61 used `iota` and 70 had
 `UNPROVED` bodies.
 
-**An artifact survives only if a test runs it.** Every probe has one of three
-roles, each an explicit ledger in `gate/`: the §8 chain (`CHAIN_PROBES`), gate
-L's required-to-reject fixture (`LINKER_REJECT`), and evidence for a specific
-documented claim (`EVIDENCE_PROBES`).
-`gate::tests::every_probe_has_a_role` asserts the directory is exactly their
-union, so a probe cannot be added and left unrun, nor deleted leaving a dangling
-ledger entry. 77 that were reachable from nothing are gone.
+**An artifact survives only if something runs it.** Every probe must have exactly
+one role — a link in §8's chain, a required-to-reject fixture, or evidence for one
+documented claim — and the probe directory must be exactly the union of the three,
+so a probe cannot be added and left unrun, nor deleted leaving a dangling claim.
+77 that were reachable from nothing are gone. ⚠ **Nothing enforces this now.**
 
 **No checked-in artifact may contain a banned construct, and "only there to be
 rejected" is not an exemption.** 13 probes carrying `iota`/`eq_subst` were kept
-once on that argument; they are deleted.
-`gate::tests::no_checked_in_artifact_carries_a_banned_construct` sweeps `base/`
-and the probe directory through G4 — which `gate::shapes` alone does not cover,
-since it only ever sees *generated* units. A required-to-reject fixture is built
-**in code** (`gate::iota_but_gate_clean`, and the synthetic units in
-`gate::shapes`), never stored as a file: a banned construct sitting in the tree
-gets cited, copied, or wired into a chain. Nothing was lost in the trade — the
-same claims are still tested.
+once on that argument; they are deleted. The sweep must cover `base/` and the
+probe directory through G4, which a check over *generated* units alone never sees.
+A required-to-reject fixture is built inside the test, never stored as a file: a
+banned construct sitting in the tree gets cited, copied, or wired into a chain.

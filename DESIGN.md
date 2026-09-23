@@ -3,10 +3,6 @@
 **A SKETCH TO REACT TO.** Nothing built. Decisions I made rather than asked about
 are marked **[choice]** — push back on any of them.
 
-⚠ The earlier "keep yxml.rs and export/db.rs" answer is **void** under the
-language change: both have to be rewritten in Swift. Only the *format knowledge*
-carries over, not the code.
-
 ---
 
 ## 1. Package layout
@@ -15,12 +11,13 @@ carries over, not the code.
 Package.swift
 Sources/
   YXML/          Isabelle's transfer format → node tree.   Knows no dialect.
+  IR/            Graph · Op · Builder · Pass · legalize.   BUILT
   IsaDialect/    types · verify · read-from-YXML
   FolDialect/    types · verify · print
-  Framework/     corpus · conversion · ledger · driver
+  Framework/     corpus · ledger · driver
   isa2fol/       CLI
 Tests/
-  YXMLTests/  IsaDialectTests/  FolDialectTests/  FrameworkTests/
+  YXMLTests/  IRTests/  IsaDialectTests/  FolDialectTests/
 ```
 
 ```
@@ -50,6 +47,11 @@ either is silent.
 ---
 
 ## 2. IsaDialect
+
+**The surface this must cover is measured** — `docs/SOURCE_SURFACE.md`, which
+regenerates. In short: 3 Pure statement constants, 13 IFOL, **0 FOL**, 4 sorts,
+249 ZF constants; and on the proof side a frontier of 7 Pure axioms + 6 Pure
+derived + 132 IFOL/FOL + 7 ZF axioms + 207 object definitions.
 
 ### Sorts
 
@@ -201,7 +203,79 @@ checker accepts — not against our own reading of the grammar.
 
 ---
 
-## 4. Framework
+## 4. IR — the pass engine  **[BUILT]**
+
+**One graph, ops from both dialects, values typed by logical result.** Progressive
+lowering in the MLIR sense: a partially-lowered graph is well-formed, so a pass may
+lower one construct and stop.
+
+### Nodes are values, edges are ops, the dialect labels the edge
+
+Lowering **relabels edges; the nodes persist**. That is what makes it cheap, and it
+works only because Isabelle's `i`/`o` and fol-zfc's object/proposition are the same
+type — they differ by an *obligation* (the R3 guard), not by a sort. NBG is
+one-sorted here and `set(·)` is a predicate, so one `.obj` is faithful; splitting it
+would manufacture a sort the mathematics does not have.
+
+```swift
+enum IRType { case obj, prop, meta; indirect case fn(IRType, IRType)
+              indirect case derivation(IRType) }
+```
+
+Isabelle's four sorts, fol-zfc's two. `.obj` and `.prop` are the fixpoint; `.meta`
+(Pure's `prop`) and `.fn` (the meta arrow) are lowered away. Measured surface, so
+the lowering touches a minority of the graph: `i` 98.3%, `o` 12.4% arrive already
+target-shaped; only `fn` 21.4% and the Pure constants move (`docs/SOURCE_SURFACE.md`).
+
+⚠ **`fn` IS TWO DIFFERENT JOBS.** As a binder scope it becomes a **Region** and costs
+nothing — that is most of the 21.4%. As a constant's *operand* it becomes a class
+(S5), which is the expensive path.
+
+### Binders are Regions, not de Bruijn
+
+A bound variable is a block argument, so substitution is operand replacement and
+there is no index shifting. Under free-form rewriting that is not a preference:
+renumbering under a moved binder is the classic silent bug.
+
+### Passes
+
+```swift
+protocol Pass { var name: String { get }; var ensures: [Invariant] { get }
+                func run(_ b: inout Builder) throws }
+protocol RewritePattern { func matches(_ op: Op) -> Bool
+                          func rewrite(_ id: OpID, _ b: inout Builder) throws }
+```
+
+`PassManager` verifies `ensures` after **every** pass. Most passes are a bag of
+patterns; adding a lowering is adding a pattern.
+
+⚠ **THIS WEAKENS RULE 11 AND `legalize` IS THE REPLACEMENT.** A rewrite pattern is
+partial, so a new `Op` case breaks no pattern and would survive lowering silently.
+`legalize` is one exhaustive switch over `Op` and is the only place naming both
+vocabularies — adding a case breaks the build **there**. That is the seal, relocated
+from the module graph into a single function.
+
+### The one thing the engine enforces, not the reviewer
+
+**A `.derivation` value may be built, never rewritten.** `replaceAllUses` and `erase`
+throw on one. A rewritten derivation carries no witness that it is still a
+derivation, and re-establishing that in-process is a second checker, which the
+kernel-as-sole-arbiter rule refuses. Object and proposition values stay freely
+rewritable: a wrong one is a wrong *claim*, which is faithfulness, not soundness.
+
+Pinned by `aDerivationCannotBeRewritten`, `aDerivationCannotBeErased`.
+
+### Status
+
+`legalize`'s `folZfcOnly` is the target. `Op` currently carries 12 ops — enough to
+lower `⟹`/`Trueprop`/atoms/frees end to end (`loweringMakesItFolZfcOnly`) and no
+more. Growing it is the work.
+
+**Unmeasured:** `PatternPass` re-sweeps the whole graph after every single rewrite —
+O(rounds × ops). Correct, and certainly too slow at ~798k proof-term nodes. Measure
+before optimising; a use-list is the obvious fix.
+
+## 5. Framework
 
 ```swift
 public struct Corpus { … }                    // the export, indexed by (theory, serial)
@@ -227,11 +301,10 @@ func convert(_ s: Isa.Statement<Ground>, _ v: Vocabulary) throws -> Fol.Declarat
 
 ---
 
-## 5. What I did not decide
+## 6. What I did not decide
 
 | | |
 |---|---|
 | what monomorphise instantiates at | use-site type argument, or always `'a := i`? The second is §11.0's proposal and resolves `eq`/`All`/`Ex`/`split` in one move, but makes a generic IFOL theorem mean only its `i`-instance |
 | whether the ZF primitive surface is a third dialect or a stage inside IsaDialect | parked where you left it |
 | what `base/` becomes | it is `.fol.def` text today; does FolDialect *read* it, or is it opaque input to the checker? |
-| the fate of `rs/` | 12,781 lines, still on disk, suite green. Delete, or keep as reference while the Swift side grows? |

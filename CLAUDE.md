@@ -48,21 +48,35 @@ missing lemma would otherwise read as a triumph.
 base, rules R1-R6, the six specification obligations S1-S6, the class-existence
 construction, and where the code disagrees.
 
-`docs/FOUNDATION_TO_FOLZFC.md` is its companion — the route to a checked
-artifact. §14 is the source interface; §18 is the constant/theorem
-stratification.
+It is the ONLY design document. `FOUNDATION_TO_FOLZFC.md`, `DECLARE.md`,
+`REPLAY.md`, `KERNEL_ABI.md`, `fol_abi.h` and `DESIGN_rs.md` were **deleted
+2026-09-23**: all six planned the Rust implementation — `IR1`-`IR4`, the
+`H → S → E → LOWER` pipeline, `PassContext`, `src/replay/` — and none of it
+survives the language change. They are in git history. Do not restore one to
+answer a design question; `DESIGN.md` and the code are the structure.
 
-Read them before proposing any schema, encoding, shortcut, or kernel-trust
-optimisation. If a proposal contradicts them, the proposal is wrong — or the
+Read it before proposing any schema, encoding, shortcut, or kernel-trust
+optimisation. If a proposal contradicts it, the proposal is wrong — or the
 document needs changing first, deliberately, not in passing.
 
 **Method:** reason from what FOUNDATION.md requires. Corpus counts are tests,
 never premises.
 
-⚠ **Both documents have stale sections**, flagged during the 2026-09 reset:
-§10's phase table (three of eight status rows cite deleted code), §18's "LANDED"
-rows (`walk_cenv`, `no_graph`, `w.graphs` have zero occurrences anywhere), and
-every path of the form `rs/src/...`. Trust the code over the row.
+`docs/SOURCE_SURFACE.md` is the **measured** companion, and the distinction is
+load-bearing: FOUNDATION.md says what the translation must satisfy, SOURCE_SURFACE
+says what the corpus actually contains. A count never justifies a specification.
+It regenerates with `scripts/source-surface.py`, so unlike every figure in
+FOUNDATION.md its numbers have a live handle.
+
+⚠ **FOUNDATION.md IS MATHEMATICS ONLY AND CARRIES NO CODE REFERENCE.** No module
+path, no function name, no test name — they were stripped 2026-09-23 because each
+one named something deleted while reading as live evidence. Do not add one back:
+cite a `base/` tier or a probe, which the kernel checks, or state the claim
+without a handle. Its source- and target-language vocabulary (`AppT`, `ZAppt`,
+`UNPROVED`, theory names) is not a code reference.
+
+⚠ **CONSEQUENTLY EVERY CORPUS FIGURE IN IT IS UNEVIDENCED** — the measuring code
+is gone. §5 says so. Treat every number there as a belief, never a premise.
 
 ## Coding rules
 
@@ -167,7 +181,7 @@ Sources/
   isa2fol/       CLI
 Tests/           YXMLTests · IsaDialectTests · FolDialectTests
 base/            the NBG foundation: axioms.fol.def + 9 tiers, kernel-checked
-docs/            FOUNDATION.md · FOUNDATION_TO_FOLZFC.md · phase2_probes · designs
+docs/            FOUNDATION.md · SOURCE_SURFACE.md · phase2_probes
 data/zf_export/  the Isabelle export
 ```
 
