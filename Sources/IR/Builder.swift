@@ -63,7 +63,7 @@ public struct Builder: Sendable {
     }
 
     public mutating func replaceAllUses(of v: ValueID, with w: ValueID) throws {
-        if case .derivation = graph.type(of: v) {
+        if let p = graph.producer(of: v), graph.op(p).producesEvidence {
             throw IRRefusal.rewroteADerivation(v)
         }
         for i in graph.opNodes.indices {
@@ -74,10 +74,8 @@ public struct Builder: Sendable {
     }
 
     public mutating func erase(_ o: OpID) throws {
-        for v in graph.opNodes[o.raw].results {
-            if case .derivation = graph.type(of: v) {
-                throw IRRefusal.erasedADerivation(o)
-            }
+        if graph.op(o).producesEvidence {
+            throw IRRefusal.erasedADerivation(o)
         }
         graph.opNodes[o.raw].erased = true
     }

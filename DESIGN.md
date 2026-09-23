@@ -151,12 +151,13 @@ one-sorted here and `set(·)` is a predicate, so one `.obj` is faithful; splitti
 would manufacture a sort the mathematics does not have.
 
 ```swift
-enum IRType { case obj, prop, meta; indirect case fn(IRType, IRType)
-              indirect case derivation(IRType) }
+enum IRType { case obj, prop, meta; indirect case fn(IRType, IRType) }
 ```
 
-Isabelle's four sorts, fol-zfc's two. `.obj` and `.prop` are the fixpoint; `.meta`
-(Pure's `prop`) and `.fn` (the meta arrow) are lowered away. Measured surface, so
+**Four cases, one per measured source sort** — `i`, `o`, Pure's `prop`, `fun`.
+`.obj` and `.prop` are the fixpoint; `.meta` and `.fn` lower away. There is no
+fifth: Isabelle has no sort for proofs, so a derivation's type is the
+proposition it proves and its evidence-ness lives on the op. Measured surface, so
 the lowering touches a minority of the graph: `i` 98.3%, `o` 12.4% arrive already
 target-shaped; only `fn` 21.4% and the Pure constants move (`docs/SOURCE_SURFACE.md`).
 
@@ -190,8 +191,9 @@ from the module graph into a single function.
 
 ### The one thing the engine enforces, not the reviewer
 
-**A `.derivation` value may be built, never rewritten.** `replaceAllUses` and `erase`
-throw on one. A rewritten derivation carries no witness that it is still a
+**A value produced by an evidence op may be built, never rewritten.**
+`Op.producesEvidence` is an exhaustive switch; `replaceAllUses` and `erase` look
+up the producer and throw. A rewritten derivation carries no witness that it is still a
 derivation, and re-establishing that in-process is a second checker, which the
 kernel-as-sole-arbiter rule refuses. Object and proposition values stay freely
 rewritable: a wrong one is a wrong *claim*, which is faithfulness, not soundness.

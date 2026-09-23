@@ -122,7 +122,7 @@ is the only place either shows up:
 | Swift installs no-sudo, GPG-verified, idempotent | `scripts/02-install-swift.sh` |
 | The pass engine lowers a mixed Isa/Fol graph to fol-zfc-only | `loweringMakesItFolZfcOnly` |
 | A pass that leaves an `isa.*` op behind is rejected AT THAT PASS | `aPassThatLeavesItsEliminatedShapeBehindIsRejected` |
-| A `.derivation` value cannot be rewritten or erased | `aDerivationCannotBeRewritten`, `aDerivationCannotBeErased` |
+| A value from an evidence op cannot be rewritten or erased — and its TYPE does not mark it, only `Op.producesEvidence` does | `aDerivationCannotBeRewritten`, `aDerivationCannotBeErased` |
 | A non-converging pattern fixpoint throws rather than capping | `aFixpointThatDoesNotConvergeThrows` |
 | The ZF source surface is 16 logical constants + 4 sorts + 249 ZF constants; proofs cite a frontier of 7 Pure axioms + 132 IFOL/FOL rules + 7 ZF axioms | `scripts/source-surface.py` |
 

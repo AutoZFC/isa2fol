@@ -33,6 +33,19 @@ public enum Op: Hashable, Sendable {
         }
     }
 
+    /// ⚠ EVIDENCE IS A PROPERTY OF THE OP, NOT A TYPE. Isabelle has no sort for
+    /// proofs; a derivation's type is the proposition it proves. This is what
+    /// Builder refuses to rewrite.
+    public var producesEvidence: Bool {
+        switch self {
+        case .isaAxiom, .folUse:
+            return true
+        case .isaFree, .isaAtom, .isaTrueprop, .isaImp, .isaAll,
+             .folVar, .folPred, .folImplies, .folForall, .cast:
+            return false
+        }
+    }
+
     public var arity: Int? {
         switch self {
         case .isaFree, .isaAxiom, .folVar, .folUse: return 0

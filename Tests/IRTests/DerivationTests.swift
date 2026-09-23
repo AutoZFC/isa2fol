@@ -7,9 +7,9 @@ import Testing
     let x = try b.append(.folVar("x"), results: [.obj], to: r)[0]
     let p = try b.append(.folPred("set"), operands: [x], results: [.prop], to: r)[0]
     let d = try b.append(.folUse("members_are_sets"),
-                         results: [.derivation(.prop)], to: r)[0]
+                         results: [.prop], to: r)[0]
     let e = try b.append(.folUse("elem_second"),
-                         results: [.derivation(.prop)], to: r)[0]
+                         results: [.prop], to: r)[0]
 
     try b.replaceAllUses(of: p, with: p)
 
@@ -21,7 +21,7 @@ import Testing
 @Test func aDerivationCannotBeErased() throws {
     var b = Builder()
     let r = b.graph.root
-    _ = try b.append(.folUse("eq_refl"), results: [.derivation(.prop)], to: r)
+    _ = try b.append(.folUse("eq_refl"), results: [.prop], to: r)
     let op = b.graph.liveOps.last!
     #expect(throws: IRRefusal.erasedADerivation(op)) { try b.erase(op) }
 }
