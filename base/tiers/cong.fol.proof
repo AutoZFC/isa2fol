@@ -1,0 +1,335 @@
+proof iff_refl:
+    _a = assume A
+    _i = implies_intro _a
+    _r = iff_intro _i, _i
+    qed _r
+
+proof cong_not:
+    _h = assume (A <-> B)
+    _na = assume (~ A)
+    _b = assume B
+    _a1 = iff_elim_r _h, _b
+    _t1 = not_elim _na, _a1
+    _n1 = not_intro _t1
+    _f = implies_intro _n1
+    _nb = assume (~ B)
+    _a2 = assume A
+    _b2 = iff_elim_l _h, _a2
+    _t2 = not_elim _nb, _b2
+    _n2 = not_intro _t2
+    _g = implies_intro _n2
+    _r = iff_intro _f, _g
+    _q = implies_intro _r
+    qed _q
+
+proof cong_and:
+    _h1 = assume (A <-> A2)
+    _h2 = assume (B <-> B2)
+    _p = assume (A & B)
+    _pa = and_elim_l _p
+    _pb = and_elim_r _p
+    _qa = iff_elim_l _h1, _pa
+    _qb = iff_elim_l _h2, _pb
+    _qq = and_intro _qa, _qb
+    _f = implies_intro _qq
+    _p2 = assume (A2 & B2)
+    _pa2 = and_elim_l _p2
+    _pb2 = and_elim_r _p2
+    _qa2 = iff_elim_r _h1, _pa2
+    _qb2 = iff_elim_r _h2, _pb2
+    _qq2 = and_intro _qa2, _qb2
+    _g = implies_intro _qq2
+    _r = iff_intro _f, _g
+    _o1 = implies_intro _r
+    _o2 = implies_intro _o1
+    qed _o2
+
+proof cong_or:
+    _h1 = assume (A <-> A2)
+    _h2 = assume (B <-> B2)
+    _p = assume (A | B)
+    _ca = assume A
+    _da = iff_elim_l _h1, _ca
+    _dB2 = let B2
+    _oa = or_intro_l _da, _dB2
+    _la = implies_intro _oa
+    _cb = assume B
+    _db = iff_elim_l _h2, _cb
+    _dA2 = let A2
+    _ob = or_intro_r _dA2, _db
+    _lb = implies_intro _ob
+    _res = or_elim _p, _la, _lb
+    _f = implies_intro _res
+    _p2 = assume (A2 | B2)
+    _ca2 = assume A2
+    _da2 = iff_elim_r _h1, _ca2
+    _dB = let B
+    _oa2 = or_intro_l _da2, _dB
+    _la2 = implies_intro _oa2
+    _cb2 = assume B2
+    _db2 = iff_elim_r _h2, _cb2
+    _dA = let A
+    _ob2 = or_intro_r _dA, _db2
+    _lb2 = implies_intro _ob2
+    _res2 = or_elim _p2, _la2, _lb2
+    _g = implies_intro _res2
+    _r = iff_intro _f, _g
+    _o1 = implies_intro _r
+    _o2 = implies_intro _o1
+    qed _o2
+
+proof cong_imp:
+    _h1 = assume (A <-> A2)
+    _h2 = assume (B <-> B2)
+    _p = assume (A -> B)
+    _ca = assume A2
+    _a1 = iff_elim_r _h1, _ca
+    _b1 = implies_elim _p, _a1
+    _b2 = iff_elim_l _h2, _b1
+    _i1 = implies_intro _b2
+    _f = implies_intro _i1
+    _p2 = assume (A2 -> B2)
+    _cb = assume A
+    _a2 = iff_elim_l _h1, _cb
+    _bb1 = implies_elim _p2, _a2
+    _bb2 = iff_elim_r _h2, _bb1
+    _i2 = implies_intro _bb2
+    _g = implies_intro _i2
+    _r = iff_intro _f, _g
+    _o1 = implies_intro _r
+    _o2 = implies_intro _o1
+    qed _o2
+
+proof cong_iff:
+    _h1 = assume (A <-> A2)
+    _h2 = assume (B <-> B2)
+    _p = assume (A <-> B)
+    _x1 = assume A2
+    _y1 = iff_elim_r _h1, _x1
+    _y2 = iff_elim_l _p, _y1
+    _y3 = iff_elim_l _h2, _y2
+    _u1 = implies_intro _y3
+    _x2 = assume B2
+    _z1 = iff_elim_r _h2, _x2
+    _z2 = iff_elim_r _p, _z1
+    _z3 = iff_elim_l _h1, _z2
+    _u2 = implies_intro _z3
+    _uu = iff_intro _u1, _u2
+    _f = implies_intro _uu
+    _p2 = assume (A2 <-> B2)
+    _w1 = assume A
+    _v1 = iff_elim_l _h1, _w1
+    _v2 = iff_elim_l _p2, _v1
+    _v3 = iff_elim_r _h2, _v2
+    _t1 = implies_intro _v3
+    _w2 = assume B
+    _s1 = iff_elim_l _h2, _w2
+    _s2 = iff_elim_r _p2, _s1
+    _s3 = iff_elim_r _h1, _s2
+    _t2 = implies_intro _s3
+    _tt = iff_intro _t1, _t2
+    _g = implies_intro _tt
+    _r = iff_intro _f, _g
+    _o1 = implies_intro _r
+    _o2 = implies_intro _o1
+    qed _o2
+
+proof cong_exists:
+    _h = assume (forall z. (set(z) -> (P(z) <-> Q(z))))
+    _p = assume (exists z. (set(z) & P(z)))
+    _e = exists_elim _p, z0
+    _sz = and_elim_l _e
+    _pz = and_elim_r _e
+    _a1 = forall_elim _h, z0
+    _a2 = implies_elim _a1, _sz
+    _qz = iff_elim_l _a2, _pz
+    _cj = and_intro _sz, _qz
+    _ex = exists_intro _cj, z0
+    _cl = exists_intro _ex
+    _f = implies_intro _cl
+    _p2 = assume (exists z. (set(z) & Q(z)))
+    _e2 = exists_elim _p2, z1
+    _sz2 = and_elim_l _e2
+    _qz2 = and_elim_r _e2
+    _b1 = forall_elim _h, z1
+    _b2 = implies_elim _b1, _sz2
+    _pz2 = iff_elim_r _b2, _qz2
+    _cj2 = and_intro _sz2, _pz2
+    _ex2 = exists_intro _cj2, z1
+    _cl2 = exists_intro _ex2
+    _g = implies_intro _cl2
+    _r = iff_intro _f, _g
+    _o = implies_intro _r
+    qed _o
+
+proof cong_forall:
+    _h = assume (forall z. (set(z) -> (P(z) <-> Q(z))))
+    _p = assume (forall z. (set(z) -> P(z)))
+    fix u
+    _su = assume set(u)
+    _a1 = forall_elim _p, u
+    _a2 = implies_elim _a1, _su
+    _b1 = forall_elim _h, u
+    _b2 = implies_elim _b1, _su
+    _qu = iff_elim_l _b2, _a2
+    _i1 = implies_intro _qu
+    _all1 = forall_intro _i1
+    _f = implies_intro _all1
+    _p2 = assume (forall z. (set(z) -> Q(z)))
+    fix w
+    _sw = assume set(w)
+    _c1 = forall_elim _p2, w
+    _c2 = implies_elim _c1, _sw
+    _d1 = forall_elim _h, w
+    _d2 = implies_elim _d1, _sw
+    _pw = iff_elim_r _d2, _c2
+    _i2 = implies_intro _pw
+    _all2 = forall_intro _i2
+    _g = implies_intro _all2
+    _r = iff_intro _f, _g
+    _o = implies_intro _r
+    qed _o
+
+proof cong_elem_l:
+    _efs = use elem_first_subst
+    _sym = use eq_symm
+    fix a
+    fix b
+    fix t
+    _h = assume eq(a,b)
+    _p = assume elem(a,t)
+    _e1 = forall_elim _efs, a
+    _e2 = forall_elim _e1, b
+    _e3 = forall_elim _e2, t
+    _e4 = implies_elim _e3, _h
+    _e5 = implies_elim _e4, _p
+    _f = implies_intro _e5
+    _p2 = assume elem(b,t)
+    _s1 = forall_elim _sym, a
+    _s2 = forall_elim _s1, b
+    _sba = implies_elim _s2, _h
+    _g1 = forall_elim _efs, b
+    _g2 = forall_elim _g1, a
+    _g3 = forall_elim _g2, t
+    _g4 = implies_elim _g3, _sba
+    _g5 = implies_elim _g4, _p2
+    _g = implies_intro _g5
+    _r = iff_intro _f, _g
+    _i = implies_intro _r
+    _q1 = forall_intro _i
+    _q2 = forall_intro _q1
+    _q3 = forall_intro _q2
+    qed _q3
+
+proof cong_elem_r:
+    _es = use elem_second
+    _sym = use eq_symm
+    fix s
+    fix a
+    fix b
+    _h = assume eq(a,b)
+    _p = assume elem(s,a)
+    _e1 = forall_elim _es, a
+    _e2 = forall_elim _e1, b
+    _e3 = forall_elim _e2, s
+    _e4 = implies_elim _e3, _h
+    _e5 = implies_elim _e4, _p
+    _f = implies_intro _e5
+    _p2 = assume elem(s,b)
+    _s1 = forall_elim _sym, a
+    _s2 = forall_elim _s1, b
+    _sba = implies_elim _s2, _h
+    _g1 = forall_elim _es, b
+    _g2 = forall_elim _g1, a
+    _g3 = forall_elim _g2, s
+    _g4 = implies_elim _g3, _sba
+    _g5 = implies_elim _g4, _p2
+    _g = implies_intro _g5
+    _r = iff_intro _f, _g
+    _i = implies_intro _r
+    _q1 = forall_intro _i
+    _q2 = forall_intro _q1
+    _q3 = forall_intro _q2
+    qed _q3
+
+proof cong_eq_l:
+    _sym = use eq_symm
+    _tr = use eq_trans
+    fix a
+    fix b
+    fix t
+    _h = assume eq(a,b)
+    _s1 = forall_elim _sym, a
+    _s2 = forall_elim _s1, b
+    _sba = implies_elim _s2, _h
+    _p = assume eq(a,t)
+    _t1 = forall_elim _tr, b
+    _t2 = forall_elim _t1, a
+    _t3 = forall_elim _t2, t
+    _t4 = implies_elim _t3, _sba
+    _t5 = implies_elim _t4, _p
+    _f = implies_intro _t5
+    _p2 = assume eq(b,t)
+    _u1 = forall_elim _tr, a
+    _u2 = forall_elim _u1, b
+    _u3 = forall_elim _u2, t
+    _u4 = implies_elim _u3, _h
+    _u5 = implies_elim _u4, _p2
+    _g = implies_intro _u5
+    _r = iff_intro _f, _g
+    _i = implies_intro _r
+    _q1 = forall_intro _i
+    _q2 = forall_intro _q1
+    _q3 = forall_intro _q2
+    qed _q3
+
+proof cong_eq_r:
+    _sym = use eq_symm
+    _tr = use eq_trans
+    fix s
+    fix a
+    fix b
+    _h = assume eq(a,b)
+    _p = assume eq(s,a)
+    _t1 = forall_elim _tr, s
+    _t2 = forall_elim _t1, a
+    _t3 = forall_elim _t2, b
+    _t4 = implies_elim _t3, _p
+    _t5 = implies_elim _t4, _h
+    _f = implies_intro _t5
+    _p2 = assume eq(s,b)
+    _s1 = forall_elim _sym, a
+    _s2 = forall_elim _s1, b
+    _sba = implies_elim _s2, _h
+    _u1 = forall_elim _tr, s
+    _u2 = forall_elim _u1, b
+    _u3 = forall_elim _u2, a
+    _u4 = implies_elim _u3, _p2
+    _u5 = implies_elim _u4, _sba
+    _g = implies_intro _u5
+    _r = iff_intro _f, _g
+    _i = implies_intro _r
+    _q1 = forall_intro _i
+    _q2 = forall_intro _q1
+    _q3 = forall_intro _q2
+    qed _q3
+
+proof cong_exists_bare:
+    _h = assume (forall z. (P(z) <-> Q(z)))
+    _p = assume (exists z. P(z))
+    _e = exists_elim _p, z0
+    _a1 = forall_elim _h, z0
+    _qz = iff_elim_l _a1, _e
+    _ex = exists_intro _qz, z0
+    _cl = exists_intro _ex
+    _f = implies_intro _cl
+    _p2 = assume (exists z. Q(z))
+    _e2 = exists_elim _p2, z1
+    _b1 = forall_elim _h, z1
+    _pz = iff_elim_r _b1, _e2
+    _ex2 = exists_intro _pz, z1
+    _cl2 = exists_intro _ex2
+    _g = implies_intro _cl2
+    _bi = iff_intro _f, _g
+    _out = implies_intro _bi
+    qed _out

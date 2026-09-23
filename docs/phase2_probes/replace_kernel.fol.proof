@@ -1,0 +1,96 @@
+proof replace_char:
+    fix A
+    fix F
+    _hg = assume (forall u. (set(u) -> (forall v. (set(v) -> (pmem(u,v,F) <-> P(u,v))))))
+    _hs = assume (forall u. (set(u) -> (forall v. (set(v) -> (forall w. (set(w) -> (P(u,v) -> (P(u,w) -> eq(v,w)))))))))
+    _ha = assume set(A)
+    fix a
+    _sa = assume set(a)
+    fix b
+    _sb = assume set(b)
+    fix c
+    _sc = assume set(c)
+    _p1 = assume pmem(a,b,F)
+    _p2 = assume pmem(a,c,F)
+    _g1 = forall_elim _hg, a
+    _g2 = implies_elim _g1, _sa
+    _g3 = forall_elim _g2, b
+    _g4 = implies_elim _g3, _sb
+    _pb = iff_elim_l _g4, _p1
+    _g5 = forall_elim _g2, c
+    _g6 = implies_elim _g5, _sc
+    _pc = iff_elim_l _g6, _p2
+    _v1 = forall_elim _hs, a
+    _v2 = implies_elim _v1, _sa
+    _v3 = forall_elim _v2, b
+    _v4 = implies_elim _v3, _sb
+    _v5 = forall_elim _v4, c
+    _v6 = implies_elim _v5, _sc
+    _v7 = implies_elim _v6, _pb
+    _v8 = implies_elim _v7, _pc
+    _f1 = implies_intro _v8
+    _f2 = implies_intro _f1
+    _f3 = implies_intro _f2
+    _f4 = forall_intro _f3
+    _f5 = implies_intro _f4
+    _f6 = forall_intro _f5
+    _f7 = implies_intro _f6
+    _fun = forall_intro _f7
+    _rep = use replacement
+    _r1 = forall_elim _rep, F
+    _r2 = implies_elim _r1, _fun
+    _r3 = forall_elim _r2, A
+    _r4 = implies_elim _r3, _ha
+    _ez = exists_elim _r4, z
+    _zs = and_elim_l _ez
+    _zm = and_elim_r _ez
+    fix d
+    _sd = assume set(d)
+    _m1 = forall_elim _zm, d
+    _m2 = implies_elim _m1, _sd
+    _fw = assume elem(d,z)
+    _ex = iff_elim_l _m2, _fw
+    _eu = exists_elim _ex, e
+    _se = and_elim_l _eu
+    _rs = and_elim_r _eu
+    _ea = and_elim_l _rs
+    _ep = and_elim_r _rs
+    _h1 = forall_elim _hg, e
+    _h2 = implies_elim _h1, _se
+    _h3 = forall_elim _h2, d
+    _h4 = implies_elim _h3, _sd
+    _eP = iff_elim_l _h4, _ep
+    _k1 = and_intro _ea, _eP
+    _k2 = and_intro _se, _k1
+    _x1 = exists_intro _k2, e
+    _x2 = exists_intro _x1
+    _fwd = implies_intro _x2
+    _bw = assume (exists u. (set(u) & (elem(u,A) & P(u,d))))
+    _bu = exists_elim _bw, g
+    _sg = and_elim_l _bu
+    _br = and_elim_r _bu
+    _ba = and_elim_l _br
+    _bP = and_elim_r _br
+    _b1 = forall_elim _hg, g
+    _b2 = implies_elim _b1, _sg
+    _b3 = forall_elim _b2, d
+    _b4 = implies_elim _b3, _sd
+    _bpm = iff_elim_r _b4, _bP
+    _c1 = and_intro _ba, _bpm
+    _c2 = and_intro _sg, _c1
+    _y1 = exists_intro _c2, g
+    _y2 = exists_intro _y1
+    _bz = iff_elim_r _m2, _y2
+    _bwd = implies_intro _bz
+    _bi = iff_intro _fwd, _bwd
+    _i1 = implies_intro _bi
+    _gd = forall_intro _i1
+    _cj = and_intro _zs, _gd
+    _e1 = exists_intro _cj, z
+    _e2 = exists_intro _e1
+    _i2 = implies_intro _e2
+    _i3 = implies_intro _i2
+    _i4 = implies_intro _i3
+    _gF = forall_intro _i4
+    _gA = forall_intro _gF
+    qed _gA

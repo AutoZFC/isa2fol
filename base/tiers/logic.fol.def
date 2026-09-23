@@ -1,0 +1,67 @@
+# base/tiers/logic -- the NORMALISATION BRIDGES (§5 rule 3, and rule 2's core).
+#
+# Compiler B's induction has four cases: atom, AND, NOT, EXISTS (FOUNDATION §3).
+# §5 rule 3 says `| -> <-> forall` are eliminated in favour of those. The
+# question is what the class unit then CLAIMS.
+#
+# Rewriting phi to a normal form and claiming the normal form pushes an
+# unproved obligation onto every consumer: it must believe normalise(phi) <->
+# phi. Claiming the caller's phi while proving the normal form is worse -- it is
+# §6's green-but-wrong shape, a checked biconditional about a different formula.
+#
+# The way out is that the bridge is LOCAL. If a node's children already carry
+# their ORIGINAL subformulas, then eliminating one connective needs exactly one
+# equivalence, with the children opaque. So these are five fixed schemas, proved
+# once here, rather than a proof generated per formula.
+#
+# The three that need classical logic need it in ONE direction only, and it is
+# always the same shape: derive ~~X and apply double_neg_elim. The converses are
+# intuitionistic.
+
+schema demorgan_or [A(0), B(0)]: ((~ ((~ A) & (~ B))) <-> (A | B))
+schema imp_as_nand [A(0), B(0)]: ((~ (A & (~ B))) <-> (A -> B))
+schema iff_as_nands [A(0), B(0)]: (((~ (A & (~ B))) & (~ (B & (~ A)))) <-> (A <-> B))
+
+# Kuratowski's singleton half is `upair(a,a,.)`, so `eq(w,a) | eq(w,a)` sits in
+# every graph atom of arity >= 2. Through `demorgan_or` it costs 3 complements
+# and 5 extra classes for no content; this bridges it to `A` instead.
+schema or_idem [A(0)]: (A <-> (A | A))
+
+# §17's E column: `Ax(Symmetric)` and `Ax(Transitive)` at sort `o` cite these,
+# as `Ax(Reflexive)` cites `iff_refl`. R1 admissions -- derived from the kernel's
+# own `<->` rules, never declared.
+schema iff_symm [A(0), B(0)]: ((A <-> B) -> (B <-> A))
+schema iff_trans [A(0), B(0), C(0)]: ((A <-> B) -> ((B <-> C) -> (A <-> C)))
+
+# `equal_elim` and `equal_intr` are kernel RULES on the Isabelle side, and IR4
+# has no node for applying one -- so E cites them as schemas instead and the
+# source proof's own `ImpE`s are left alone.
+schema iff_mp [A(0), B(0)]: ((A <-> B) -> (A -> B))
+schema iff_both [A(0), B(0)]: ((A -> B) -> ((B -> A) -> (A <-> B)))
+
+# The quantifier bridge. The set(.) guard rides along on both sides: `forall`
+# here is §6's guarded form, and its dual keeps the guard as a CONJUNCT inside
+# the existential. Dropping it either side would quantify over classes (S6).
+schema forall_as_nexists [P(1)]: ((~ (exists z. (set(z) & (~ P(z))))) <-> (forall z. (set(z) -> P(z))))
+
+# §5 rule 2's core: `D = G` becomes `forall z. (z:D <-> z:G)`.
+#
+# This is axiom 3 with the biconditional REVERSED, and that is the whole of the
+# difference -- `base/axioms` already states Extensionality guarded, so there is
+# no guard to bridge. It exists because `class::derive` matches the compiled
+# inner form against the LEFT side of a biconditional (the `BridgeKind`
+# orientation), and axiom 3 has `eq(A,B)` there. Reversed, the mismatch surfaces
+# far away as `iff_elim_l: formula doesn't match biconditional's left side`.
+#
+# It is an ADAPTER, not a second version of the axiom: same formula, and nothing
+# here may state a weaker or stronger one.
+claim ext_guarded: forall A. forall B. ((forall z. (set(z) -> (elem(z,A) <-> elem(z,B)))) <-> eq(A,B))
+
+# UNION, the `|` case of Compiler B's induction, proved once from B3/B2/B3 the
+# way the Tuple Lemma is proved once from B5/B6/B7. Expanding `|` per use costs
+# three complements and an intersection EVERY time; this costs one class.
+claim B_or: forall A. forall B. (exists C. (forall u. (set(u) -> (elem(u,C) <-> (elem(u,A) | elem(u,B))))))
+
+# BICONDITIONAL, same move. `<->` expanded per use DUPLICATES both sides, so
+# everything inside it was paid twice; as a class it is `~(A n ~B) n ~(B n ~A)`.
+claim B_iff: forall A. forall B. (exists C. (forall u. (set(u) -> (elem(u,C) <-> (elem(u,A) <-> elem(u,B))))))

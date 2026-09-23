@@ -1,0 +1,6 @@
+# Collect as a parametric kernel, class supplied as a GUARDED hypothesis (§4, §6).
+# The unguarded form of the hypothesis also proves but is uncallable -- see §6.
+axiom members_are_sets: forall x. forall y. (elem(x,y) -> set(x))
+axiom separation: forall A. forall B. (set(B) -> (exists z. (set(z) & (forall u. (elem(u,z) <-> (elem(u,B) & elem(u,A)))))))
+
+schema collect_char [P(1)]: forall A. forall C. ((forall u. (set(u) -> (elem(u,C) <-> P(u)))) -> (set(A) -> (exists c. (set(c) & (forall x. (set(x) -> (elem(x,c) <-> (elem(x,A) & P(x))))))))) 

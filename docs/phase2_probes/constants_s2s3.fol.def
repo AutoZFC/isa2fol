@@ -1,0 +1,35 @@
+# Tier 6 -- S2/S3: every constant carries EX, UNIQ, CONG, and the obligations
+# reduce by definitional order.
+axiom members_are_sets: forall x. forall y. (elem(x,y) -> set(x))
+axiom elem_first_subst: forall x. forall y. forall s. (eq(x,y) -> (elem(x,s) -> elem(y,s)))
+axiom extensionality: forall A. forall B. (eq(A,B) <-> (forall u. (elem(u,A) <-> elem(u,B))))
+axiom empty: exists e. (set(e) & (forall u. (set(u) -> (~ elem(u,e)))))
+axiom power: forall A. (set(A) -> (exists p. (set(p) & (forall u. (set(u) -> (elem(u,p) <-> (forall v. (set(v) -> (elem(v,u) -> elem(v,A))))))))))
+
+@def(Pow) axiom Pow_def: forall A. forall r. (Pow(A,r) <-> (forall u. (set(u) -> (elem(u,r) <-> (forall v. (set(v) -> (elem(v,u) -> elem(v,A))))))))
+
+claim eq_refl: forall A. eq(A,A)
+claim eq_symm: forall A. forall B. (eq(A,B) -> eq(B,A))
+claim eq_trans: forall A. forall B. forall C. (eq(A,B) -> (eq(B,C) -> eq(A,C)))
+claim elem_second: forall A. forall B. forall z. (eq(A,B) -> (elem(z,A) -> elem(z,B)))
+
+# Excluded middle, derived from double_neg_elim (needed only for The's EX).
+schema lem [Q(0)]: (Q | (~ Q))
+
+# ---- S3: the propagation lemma, parametric in F and H ----
+# G(x,r) := exists t. (set(t) & (F(x,t) & H(t,r)))   -- the composite constant
+schema compose_ex [F(2), H(2)]: ((forall x. (set(x) -> (exists t. (set(t) & F(x,t))))) -> ((forall t. (set(t) -> (exists r. (set(r) & H(t,r))))) -> (forall x. (set(x) -> (exists r. (set(r) & (exists t. (set(t) & (F(x,t) & H(t,r))))))))))
+schema compose_uniq [F(2), H(2)]: ((forall x. (forall t. (forall t2. (set(x) -> (set(t) -> (set(t2) -> (F(x,t) -> (F(x,t2) -> eq(t,t2))))))))) -> ((forall t. (forall r. (forall r2. (set(t) -> (set(r) -> (set(r2) -> (H(t,r) -> (H(t,r2) -> eq(r,r2))))))))) -> ((forall a. (forall b. (forall r. (set(a) -> (set(b) -> (set(r) -> (eq(a,b) -> (H(a,r) -> H(b,r))))))))) -> (forall x. (forall r. (forall r2. (set(x) -> (set(r) -> (set(r2) -> ((exists t. (set(t) & (F(x,t) & H(t,r)))) -> ((exists t. (set(t) & (F(x,t) & H(t,r2)))) -> eq(r,r2))))))))))))
+schema compose_cong [F(2), H(2)]: ((forall a. (forall b. (forall t. (set(a) -> (set(b) -> (set(t) -> (eq(a,b) -> (F(a,t) -> F(b,t))))))))) -> (forall a. (forall b. (forall r. (set(a) -> (set(b) -> (set(r) -> (eq(a,b) -> ((exists t. (set(t) & (F(a,t) & H(t,r)))) -> (exists t. (set(t) & (F(b,t) & H(t,r)))))))))))))
+
+# ---- S2 base case: a ZF primitive with all three obligations ----
+claim Pow_EX:   forall A. (set(A) -> (exists r. (set(r) & Pow(A,r))))
+claim Pow_UNIQ: forall A. forall r. forall s. (Pow(A,r) -> (Pow(A,s) -> eq(r,s)))
+claim Pow_CONG: forall A. forall B. forall r. (eq(A,B) -> (Pow(A,r) -> Pow(B,r)))
+
+# ---- S3 base case: definite description with the empty-set default ----
+# The(r) := (exists! set satisfying P  &  P(r))   |   (no unique one  &  r is empty)
+# FOUNDATION §2 S3: total and single-valued BY CONSTRUCTION, *provided* the default
+# is emitted. The Empty axiom is used in exactly one place -- the ~U branch of EX.
+schema the_EX [P(1)]: (exists r. (set(r) & (((exists x. (set(x) & (P(x) & (forall y. (set(y) -> (P(y) -> eq(x,y))))))) & P(r)) | ((~ (exists x. (set(x) & (P(x) & (forall y. (set(y) -> (P(y) -> eq(x,y)))))))) & (forall u. (set(u) -> (~ elem(u,r))))))))
+schema the_UNIQ [P(1)]: (forall r. (forall s. (set(r) -> (set(s) -> ((((exists x. (set(x) & (P(x) & (forall y. (set(y) -> (P(y) -> eq(x,y))))))) & P(r)) | ((~ (exists x. (set(x) & (P(x) & (forall y. (set(y) -> (P(y) -> eq(x,y)))))))) & (forall u. (set(u) -> (~ elem(u,r)))))) -> ((((exists x. (set(x) & (P(x) & (forall y. (set(y) -> (P(y) -> eq(x,y))))))) & P(s)) | ((~ (exists x. (set(x) & (P(x) & (forall y. (set(y) -> (P(y) -> eq(x,y)))))))) & (forall u. (set(u) -> (~ elem(u,s)))))) -> eq(r,s)))))))

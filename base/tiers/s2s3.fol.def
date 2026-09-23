@@ -1,0 +1,114 @@
+# base/tiers/s2s3 -- S3's PROPAGATION KERNELS.
+#
+# §8 tier 6. These are what make the constant table an INDUCTION rather than a
+# list: given EX/UNIQ/CONG for F and H, the composite G(x,r) := exists t. (F(x,t)
+# & H(t,r)) inherits all three. Parametric in F and H, so they are proved once
+# here and instantiated per constant.
+#
+# WHY compose_uniq NEEDS CONG(H), which is why S2 lists three obligations and
+# not two: given G(x,r) and G(x,r') the intermediates t, t' DIFFER. UNIQ(F)
+# gives eq(t,t'), but UNIQ(H) is stated at a single t, so it cannot be applied
+# until CONG(H) transports H(t',r') to H(t,r'). §8 records a negative control:
+# supplying eq(t,t') where eq(t',t) is needed fails at implies_elim.
+#
+# `the_EX` / `the_UNIQ` WERE HERE AND ARE DELETED -- do not reinstate them.
+# They proved EX/UNIQ for the empty-default description
+#     D(r) := (U & P(r)) | (~U & r is empty),   U := "exactly one set satisfies P"
+# on the reading that FOUNDATION §2 S3 makes `The` a BASE CASE. It is not one in
+# this export: Isabelle DEFINES The(P) == Union(Replace({0}, %x y. P(y))), so
+# `The` reduces through zero/cons/Replace/Union by the induction step above, and
+# `walk` emits its four claims. Nothing ever cited the two schemas. The only
+# thing they were reachable for was rendering a constant's @def AS D -- which
+# needs no class and no Pair graph, checks GREEN, and is an N2 violation, since
+# the @def then no longer says what Isabelle says. `constant::description_tests`
+# proves `The(C,r) <-> D(r)` instead, with congruence for P as a hypothesis.
+#
+# `lem` stays -- `proof_builder_tests` instantiates it -- but nothing in this
+# unit uses it any more, and `use empty` is now absent from the whole tier.
+#
+# ALL FOUR ARE INTERLEAVED -- `forall x. (set(x) -> (forall t. ...))`, never the
+# grouped `forall x. forall t. (set(x) -> (set(t) -> ...))`. compose_uniq and
+# compose_cong used to be GROUPED while compose_ex and replace_fun were not, and
+# the two shapes are different formulas to the kernel: a guarded obligation in
+# one shape cannot be fed to a kernel stated in the other. That inconsistency
+# was invisible for as long as nothing instantiated the kernels.
+#
+# The statements therefore DIVERGE from the `constants_s2s3` probe, which keeps
+# the grouped forms; the proofs below are the probe's with the guards
+# re-threaded. FOUNDATION §1 R3 fixes the shape.
+
+schema lem [Q(0)]: (Q | (~ Q))
+schema compose_ex [F(2), H(2)]: ((forall x. (set(x) -> (exists t. (set(t) & F(x,t))))) -> ((forall t. (set(t) -> (exists r. (set(r) & H(t,r))))) -> (forall x. (set(x) -> (exists r. (set(r) & (exists t. (set(t) & (F(x,t) & H(t,r))))))))))
+schema compose_uniq [F(2), H(2)]: ((forall x. (set(x) -> (forall t. (set(t) -> (forall t2. (set(t2) -> (F(x,t) -> (F(x,t2) -> eq(t,t2))))))))) -> ((forall t. (set(t) -> (forall r. (set(r) -> (forall r2. (set(r2) -> (H(t,r) -> (H(t,r2) -> eq(r,r2))))))))) -> ((forall a. (set(a) -> (forall b. (set(b) -> (forall r. (set(r) -> (eq(a,b) -> (H(a,r) -> H(b,r))))))))) -> (forall x. (set(x) -> (forall r. (set(r) -> (forall r2. (set(r2) -> ((exists t. (set(t) & (F(x,t) & H(t,r)))) -> ((exists t. (set(t) & (F(x,t) & H(t,r2)))) -> eq(r,r2))))))))))))
+schema compose_cong [F(2), H(2)]: ((forall a. (set(a) -> (forall b. (set(b) -> (forall t. (set(t) -> (eq(a,b) -> (F(a,t) -> F(b,t))))))))) -> (forall a. (set(a) -> (forall b. (set(b) -> (forall r. (set(r) -> (eq(a,b) -> ((exists t. (set(t) & (F(a,t) & H(t,r)))) -> (exists t. (set(t) & (F(b,t) & H(t,r)))))))))))))
+
+# **Replacement's side condition, discharged once for every use of `Replace`.**
+#
+# Isabelle defines `Replace(A,P) == PrimReplace(A, %x y. (EX! z. P(x,z)) & P(x,y))`,
+# and `PrimReplace_EX` is hypothesis-strengthened on `Fun(F)` because axiom 16 is.
+# The `EX!` wrapper is exactly what discharges it: whatever Psi is, the wrapped
+# graph is single-valued, because both candidates equal the unique z.
+#
+# Parametric in Psi and therefore legitimate under R2: `F` is a PARAMETER
+# constrained by a hypothesis, not a class built from an uninterpreted
+# predicate. Nothing here constructs {x : Psi(x)} -- the caller hands F over
+# from `class/`, and this only reads the biconditional.
+#
+# BOTH SHAPES ARE INTERLEAVED (`forall x. (set(x) -> (forall y. ...)))`), and
+# that is not cosmetic. The hypothesis must match `class::compile_at`'s emitted
+# claim and the conclusion must match `PrimReplace_EX`'s antecedent, both of
+# which interleave binder and guard. The grouped form
+# `forall x. forall y. (set(x) -> (set(y) -> ...))` is logically identical and
+# `implies_elim` rejects it at both joins.
+schema replace_fun [Psi(2)]: (forall F. ((forall x. (set(x) -> (forall y. (set(y) -> (pmem(x,y,F) <-> ((exists z. (set(z) & (Psi(x,z) & (forall w. (set(w) -> (Psi(x,w) -> eq(z,w))))))) & Psi(x,y))))))) -> (forall u. (set(u) -> (forall v. (set(v) -> (forall v2. (set(v2) -> (pmem(u,v,F) -> (pmem(u,v2,F) -> eq(v,v2)))))))))))
+
+# The single-valuedness guard a Replace-shaped body carries is DERIVABLE when
+# Psi encodes a function, and dropping it is what keeps class compilation
+# linear: `Replace` filters to the single-valued case by conjoining
+# `exists! z. Psi(u,z)` at every membership site, so an inlined body repeats
+# Psi THREE times -- existence, uniqueness, witness -- and a k-deep nest of
+# inlinings costs 3^k. With this schema the guard is discharged once and the
+# other two copies go, so the multiplier is 1 and the nest is linear in k.
+#
+# Parametric in Psi and therefore legitimate under R2: Psi is never
+# interpreted, and nothing here builds {x : Psi(x)}. The premises are exactly
+# S2's EX and UNIQ for Psi, which a hoisted lambda-class gets from
+# compose_ex/compose_uniq above.
+schema guard_from_ex_uniq [Psi(2)]: ((forall u. (set(u) -> (exists r. (set(r) & Psi(u,r))))) -> ((forall u. (set(u) -> (forall r. (set(r) -> (forall r2. (set(r2) -> (Psi(u,r) -> (Psi(u,r2) -> eq(r,r2))))))))) -> (forall u. (set(u) -> (exists z. (set(z) & ((exists v. (set(v) & (Psi(u,v) & eq(z,v)))) & (forall w. (set(w) -> ((exists v. (set(v) & (Psi(u,v) & eq(w,v)))) -> eq(z,w)))))))))))
+
+# **THE ONE IRREDUCIBLY BINARY STEP.** A function is unary, so a multi-argument
+# application is unary on a TUPLE -- but the tuple constructor itself takes two
+# inputs and cannot be tupled without regress. `kpair` is therefore the single
+# place composition meets a two-input step, and these three discharge it ONCE,
+# for every arity, which is why no `compose_*` indexed by arity is needed.
+# FOUNDATION §2 carries the derivation.
+
+schema pair_fn_ex [F(2), G(2)]: ((forall x. (set(x) -> (exists t. (set(t) & F(x,t))))) -> ((forall x. (set(x) -> (exists t. (set(t) & G(x,t))))) -> (forall x. (set(x) -> (exists p. (set(p) & (exists t. (set(t) & (F(x,t) & (exists u. (set(u) & (G(x,u) & kpair(t,u,p)))))))))))))
+schema pair_fn_uniq [F(2), G(2)]: ((forall x. (set(x) -> (forall t. (set(t) -> (forall t2. (set(t2) -> (F(x,t) -> (F(x,t2) -> eq(t,t2))))))))) -> ((forall x. (set(x) -> (forall t. (set(t) -> (forall t2. (set(t2) -> (G(x,t) -> (G(x,t2) -> eq(t,t2))))))))) -> (forall x. (set(x) -> (forall p. (set(p) -> (forall q. (set(q) -> ((exists t. (set(t) & (F(x,t) & (exists u. (set(u) & (G(x,u) & kpair(t,u,p))))))) -> ((exists t. (set(t) & (F(x,t) & (exists u. (set(u) & (G(x,u) & kpair(t,u,q))))))) -> eq(p,q)))))))))))
+schema pair_fn_cong [F(2), G(2)]: ((forall a. (set(a) -> (forall b. (set(b) -> (forall r. (set(r) -> (eq(a,b) -> (F(a,r) -> F(b,r))))))))) -> ((forall a. (set(a) -> (forall b. (set(b) -> (forall r. (set(r) -> (eq(a,b) -> (G(a,r) -> G(b,r))))))))) -> (forall a. (set(a) -> (forall b. (set(b) -> (forall p. (set(p) -> (eq(a,b) -> ((exists t. (set(t) & (F(a,t) & (exists u. (set(u) & (G(a,u) & kpair(t,u,p))))))) -> (exists t. (set(t) & (F(b,t) & (exists u. (set(u) & (G(b,u) & kpair(t,u,p)))))))))))))))))
+
+# THE TUPLING KERNELS -- a function is UNARY.
+#
+# `C(a,b,r)` is the UNCURRIED presentation of a function on pairs, not a ternary
+# primitive. These lift a 2-ary constant's S2 claims to the unary form over
+#     T(p,r)  <->  exists a b. (kpair(a,b,p) & C(a,b,r))
+#
+# WHY `compose_ex_dom` EXISTS. `compose_ex` requires its `H` total on EVERY set.
+# A tupled `T(p,r)` is FALSE at every `p` that is not a pair, so that hypothesis
+# is not available and `compose_ex` cannot consume a tupled constant. The
+# domain-restricted form takes `F` landing in `D` and `H` total ON `D`. `D` is
+# never interpreted and nothing builds `{p : D(p)}`, so R2 holds.
+#
+# EX IS THE ONLY ONE THAT NEEDS THE DOMAIN. `tuple_uniq` and `tuple_cong` hold
+# vacuously wherever `T` is false, so the totality gap touches one kernel of the
+# three -- do not add a domain hypothesis to the other two.
+#
+# `tuple_uniq` NEEDS CONG(G), for the reason `compose_uniq` needs CONG(H): two
+# derivations reach `p` through DIFFERENT components, `pair_inj` equates them,
+# and CONG transports the second value back. `tuple_cong` needs NO hypothesis on
+# `G` at all -- the value is untouched and only the pair moves, which is why n
+# equality hypotheses collapse to one.
+schema compose_ex_dom [F(2), D(1), H(2)]: ((forall x. (set(x) -> (exists t. (set(t) & (F(x,t) & D(t)))))) -> ((forall t. (set(t) -> (D(t) -> (exists r. (set(r) & H(t,r)))))) -> (forall x. (set(x) -> (exists r. (set(r) & (exists t. (set(t) & (F(x,t) & H(t,r))))))))))
+schema tuple_ex [G(3)]: ((forall a. (set(a) -> (forall b. (set(b) -> (exists r. (set(r) & G(a,b,r))))))) -> (forall p. (set(p) -> ((exists a. (set(a) & (exists b. (set(b) & kpair(a,b,p))))) -> (exists r. (set(r) & (exists a. (set(a) & (exists b. (set(b) & (kpair(a,b,p) & G(a,b,r))))))))))))
+schema tuple_uniq [G(3)]: ((forall a. (set(a) -> (forall b. (set(b) -> (forall r. (set(r) -> (forall s. (set(s) -> (G(a,b,r) -> (G(a,b,s) -> eq(r,s))))))))))) -> ((forall a. (set(a) -> (forall b. (set(b) -> (forall a2. (set(a2) -> (forall b2. (set(b2) -> (forall r. (set(r) -> (eq(a,a2) -> (eq(b,b2) -> (G(a,b,r) -> G(a2,b2,r)))))))))))))) -> (forall p. (set(p) -> (forall r. (set(r) -> (forall s. (set(s) -> ((exists a. (set(a) & (exists b. (set(b) & (kpair(a,b,p) & G(a,b,r)))))) -> ((exists a. (set(a) & (exists b. (set(b) & (kpair(a,b,p) & G(a,b,s)))))) -> eq(r,s)))))))))))
+schema tuple_cong [G(3)]: (forall p. (set(p) -> (forall q. (set(q) -> (forall r. (set(r) -> (eq(p,q) -> ((exists a. (set(a) & (exists b. (set(b) & (kpair(a,b,p) & G(a,b,r)))))) -> (exists a. (set(a) & (exists b. (set(b) & (kpair(a,b,q) & G(a,b,r))))))))))))))

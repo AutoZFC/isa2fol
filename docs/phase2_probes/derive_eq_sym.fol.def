@@ -1,0 +1,4 @@
+# Extensionality (ZFC axiom). LEGITIMATE.
+axiom ZF_Base_2eextension__ax: forall A. forall B. (eq(A, B) <-> (ZF_Base_2eSubset(A, B) & ZF_Base_2eSubset(B, A)))
+# DERIVED: symmetry of eq, from Extensionality alone. No kernel eq_sym, no admit.
+claim eq_sym_derived: forall a. forall b. (eq(a, b) -> eq(b, a))

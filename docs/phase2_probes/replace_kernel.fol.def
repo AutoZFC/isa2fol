@@ -1,0 +1,5 @@
+# FOUNDATION §1 axiom 16 -- Replacement, guarded per S6. pmem(u,v,F) abbreviates <u,v> in F;
+# the Pair expansion is orthogonal (and is §3's flagged risk), so it is held abstract here.
+axiom replacement: forall F. ((forall u. (set(u) -> (forall v. (set(v) -> (forall w. (set(w) -> (pmem(u,v,F) -> (pmem(u,w,F) -> eq(v,w))))))))) -> (forall x. (set(x) -> (exists z. (set(z) & (forall v. (set(v) -> (elem(v,z) <-> (exists u. (set(u) & (elem(u,x) & pmem(u,v,F))))))))))))
+
+schema replace_char [P(2)]: forall A. forall F. ((forall u. (set(u) -> (forall v. (set(v) -> (pmem(u,v,F) <-> P(u,v)))))) -> ((forall u. (set(u) -> (forall v. (set(v) -> (forall w. (set(w) -> (P(u,v) -> (P(u,w) -> eq(v,w))))))))) -> (set(A) -> (exists z. (set(z) & (forall v. (set(v) -> (elem(v,z) <-> (exists u. (set(u) & (elem(u,A) & P(u,v)))))))))))) 

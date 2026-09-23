@@ -1,0 +1,5 @@
+# S1 renders phi(f(x)) either as (exists v. F(x,v) & Q(v)) or (forall v. F(x,v) -> Q(v)).
+# They are interchangeable ONLY given EX + UNIQ + "Q respects eq". The third is NOT
+# derivable for an uninterpreted Q -- it is exactly the banned eq_subst. So it becomes
+# a HYPOTHESIS, discharged per call site where Q is concrete.
+schema ex_all_bridge [F(2), Q(1)]: forall x. ((forall a. (set(a) -> (forall b. (set(b) -> (eq(a,b) -> (Q(a) <-> Q(b))))))) -> ((exists r. (set(r) & F(x,r))) -> ((forall r. (set(r) -> (forall s. (set(s) -> (F(x,r) -> (F(x,s) -> eq(r,s))))))) -> ((exists v. (set(v) & (F(x,v) & Q(v)))) <-> (forall w. (set(w) -> (F(x,w) -> Q(w))))))))

@@ -1,0 +1,67 @@
+# Tier 2 (cont.) -- Kuratowski pair injectivity, UNIQ, and the eq/upair congruence chain.
+# NOTE: eq_sym is a RESERVED TOKEN in the checker grammar (it is the banned kernel op), so
+# the derived symmetry lemma must be named otherwise -- here eq_symm.
+# Tier 2 (cont.) -- Kuratowski pair injectivity.
+axiom members_are_sets: forall x. forall y. (elem(x,y) -> set(x))
+axiom elem_first_subst: forall x. forall y. forall s. (eq(x,y) -> (elem(x,s) -> elem(y,s)))
+axiom extensionality: forall A. forall B. (eq(A,B) <-> (forall u. (elem(u,A) <-> elem(u,B))))
+axiom pairing: forall a. forall b. (set(a) -> (set(b) -> (exists z. (set(z) & (forall u. (elem(u,z) <-> (eq(u,a) | eq(u,b))))))))
+@def(upair) axiom upair_def: forall x. forall y. forall w. (upair(x,y,w) <-> (forall u. (elem(u,w) <-> (eq(u,x) | eq(u,y)))))
+@def(kpair) axiom kpair_def: forall x. forall y. forall p. (kpair(x,y,p) <-> (exists a. (exists b. (upair(x,x,a) & (upair(x,y,b) & upair(a,b,p))))))
+
+# Tier 1.
+claim eq_refl:  forall A. eq(A,A)
+claim eq_symm:   forall A. forall B. (eq(A,B) -> eq(B,A))
+claim eq_trans: forall A. forall B. forall C. (eq(A,B) -> (eq(B,C) -> eq(A,C)))
+claim eq_join:  forall A. forall B. forall C. (eq(A,B) -> (eq(C,B) -> eq(A,C)))
+claim elem_second: forall A. forall B. forall z. (eq(A,B) -> (elem(z,A) -> elem(z,B)))
+
+# upair helpers.
+claim upair_mem1: forall x. forall y. forall w. (upair(x,y,w) -> elem(x,w))
+claim upair_mem2: forall x. forall y. forall w. (upair(x,y,w) -> elem(y,w))
+claim upair_elem: forall x. forall y. forall w. forall z. (upair(x,y,w) -> (elem(z,w) -> (eq(z,x) | eq(z,y))))
+claim sing_elem:  forall x. forall a. forall z. (upair(x,x,a) -> (elem(z,a) -> eq(z,x)))
+claim sing_eq_sing: forall x. forall u. forall a. forall c. (upair(x,x,a) -> (upair(u,u,c) -> (eq(a,c) -> eq(x,u))))
+claim pair_eq_sing: forall x. forall y. forall u. forall b. forall c. (upair(x,y,b) -> (upair(u,u,c) -> (eq(b,c) -> (eq(x,u) & eq(y,u)))))
+
+# The theorem, in two halves.
+claim pair_fst: forall x. forall y. forall u. forall v. forall p. (kpair(x,y,p) -> (kpair(u,v,p) -> eq(x,u)))
+claim pair_snd: forall x. forall y. forall u. forall v. forall p. (kpair(x,y,p) -> (kpair(u,v,p) -> eq(y,v)))
+claim pair_inj: forall x. forall y. forall u. forall v. forall p. (kpair(x,y,p) -> (kpair(u,v,p) -> (eq(x,u) & eq(y,v))))
+
+# UNIQ for the Pair constant (S2), and the upair congruence it rests on.
+claim upair_uniq: forall x. forall y. forall w. forall w2. (upair(x,y,w) -> (upair(x,y,w2) -> eq(w,w2)))
+claim upair_cong: forall a. forall b. forall a2. forall b2. forall p. forall q. (upair(a,b,p) -> (upair(a2,b2,q) -> (eq(a,a2) -> (eq(b,b2) -> eq(p,q)))))
+claim pair_uniq: forall x. forall y. forall p. forall q. (kpair(x,y,p) -> (kpair(x,y,q) -> eq(p,q)))
+
+# ================= END-TO-END: ZF.pair, serial 3448 =================
+# Isabelle proof term (decoded from data/zf_export/ZF.pair/proofs/3448):
+#   Pair_inject1(a,b,c,d) : <a,b>=<c,d> ==> a=c
+#     = \H. conjunct1[a=c, b=d] (iffD1[<a,b>=<c,d>, a=c & b=d] (Pair_iff a b c d) H)
+# Nodes: ZAbsp (==>-intro), ZAppp x3 (==>-elim), ZAppt at TERMS (a,b,c,d),
+#        ZAppt at PROPOSITIONS (the IFOL schematics), ZThm x3.
+#
+# S1 rendering: <a,b> is a term, so it materialises. eq of two terms becomes the
+# forall-form over their materialised witnesses p, q.
+
+# congruence lemmas the rendering needs (CONG, per §7 -- the eq_subst replacement)
+claim upair_res_cong: forall x. forall y. forall p. forall q. (upair(x,y,p) -> (eq(p,q) -> upair(x,y,q)))
+claim upair_arg_cong: forall x. forall y. forall x2. forall y2. forall w. (upair(x,y,w) -> (eq(x,x2) -> (eq(y,y2) -> upair(x2,y2,w))))
+claim kpair_res_cong: forall x. forall y. forall p. forall q. (kpair(x,y,p) -> (eq(p,q) -> kpair(x,y,q)))
+claim kpair_arg_cong: forall a. forall b. forall c. forall d. forall p. (kpair(a,b,p) -> (eq(a,c) -> (eq(b,d) -> kpair(c,d,p))))
+
+# ZThm 3442 = ZF.pair.Pair_iff
+# @isabelle pair.Pair_iff
+claim Pair_iff: (forall a. (set(a) -> (forall b. (set(b) -> (forall c. (set(c) -> (forall d. (set(d) -> (forall p. (set(p) -> (forall q. (set(q) -> (kpair(a,b,p) -> (kpair(c,d,q) -> (eq(p,q) <-> (eq(a,c) & eq(b,d)))))))))))))))))
+
+# ZThm 246 = IFOL.conjunct1 ; ZThm 426 = IFOL.iffD1 -- logic kernels, P/Q schematic
+schema conjunct1 [P(0), Q(0)]: ((P & Q) -> P)
+schema iffD1 [P(0), Q(0)]: ((P <-> Q) -> (P -> Q))
+
+# The theorem 3448 PROVES is entity 3450 = ZF.pair.Pair_inject1. The export
+# pairs each entity with its proof node two serials back: 3448->3450, and
+# 3446 (Pair_inject, the [elim!] rule with a schematic conclusion) is proved by
+# 3444 instead. Naming this claim `Pair_inject` asserted the elim rule, which is
+# `a=c & b=d` -- strictly stronger than what the proof below derives.
+# @isabelle pair.Pair_inject1
+claim Pair_inject1: (forall a. (set(a) -> (forall b. (set(b) -> (forall c. (set(c) -> (forall d. (set(d) -> (forall p. (set(p) -> (forall q. (set(q) -> (kpair(a,b,p) -> (kpair(c,d,q) -> (eq(p,q) -> eq(a,c))))))))))))))))

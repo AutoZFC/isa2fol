@@ -1,0 +1,120 @@
+proof eq_refl:
+    _e = use extensionality
+    fix A
+    fix u
+    _a = assume elem(u,A)
+    _i = implies_intro _a
+    _b = iff_intro _i, _i
+    _g = forall_intro _b
+    _e1 = forall_elim _e, A
+    _e2 = forall_elim _e1, A
+    _r = iff_elim_r _e2, _g
+    _ga = forall_intro _r
+    qed _ga
+
+proof eq_symm:
+    _e = use extensionality
+    fix A
+    fix B
+    _h = assume eq(A,B)
+    _e1 = forall_elim _e, A
+    _e2 = forall_elim _e1, B
+    _ab = iff_elim_l _e2, _h
+    fix u
+    _abu = forall_elim _ab, u
+    _p = assume elem(u,B)
+    _q = iff_elim_r _abu, _p
+    _f1 = implies_intro _q
+    _p2 = assume elem(u,A)
+    _q2 = iff_elim_l _abu, _p2
+    _f2 = implies_intro _q2
+    _bi = iff_intro _f1, _f2
+    _gu = forall_intro _bi
+    _e3 = forall_elim _e, B
+    _e4 = forall_elim _e3, A
+    _ba = iff_elim_r _e4, _gu
+    _i = implies_intro _ba
+    _gB = forall_intro _i
+    _gA = forall_intro _gB
+    qed _gA
+
+proof eq_reflection_rel:
+    _sy = use eq_symm
+    _exA = assume (exists v. (set(v) & A(v)))
+    _exB = assume (exists v. (set(v) & B(v)))
+    _cgA = assume (forall r. forall s. (set(r) -> (set(s) -> (eq(r,s) -> (A(r) -> A(s))))))
+    _cgB = assume (forall r. forall s. (set(r) -> (set(s) -> (eq(r,s) -> (B(r) -> B(s))))))
+    _obj = assume (forall x. forall y. (set(x) -> (set(y) -> (A(x) -> (B(y) -> eq(x,y))))))
+    fix r
+    _sr = assume set(r)
+    _ha = assume A(r)
+    _eb = exists_elim _exB, vb
+    _svb = and_elim_l _eb
+    _bvb = and_elim_r _eb
+    _o1 = forall_elim _obj, r
+    _o2 = forall_elim _o1, vb
+    _o3 = implies_elim _o2, _sr
+    _o4 = implies_elim _o3, _svb
+    _o5 = implies_elim _o4, _ha
+    _erv = implies_elim _o5, _bvb
+    _s1 = forall_elim _sy, r
+    _s2 = forall_elim _s1, vb
+    _evr = implies_elim _s2, _erv
+    _c1 = forall_elim _cgB, vb
+    _c2 = forall_elim _c1, r
+    _c3 = implies_elim _c2, _svb
+    _c4 = implies_elim _c3, _sr
+    _c5 = implies_elim _c4, _evr
+    _br = implies_elim _c5, _bvb
+    _out1 = exists_intro _br
+    _fwd = implies_intro _out1
+    _hb = assume B(r)
+    _ea = exists_elim _exA, va
+    _sva = and_elim_l _ea
+    _ava = and_elim_r _ea
+    _p1 = forall_elim _obj, va
+    _p2 = forall_elim _p1, r
+    _p3 = implies_elim _p2, _sva
+    _p4 = implies_elim _p3, _sr
+    _p5 = implies_elim _p4, _ava
+    _evar = implies_elim _p5, _hb
+    _d1 = forall_elim _cgA, va
+    _d2 = forall_elim _d1, r
+    _d3 = implies_elim _d2, _sva
+    _d4 = implies_elim _d3, _sr
+    _d5 = implies_elim _d4, _evar
+    _ar = implies_elim _d5, _ava
+    _out2 = exists_intro _ar
+    _bwd = implies_intro _out2
+    _bi = iff_intro _fwd, _bwd
+    _i1 = implies_intro _bi
+    _gr = forall_intro _i1
+    _z1 = implies_intro _gr
+    _z2 = implies_intro _z1
+    _z3 = implies_intro _z2
+    _z4 = implies_intro _z3
+    _z5 = implies_intro _z4
+    qed _z5
+
+proof subst_rel:
+    _cg = assume (forall x. forall y. (set(x) -> (set(y) -> (eq(x,y) -> (P(x) -> P(y))))))
+    fix a
+    fix b
+    _sa = assume set(a)
+    _sb = assume set(b)
+    _hab = assume eq(a,b)
+    _hpa = assume P(a)
+    _c1 = forall_elim _cg, a
+    _c2 = forall_elim _c1, b
+    _c3 = implies_elim _c2, _sa
+    _c4 = implies_elim _c3, _sb
+    _c5 = implies_elim _c4, _hab
+    _pb = implies_elim _c5, _hpa
+    _i1 = implies_intro _pb
+    _i2 = implies_intro _i1
+    _i3 = implies_intro _i2
+    _i4 = implies_intro _i3
+    _g1 = forall_intro _i4
+    _g2 = forall_intro _g1
+    _z = implies_intro _g2
+    qed _z

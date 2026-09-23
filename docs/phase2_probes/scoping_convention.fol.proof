@@ -1,0 +1,63 @@
+proof thread_to_atom:
+    fix t
+    _h = assume (exists r. (set(r) & (F(t,r) & (Phi(r) & Psi(r)))))
+    _e = exists_elim _h, r
+    _sr = and_elim_l _e
+    _rest = and_elim_r _e
+    _f = and_elim_l _rest
+    _pq = and_elim_r _rest
+    _p = and_elim_l _pq
+    _q = and_elim_r _pq
+    _fp = and_intro _f, _p
+    _cp = and_intro _sr, _fp
+    _x1 = exists_intro _cp, r
+    _fq = and_intro _f, _q
+    _cq = and_intro _sr, _fq
+    _x2 = exists_intro _cq, r
+    _conj = and_intro _x1, _x2
+    _out = exists_intro _conj
+    _i = implies_intro _out
+    _g = forall_intro _i
+    qed _g
+
+proof atom_to_thread:
+    _uq = assume (forall x. forall r. forall s. (set(r) -> (set(s) -> (F(x,r) -> (F(x,s) -> eq(r,s))))))
+    _cg = assume (forall r. forall s. (set(r) -> (set(s) -> (eq(r,s) -> (Psi(r) -> Psi(s))))))
+    fix t
+    _h = assume ((exists r. (set(r) & (F(t,r) & Phi(r)))) & (exists r. (set(r) & (F(t,r) & Psi(r)))))
+    _h1 = and_elim_l _h
+    _h2 = and_elim_r _h
+    _e1 = exists_elim _h1, r1
+    _s1 = and_elim_l _e1
+    _t1 = and_elim_r _e1
+    _f1 = and_elim_l _t1
+    _p1 = and_elim_r _t1
+    _e2 = exists_elim _h2, r2
+    _s2 = and_elim_l _e2
+    _t2 = and_elim_r _e2
+    _f2 = and_elim_l _t2
+    _q2 = and_elim_r _t2
+    _u1 = forall_elim _uq, t
+    _u2 = forall_elim _u1, r2
+    _u3 = forall_elim _u2, r1
+    _u4 = implies_elim _u3, _s2
+    _u5 = implies_elim _u4, _s1
+    _u6 = implies_elim _u5, _f2
+    _eq21 = implies_elim _u6, _f1
+    _c1 = forall_elim _cg, r2
+    _c2 = forall_elim _c1, r1
+    _c3 = implies_elim _c2, _s2
+    _c4 = implies_elim _c3, _s1
+    _c5 = implies_elim _c4, _eq21
+    _q1 = implies_elim _c5, _q2
+    _pq = and_intro _p1, _q1
+    _fpq = and_intro _f1, _pq
+    _all = and_intro _s1, _fpq
+    _x = exists_intro _all, r1
+    _o2 = exists_intro _x
+    _o1 = exists_intro _o2
+    _i = implies_intro _o1
+    _g = forall_intro _i
+    _z1 = implies_intro _g
+    _z2 = implies_intro _z1
+    qed _z2

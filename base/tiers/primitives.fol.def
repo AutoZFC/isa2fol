@@ -1,0 +1,69 @@
+# base/tiers/primitives -- the ZF primitives, as constants.
+#
+# `export::defs` measures the constant table as bottoming out in exactly FIVE
+# primitives -- zero, Union, Pow, PrimReplace, Inf -- which are axioms 11, 13,
+# 14, 16, 15. They have no Isabelle `_def` to translate, so there is nothing for
+# `constant/` to generate from: their introductions are FIXED, tied to the 19,
+# and belong here rather than in a generator.
+#
+# THE RULE, and it is not a choice: a primitive's @def body is THE MATRIX OF ITS
+# AXIOM. `Pow(A,r)` says of r exactly what the `power` axiom says of the set it
+# asserts to exist. That keeps the introduction definitional (§10's G1 row 1,
+# zero content) and makes EX fall straight out of the axiom.
+#
+# CONG IS ARITY-DEPENDENT. A nullary constant has no argument to be congruent
+# in, so `zero` carries EX and UNIQ only -- §13's "nullary parameters get
+# eq(a,b) -> (P <-> P), which is vacuous". Emitting a vacuous CONG would report
+# an obligation discharged that was never owed.
+#
+# UNIQ and CONG are GUARDED here, interleaved, and that is FOUNDATION §1 R3's
+# shape rather than a preference: `base/tiers/s2s3`'s compose_uniq/compose_cong
+# state their hypotheses guarded, so an unguarded obligation cannot be fed to
+# them at all. Stating them guarded HERE discharges that once instead of
+# forcing a `_G` restatement into every generated composite.
+#
+# PrimReplace's F stays BARE: it is a CLASS parameter and `set(F)` is FALSE,
+# not redundant.
+#
+# Pow's STATEMENTS therefore no longer match the `constants_s2s3` probe, which
+# keeps the unguarded forms. The probe is tier-6 evidence that the kernels are
+# provable, not evidence about guard shape, so it is left alone; the proofs
+# below are still the probe's, with the guards threaded.
+
+@def(Pow) axiom Pow_def: forall A. forall r. (Pow(A,r) <-> (forall u. (set(u) -> (elem(u,r) <-> (forall v. (set(v) -> (elem(v,u) -> elem(v,A))))))))
+claim Pow_EX:   forall A. (set(A) -> (exists r. (set(r) & Pow(A,r))))
+claim Pow_UNIQ: (forall A. (set(A) -> (forall r. (set(r) -> (forall s. (set(s) -> (Pow(A,r) -> (Pow(A,s) -> eq(r,s)))))))))
+claim Pow_CONG: (forall A. (set(A) -> (forall B. (set(B) -> (forall r. (set(r) -> (eq(A,B) -> (Pow(A,r) -> Pow(B,r)))))))))
+
+# zero (axiom 11, Empty). Nullary: the relation takes only the result.
+@def(zero) axiom zero_def: forall r. (zero(r) <-> (forall u. (set(u) -> (~ elem(u,r)))))
+claim zero_EX: exists r. (set(r) & zero(r))
+claim zero_UNIQ: (forall r. (set(r) -> (forall s. (set(s) -> (zero(r) -> (zero(s) -> eq(r,s)))))))
+
+# Union (axiom 13). Definitional: the matrix of the `union` axiom.
+@def(Union) axiom Union_def: forall A. forall r. (Union(A,r) <-> (forall x. (set(x) -> (elem(x,r) <-> (exists y. (set(y) & (elem(y,A) & elem(x,y))))))))
+claim Union_EX: forall A. (set(A) -> (exists r. (set(r) & Union(A,r))))
+claim Union_UNIQ: (forall A. (set(A) -> (forall r. (set(r) -> (forall s. (set(s) -> (Union(A,r) -> (Union(A,s) -> eq(r,s)))))))))
+claim Union_CONG: (forall A. (set(A) -> (forall B. (set(B) -> (forall r. (set(r) -> (eq(A,B) -> (Union(A,r) -> Union(B,r)))))))))
+
+# PrimReplace (axiom 16, Replacement). Definitional -- the matrix of the axiom.
+#
+# It takes a CLASS argument: Isabelle's `PrimReplace(A,P)` has a meta-predicate
+# in the second slot, and S5 says a meta-level function argument becomes its
+# GRAPH, held as a class parameter. So the relation is `PrimReplace(A,F,r)`.
+#
+# ARGUMENT ORDER FOLLOWS ISABELLE, result last. That is not cosmetic: Compiler A
+# renders a constant's arguments in source order and appends the result, so any
+# other convention here would silently mis-apply the relation at every call
+# site. The class slot sits where Isabelle's predicate slot is.
+#
+# EX IS HYPOTHESIS-STRENGTHENED, on `Fun(F)`, and F binds outermost there
+# because the hypothesis is about F alone. That is not a weakening we chose:
+# axiom 16 is itself conditional on single-valuedness, because Replacement is
+# false without it. §13 admits antecedents drawn from {EX, UNIQ, CONG,
+# class-existence} and this is UNIQ of the graph, so the call site discharges
+# it -- which is what Compiler B's second output is for.
+@def(PrimReplace) axiom PrimReplace_def: forall A. forall F. forall r. (PrimReplace(A,F,r) <-> (forall v. (set(v) -> (elem(v,r) <-> (exists u. (set(u) & (elem(u,A) & pmem(u,v,F))))))))
+claim PrimReplace_EX: forall F. ((forall u. (set(u) -> (forall v. (set(v) -> (forall w. (set(w) -> (pmem(u,v,F) -> (pmem(u,w,F) -> eq(v,w))))))))) -> (forall A. (set(A) -> (exists r. (set(r) & PrimReplace(A,F,r))))))
+claim PrimReplace_UNIQ: (forall A. (set(A) -> (forall F. (forall r. (set(r) -> (forall s. (set(s) -> (PrimReplace(A,F,r) -> (PrimReplace(A,F,s) -> eq(r,s))))))))))
+claim PrimReplace_CONG: (forall A. (set(A) -> (forall B. (set(B) -> (forall F. (forall r. (set(r) -> (eq(A,B) -> (PrimReplace(A,F,r) -> PrimReplace(B,F,r))))))))))

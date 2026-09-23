@@ -1,0 +1,376 @@
+proof demorgan_or:
+    _hf = assume (~ ((~ A) & (~ B)))
+    _na = assume (~ (A | B))
+    _a = assume A
+    _dB = let B
+    _oa = or_intro_l _a, _dB
+    _bot1 = not_elim _na, _oa
+    _nA = not_intro _bot1
+    _b = assume B
+    _dA = let A
+    _ob = or_intro_r _dA, _b
+    _bot2 = not_elim _na, _ob
+    _nB = not_intro _bot2
+    _conj = and_intro _nA, _nB
+    _bot3 = not_elim _hf, _conj
+    _nn = not_intro _bot3
+    _res = double_neg_elim _nn
+    _fwd = implies_intro _res
+    _hb = assume (A | B)
+    _hc = assume ((~ A) & (~ B))
+    _lna = and_elim_l _hc
+    _lnb = and_elim_r _hc
+    _ca = assume A
+    _b1 = not_elim _lna, _ca
+    _i1 = implies_intro _b1
+    _cb = assume B
+    _b2 = not_elim _lnb, _cb
+    _i2 = implies_intro _b2
+    _bot = or_elim _hb, _i1, _i2
+    _nn2 = not_intro _bot
+    _bwd = implies_intro _nn2
+    _r = iff_intro _fwd, _bwd
+    qed _r
+
+proof imp_as_nand:
+    _hf = assume (~ (A & (~ B)))
+    _ha = assume A
+    _nb = assume (~ B)
+    _cj = and_intro _ha, _nb
+    _bt = not_elim _hf, _cj
+    _nn = not_intro _bt
+    _bb = double_neg_elim _nn
+    _im = implies_intro _bb
+    _fwd = implies_intro _im
+    _hb = assume (A -> B)
+    _hc = assume (A & (~ B))
+    _la = and_elim_l _hc
+    _lnb = and_elim_r _hc
+    _lb = implies_elim _hb, _la
+    _bt2 = not_elim _lnb, _lb
+    _nn2 = not_intro _bt2
+    _bwd = implies_intro _nn2
+    _r = iff_intro _fwd, _bwd
+    qed _r
+
+proof iff_as_nands:
+    _hf = assume ((~ (A & (~ B))) & (~ (B & (~ A))))
+    _f1 = and_elim_l _hf
+    _f2 = and_elim_r _hf
+    _ha = assume A
+    _nb = assume (~ B)
+    _c1 = and_intro _ha, _nb
+    _t1 = not_elim _f1, _c1
+    _n1 = not_intro _t1
+    _b1 = double_neg_elim _n1
+    _ab = implies_intro _b1
+    _hb2 = assume B
+    _na2 = assume (~ A)
+    _c2 = and_intro _hb2, _na2
+    _t2 = not_elim _f2, _c2
+    _n2 = not_intro _t2
+    _a2 = double_neg_elim _n2
+    _ba = implies_intro _a2
+    _bi = iff_intro _ab, _ba
+    _fwd = implies_intro _bi
+    _hg = assume (A <-> B)
+    _ga = assume A
+    _gb = iff_elim_l _hg, _ga
+    _gab = implies_intro _gb
+    _hc1 = assume (A & (~ B))
+    _c1a = and_elim_l _hc1
+    _c1n = and_elim_r _hc1
+    _c1b = implies_elim _gab, _c1a
+    _c1t = not_elim _c1n, _c1b
+    _c1r = not_intro _c1t
+    _gb2 = assume B
+    _ga2 = iff_elim_r _hg, _gb2
+    _gba = implies_intro _ga2
+    _hc2 = assume (B & (~ A))
+    _c2b = and_elim_l _hc2
+    _c2n = and_elim_r _hc2
+    _c2a = implies_elim _gba, _c2b
+    _c2t = not_elim _c2n, _c2a
+    _c2r = not_intro _c2t
+    _cj = and_intro _c1r, _c2r
+    _bwd = implies_intro _cj
+    _r = iff_intro _fwd, _bwd
+    qed _r
+
+proof forall_as_nexists:
+    _hf = assume (~ (exists z. (set(z) & (~ P(z)))))
+    fix z
+    _sz = assume set(z)
+    _npz = assume (~ P(z))
+    _cj = and_intro _sz, _npz
+    _ex = exists_intro _cj, z
+    _bt = not_elim _hf, _ex
+    _nn = not_intro _bt
+    _pz = double_neg_elim _nn
+    _ig = implies_intro _pz
+    _all = forall_intro _ig
+    _fwd = implies_intro _all
+    _hb = assume (forall z. (set(z) -> P(z)))
+    _he = assume (exists z. (set(z) & (~ P(z))))
+    _ez = exists_elim _he, z0
+    _sz0 = and_elim_l _ez
+    _nz0 = and_elim_r _ez
+    _a1 = forall_elim _hb, z0
+    _a2 = implies_elim _a1, _sz0
+    _bt2 = not_elim _nz0, _a2
+    _cl = exists_intro _bt2
+    _nn2 = not_intro _cl
+    _bwd = implies_intro _nn2
+    _r = iff_intro _fwd, _bwd
+    qed _r
+
+proof ext_guarded:
+    _e = use extensionality
+    fix A
+    fix B
+    _e1 = forall_elim _e, A
+    _e2 = forall_elim _e1, B
+    _f = assume (forall z. (set(z) -> (elem(z,A) <-> elem(z,B))))
+    _ab = iff_elim_r _e2, _f
+    _fwd = implies_intro _ab
+    _g = assume eq(A,B)
+    _gg = iff_elim_l _e2, _g
+    _bwd = implies_intro _gg
+    _bi = iff_intro _fwd, _bwd
+    _n1 = forall_intro _bi
+    _n2 = forall_intro _n1
+    qed _n2
+
+proof or_idem:
+    _ha = assume A
+    _dA = let A
+    _oa = or_intro_l _ha, _dA
+    _fwd = implies_intro _oa
+    _ho = assume (A | A)
+    _c1 = assume A
+    _i1 = implies_intro _c1
+    _c2 = assume A
+    _i2 = implies_intro _c2
+    _back = or_elim _ho, _i1, _i2
+    _bwd = implies_intro _back
+    _r = iff_intro _fwd, _bwd
+    qed _r
+
+proof iff_symm:
+    _h = assume (A <-> B)
+    _hb = assume B
+    _a = iff_elim_r _h, _hb
+    _f = implies_intro _a
+    _ha = assume A
+    _b = iff_elim_l _h, _ha
+    _g = implies_intro _b
+    _r = iff_intro _f, _g
+    _o1 = implies_intro _r
+    qed _o1
+
+proof iff_trans:
+    _h1 = assume (A <-> B)
+    _h2 = assume (B <-> C)
+    _ha = assume A
+    _b1 = iff_elim_l _h1, _ha
+    _c1 = iff_elim_l _h2, _b1
+    _f = implies_intro _c1
+    _hc = assume C
+    _b2 = iff_elim_r _h2, _hc
+    _a2 = iff_elim_r _h1, _b2
+    _g = implies_intro _a2
+    _r = iff_intro _f, _g
+    _o1 = implies_intro _r
+    _o2 = implies_intro _o1
+    qed _o2
+
+proof iff_mp:
+    _h = assume (A <-> B)
+    _ha = assume A
+    _b = iff_elim_l _h, _ha
+    _i1 = implies_intro _b
+    _i2 = implies_intro _i1
+    qed _i2
+
+proof iff_both:
+    _f = assume (A -> B)
+    _g = assume (B -> A)
+    _r = iff_intro _f, _g
+    _i1 = implies_intro _r
+    _i2 = implies_intro _i1
+    qed _i2
+
+proof B_or:
+    _b2 = use B2
+    _b3 = use B3
+    fix A
+    fix B
+    _ha = forall_elim _b3, A
+    _ea = exists_elim _ha, NA
+    _hb = forall_elim _b3, B
+    _eb = exists_elim _hb, NB
+    _hi = forall_elim _b2, NA
+    _hi2 = forall_elim _hi, NB
+    _ei = exists_elim _hi2, I
+    _hc = forall_elim _b3, I
+    _ec = exists_elim _hc, C
+    fix u
+    _su = assume set(u)
+    _ua = forall_elim _ea, u
+    _pa = implies_elim _ua, _su
+    _ub = forall_elim _eb, u
+    _pb = implies_elim _ub, _su
+    _ui = forall_elim _ei, u
+    _pi = implies_elim _ui, _su
+    _uc = forall_elim _ec, u
+    _pc = implies_elim _uc, _su
+    _f0 = assume elem(u,C)
+    _f1 = iff_elim_l _pc, _f0
+    _f2 = assume (~ (elem(u,A) | elem(u,B)))
+    _g1 = assume elem(u,A)
+    _dB = let elem(u,B)
+    _g2 = or_intro_l _g1, _dB
+    _g3 = not_elim _f2, _g2
+    _g4 = not_intro _g3
+    _na = iff_elim_r _pa, _g4
+    _h1 = assume elem(u,B)
+    _dA = let elem(u,A)
+    _h2 = or_intro_r _dA, _h1
+    _h3 = not_elim _f2, _h2
+    _h4 = not_intro _h3
+    _nb = iff_elim_r _pb, _h4
+    _cj = and_intro _na, _nb
+    _ii = iff_elim_r _pi, _cj
+    _bot = not_elim _f1, _ii
+    _nn = not_intro _bot
+    _or = double_neg_elim _nn
+    _fwd = implies_intro _or
+    _bk = assume (elem(u,A) | elem(u,B))
+    _k0 = assume elem(u,I)
+    _k1 = iff_elim_l _pi, _k0
+    _k2 = and_elim_l _k1
+    _k3 = and_elim_r _k1
+    _k4 = iff_elim_l _pa, _k2
+    _k5 = iff_elim_l _pb, _k3
+    _c1 = assume elem(u,A)
+    _c1b = not_elim _k4, _c1
+    _i1 = implies_intro _c1b
+    _c2 = assume elem(u,B)
+    _c2b = not_elim _k5, _c2
+    _i2 = implies_intro _c2b
+    _botb = or_elim _bk, _i1, _i2
+    _ni = not_intro _botb
+    _cc = iff_elim_r _pc, _ni
+    _bwd = implies_intro _cc
+    _iff = iff_intro _fwd, _bwd
+    _imp = implies_intro _iff
+    _all = forall_intro _imp
+    _e1 = exists_intro _all
+    _e2 = exists_intro _e1
+    _e3 = exists_intro _e2
+    _e4 = exists_intro _e3
+    _fa = forall_intro _e4
+    _fb = forall_intro _fa
+    qed _fb
+proof B_iff:
+    _b2 = use B2
+    _b3 = use B3
+    fix A
+    fix B
+    _x1 = forall_elim _b3, B
+    _e1 = exists_elim _x1, NB
+    _x2 = forall_elim _b2, A
+    _x3 = forall_elim _x2, NB
+    _e2 = exists_elim _x3, P
+    _x4 = forall_elim _b3, P
+    _e3 = exists_elim _x4, NP
+    _x5 = forall_elim _b3, A
+    _e4 = exists_elim _x5, NA
+    _x6 = forall_elim _b2, B
+    _x7 = forall_elim _x6, NA
+    _e5 = exists_elim _x7, Q
+    _x8 = forall_elim _b3, Q
+    _e6 = exists_elim _x8, NQ
+    _x9 = forall_elim _b2, NP
+    _x10 = forall_elim _x9, NQ
+    _e7 = exists_elim _x10, C
+    fix u
+    _su = assume set(u)
+    _u1 = forall_elim _e1, u
+    _pnb = implies_elim _u1, _su
+    _u2 = forall_elim _e2, u
+    _pp = implies_elim _u2, _su
+    _u3 = forall_elim _e3, u
+    _pnp = implies_elim _u3, _su
+    _u4 = forall_elim _e4, u
+    _pna = implies_elim _u4, _su
+    _u5 = forall_elim _e5, u
+    _pq = implies_elim _u5, _su
+    _u6 = forall_elim _e6, u
+    _pnq = implies_elim _u6, _su
+    _u7 = forall_elim _e7, u
+    _pc = implies_elim _u7, _su
+    _br = schema_inst iff_as_nands { A: elem(u,A), B: elem(u,B) }
+    _f0 = assume elem(u,C)
+    _f1 = iff_elim_l _pc, _f0
+    _f2m = and_elim_l _f1
+    _f3m = and_elim_r _f1
+    _f2 = iff_elim_l _pnp, _f2m
+    _f3 = iff_elim_l _pnq, _f3m
+    _g0 = assume (elem(u,A) & (~ elem(u,B)))
+    _g1 = and_elim_l _g0
+    _g2 = and_elim_r _g0
+    _g3 = iff_elim_r _pnb, _g2
+    _g4 = and_intro _g1, _g3
+    _g5 = iff_elim_r _pp, _g4
+    _g6 = not_elim _f2, _g5
+    _g7 = not_intro _g6
+    _k0 = assume (elem(u,B) & (~ elem(u,A)))
+    _k1 = and_elim_l _k0
+    _k2 = and_elim_r _k0
+    _k3 = iff_elim_r _pna, _k2
+    _k4 = and_intro _k1, _k3
+    _k5 = iff_elim_r _pq, _k4
+    _k6 = not_elim _f3, _k5
+    _k7 = not_intro _k6
+    _nn = and_intro _g7, _k7
+    _res = iff_elim_l _br, _nn
+    _fwd = implies_intro _res
+    _m0 = assume (elem(u,A) <-> elem(u,B))
+    _m1 = iff_elim_r _br, _m0
+    _m2 = and_elim_l _m1
+    _m3 = and_elim_r _m1
+    _n0 = assume elem(u,P)
+    _n1 = iff_elim_l _pp, _n0
+    _n2 = and_elim_l _n1
+    _n3 = and_elim_r _n1
+    _n4 = iff_elim_l _pnb, _n3
+    _n5 = and_intro _n2, _n4
+    _n6 = not_elim _m2, _n5
+    _n7 = not_intro _n6
+    _np = iff_elim_r _pnp, _n7
+    _r0 = assume elem(u,Q)
+    _r1 = iff_elim_l _pq, _r0
+    _r2 = and_elim_l _r1
+    _r3 = and_elim_r _r1
+    _r4 = iff_elim_l _pna, _r3
+    _r5 = and_intro _r2, _r4
+    _r6 = not_elim _m3, _r5
+    _r7 = not_intro _r6
+    _nq = iff_elim_r _pnq, _r7
+    _cj = and_intro _np, _nq
+    _cc = iff_elim_r _pc, _cj
+    _bwd = implies_intro _cc
+    _iff = iff_intro _fwd, _bwd
+    _imp = implies_intro _iff
+    _all = forall_intro _imp
+    _z1 = exists_intro _all
+    _z2 = exists_intro _z1
+    _z3 = exists_intro _z2
+    _z4 = exists_intro _z3
+    _z5 = exists_intro _z4
+    _z6 = exists_intro _z5
+    _z7 = exists_intro _z6
+    _fa = forall_intro _z7
+    _fb = forall_intro _fa
+    qed _fb

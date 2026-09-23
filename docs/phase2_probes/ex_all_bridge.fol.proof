@@ -1,0 +1,49 @@
+proof ex_all_bridge:
+    fix x
+    _hq = assume (forall a. (set(a) -> (forall b. (set(b) -> (eq(a,b) -> (Q(a) <-> Q(b)))))))
+    _hex = assume (exists r. (set(r) & F(x,r)))
+    _hun = assume (forall r. (set(r) -> (forall s. (set(s) -> (F(x,r) -> (F(x,s) -> eq(r,s)))))))
+    _f = assume (exists v. (set(v) & (F(x,v) & Q(v))))
+    _fv = exists_elim _f, v0
+    _sv = and_elim_l _fv
+    _rs = and_elim_r _fv
+    _fv0 = and_elim_l _rs
+    _qv0 = and_elim_r _rs
+    fix w
+    _sw = assume set(w)
+    _fw = assume F(x,w)
+    _u1 = forall_elim _hun, v0
+    _u2 = implies_elim _u1, _sv
+    _u3 = forall_elim _u2, w
+    _u4 = implies_elim _u3, _sw
+    _u5 = implies_elim _u4, _fv0
+    _eqv = implies_elim _u5, _fw
+    _q1 = forall_elim _hq, v0
+    _q2 = implies_elim _q1, _sv
+    _q3 = forall_elim _q2, w
+    _q4 = implies_elim _q3, _sw
+    _q5 = implies_elim _q4, _eqv
+    _qw = iff_elim_l _q5, _qv0
+    _a1 = implies_intro _qw
+    _a2 = implies_intro _a1
+    _a3 = forall_intro _a2
+    _a4 = exists_intro _a3
+    _fwd = implies_intro _a4
+    _b = assume (forall w. (set(w) -> (F(x,w) -> Q(w))))
+    _br = exists_elim _hex, r0
+    _sr = and_elim_l _br
+    _fr = and_elim_r _br
+    _b1 = forall_elim _b, r0
+    _b2 = implies_elim _b1, _sr
+    _qr = implies_elim _b2, _fr
+    _k1 = and_intro _fr, _qr
+    _k2 = and_intro _sr, _k1
+    _e1 = exists_intro _k2, r0
+    _e2 = exists_intro _e1
+    _bwd = implies_intro _e2
+    _bi = iff_intro _fwd, _bwd
+    _i1 = implies_intro _bi
+    _i2 = implies_intro _i1
+    _i3 = implies_intro _i2
+    _g = forall_intro _i3
+    qed _g

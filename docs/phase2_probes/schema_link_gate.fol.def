@@ -1,0 +1,7 @@
+# REQUIRED-TO-REJECT probe for the linker (§2). The disjE implementation is broken
+# (or_elim args swapped). The checker reports exit 0, "Proved (1): demo", empty FAILED
+# list -- IDENTICAL to logic_kernels. Only stderr differs. The linker must reject this.
+schema conjI [P(0), Q(0)]: (P -> (Q -> (P & Q)))
+schema disjE [P(0), Q(0), R(0)]: ((P | Q) -> ((P -> R) -> ((Q -> R) -> R)))
+schema spec  [P(1)]: ((forall x. P(x)) -> (forall y. P(y)))
+claim demo: forall a. forall b. ((elem(a,b) & elem(b,a)) -> (elem(b,a) & elem(a,b)))

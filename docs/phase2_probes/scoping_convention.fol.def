@@ -1,0 +1,18 @@
+# §13 convention (b) scopes the S1 existential at the ATOM. §8's Compiler B note
+# says the opposite for PROOFS: thread one witness, never reconcile. This probe
+# asks whether those conflict.
+#
+#   atom-scoped   (exists r1. F(t,r1) & Phi(r1)) & (exists r2. F(t,r2) & Psi(r2))
+#   threaded       exists r.  F(t,r) & Phi(r) & Psi(r)
+#
+# The claim under test: they do NOT conflict, because the proof layer only ever
+# needs the EASY direction. A proof may thread internally and weaken to the
+# atom-scoped claim at the end; the expensive direction is never travelled.
+axiom members_are_sets: forall x. forall y. (elem(x,y) -> set(x))
+axiom extensionality: forall A. forall B. (eq(A,B) <-> (forall u. (elem(u,A) <-> elem(u,B))))
+
+# Direction the PROOF LAYER needs: threaded => atom-scoped. Hypothesis-free.
+schema thread_to_atom [F(2), Phi(1), Psi(1)]: (forall t. ((exists r. (set(r) & (F(t,r) & (Phi(r) & Psi(r))))) -> ((exists r. (set(r) & (F(t,r) & Phi(r)))) & (exists r. (set(r) & (F(t,r) & Psi(r)))))))
+
+# Direction FAITHFULNESS needs: atom-scoped => threaded. Costs UNIQ(F) + CONG(Psi).
+schema atom_to_thread [F(2), Phi(1), Psi(1)]: ((forall x. forall r. forall s. (set(r) -> (set(s) -> (F(x,r) -> (F(x,s) -> eq(r,s)))))) -> ((forall r. forall s. (set(r) -> (set(s) -> (eq(r,s) -> (Psi(r) -> Psi(s)))))) -> (forall t. (((exists r. (set(r) & (F(t,r) & Phi(r)))) & (exists r. (set(r) & (F(t,r) & Psi(r))))) -> (exists r. (set(r) & (F(t,r) & (Phi(r) & Psi(r)))))))))

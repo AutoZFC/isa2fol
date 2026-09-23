@@ -1,0 +1,80 @@
+# base/tiers/pairs -- TIER 2: Kuratowski pairs, the set(.) discharge, injectivity.
+#
+# §8 tier 2. Depends on base/axioms for the 19, the upair/kpair definitional
+# introductions, and the tier-1 equality core; it declares NO axiom of its own,
+# which is what makes gate G1 pass here on content rather than on origin.
+#
+# Every claim and every proof below is copied VERBATIM from a probe the checker
+# already accepts (pair_flattening, pair_injective) -- never retyped. §0 is the
+# standing evidence that a plausible-looking variant of a base statement can be
+# wrong, so transcription risk is avoided rather than managed.
+
+claim upair_ex:   forall x. forall y. (set(x) -> (set(y) -> (exists w. (set(w) & upair(x,y,w)))))
+claim upair_uniq: forall x. forall y. forall w. forall w2. (upair(x,y,w) -> (upair(x,y,w2) -> eq(w,w2)))
+claim upair_set:  forall x. forall y. forall w. (set(x) -> (set(y) -> (upair(x,y,w) -> set(w))))
+claim upair_mem1: forall x. forall y. forall w. (upair(x,y,w) -> elem(x,w))
+claim upair_mem2: forall x. forall y. forall w. (upair(x,y,w) -> elem(y,w))
+claim upair_elem: forall x. forall y. forall w. forall z. (upair(x,y,w) -> (elem(z,w) -> (eq(z,x) | eq(z,y))))
+claim sing_elem:  forall x. forall a. forall z. (upair(x,x,a) -> (elem(z,a) -> eq(z,x)))
+claim sing_eq_sing: forall x. forall u. forall a. forall c. (upair(x,x,a) -> (upair(u,u,c) -> (eq(a,c) -> eq(x,u))))
+claim pair_eq_sing: forall x. forall y. forall u. forall b. forall c. (upair(x,y,b) -> (upair(u,u,c) -> (eq(b,c) -> (eq(x,u) & eq(y,u)))))
+claim upair_cong: forall a. forall b. forall a2. forall b2. forall p. forall q. (upair(a,b,p) -> (upair(a2,b2,q) -> (eq(a,a2) -> (eq(b,b2) -> eq(p,q)))))
+claim pair_ex:    forall x. forall y. (set(x) -> (set(y) -> (exists p. (set(p) & kpair(x,y,p)))))
+claim pair_set:   forall x. forall y. forall p. (set(x) -> (set(y) -> (kpair(x,y,p) -> set(p))))
+claim tuple_chain: forall a. forall b. forall c. forall p. forall q. (set(a) -> (set(b) -> (set(c) -> (kpair(a,b,p) -> (kpair(p,c,q) -> set(q))))))
+claim pair_fst: forall x. forall y. forall u. forall v. forall p. (kpair(x,y,p) -> (kpair(u,v,p) -> eq(x,u)))
+claim pair_snd: forall x. forall y. forall u. forall v. forall p. (kpair(x,y,p) -> (kpair(u,v,p) -> eq(y,v)))
+claim pair_inj: forall x. forall y. forall u. forall v. forall p. (kpair(x,y,p) -> (kpair(u,v,p) -> (eq(x,u) & eq(y,v))))
+claim pair_uniq: forall x. forall y. forall p. forall q. (kpair(x,y,p) -> (kpair(x,y,q) -> eq(p,q)))
+
+
+# WHY `upair_uniq` AND `upair_set` ARE UNGUARDED IN `w`, and must stay so.
+# This tier is where sethood is DERIVED, so it cannot presuppose it: `upair_set`
+# proves `set(w)` by taking `w0` from `upair_ex` (which carries `set(w0)`),
+# using `upair_uniq` to get `eq(w0,w)`, then `set_cong`. Guard `upair_uniq`'s
+# `w` and that proof needs `set(w)` to prove `set(w)`. FOUNDATION §1 states this
+# as the reason the base sits OUTSIDE R3 -- `upair_uniq` is single-valuedness
+# for classes, which is Extensionality, and it claims no Isabelle theorem.
+#
+# `upair_def` guards `u` and CONJOINS `set(x) & set(y)`, so every claim above
+# with a `upair`/`kpair` hypothesis gets the sethood of its arguments for free.
+# That is what makes R4 immediate and is why the conjunction is not a
+# conditional guard -- `set(x) -> set(y) -> (upair <-> body)` would leave
+# `upair` unconstrained off-domain and break R4.
+
+
+# kpair_unfold -- THE TWO SPELLINGS OF A KURATOWSKI PAIR, JOINED.
+#
+# `class::graph::pair_form` spells a pair OUT, as three `upair` bodies under two
+# guarded existentials, because `class::read` has no rule for a bare `set(.)`
+# atom and so cannot use `kpair(x,y,p)` directly. base/ speaks `kpair`. This is
+# the bridge, and `graph_unfold{k}` chains it to reach width k.
+#
+# PROVENANCE. Copied VERBATIM from what `kpair_unfold_lemma()` emitted before it
+# was deleted: the function took no arguments and every name in it was a
+# literal, so it was this file written in Rust. It cites only `kpair_def` and
+# `upair_def`, both in `axioms`, which is why it sits in the FIRST tier.
+#
+# THE STATEMENT IS COUPLED TO `pair_form`'s SPELLING, and nothing about the text
+# says so. `kpair_unfolds_statement_is_what_pair_form_spells` rebuilds the
+# right-hand side from `upair`/`exists_set` and compares, so a change to the
+# spelling is a test failure here rather than a mismatch in the kernel later.
+
+claim kpair_unfold: forall x. forall y. forall p. (set(x) -> (set(y) -> (kpair(x,y,p) <-> (exists _gwA. (set(_gwA) & (exists _gwB. (set(_gwB) & ((forall _gwT1. (set(_gwT1) -> (elem(_gwT1, _gwA) <-> (eq(_gwT1, x) | eq(_gwT1, x))))) & ((forall _gwT2. (set(_gwT2) -> (elem(_gwT2, _gwB) <-> (eq(_gwT2, x) | eq(_gwT2, y))))) & (forall _gwT3. (set(_gwT3) -> (elem(_gwT3, p) <-> (eq(_gwT3, _gwA) | eq(_gwT3, _gwB))))))))))))))
+
+# RESULT-SLOT CONGRUENCE. `kpair_arg_cong` (tiers/witness) moves the ARGUMENTS
+# and holds the result fixed. Tupling needs the other direction: a unary
+# constant's CONG is `eq(p,q) -> C(p,r) -> C(q,r)`, and discharging it means
+# carrying `kpair(a,b,p)` to `kpair(a,b,q)`. `elem_second` transports membership
+# along the second slot, which is all `upair_res_cong` needs; `kpair_res_cong`
+# is then one application of it to the outer `upair`.
+claim upair_res_cong: forall x. forall y. forall p. forall q. (upair(x,y,p) -> (eq(p,q) -> upair(x,y,q)))
+claim kpair_res_cong: forall x. forall y. forall p. forall q. (kpair(x,y,p) -> (eq(p,q) -> kpair(x,y,q)))
+
+# "t IS A PAIR", the antecedent `upair_ex`/`Un_EX` want when the generator has
+# `kpair(a,b,t)` in hand. Stated over DISTINCT binders on purpose: instantiating
+# it at `x := y := a` is substitution, whereas building the same formula by
+# `exists_intro` at witness `a` would abstract BOTH occurrences and yield
+# `exists q. kpair(q,q,t)`. That is why `cons` (`Upair(a,a)`) needed the kernel's
+# three-argument form before this claim existed.
+claim kpair_pairing: forall x. (set(x) -> (forall y. (set(y) -> (forall t. (set(t) -> (kpair(x,y,t) -> (exists p. (set(p) & (exists q. (set(q) & kpair(p,q,t)))))))))))

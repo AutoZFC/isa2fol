@@ -1,0 +1,183 @@
+proof eq_refl:
+    _e = use extensionality
+    fix A
+    fix u
+    _su = assume set(u)
+    _a = assume elem(u,A)
+    _i = implies_intro _a
+    _b = iff_intro _i, _i
+    _bg = implies_intro _b
+    _g = forall_intro _bg
+    _e1 = forall_elim _e, A
+    _e2 = forall_elim _e1, A
+    _r = iff_elim_r _e2, _g
+    _ga = forall_intro _r
+    qed _ga
+
+proof eq_symm:
+    _e = use extensionality
+    fix A
+    fix B
+    _h = assume eq(A,B)
+    _e1 = forall_elim _e, A
+    _e2 = forall_elim _e1, B
+    _ab = iff_elim_l _e2, _h
+    fix u
+    _su = assume set(u)
+    _abu0 = forall_elim _ab, u
+    _abu = implies_elim _abu0, _su
+    _p = assume elem(u,B)
+    _q = iff_elim_r _abu, _p
+    _f1 = implies_intro _q
+    _p2 = assume elem(u,A)
+    _q2 = iff_elim_l _abu, _p2
+    _f2 = implies_intro _q2
+    _bi = iff_intro _f1, _f2
+    _big = implies_intro _bi
+    _gu = forall_intro _big
+    _e3 = forall_elim _e, B
+    _e4 = forall_elim _e3, A
+    _ba = iff_elim_r _e4, _gu
+    _i = implies_intro _ba
+    _gB = forall_intro _i
+    _gA = forall_intro _gB
+    qed _gA
+
+proof eq_trans:
+    _e = use extensionality
+    fix A
+    fix B
+    fix C
+    _h1 = assume eq(A,B)
+    _h2 = assume eq(B,C)
+    _a1 = forall_elim _e, A
+    _a2 = forall_elim _a1, B
+    _ab = iff_elim_l _a2, _h1
+    _b1 = forall_elim _e, B
+    _b2 = forall_elim _b1, C
+    _bc = iff_elim_l _b2, _h2
+    fix u
+    _su = assume set(u)
+    _abu0 = forall_elim _ab, u
+    _abu = implies_elim _abu0, _su
+    _bcu0 = forall_elim _bc, u
+    _bcu = implies_elim _bcu0, _su
+    _p = assume elem(u,A)
+    _q = iff_elim_l _abu, _p
+    _r = iff_elim_l _bcu, _q
+    _f1 = implies_intro _r
+    _p2 = assume elem(u,C)
+    _q2 = iff_elim_r _bcu, _p2
+    _r2 = iff_elim_r _abu, _q2
+    _f2 = implies_intro _r2
+    _bi = iff_intro _f1, _f2
+    _big = implies_intro _bi
+    _gu = forall_intro _big
+    _c1 = forall_elim _e, A
+    _c2 = forall_elim _c1, C
+    _ac = iff_elim_r _c2, _gu
+    _i1 = implies_intro _ac
+    _i2 = implies_intro _i1
+    _gC = forall_intro _i2
+    _gB = forall_intro _gC
+    _gA = forall_intro _gB
+    qed _gA
+
+proof eq_join:
+    _sy = use eq_symm
+    _tr = use eq_trans
+    fix A
+    fix B
+    fix C
+    _h1 = assume eq(A,B)
+    _h2 = assume eq(C,B)
+    _s1 = forall_elim _sy, C
+    _s2 = forall_elim _s1, B
+    _bc = implies_elim _s2, _h2
+    _t1 = forall_elim _tr, A
+    _t2 = forall_elim _t1, B
+    _t3 = forall_elim _t2, C
+    _t4 = implies_elim _t3, _h1
+    _ac = implies_elim _t4, _bc
+    _i1 = implies_intro _ac
+    _i2 = implies_intro _i1
+    _gC = forall_intro _i2
+    _gB = forall_intro _gC
+    _gA = forall_intro _gB
+    qed _gA
+
+proof elem_second:
+    _e = use extensionality
+    _mas = use members_are_sets
+    fix A
+    fix B
+    fix z
+    _h = assume eq(A,B)
+    _hz = assume elem(z,A)
+    _e1 = forall_elim _e, A
+    _e2 = forall_elim _e1, B
+    _ab = iff_elim_l _e2, _h
+    _k1 = forall_elim _mas, z
+    _k2 = forall_elim _k1, A
+    _sz = implies_elim _k2, _hz
+    _abz0 = forall_elim _ab, z
+    _abz = implies_elim _abz0, _sz
+    _r = iff_elim_l _abz, _hz
+    _i1 = implies_intro _r
+    _i2 = implies_intro _i1
+    _gz = forall_intro _i2
+    _gB = forall_intro _gz
+    _gA = forall_intro _gB
+    qed _gA
+
+proof set_cong:
+    _pg = use pairing
+    _ms = use members_are_sets
+    _efs = use elem_first_subst
+    _rf = use eq_refl
+    fix A
+    fix B
+    _h = assume eq(A,B)
+    _hs = assume set(A)
+    _p1 = forall_elim _pg, A
+    _p2 = forall_elim _p1, A
+    _p3 = implies_elim _p2, _hs
+    _p4 = implies_elim _p3, _hs
+    _ez = exists_elim _p4, z
+    _zs = and_elim_l _ez
+    _zm = and_elim_r _ez
+    _zmA = forall_elim _zm, A
+    _zmAg = implies_elim _zmA, _hs
+    _rA = forall_elim _rf, A
+    _d = let eq(A,A)
+    _or = or_intro_l _rA, _d
+    _Az = iff_elim_r _zmAg, _or
+    _s1 = forall_elim _efs, A
+    _s2 = forall_elim _s1, B
+    _s3 = forall_elim _s2, z
+    _s4 = implies_elim _s3, _h
+    _Bz = implies_elim _s4, _Az
+    _m1 = forall_elim _ms, B
+    _m2 = forall_elim _m1, z
+    _sB = implies_elim _m2, _Bz
+    _x = exists_intro _sB
+    _i1 = implies_intro _x
+    _i2 = implies_intro _i1
+    _gB = forall_intro _i2
+    _gA = forall_intro _gB
+    qed _gA
+
+proof empty_from_infinity:
+    _inf = use infinity
+    _ez = exists_elim _inf, z0
+    _rest = and_elim_r _ez
+    _E = and_elim_l _rest
+    _ee = exists_elim _E, e0
+    _se = and_elim_l _ee
+    _r2 = and_elim_r _ee
+    _eempty = and_elim_r _r2
+    _conj = and_intro _se, _eempty
+    _w = exists_intro _conj, e0
+    _w2 = exists_intro _w
+    _w3 = exists_intro _w2
+    qed _w3

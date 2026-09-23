@@ -1,0 +1,32 @@
+# Does the equality-substitution family survive the eq_subst ban?
+#
+# IFOL.eq_reflection (a = b ==> a == b) is cited 16,431 times -- 16% of ALL IFOL
+# citations -- and IFOL.subst (a = b ==> P(a) ==> P(b)) another 1,657. Neither can
+# be a kernel over uninterpreted parameters: deriving P(b) from P(a) IS eq_subst.
+#
+# The question this probe settles: does §7's parameter-or-hypothesis rule rescue
+# them? I.e. are they parametric ONCE the congruence they need is a hypothesis?
+#
+# Under S1 a term of type i is a unary relation, so the two equalities are:
+#     object   a = b   ->  forall x y. A(x) -> B(y) -> eq(x,y)
+#     meta     a == b  ->  forall r. set(r) -> (A(r) <-> B(r))     relation ext.
+# eq_reflection is then exactly: object equality => relation extensionality.
+# Base: Extensionality ALONE. Dropping members_are_sets or elem_first_subst
+# leaves this green; dropping extensionality does not (it is what eq_symm needs).
+# That is the point, not an economy: a parametric kernel's congruence is
+# HYPOTHETICAL, so the atom-level substitution axioms (axiom 2, and axiom 3's
+# <- direction) are consumed by whatever DISCHARGES the hypothesis -- the
+# constant table or Compiler B -- never by the kernel itself.
+axiom extensionality: forall A. forall B. (eq(A,B) <-> (forall u. (elem(u,A) <-> elem(u,B))))
+
+claim eq_refl: forall A. eq(A,A)
+claim eq_symm: forall A. forall B. (eq(A,B) -> eq(B,A))
+
+# eq_reflection, parametric in the two RENDERINGS A and B.
+# Hypotheses, in order: EX(A), EX(B), result-CONG(A), result-CONG(B), the object
+# equation.  Note UNIQ is NOT needed -- only existence and congruence.
+schema eq_reflection_rel [A(1), B(1)]: ((exists v. (set(v) & A(v))) -> ((exists v. (set(v) & B(v))) -> ((forall r. forall s. (set(r) -> (set(s) -> (eq(r,s) -> (A(r) -> A(s)))))) -> ((forall r. forall s. (set(r) -> (set(s) -> (eq(r,s) -> (B(r) -> B(s)))))) -> ((forall x. forall y. (set(x) -> (set(y) -> (A(x) -> (B(y) -> eq(x,y)))))) -> (forall r. (set(r) -> (A(r) <-> B(r)))))))))
+
+# IFOL.subst, parametric in P once CONG(P) is a hypothesis. This is the shape
+# Compiler B must discharge per concrete formula.
+schema subst_rel [P(1)]: ((forall x. forall y. (set(x) -> (set(y) -> (eq(x,y) -> (P(x) -> P(y)))))) -> (forall a. forall b. (set(a) -> (set(b) -> (eq(a,b) -> (P(a) -> P(b)))))))

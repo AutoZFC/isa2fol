@@ -1,0 +1,44 @@
+# base/tiers/diagonal -- THE DIAGONAL CLASS, D = {<x,y> : x = y}.
+#
+# FOUNDATION §3's induction run at φ = `eq(x,y)`, over the pair context (x,y).
+# It admits NOTHING: the proof is a claim discharged from B1-B5 (axioms 4-9) and
+# the earlier tiers, and it is exactly the instance of the Class Existence
+# Theorem that Mendelson's Prop. 4.4 records -- `x = y` unfolds by
+# Extensionality to `∀u.(u∈x ↔ u∈y)`, a predicative formula, so it is a class.
+#
+# WHY IT IS A BASE LEMMA RATHER THAN A PER-SITE COMPILE. §5's normalisation rule
+# 2 rewrites every `eq` atom `Δ = Γ` to `∀z.(z∈Δ ↔ z∈Γ)`, and `class::read`
+# applies it as a local `Node::Bridge` at EVERY occurrence. The rewritten form
+# carries its own guarded `∀z`, which grows the context by a slot and expands
+# through B3/B4 -- so an `eq` atom is the most expensive atom the compiler has,
+# and `the_encode_chain_compiles_at_any_width_and_this_is_its_cost` measures the
+# resulting constant. Proved ONCE here, `pmem(x,y,D)` is available as an atom
+# over a class PARAMETER, which is the `Node::Rel` case: one B5/Expansion
+# placement instead of a rule-2 expansion.
+#
+# THIS IS NOT CIRCULAR. The derivation below is itself the rule-2 route -- it
+# cites `ext_guarded`, which is the bridge. That is the point: the expansion is
+# paid once, in `base/`, instead of once per `eq` occurrence. The bridge stays
+# implemented in `class/` and remains what proves this claim.
+#
+# PLACEMENT. It cites B1-B5 from `axioms`, `pair_ex` (tiers/pairs), `pmem_at`
+# (tiers/witness), `T1`/`T2`/`T4`/`tmem_head` (tiers/tuples), and
+# `ext_guarded` / `forall_as_nexists` / `iff_as_nands` (tiers/logic). So its
+# dependency frontier is `tiers/logic` and it sits immediately after it -- ahead
+# of `cong`, `s2s3`, `skolem` and `primitives`, none of which it needs.
+# `every_tier_checks_on_its_declared_dependencies` gives it exactly that prefix,
+# so the placement is checked rather than asserted.
+#
+# PROVENANCE. `diagonal.fol.proof` is the output of
+# `class::compile_at("diagonal", eq(x,y), ["x","y"])`, copied VERBATIM -- unlike
+# `tiers/tuples`, there is not even one edit. `the_diagonal_is_what_compiler_b_
+# regenerates` pins that, so a divergence between this file and the compiler is
+# a test failure rather than a silent hand-tuning.
+#
+# THE CLASS EXISTENTIAL IS BARE, and that is not an oversight. `C` ranges over
+# classes and `set(C)` would be FALSE, not redundant (§5). The two tuple
+# variables carry their guards, interleaved. R3 has no purchase here: this is a
+# base lemma, not a claim asserting an Isabelle theorem, so there is no σ for
+# σ^set to have to equal (FOUNDATION §1, the R3 table's last row).
+
+claim diagonal: (exists C. (forall x. (set(x) -> (forall y. (set(y) -> (pmem(x, y, C) <-> eq(x, y)))))))

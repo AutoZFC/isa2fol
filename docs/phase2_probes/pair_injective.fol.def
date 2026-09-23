@@ -1,0 +1,35 @@
+# Tier 2 (cont.) -- Kuratowski pair injectivity, UNIQ, and the eq/upair congruence chain.
+# NOTE: eq_sym is a RESERVED TOKEN in the checker grammar (it is the banned kernel op), so
+# the derived symmetry lemma must be named otherwise -- here eq_symm.
+# Tier 2 (cont.) -- Kuratowski pair injectivity.
+axiom members_are_sets: forall x. forall y. (elem(x,y) -> set(x))
+axiom elem_first_subst: forall x. forall y. forall s. (eq(x,y) -> (elem(x,s) -> elem(y,s)))
+axiom extensionality: forall A. forall B. (eq(A,B) <-> (forall u. (elem(u,A) <-> elem(u,B))))
+axiom pairing: forall a. forall b. (set(a) -> (set(b) -> (exists z. (set(z) & (forall u. (elem(u,z) <-> (eq(u,a) | eq(u,b))))))))
+@def(upair) axiom upair_def: forall x. forall y. forall w. (upair(x,y,w) <-> (forall u. (elem(u,w) <-> (eq(u,x) | eq(u,y)))))
+@def(kpair) axiom kpair_def: forall x. forall y. forall p. (kpair(x,y,p) <-> (exists a. (exists b. (upair(x,x,a) & (upair(x,y,b) & upair(a,b,p))))))
+
+# Tier 1.
+claim eq_refl:  forall A. eq(A,A)
+claim eq_symm:   forall A. forall B. (eq(A,B) -> eq(B,A))
+claim eq_trans: forall A. forall B. forall C. (eq(A,B) -> (eq(B,C) -> eq(A,C)))
+claim eq_join:  forall A. forall B. forall C. (eq(A,B) -> (eq(C,B) -> eq(A,C)))
+claim elem_second: forall A. forall B. forall z. (eq(A,B) -> (elem(z,A) -> elem(z,B)))
+
+# upair helpers.
+claim upair_mem1: forall x. forall y. forall w. (upair(x,y,w) -> elem(x,w))
+claim upair_mem2: forall x. forall y. forall w. (upair(x,y,w) -> elem(y,w))
+claim upair_elem: forall x. forall y. forall w. forall z. (upair(x,y,w) -> (elem(z,w) -> (eq(z,x) | eq(z,y))))
+claim sing_elem:  forall x. forall a. forall z. (upair(x,x,a) -> (elem(z,a) -> eq(z,x)))
+claim sing_eq_sing: forall x. forall u. forall a. forall c. (upair(x,x,a) -> (upair(u,u,c) -> (eq(a,c) -> eq(x,u))))
+claim pair_eq_sing: forall x. forall y. forall u. forall b. forall c. (upair(x,y,b) -> (upair(u,u,c) -> (eq(b,c) -> (eq(x,u) & eq(y,u)))))
+
+# The theorem, in two halves.
+claim pair_fst: forall x. forall y. forall u. forall v. forall p. (kpair(x,y,p) -> (kpair(u,v,p) -> eq(x,u)))
+claim pair_snd: forall x. forall y. forall u. forall v. forall p. (kpair(x,y,p) -> (kpair(u,v,p) -> eq(y,v)))
+claim pair_inj: forall x. forall y. forall u. forall v. forall p. (kpair(x,y,p) -> (kpair(u,v,p) -> (eq(x,u) & eq(y,v))))
+
+# UNIQ for the Pair constant (S2), and the upair congruence it rests on.
+claim upair_uniq: forall x. forall y. forall w. forall w2. (upair(x,y,w) -> (upair(x,y,w2) -> eq(w,w2)))
+claim upair_cong: forall a. forall b. forall a2. forall b2. forall p. forall q. (upair(a,b,p) -> (upair(a2,b2,q) -> (eq(a,a2) -> (eq(b,b2) -> eq(p,q)))))
+claim pair_uniq: forall x. forall y. forall p. forall q. (kpair(x,y,p) -> (kpair(x,y,q) -> eq(p,q)))

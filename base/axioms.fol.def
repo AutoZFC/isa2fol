@@ -1,0 +1,115 @@
+# base/axioms -- FOUNDATION §1's admitted base, and tier 1 immediately above it.
+#
+# §12: `base/` is the ONLY place a bare `axiom` may appear. That is what makes
+# gate G1 a property of ORIGIN rather than of syntax, and it is what closes
+# FOUNDATION §4's 214-axiom failure mode permanently.
+#
+# WHY TIER 0 AND TIER 1 SHIP AS ONE UNIT: a def with no claims is not loadable --
+# the checker requires at least one `proof` block. That is not a workaround. §8
+# calls tier 1 "the eq_subst replacement", and it is precisely the equality
+# reasoning the 19 immediately yield; the two belong together.
+#
+# TRANSCRIPTION: every axiom below is copied VERBATIM from a probe the checker
+# already accepts, never retyped -- WITH ONE EXCEPTION, `infinity`, which had no
+# accepted source and is stated here; see its own note. §0 shows the exact form
+# is load-bearing -- Extensionality must be the biconditional, and Pairing must
+# be the eq-form or set_cong does not go through -- so retyping is a real risk
+# that was avoided everywhere it could be.
+#
+# TWO OF THE 19 ARE ABSENT: Regularity (18) and Choice (19). FOUNDATION §1 NAMES
+# them but does not STATE them, and no probe uses them, so there is no pinned
+# form to copy. They are absent rather than guessed: inventing a statement for a
+# base axiom is exactly what "nothing is assumed" forbids, and §0 is the standing
+# evidence that a plausible-looking variant can be wrong. Pin them before any
+# unit needs them -- as `infinity` now has been, because the constant table
+# cannot bottom out without it.
+#
+# WHAT `empty_from_infinity` DOES AND DOES NOT SHOW. It shows `infinity` is well
+# formed and usable -- a malformed or unusable statement fails there. It does NOT
+# show the statement is the INTENDED one; an axiom that is too strong would pass
+# just as well. That rests on the correspondence with Isabelle's own
+# `ZF_Base.infinity`, argued in the note on the axiom itself. Stated plainly
+# because it is the one place in this file where a reader could mistake a
+# usability check for a correctness proof.
+#
+# ONE DISCREPANCY RESOLVED: tuple_lemma declares `empty: exists e. set(e)`, a
+# weakening it needs only for T4. Base carries the real axiom (constants_s2s3's
+# form); the weak one is derivable from it.
+
+# --- Encoding hygiene (axioms 1-2): free in two-sorted textbooks, explicit here.
+axiom members_are_sets: forall x. forall y. (elem(x,y) -> set(x))
+axiom elem_first_subst: forall x. forall y. forall s. (eq(x,y) -> (elem(x,s) -> elem(y,s)))
+
+# --- I. Extensionality (axiom 3), as a BICONDITIONAL per §0.
+axiom extensionality: forall A. forall B. (eq(A,B) <-> (forall u. (set(u) -> (elem(u,A) <-> elem(u,B)))))
+
+# --- Definitional introductions used to EXPRESS the base. Zero content
+# (§10 G1 row 1). FOUNDATION §1 writes <x,y> in C as an abbreviation; the
+# checker has no notation, so the abbreviation becomes a @def.
+@def(upair) axiom upair_def: forall x. forall y. forall w. (upair(x,y,w) <-> (set(x) & (set(y) & (forall u. (set(u) -> (elem(u,w) <-> (eq(u,x) | eq(u,y))))))))
+@def(kpair) axiom kpair_def: forall x. forall y. forall p. (kpair(x,y,p) <-> (exists a. (set(a) & (exists b. (set(b) & (upair(x,x,a) & (upair(x,y,b) & upair(a,b,p))))))))
+@def(pmem)  axiom pmem_def: forall u. forall v. forall X. (pmem(u,v,X) <-> (exists p. (set(p) & (kpair(u,v,p) & elem(p,X)))))
+@def(tmem)  axiom tmem_def: forall u. forall v. forall w. forall X. (tmem(u,v,w,X) <-> (exists p. (set(p) & (kpair(u,v,p) & pmem(p,w,X)))))
+
+# --- II. Class existence, Godel B1-B7 (axioms 4-10), guarded per S6.
+axiom B1: exists E. (forall u. (forall v. (set(u) -> (set(v) -> (pmem(u,v,E) <-> elem(u,v))))))
+axiom B2: forall A. forall B. (exists C. (forall u. (set(u) -> (elem(u,C) <-> (elem(u,A) & elem(u,B))))))
+axiom B3: forall A. (exists C. (forall u. (set(u) -> (elem(u,C) <-> (~ elem(u,A))))))
+axiom B4: forall A. (exists C. (forall u. (set(u) -> (elem(u,C) <-> (exists v. (set(v) & pmem(u,v,A)))))))
+axiom B5: forall A. (exists C. (forall u. (forall v. (set(u) -> (set(v) -> (pmem(u,v,C) <-> elem(u,A)))))))
+axiom B6: forall A. (exists C. (forall u. (forall v. (forall w. (set(u) -> (set(v) -> (set(w) -> (tmem(u,v,w,C) <-> tmem(v,w,u,A)))))))))
+axiom B7: forall A. (exists C. (forall u. (forall v. (forall w. (set(u) -> (set(v) -> (set(w) -> (tmem(u,v,w,C) <-> tmem(u,w,v,A)))))))))
+
+# --- III. Set existence (axioms 11-17).
+axiom empty: exists e. (set(e) & (forall u. (set(u) -> (~ elem(u,e)))))
+axiom pairing: forall a. forall b. (set(a) -> (set(b) -> (exists z. (set(z) & (forall u. (set(u) -> (elem(u,z) <-> (eq(u,a) | eq(u,b)))))))))
+axiom union: forall A. (set(A) -> (exists u. (set(u) & (forall x. (set(x) -> (elem(x,u) <-> (exists y. (set(y) & (elem(y,A) & elem(x,y))))))))))
+axiom power: forall A. (set(A) -> (exists p. (set(p) & (forall u. (set(u) -> (elem(u,p) <-> (forall v. (set(v) -> (elem(v,u) -> elem(v,A))))))))))
+axiom separation: forall A. forall B. (set(B) -> (exists z. (set(z) & (forall u. (set(u) -> (elem(u,z) <-> (elem(u,B) & elem(u,A))))))))
+
+# Replacement (16): Fun(F) inlined as single-valuedness of the graph.
+axiom replacement: forall F. ((forall u. (set(u) -> (forall v. (set(v) -> (forall w. (set(w) -> (pmem(u,v,F) -> (pmem(u,w,F) -> eq(v,w))))))))) -> (forall x. (set(x) -> (exists z. (set(z) & (forall v. (set(v) -> (elem(v,z) <-> (exists u. (set(u) & (elem(u,x) & pmem(u,v,F))))))))))))
+
+# Infinity (15). A set containing an empty member and closed under successor,
+# with successor spelled relationally -- `succ(y) = y u {y}` is
+# `forall w. (w in s <-> (w in y | w = y))`. The signature has no function
+# symbols (S1), so this is the only way to state it.
+#
+# WHY THIS FORM RATHER THAN ISABELLE'S. The export states `ZF_Base.infinity` as
+#     0 : Inf  &  (ALL y:Inf. succ(y) : Inf)
+# i.e. a property of the CONSTANT `Inf`, using `zero` and `succ`. That is the
+# Skolemised half of §10's G1 table -- `Inf(r) -> phi(r)` -- and it is not
+# statable here, because `succ` is a defined constant lying deep in the
+# definitional order (succ -> cons -> Un -> Upair -> Replace). The AXIOM is the
+# existence claim `exists r. phi(r)`; `Inf` is then introduced from it as a
+# Skolem constant when the constant table reaches it. Isabelle's statement and
+# this one are the two halves of one introduction, not rivals.
+#
+# NOT COPIED VERBATIM, and that is why `empty_from_infinity` below exists. The
+# only prior text for this axiom is `docs/phase2_probes/vbg_derive_empty`, which
+# predates the 2026-08-02 restart: it pairs the axiom with `proof infinity:
+# UNPROVED`, so the whole probe lands in the CONDITIONAL bucket and both
+# `unit::check` and gate L reject it. Its statement is also unguarded where §6
+# requires a guard. So the form below is stated, not transcribed -- and a stated
+# base axiom must be exercised before it is trusted (§0 is the standing evidence
+# that a plausible variant can be wrong).
+axiom infinity: exists z. (set(z) & ((exists e. (set(e) & (elem(e,z) & (forall u. (set(u) -> (~ elem(u,e))))))) & (forall y. (set(y) -> (elem(y,z) -> (exists s. (set(s) & (elem(s,z) & (forall w. (set(w) -> (elem(w,s) <-> (elem(w,y) | eq(w,y)))))))))))))
+
+# --- IV. Regularity (18) and Choice (19): unpinned, see the header.
+
+# --- Tier 1: the equality core. §8 -- every congruence step downstream
+# routes through this, and it is what replaces the banned eq_subst.
+claim eq_refl:  forall A. eq(A,A)
+claim eq_symm:  forall A. forall B. (eq(A,B) -> eq(B,A))
+claim eq_trans: forall A. forall B. forall C. (eq(A,B) -> (eq(B,C) -> eq(A,C)))
+claim eq_join:  forall A. forall B. forall C. (eq(A,B) -> (eq(C,B) -> eq(A,C)))
+claim elem_second: forall A. forall B. forall z. (eq(A,B) -> (elem(z,A) -> elem(z,B)))
+claim set_cong: forall A. forall B. (eq(A,B) -> (set(A) -> set(B)))
+
+# EXERCISES `infinity`. Not decoration: the axiom above is stated rather than
+# transcribed from an accepted probe, so something has to show it is well formed
+# and usable. Deriving Empty is the smallest such consequence -- and it also
+# records that axioms 11 and 15 OVERLAP: Empty is a theorem of Infinity here.
+# Both stay admitted, because FOUNDATION §1 lists both among the 19 and R1 is a
+# rule about what may be admitted, not a minimality claim.
+claim empty_from_infinity: exists z. (set(z) & (forall u. (set(u) -> (~ elem(u,z)))))

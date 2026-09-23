@@ -1,0 +1,200 @@
+proof regroup2:
+    _hg = assume (forall x1. (forall x2. (set(x1) -> (set(x2) -> B(x1,x2)))))
+    fix x1
+    _gxx1 = assume set(x1)
+    fix x2
+    _gxx2 = assume set(x2)
+    _s0 = forall_elim _hg, x1
+    _s1 = forall_elim _s0, x2
+    _s2 = implies_elim _s1, _gxx1
+    _s3 = implies_elim _s2, _gxx2
+    _s4 = implies_intro _s3
+    _s5 = forall_intro _s4
+    _s6 = implies_intro _s5
+    _s7 = forall_intro _s6
+    _s8 = implies_intro _s7
+    _hi = assume (forall u1. (set(u1) -> (forall u2. (set(u2) -> B(u1,u2)))))
+    fix u1
+    fix u2
+    _iuu1 = assume set(u1)
+    _iuu2 = assume set(u2)
+    _s9 = forall_elim _hi, u1
+    _s10 = implies_elim _s9, _iuu1
+    _s11 = forall_elim _s10, u2
+    _s12 = implies_elim _s11, _iuu2
+    _s13 = implies_intro _s12
+    _s14 = implies_intro _s13
+    _s15 = forall_intro _s14
+    _s16 = forall_intro _s15
+    _s17 = implies_intro _s16
+    _r = iff_intro _s8, _s17
+    qed _r
+
+proof regroup3:
+    _hg = assume (forall x1. (forall x2. (forall x3. (set(x1) -> (set(x2) -> (set(x3) -> B(x1,x2,x3)))))))
+    fix x1
+    _gxx1 = assume set(x1)
+    fix x2
+    _gxx2 = assume set(x2)
+    fix x3
+    _gxx3 = assume set(x3)
+    _s0 = forall_elim _hg, x1
+    _s1 = forall_elim _s0, x2
+    _s2 = forall_elim _s1, x3
+    _s3 = implies_elim _s2, _gxx1
+    _s4 = implies_elim _s3, _gxx2
+    _s5 = implies_elim _s4, _gxx3
+    _s6 = implies_intro _s5
+    _s7 = forall_intro _s6
+    _s8 = implies_intro _s7
+    _s9 = forall_intro _s8
+    _s10 = implies_intro _s9
+    _s11 = forall_intro _s10
+    _s12 = implies_intro _s11
+    _hi = assume (forall u1. (set(u1) -> (forall u2. (set(u2) -> (forall u3. (set(u3) -> B(u1,u2,u3)))))))
+    fix u1
+    fix u2
+    fix u3
+    _iuu1 = assume set(u1)
+    _iuu2 = assume set(u2)
+    _iuu3 = assume set(u3)
+    _s13 = forall_elim _hi, u1
+    _s14 = implies_elim _s13, _iuu1
+    _s15 = forall_elim _s14, u2
+    _s16 = implies_elim _s15, _iuu2
+    _s17 = forall_elim _s16, u3
+    _s18 = implies_elim _s17, _iuu3
+    _s19 = implies_intro _s18
+    _s20 = implies_intro _s19
+    _s21 = implies_intro _s20
+    _s22 = forall_intro _s21
+    _s23 = forall_intro _s22
+    _s24 = forall_intro _s23
+    _s25 = implies_intro _s24
+    _r = iff_intro _s12, _s25
+    qed _r
+
+proof regroup4:
+    _hg = assume (forall x1. (forall x2. (forall x3. (forall x4. (set(x1) -> (set(x2) -> (set(x3) -> (set(x4) -> B(x1,x2,x3,x4)))))))))
+    fix x1
+    _gxx1 = assume set(x1)
+    fix x2
+    _gxx2 = assume set(x2)
+    fix x3
+    _gxx3 = assume set(x3)
+    fix x4
+    _gxx4 = assume set(x4)
+    _s0 = forall_elim _hg, x1
+    _s1 = forall_elim _s0, x2
+    _s2 = forall_elim _s1, x3
+    _s3 = forall_elim _s2, x4
+    _s4 = implies_elim _s3, _gxx1
+    _s5 = implies_elim _s4, _gxx2
+    _s6 = implies_elim _s5, _gxx3
+    _s7 = implies_elim _s6, _gxx4
+    _s8 = implies_intro _s7
+    _s9 = forall_intro _s8
+    _s10 = implies_intro _s9
+    _s11 = forall_intro _s10
+    _s12 = implies_intro _s11
+    _s13 = forall_intro _s12
+    _s14 = implies_intro _s13
+    _s15 = forall_intro _s14
+    _s16 = implies_intro _s15
+    _hi = assume (forall u1. (set(u1) -> (forall u2. (set(u2) -> (forall u3. (set(u3) -> (forall u4. (set(u4) -> B(u1,u2,u3,u4)))))))))
+    fix u1
+    fix u2
+    fix u3
+    fix u4
+    _iuu1 = assume set(u1)
+    _iuu2 = assume set(u2)
+    _iuu3 = assume set(u3)
+    _iuu4 = assume set(u4)
+    _s17 = forall_elim _hi, u1
+    _s18 = implies_elim _s17, _iuu1
+    _s19 = forall_elim _s18, u2
+    _s20 = implies_elim _s19, _iuu2
+    _s21 = forall_elim _s20, u3
+    _s22 = implies_elim _s21, _iuu3
+    _s23 = forall_elim _s22, u4
+    _s24 = implies_elim _s23, _iuu4
+    _s25 = implies_intro _s24
+    _s26 = implies_intro _s25
+    _s27 = implies_intro _s26
+    _s28 = implies_intro _s27
+    _s29 = forall_intro _s28
+    _s30 = forall_intro _s29
+    _s31 = forall_intro _s30
+    _s32 = forall_intro _s31
+    _s33 = implies_intro _s32
+    _r = iff_intro _s16, _s33
+    qed _r
+
+proof regroup5:
+    _hg = assume (forall x1. (forall x2. (forall x3. (forall x4. (forall x5. (set(x1) -> (set(x2) -> (set(x3) -> (set(x4) -> (set(x5) -> B(x1,x2,x3,x4,x5)))))))))))
+    fix x1
+    _gxx1 = assume set(x1)
+    fix x2
+    _gxx2 = assume set(x2)
+    fix x3
+    _gxx3 = assume set(x3)
+    fix x4
+    _gxx4 = assume set(x4)
+    fix x5
+    _gxx5 = assume set(x5)
+    _s0 = forall_elim _hg, x1
+    _s1 = forall_elim _s0, x2
+    _s2 = forall_elim _s1, x3
+    _s3 = forall_elim _s2, x4
+    _s4 = forall_elim _s3, x5
+    _s5 = implies_elim _s4, _gxx1
+    _s6 = implies_elim _s5, _gxx2
+    _s7 = implies_elim _s6, _gxx3
+    _s8 = implies_elim _s7, _gxx4
+    _s9 = implies_elim _s8, _gxx5
+    _s10 = implies_intro _s9
+    _s11 = forall_intro _s10
+    _s12 = implies_intro _s11
+    _s13 = forall_intro _s12
+    _s14 = implies_intro _s13
+    _s15 = forall_intro _s14
+    _s16 = implies_intro _s15
+    _s17 = forall_intro _s16
+    _s18 = implies_intro _s17
+    _s19 = forall_intro _s18
+    _s20 = implies_intro _s19
+    _hi = assume (forall u1. (set(u1) -> (forall u2. (set(u2) -> (forall u3. (set(u3) -> (forall u4. (set(u4) -> (forall u5. (set(u5) -> B(u1,u2,u3,u4,u5)))))))))))
+    fix u1
+    fix u2
+    fix u3
+    fix u4
+    fix u5
+    _iuu1 = assume set(u1)
+    _iuu2 = assume set(u2)
+    _iuu3 = assume set(u3)
+    _iuu4 = assume set(u4)
+    _iuu5 = assume set(u5)
+    _s21 = forall_elim _hi, u1
+    _s22 = implies_elim _s21, _iuu1
+    _s23 = forall_elim _s22, u2
+    _s24 = implies_elim _s23, _iuu2
+    _s25 = forall_elim _s24, u3
+    _s26 = implies_elim _s25, _iuu3
+    _s27 = forall_elim _s26, u4
+    _s28 = implies_elim _s27, _iuu4
+    _s29 = forall_elim _s28, u5
+    _s30 = implies_elim _s29, _iuu5
+    _s31 = implies_intro _s30
+    _s32 = implies_intro _s31
+    _s33 = implies_intro _s32
+    _s34 = implies_intro _s33
+    _s35 = implies_intro _s34
+    _s36 = forall_intro _s35
+    _s37 = forall_intro _s36
+    _s38 = forall_intro _s37
+    _s39 = forall_intro _s38
+    _s40 = forall_intro _s39
+    _s41 = implies_intro _s40
+    _r = iff_intro _s20, _s41
+    qed _r
+

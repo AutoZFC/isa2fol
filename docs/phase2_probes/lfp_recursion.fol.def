@@ -1,0 +1,46 @@
+# Is "recursion" a THIRD base case, or is it composition of ZF operations?
+#
+# FOUNDATION §2 S3 lists recursion as a base case alongside primitives and The,
+# and no probe touched it. §9 measures the exposure: 39 package axioms entering
+# through 77 sites, but 5,509 proofs (32.8%) downstream. If lfp cannot carry
+# EX/UNIQ/CONG then a third of the corpus does not translate, and no other
+# premise of §10's completeness argument fails first. So it is probed FIRST.
+#
+# The defining equations, read off the export:
+#     lfp(D,h)          == Inter(Collect(Pow(D), %X. Subset(h(X), X)))
+#     Inter(A)          == Collect(Union(A), %x. Ball(A, %y. mem(x,y)))
+#     The(P)            == Union(Replace(cons(0,0), %_ y. P(y)))
+#     the_recfun(r,a,H) == The(%f. is_recfun(r,a,H,f))
+#     wftrec(r,a,H)     == H(a, the_recfun(r,a,H))
+#     list(A)           == lfp(univ(A), %X. Collect(univ(A), ...))
+#     Fin(A)            == lfp(Pow(A),   %X. Collect(Pow(A),   ...))
+#
+# So lfp bottoms out in Pow + Separation + Union, and WF recursion bottoms out
+# in The (tier 6 ✓). NEITHER is a new primitive. This probe derives the lfp
+# chain to confirm the composition, since that is the load-bearing half.
+#
+# Per §7's parameter-or-hypothesis rule the two classes arrive as hypotheses;
+# Compiler B supplies them per concrete datatype, where h is a concrete lambda
+# and beta-reduces (§7 construct 2).
+axiom members_are_sets: forall x. forall y. (elem(x,y) -> set(x))
+axiom elem_first_subst: forall x. forall y. forall s. (eq(x,y) -> (elem(x,s) -> elem(y,s)))
+axiom extensionality: forall A. forall B. (eq(A,B) <-> (forall u. (elem(u,A) <-> elem(u,B))))
+axiom power: forall A. (set(A) -> (exists p. (set(p) & (forall u. (set(u) -> (elem(u,p) <-> (forall v. (set(v) -> (elem(v,u) -> elem(v,A))))))))))
+axiom union: forall A. (set(A) -> (exists u. (set(u) & (forall x. (elem(x,u) <-> (exists y. (elem(y,A) & elem(x,y))))))))
+axiom separation: forall A. forall B. (set(B) -> (exists z. (set(z) & (forall u. (elem(u,z) <-> (elem(u,B) & elem(u,A)))))))
+
+# NB: the class arrives as a first-order PARAMETER, not a schema variable. That
+# is §6's interface contract literally: Compiler B emits a class, the kernel
+# takes one. No schema is needed, so R2 has nothing to discharge here.
+
+# Step 1 -- Collect(Pow(D), C) exists.
+claim pow_sep_ex: forall D. forall C. (set(D) -> (exists s. (set(s) & (forall X. (set(X) -> (elem(X,s) <-> ((forall v. (set(v) -> (elem(v,X) -> elem(v,D)))) & elem(X,C))))))))
+
+# Step 2 -- Inter(s) exists, given the inter-predicate's class K.
+claim inter_ex: forall s. forall K. (set(s) -> ((forall u. (set(u) -> (elem(u,K) <-> (forall y. (set(y) -> (elem(y,s) -> elem(u,y))))))) -> (exists l. (set(l) & (forall x. (set(x) -> (elem(x,l) <-> ((exists y. (elem(y,s) & elem(x,y))) & (forall y. (set(y) -> (elem(y,s) -> elem(x,y))))))))))))
+
+# Step 3 -- lfp(D,h) exists: the two composed. THIS IS THE CLAIM AT RISK.
+claim lfp_ex: forall D. forall C. (set(D) -> ((forall s. (set(s) -> (exists K. (forall u. (set(u) -> (elem(u,K) <-> (forall y. (set(y) -> (elem(y,s) -> elem(u,y)))))))))) -> (exists s. (set(s) & ((forall X. (set(X) -> (elem(X,s) <-> ((forall v. (set(v) -> (elem(v,X) -> elem(v,D)))) & elem(X,C))))) & (exists l. (set(l) & (forall x. (set(x) -> (elem(x,l) <-> ((exists y. (elem(y,s) & elem(x,y))) & (forall y. (set(y) -> (elem(y,s) -> elem(x,y)))))))))))))))
+
+# UNIQ for lfp -- so the constant is single-valued (S2).
+claim inter_uniq: forall s. forall l. forall m. ((forall x. (set(x) -> (elem(x,l) <-> ((exists y. (elem(y,s) & elem(x,y))) & (forall y. (set(y) -> (elem(y,s) -> elem(x,y)))))))) -> ((forall x. (set(x) -> (elem(x,m) <-> ((exists y. (elem(y,s) & elem(x,y))) & (forall y. (set(y) -> (elem(y,s) -> elem(x,y)))))))) -> eq(l,m)))

@@ -1,0 +1,17 @@
+# Tier 7 -- the proof layer.  FOUNDATION §4's open question: can Isabelle proof
+# terms be re-rendered against relational statements?
+# Renderings:  term a:i -> unary A(r).  meta-fn f:i=>i -> binary F(x,r).
+#   a == b       ->  forall r. set(r) -> (A(r) <-> B(r))
+#   f == g       ->  forall x r. set -> (F(x,r) <-> G(x,r))
+#   f a          ->  exists t. (set(t) & A(t) & F(t,r))
+axiom members_are_sets: forall x. forall y. (elem(x,y) -> set(x))
+
+schema pure_refl [A(1)]: (forall r. (set(r) -> (A(r) <-> A(r))))
+schema pure_symm [A(1), B(1)]: ((forall r. (set(r) -> (A(r) <-> B(r)))) -> (forall r. (set(r) -> (B(r) <-> A(r)))))
+schema pure_trans [A(1), B(1), C(1)]: ((forall r. (set(r) -> (A(r) <-> B(r)))) -> ((forall r. (set(r) -> (B(r) <-> C(r)))) -> (forall r. (set(r) -> (A(r) <-> C(r))))))
+schema pure_equal_intr [P(0), Q(0)]: ((P -> Q) -> ((Q -> P) -> (P <-> Q)))
+schema pure_equal_elim [P(0), Q(0)]: ((P <-> Q) -> (P -> Q))
+schema pure_comb [F(2), G(2), A(1), B(1)]: ((forall x. (forall r. (set(x) -> (set(r) -> (F(x,r) <-> G(x,r)))))) -> ((forall r. (set(r) -> (A(r) <-> B(r)))) -> (forall r. (set(r) -> ((exists t. (set(t) & (A(t) & F(t,r)))) <-> (exists t. (set(t) & (B(t) & G(t,r)))))))))
+schema pure_abst [F(2), G(2)]: ((forall x. (set(x) -> (forall r. (set(r) -> (F(x,r) <-> G(x,r)))))) -> (forall x. (forall r. (set(x) -> (set(r) -> (F(x,r) <-> G(x,r)))))))
+schema appt_complex [F(2), Psi(1)]: ((forall x. (set(x) -> (exists r. (set(r) & F(x,r))))) -> ((forall y. (set(y) -> Psi(y))) -> (forall x. (set(x) -> (exists v. (set(v) & (F(x,v) & Psi(v))))))))
+schema appt_nested [F(2), G(2), Psi(1)]: ((forall x. (set(x) -> (exists r. (set(r) & G(x,r))))) -> ((forall x. (set(x) -> (exists r. (set(r) & F(x,r))))) -> ((forall y. (set(y) -> Psi(y))) -> (forall x. (set(x) -> (exists u. (set(u) & (G(x,u) & (exists v. (set(v) & (F(u,v) & Psi(v))))))))))))

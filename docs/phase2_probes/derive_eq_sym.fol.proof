@@ -1,0 +1,18 @@
+proof eq_sym_derived:
+    fix a
+    fix b
+    _h = assume eq(a, b)
+    _e = use ZF_Base_2eextension__ax
+    _eab = forall_elim _e, a
+    _eab2 = forall_elim _eab, b
+    _conj = iff_elim_l _eab2, _h
+    _ab = and_elim_l _conj
+    _ba = and_elim_r _conj
+    _swap = and_intro _ba, _ab
+    _eba = forall_elim _e, b
+    _eba2 = forall_elim _eba, a
+    _eqba = iff_elim_r _eba2, _swap
+    _imp = implies_intro _eqba
+    _g1 = forall_intro _imp
+    _g2 = forall_intro _g1
+    qed _g2

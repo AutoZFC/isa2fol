@@ -1,0 +1,39 @@
+# base/tiers/cong -- CONGRUENCE, one lemma per formula constructor.
+#
+# §9 lists Compiler B as having TWO outputs per call site, not one: the class,
+# and `eq(a,b) -> (phi(a) <-> phi(b))`. §8 tier 6 says why the second is not
+# optional -- UNIQ does not compose without CONG, so S3's induction breaks at
+# the first composite constant.
+#
+# The congruence half touches no classes at all. It is a structural induction on
+# phi whose every step is one of the lemmas below, so -- exactly as with the
+# normalisation bridges -- nothing is generated per formula except the
+# composition.
+#
+# The two atom families are where the content is; the connectives are pure
+# plumbing. `elem` needs BOTH sides substituted, and they come from different
+# places: the left from axiom 2 (`elem_first_subst`) and the right from tier 1's
+# `elem_second`, which is itself derived from Extensionality. That asymmetry is
+# FOUNDATION §1's, not ours -- axiom 2 substitutes on the left of `:` only, and
+# §0 records that the right-hand direction is exactly what the biconditional
+# form of Extensionality buys.
+
+schema iff_refl [A(0)]: (A <-> A)
+schema cong_not [A(0), B(0)]: ((A <-> B) -> ((~ A) <-> (~ B)))
+schema cong_and [A(0), A2(0), B(0), B2(0)]: ((A <-> A2) -> ((B <-> B2) -> ((A & B) <-> (A2 & B2))))
+schema cong_or  [A(0), A2(0), B(0), B2(0)]: ((A <-> A2) -> ((B <-> B2) -> ((A | B) <-> (A2 | B2))))
+schema cong_imp [A(0), A2(0), B(0), B2(0)]: ((A <-> A2) -> ((B <-> B2) -> ((A -> B) <-> (A2 -> B2))))
+schema cong_iff [A(0), A2(0), B(0), B2(0)]: ((A <-> A2) -> ((B <-> B2) -> ((A <-> B) <-> (A2 <-> B2))))
+
+# Under a binder the hypothesis is the pointwise equivalence, guarded (§6).
+schema cong_exists [P(1), Q(1)]: ((forall z. (set(z) -> (P(z) <-> Q(z)))) -> ((exists z. (set(z) & P(z))) <-> (exists z. (set(z) & Q(z)))))
+schema cong_forall [P(1), Q(1)]: ((forall z. (set(z) -> (P(z) <-> Q(z)))) -> ((forall z. (set(z) -> P(z))) <-> (forall z. (set(z) -> Q(z)))))
+
+# A CLASS binder is BARE (R4 — `set(C)` is false, not redundant), so the guarded
+# kernels above do not apply to it. Pure first-order logic; no set theory.
+schema cong_exists_bare [P(1), Q(1)]: ((forall z. (P(z) <-> Q(z))) -> ((exists z. P(z)) <-> (exists z. Q(z))))
+
+claim cong_elem_l: forall a. forall b. forall t. (eq(a,b) -> (elem(a,t) <-> elem(b,t)))
+claim cong_elem_r: forall s. forall a. forall b. (eq(a,b) -> (elem(s,a) <-> elem(s,b)))
+claim cong_eq_l: forall a. forall b. forall t. (eq(a,b) -> (eq(a,t) <-> eq(b,t)))
+claim cong_eq_r: forall s. forall a. forall b. (eq(a,b) -> (eq(s,a) <-> eq(s,b)))

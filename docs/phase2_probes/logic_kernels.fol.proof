@@ -1,0 +1,42 @@
+proof conjI:
+    _h0 = assume P
+    _h1 = assume Q
+    _h2 = and_intro _h0, _h1
+    _h3 = implies_intro _h2
+    _h4 = implies_intro _h3
+    qed _h4
+proof disjE:
+    _d = assume (P | Q)
+    _l = assume (P -> R)
+    _r = assume (Q -> R)
+    _p = assume P
+    _rp = implies_elim _l, _p
+    _lc = implies_intro _rp
+    _q = assume Q
+    _rq = implies_elim _r, _q
+    _rc = implies_intro _rq
+    _o = or_elim _d, _lc, _rc
+    _i1 = implies_intro _o
+    _i2 = implies_intro _i1
+    _i3 = implies_intro _i2
+    qed _i3
+proof spec:
+    _a = assume (forall x. P(x))
+    fix y
+    _e = forall_elim _a, y
+    _g = forall_intro _e
+    _i = implies_intro _g
+    qed _i
+proof demo:
+    fix a
+    fix b
+    _c = assume (elem(a,b) & elem(b,a))
+    _l = and_elim_l _c
+    _r = and_elim_r _c
+    _k = schema_inst conjI { P: elem(b,a), Q: elem(a,b) }
+    _k1 = implies_elim _k, _r
+    _k2 = implies_elim _k1, _l
+    _i = implies_intro _k2
+    _g1 = forall_intro _i
+    _g2 = forall_intro _g1
+    qed _g2

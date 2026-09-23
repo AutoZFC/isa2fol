@@ -1,0 +1,29 @@
+# Tier 2 -- Kuratowski pairs and the set(.) discharge through nested Pair chains.
+# FOUNDATION.md §3 names this as "where a silent error can hide": under
+#   <u,v> in X  :=  exists p. (Pair(u,v,p) & p in X)
+# the flattening identity is syntactic, not definitional.
+# Base: §1 axioms 1, 2, 3 (biconditional per the §0 correction), 12.
+axiom members_are_sets: forall x. forall y. (elem(x,y) -> set(x))
+axiom elem_first_subst: forall x. forall y. forall s. (eq(x,y) -> (elem(x,s) -> elem(y,s)))
+axiom extensionality: forall A. forall B. (eq(A,B) <-> (forall u. (elem(u,A) <-> elem(u,B))))
+axiom pairing: forall a. forall b. (set(a) -> (set(b) -> (exists z. (set(z) & (forall u. (elem(u,z) <-> (eq(u,a) | eq(u,b))))))))
+
+# Definitional introductions -- zero content (G1 row 1).
+@def(upair) axiom upair_def: forall x. forall y. forall w. (upair(x,y,w) <-> (forall u. (elem(u,w) <-> (eq(u,x) | eq(u,y)))))
+@def(kpair) axiom kpair_def: forall x. forall y. forall p. (kpair(x,y,p) <-> (exists a. (exists b. (upair(x,x,a) & (upair(x,y,b) & upair(a,b,p))))))
+
+# Tier 1 fragment this needs.
+claim eq_refl:  forall A. eq(A,A)
+claim set_cong: forall A. forall B. (eq(A,B) -> (set(A) -> set(B)))
+
+# Tier 2.
+claim upair_ex:   forall x. forall y. (set(x) -> (set(y) -> (exists w. (set(w) & upair(x,y,w)))))
+claim upair_uniq: forall x. forall y. forall w. forall w2. (upair(x,y,w) -> (upair(x,y,w2) -> eq(w,w2)))
+claim upair_set:  forall x. forall y. forall w. (set(x) -> (set(y) -> (upair(x,y,w) -> set(w))))
+claim pair_ex:    forall x. forall y. (set(x) -> (set(y) -> (exists p. (set(p) & kpair(x,y,p)))))
+claim pair_set:   forall x. forall y. forall p. (set(x) -> (set(y) -> (kpair(x,y,p) -> set(p))))
+claim tuple_chain: forall a. forall b. forall c. forall p. forall q. (set(a) -> (set(b) -> (set(c) -> (kpair(a,b,p) -> (kpair(p,c,q) -> set(q))))))
+
+# The flattening lemma proper: T1 stated at every z that IS the pair <z1,z2>
+# yields the flattened 4-tuple form. Phi is T1's right-hand side, uninterpreted.
+schema flatten_slot1 [Phi(0)]: forall z1. forall z2. forall x. forall y. forall B. (set(z1) -> (set(z2) -> ((forall z. (kpair(z1,z2,z) -> ((exists q. (kpair(z,x,q) & (exists r. (kpair(q,y,r) & elem(r,B))))) <-> Phi))) -> ((exists p. (kpair(z1,z2,p) & (exists q. (kpair(p,x,q) & (exists r. (kpair(q,y,r) & elem(r,B))))))) <-> Phi))))

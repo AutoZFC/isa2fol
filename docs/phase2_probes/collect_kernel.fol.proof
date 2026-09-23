@@ -1,0 +1,42 @@
+proof collect_char:
+    fix A
+    fix C
+    _hc = assume (forall u. (set(u) -> (elem(u,C) <-> P(u))))
+    _ha = assume set(A)
+    _sep = use separation
+    _s1 = forall_elim _sep, C
+    _s2 = forall_elim _s1, A
+    _s3 = implies_elim _s2, _ha
+    _ez = exists_elim _s3, z
+    _zs = and_elim_l _ez
+    _zm = and_elim_r _ez
+    fix x
+    _hsx = assume set(x)
+    _zmx = forall_elim _zm, x
+    _hc1 = forall_elim _hc, x
+    _hcx = implies_elim _hc1, _hsx
+    _f = assume elem(x,z)
+    _fc = iff_elim_l _zmx, _f
+    _fa = and_elim_l _fc
+    _fC = and_elim_r _fc
+    _fP = iff_elim_l _hcx, _fC
+    _fk = and_intro _fa, _fP
+    _fwd = implies_intro _fk
+    _b = assume (elem(x,A) & P(x))
+    _ba = and_elim_l _b
+    _bP = and_elim_r _b
+    _bC = iff_elim_r _hcx, _bP
+    _bk = and_intro _ba, _bC
+    _bz = iff_elim_r _zmx, _bk
+    _bwd = implies_intro _bz
+    _bi = iff_intro _fwd, _bwd
+    _gi = implies_intro _bi
+    _gx = forall_intro _gi
+    _cj = and_intro _zs, _gx
+    _e1 = exists_intro _cj, z
+    _e2 = exists_intro _e1
+    _i1 = implies_intro _e2
+    _i2 = implies_intro _i1
+    _g1 = forall_intro _i2
+    _g2 = forall_intro _g1
+    qed _g2
