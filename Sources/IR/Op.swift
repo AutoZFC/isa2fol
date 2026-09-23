@@ -45,11 +45,13 @@ public enum Op: Hashable, Sendable {
         }
     }
 
+    /// ⚠ TARGET EVIDENCE ONLY — freezing `isaAxiom` made it unlowerable.
     public var producesEvidence: Bool {
         switch self {
-        case .isaAxiom, .folUse: return true
+        case .folUse: return true
         case .blockArg, .isaFree, .isaAtom, .isaTrueprop, .isaImp, .isaAll,
-             .folVar, .folPred, .folImplies, .folForall, .cast: return false
+             .isaAxiom, .folVar, .folPred, .folImplies, .folForall, .cast:
+            return false
         }
     }
 

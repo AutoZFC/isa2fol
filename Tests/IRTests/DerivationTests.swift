@@ -44,3 +44,14 @@ import Testing
         var c = b; try p.run(&c)
     }
 }
+
+/// ⚠ THE SOURCE SIDE MUST STAY LOWERABLE. Freezing `isaAxiom` as evidence made
+/// `legalize` unreachable for any graph containing a proof.
+@Test func anIsaAxiomCanBeLoweredToAFolUse() throws {
+    var b = Builder()
+    let ax = try b.append(.isaAxiom("ZF_Base.extension"), to: b.graph.root)
+    let new = try b.insert(.folUse("extension"), before: ax)
+    try b.replaceAllUses(of: ax, with: new)
+    try b.erase(ax)
+    try legalize(b.graph)
+}
