@@ -1,13 +1,10 @@
-import FolDialect
-import IsaDialect
-
 public enum Verdict: Sendable {
     case declared
     case waiting(on: String)          // a constant the Vocabulary lacks
     case refused(String)
 }
 
-/// What an Isabelle constant becomes. The ONLY thing that names both dialects.
+/// What an Isabelle constant becomes.
 public struct Entry: Sendable {
     public let predicate: String
     public let arity: Int

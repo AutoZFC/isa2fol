@@ -33,8 +33,8 @@ Two mechanisms prevent that, and both are mandatory:
   Write only what is **true now**. If a sentence has a past-tense verb about the
   work, delete it.
   - ✗ *"Fixed the sort order bug, then added tests."*
-  - ✓ *"Closure order is first-occurrence (`statement/mod.rs:186`), pinned by
-    `closure_follows_first_occurrence_not_alphabetical`."*
+  - ✓ *"A class binder renders unguarded (`Sources/FolDialect/Render.swift`),
+    pinned by `aClassBinderCarriesNoGuard`."*
 - **Exception:** a *correction* survives if a future session would otherwise
   repeat it. Write it as a standing warning, not as an event.
   - ✓ *"Do NOT sort the closure alphabetically — `ZAppt` forces first-occurrence

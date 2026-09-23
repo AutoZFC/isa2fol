@@ -4,10 +4,10 @@
 # The cap is the point: when it is hit the OOM killer acts INSIDE the cgroup, so
 # the build dies instead of tmux or the editing session.
 #
-#   scripts/capped.sh cargo test --release
-#   MEM=4G JOBS=2 scripts/capped.sh cargo build --release
+#   scripts/capped.sh swift test
+#   MEM=4G JOBS=2 scripts/capped.sh swift build
 #
-# JOBS caps BOTH rustc codegen units and test threads. Test threads matter more
+# JOBS caps BOTH compiler jobs and test threads. Test threads matter more
 # than they look: `unit::check` shells out to the fol-zfc proof_checker, so a
 # parallel test run holds one checker process per thread, each carrying a whole
 # proof in memory.

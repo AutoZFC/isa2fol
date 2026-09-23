@@ -29,10 +29,9 @@ State which mode you're using and why.
 
 Find the minimal trigger. Get concrete data:
 - Which proof file? (serial number + theory)
-- Run it: `cd rs && scripts/capped.sh cargo test --release -- <test> --nocapture`.
-  **There is no `--check-proof` and no `--bridge`; `--scan` is main.rs's only mode.**
-  Corpus state comes from the census tests (`the_p4_blocker_census`,
-  `the_lower_reach_census`); a single unit from `crate::unit::check`
+- Run it: `MEM=16G scripts/capped.sh swift test --filter <test>` (rule 10).
+  Corpus state comes from `scripts/source-surface.py`, which regenerates
+  `docs/SOURCE_SURFACE.md`; a single unit from the real `proof_checker`
 - Capture the actual output vs what was expected
 
 If the user gave an error message, find the exact proof/theorem that triggers it.
@@ -42,15 +41,14 @@ If the user gave an error message, find the exact proof/theorem that triggers it
 Identify which pipeline stage diverges. The pipeline is:
 
 ```
-YXML file → parse → IR1 tree → flatten → flat steps (Core+Isa)
-  → Pass 0: Pure.eq elimination
-  → Pass 1: Identity elimination
-  → Pass 2: Native ND lowering
-  → Pass 3: Complex term expansion
-  → emit text
+YXML file → parse → Graph of isa.* ops (types obj/prop/meta/fn)
+  → LowerMeta   ⟹ ⋀ ≡ Trueprop  →  fol connectives + guards
+  → LowerFn     binder scopes → Regions; operands → classes (S5)
+  → legalize    fol-zfc ops only, no cast, no meta/fn types
+  → render text
 ```
 
-Add `eprintln!` traces or read intermediate state to binary-search which
+`Graph.dump()` prints any stage. Use it to binary-search which
 stage produces the wrong output. Check the stage BEFORE the first broken one —
 that's where the bug likely is.
 
@@ -94,10 +92,11 @@ Read the Isabelle source for the construct in question. Check:
 
 Follow this ONE construct through each pipeline stage that touches it.
 Read the actual code at each stage:
-- `linearize/build_ir1.rs` — how is the YXML classified?
-- `linearize/flatten.rs` — how is the IR1 node flattened to steps?
-- `optimize.rs` / `pass/` — which passes transform it?
-- `emit.rs` — how is it rendered to text?
+- `Sources/YXML/Parse.swift` — how is the transfer format read?
+- the reader into `IR.Graph` — which `isa.*` op does the node become?
+- `Sources/IR/Pass.swift` — which pattern rewrites it, and to what?
+- `Sources/IR/Legalize.swift` — does it survive lowering? `Graph.dump()` shows.
+- `Sources/FolDialect/Render.swift` — how is it rendered to text?
 
 ### Step 3: Identify the Gap
 
@@ -232,8 +231,8 @@ After the fix is implemented and tests pass:
 
 1. **Run the full suite**, always capped (CLAUDE.md rule 10):
    ```bash
-   cd rs && PROOF_CHECKER=~/repos/fol-zfc-comb/bazel-bin/src/tools/proof_checker \
-     scripts/capped.sh cargo test --release --no-fail-fast
+   PROOF_CHECKER=~/repos/fol-zfc-comb/bazel-bin/src/tools/proof_checker \
+     MEM=16G scripts/capped.sh swift test
    ```
 
 2. **Record numbers**: passed/failed, and the census counts your change touches.

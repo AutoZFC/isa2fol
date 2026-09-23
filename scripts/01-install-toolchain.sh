@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Per-user toolchain for isa2fol: rustup/cargo, bazelisk, and the fol-zfc
-# proof_checker that `unit::check` shells out to. No sudo: everything lands in
-# $HOME. Idempotent -- re-running skips whatever is already present.
+# Per-user toolchain for isa2fol: bazelisk and the fol-zfc proof_checker the
+# tests shell out to. No sudo: everything lands in $HOME. Idempotent --
+# re-running skips whatever is already present.
+# Swift is scripts/02-install-swift.sh.
 set -euo pipefail
 
 LOG=${LOG:-/tmp/isa2fol-toolchain.log}
@@ -10,7 +11,6 @@ echo "=== $(date -Is) 01-install-toolchain.sh ==="
 
 FOLZFC=${FOLZFC:-$HOME/repos/fol-zfc-comb}
 BIN="$HOME/.local/bin"
-CARGO_HOME=${CARGO_HOME:-$HOME/.cargo}
 
 for t in gcc g++ make curl git unzip zip python3 systemd-run; do
     command -v "$t" >/dev/null || { echo "FATAL: $t missing"; exit 1; }
@@ -18,18 +18,7 @@ done
 [ -d "$FOLZFC" ] || { echo "FATAL: no fol-zfc at $FOLZFC"; exit 1; }
 mkdir -p "$BIN"
 
-echo "--- [1/3] rust"
-if command -v cargo >/dev/null || [ -x "$CARGO_HOME/bin/cargo" ]; then
-    echo "skip: cargo present"
-else
-    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
-        | sh -s -- -y --profile minimal --default-toolchain stable
-fi
-export PATH="$CARGO_HOME/bin:$PATH"
-cargo --version
-rustc --version
-
-echo "--- [2/3] bazelisk"
+echo "--- [1/2] bazelisk"
 if [ -x "$BIN/bazel" ]; then
     echo "skip: $BIN/bazel present"
 else
@@ -41,7 +30,7 @@ else
 fi
 export PATH="$BIN:$PATH"
 
-echo "--- [3/3] proof_checker"
+echo "--- [2/2] proof_checker"
 CK="$FOLZFC/bazel-bin/src/tools/proof_checker"
 if [ -x "$CK" ]; then
     echo "skip: $CK present"
@@ -58,7 +47,6 @@ fi
 
 echo
 echo "=== done ==="
-echo "cargo:         $(command -v cargo)"
 echo "bazel:         $(command -v bazel)"
 echo "proof_checker: $CK"
 echo
