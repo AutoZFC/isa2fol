@@ -12,7 +12,7 @@ document is dead; it is in git history and nothing depends on it.
 |---|---|
 | `swift --version \| head -1` | `Swift version 6.4 (swift-6.4-RELEASE)` |
 | `swift build` | `Build complete!` |
-| `swift test 2>&1 \| grep -cE '^✔ Test [a-zA-Z]+\(\) passed'` | **`14`** |
+| `swift test 2>&1 \| grep -cE '^✔ Test [a-zA-Z]+\(\) passed'` | **`15`** |
 | comment density of `Sources/**/*.swift` (CLAUDE.md rule 9 has the script) | `23/466 = 4.9%` — **UNDER the cap**; it must stay there |
 | `find Sources Tests -name '*.swift' \| wc -l` | `22` (852 lines) |
 | `ls Sources` | `FolDialect Framework IR isa2fol YXML` |
@@ -84,6 +84,9 @@ is the only place either shows up:
   not exist got the rule wrong: it froze `isaAxiom`, which is source, so
   `legalize` was unreachable for any graph with a proof in it. Write it when
   there is a proof layer to guard.
+- **⚠ A REGION REPRESENTS SCOPE BUT NOTHING ENFORCES IT.** An op outside a region
+  may reference that region's `blockArg` and neither `walk` nor `legalize`
+  objects. The structure to verify dominance is there; the verifier is not.
 - **⚠ `Op.operands` ALLOCATES, EVEN AT FIXED ARITY.** In any loop across the
   graph use `forEachOperand` or `references(_:)`, which do not.
 - **⚠ `IRType.i` DOES NOT DISTINGUISH A SET FROM A CLASS, AND THAT IS DELIBERATE.**

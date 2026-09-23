@@ -3,9 +3,7 @@ extension Graph {
         var out: [String] = []
         func line(_ id: OpID, _ depth: Int) {
             let pad = String(repeating: "  ", count: depth)
-            let ops = op(id).operands.map(\.description).joined(separator: ", ")
-            let args = ops.isEmpty ? "" : "(\(ops))"
-            out.append("\(pad)\(id):\(type(of: id)) = \(op(id))\(args)")
+            out.append("\(pad)\(id):\(type(of: id)) = \(op(id))")
             if let r = op(id).region { block(r, depth + 1) }
         }
         func block(_ r: RegionID, _ depth: Int) {

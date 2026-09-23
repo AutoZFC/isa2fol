@@ -173,9 +173,28 @@ nothing — that is most of the 21.4%. As a constant's *operand* it becomes a cl
 
 ### Binders are Regions, not de Bruijn
 
-A bound variable is a block argument, so substitution is operand replacement and
-there is no index shifting. Under free-form rewriting that is not a preference:
-renumbering under a moved binder is the classic silent bug.
+A **region** is a scope: `{ args: [OpID], ops: [OpID] }`. A binding op carries
+one, and the bound variable is an ordinary op inside it. `∀x. (set(x) → mem(x,y))`:
+
+```
+^0():
+  %0:i = folVar("y")
+  %5:o = folForall(setVar, ^1)
+    ^1(%1:i):                        ← the region's argument IS the bound x
+      %2:o = folPred("set", [%1])
+      %3:o = folPred("mem", [%1, %0])   ← %0 closes over the enclosing scope
+      %4:o = folImplies(%2, %3)
+```
+
+Isabelle uses `Bound n` instead — nameless, node-less. The cost of that under
+free-form rewriting is renumbering: move a subterm under or out of a binder and
+every index inside shifts, silently producing a well-formed term that means
+something else. With a region the bound variable is just `%1` and substitution is
+operand replacement.
+
+⚠ **SCOPE IS REPRESENTED, NOT ENFORCED.** Nothing stops an op in `^0` from
+referencing `%1`. The structure to verify dominance is present; no verifier is.
+Pinned only as far as `aRegionHoldsABinderBody` goes.
 
 ### Passes
 
