@@ -5,7 +5,7 @@ public struct Builder: Sendable {
 
     public mutating func region(args: [IRType]) -> RegionID {
         let id = RegionID(raw: graph.regionStore.count)
-        graph.regionStore.append(Graph.Region(args: [], ops: []))
+        graph.regionStore.append(Graph.Region(args: [], ops: [], result: nil))
         graph.regionStore[id.raw].args =
             args.enumerated().map { store(.blockArg($0.offset, $0.element), in: id) }
         return id
@@ -49,6 +49,13 @@ public struct Builder: Sendable {
         where !graph.dead[i] && graph.storage[i].references(v) {
             graph.storage[i] = graph.storage[i].mapOperands { $0 == v ? w : $0 }
         }
+        for i in graph.regionStore.indices where graph.regionStore[i].result == v {
+            graph.regionStore[i].result = w
+        }
+    }
+
+    public mutating func setResult(_ r: RegionID, _ o: OpID) {
+        graph.regionStore[r.raw].result = o
     }
 
     public mutating func erase(_ o: OpID) {

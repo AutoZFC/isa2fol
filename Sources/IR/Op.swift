@@ -1,5 +1,6 @@
-public enum Binder: Hashable, Sendable {
+public enum Binder: Hashable, Sendable, CustomStringConvertible {
     case setVar, classVar
+    public var description: String { self == .setVar ? "setVar" : "classVar" }
 }
 
 public enum Op: Hashable, Sendable {

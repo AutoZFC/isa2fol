@@ -13,9 +13,9 @@ document is dead; it is in git history and nothing depends on it.
 | `swift --version \| head -1` | `Swift version 6.4 (swift-6.4-RELEASE)` |
 | `swift build` | `Build complete!` |
 | `swift test 2>&1 \| grep -cE '^✔ Test [a-zA-Z]+\(\) passed'` | **`15`** |
-| comment density of `Sources/**/*.swift` (CLAUDE.md rule 9 has the script) | `23/466 = 4.9%` — **UNDER the cap**; it must stay there |
-| `find Sources Tests -name '*.swift' \| wc -l` | `22` (852 lines) |
-| `ls Sources` | `FolDialect Framework IR isa2fol YXML` |
+| comment density of `Sources/**/*.swift` (CLAUDE.md rule 9 has the script) | `26/551 = 4.72%` — **UNDER the cap**; it must stay there |
+| `find Sources Tests -name '*.swift' \| wc -l` | `24` (881 lines) |
+| `ls Sources` | `FolDialect Framework IR isa2fol Lowering YXML` |
 | `grep -cE '^axiom' base/axioms.fol.def` | `17` |
 | `ls base/tiers/*.fol.def \| wc -l` | `10` |
 | `ls docs/phase2_probes/*.fol.def \| wc -l` | `17` |
@@ -84,6 +84,10 @@ is the only place either shows up:
   not exist got the rule wrong: it froze `isaAxiom`, which is source, so
   `legalize` was unreachable for any graph with a proof in it. Write it when
   there is a proof layer to guard.
+- **⚠ A REGION'S VALUE IS `result`, NEVER "THE LAST OP".** `GuardBinder` appends
+  to the region; reading the body positionally would silently rebind. And
+  `replaceAllUses` must maintain `result` as well as operands — it did not, and
+  an erased op stayed the body.
 - **⚠ A REGION REPRESENTS SCOPE BUT NOTHING ENFORCES IT.** An op outside a region
   may reference that region's `blockArg` and neither `walk` nor `legalize`
   objects. The structure to verify dominance is there; the verifier is not.
@@ -133,6 +137,9 @@ is the only place either shows up:
 | An unbalanced close is an error, not absorbed | `anUnbalancedCloseIsAnError` |
 | `base/axioms.fol.def` still checks clean after the move | `proof_checker base/axioms.fol.def base/axioms.fol.proof` → `OK: 7 claim(s)` |
 | Swift installs no-sudo, GPG-verified, idempotent | `scripts/02-install-swift.sh` |
+| `⋀x. φ` lowers to `∀x. (set(x) → φ)` — the statement's shape CHANGES | `theGuardIsTheAntecedentOfTheRegionResult` |
+| Lowering is a deterministic function — same statement in, identical graph out | `loweringIsDeterministic` |
+| A binder at a non-`i` sort refuses rather than guessing a guard | `aBinderAtANonSetSortRefusesRatherThanGuessing` |
 | Mutation is in place — COW is NOT firing; graph build is linear in ops | `bench()` |
 | ⚠ **DEBUG IS 38× SLOWER THAN RELEASE** (k=800: 161.9ms vs 4.3ms). Benchmark with `-c release` or the number is meaningless | `bench()` |
 | `PatternPass` is **O(k²)** — release 0.3/1.2/4.7ms at k=200/400/800. Fine per theorem; ~70 min on one corpus-wide graph | `bench()`, **`-c release`** |
@@ -183,10 +190,22 @@ EXISTS.** None has a live handle. Re-derive before acting on any of it.
 
 **Read the export into the IR graph: `YXML.Node` → `Graph` of `isa.*` ops.**
 
-The pass engine is built and proved on a 5-op graph (`DESIGN.md` §4); the tree IR
-that used to stand between them is deleted, so the reader now builds a `Graph`
-directly. `DESIGN.md` §2 lists the refusals it owes;
-`docs/SOURCE_SURFACE.md` lists the surface it must cover.
+Everything downstream of the reader now exists: `Lowering` takes an Isabelle
+statement graph to a fol-zfc one, guards and all (`DESIGN.md` §4a). What is
+missing is real input. From the decoded surface, three gaps:
+
+1. **`isaConst` / `isaApply`** — nothing represents an `i`-valued constant
+   application like `QPair(a,b)`. That is S1's materialisation target, and the
+   only lowering that CREATES a node instead of relabelling one.
+2. **IFOL's connectives** — `iff`, `conj`, `disj`, `not`, `All`, `Ex`. Only
+   Pure's `⟹` exists. `QPair_iff` alone needs `iff` and `conj`.
+3. **A structural ztyp decoder** — YXML tag 0 is both `ZConst` and `Type`, and
+   `IFOL.eq` carries its `ZF_Base.i` instantiation nested inside. Resolve by
+   position in the tree, never by regex.
+
+⚠ **A `ZVar` CARRIES NO TYPE.** A free variable's sort comes from the `frees`
+table at the head of the proof file — `pair tfrees (pair frees (pair prop
+proof))`. Read that environment first, then the prop.
 
 **Done when** every one of the 16,798 export statements either builds a `Graph`
 or fails with a named `IRRefusal` — no absorbed cases — and the polymorphism

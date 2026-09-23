@@ -12,11 +12,12 @@ Package.swift
 Sources/
   YXML/          Isabelle's transfer format → node tree.   Knows no dialect.
   IR/            IRType · Op · Graph · Builder · Pass · legalize.   BUILT
+  Lowering/      the statement passes.                              BUILT
   FolDialect/    types · verify · print
   Framework/     corpus · ledger · driver
   isa2fol/       CLI
 Tests/
-  YXMLTests/  IRTests/  FolDialectTests/
+  YXMLTests/  IRTests/  LoweringTests/  FolDialectTests/
 ```
 
 ```
@@ -313,6 +314,41 @@ Consequences worth knowing:
   invalidated by an erase.
 - **`Op` carries `String`s.** Interning names to an `Int` would shrink `Op` from
   25 bytes and make comparison O(1). Unmeasured.
+
+## 4a. Statement lowering  **[BUILT]**
+
+**The statement is TRANSLATED, not passed through.** A declaration is not an
+interface the proof reads unchanged — lowering changes the proposition's shape,
+and the proof must be built against the changed one.
+
+```
+⋀x. (mem(x,y) ⟹ mem(x,y))     →     ∀x. (set(x) → (mem(x,y) → mem(x,y)))
+```
+
+Three passes, and the order is forced:
+
+| pass | does |
+|---|---|
+| `lower-pure` | erase Pure's `o ⇒ prop` coercion; `⟹` → `→` |
+| `lower-ifol` | `isaFree` → `folVar`, `isaAtom` → `folPred` — a pure relabel, node types unchanged |
+| `guard-binders` | **R3**: `⋀x:i. φ` → `∀x. (set(x) → φ)`; a non-`i` sort refuses |
+
+`guard-binders` builds a `folImplies` over the region's result, so that result
+must already be a formula — Pure's coercion has to go first.
+
+### The guard is half of a contract
+
+Inserting `set(x)` puts an obligation on the proof: every `forall_elim` at a term
+`t` now owes a `set(t)` the Isabelle proof never supplied. So the symbol a proof
+links against is a **signature**, not a name and not a formula — two theorems with
+identical text but different guard placement are different symbols.
+
+⚠ **LOWERING MUST THEREFORE BE A DETERMINISTIC FUNCTION OF THE STATEMENT ALONE.**
+The emitted `.fol.def` records the guards but *not* where a materialised variable
+came from, so PHASE 2 recovers that by **re-running this lowering** over the
+`prop` its own proof file carries. Same input, same output, same `OpID`s — no
+global counters, no dependence on dictionary order. Pinned by
+`loweringIsDeterministic`, which compares whole graphs.
 
 ## 5. Framework
 

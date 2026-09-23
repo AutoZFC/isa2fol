@@ -133,7 +133,7 @@ is gone. §5 says so. Treat every number there as a belief, never a premise.
    print(f'{c}/{t} = {100*c/t:.1f}%')"
    ```
 
-   ✓ **CURRENTLY 23/466 = 4.9%, under the cap** — reached 2026-09-23 the way the
+   ✓ **CURRENTLY 26/551 = 4.72%, under the cap** — reached 2026-09-23 the way the
    rule requires, by the denominator growing and by deleting the comment-heavy
    skeleton, never by raising the cap. It was 14.9%. Keep it there: a breach is
    fixed by deleting prose.
@@ -176,10 +176,11 @@ Package.swift
 Sources/
   YXML/          Isabelle's transfer format → Node tree.  Knows no dialect.
   IR/            IRType · Op · Graph · Builder · Pass · legalize
+  Lowering/      the statement passes: pure · ifol · R3 guards
   FolDialect/    Term · Binder · Formula · Declaration · render
   Framework/     Verdict · Vocabulary · (corpus, ledger — not built)
   isa2fol/       CLI
-Tests/           YXMLTests · IRTests · FolDialectTests
+Tests/           YXMLTests · IRTests · LoweringTests · FolDialectTests
 base/            the NBG foundation: axioms.fol.def + 9 tiers, kernel-checked
 docs/            FOUNDATION.md · SOURCE_SURFACE.md · phase2_probes
 data/zf_export/  the Isabelle export

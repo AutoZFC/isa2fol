@@ -1,13 +1,16 @@
-public struct Graph: Sendable {
-    public struct Region: Sendable {
+public struct Graph: Sendable, Equatable {
+    /// ⚠ `result` IS THE REGION'S VALUE. Never "the last op" — a pass that
+    /// appends would silently change what the enclosing binder binds.
+    public struct Region: Sendable, Equatable {
         public var args: [OpID]
         public var ops: [OpID]
+        public var result: OpID?
     }
 
     var storage: [Op] = []
     var parents: [RegionID] = []
     var dead: [Bool] = []
-    var regionStore: [Region] = [Region(args: [], ops: [])]
+    var regionStore: [Region] = [Region(args: [], ops: [], result: nil)]
     public let root = RegionID(raw: 0)
 
     public init() {}
