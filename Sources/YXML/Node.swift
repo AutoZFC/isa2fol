@@ -23,12 +23,10 @@ public struct Node: Sendable {
         attributes[name] ?? ""
     }
 
-    /// Element children, skipping text nodes.
     public var elements: [Node] {
         children.filter { !$0.isText }
     }
 
-    /// All text under this node, concatenated.
     public var allText: String {
         isText ? text : children.map(\.allText).joined()
     }
