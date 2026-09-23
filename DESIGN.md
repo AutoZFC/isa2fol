@@ -11,13 +11,12 @@ are marked **[choice]** — push back on any of them.
 Package.swift
 Sources/
   YXML/          Isabelle's transfer format → node tree.   Knows no dialect.
-  IR/            Graph · Op · Builder · Pass · legalize.   BUILT
-  IsaDialect/    types · verify · read-from-YXML
+  IR/            IRType · Op · Graph · Builder · Pass · legalize.   BUILT
   FolDialect/    types · verify · print
   Framework/     corpus · ledger · driver
   isa2fol/       CLI
 Tests/
-  YXMLTests/  IRTests/  IsaDialectTests/  FolDialectTests/
+  YXMLTests/  IRTests/  FolDialectTests/
 ```
 
 ```
@@ -46,102 +45,36 @@ either is silent.
 
 ---
 
-## 2. IsaDialect
+## 2. Reading the export  **[NOT BUILT]**
 
-**The surface this must cover is measured** — `docs/SOURCE_SURFACE.md`, which
-regenerates. In short: 3 Pure statement constants, 13 IFOL, **0 FOL**, 4 sorts,
-249 ZF constants; and on the proof side a frontier of 7 Pure axioms + 6 Pure
-derived + 132 IFOL/FOL + 7 ZF axioms + 207 object definitions.
+The tree IR — `Sort`, `Term`, `Prop`, `Proof`, `Statement<Stage>` — was deleted
+2026-09-23. §4's graph represents the same constructs as ops, and keeping both
+was rule 4's duplication. What the reader must do survives; what it must produce
+is now an `IR.Graph`, not a `Statement`.
 
-### Sorts
+**The surface it must cover is measured** — `docs/SOURCE_SURFACE.md`, which
+regenerates: 3 Pure statement constants, 13 IFOL, **0 FOL**, 4 sorts, 249 ZF
+constants; and on the proof side a frontier of 7 Pure axioms + 6 Pure derived +
+132 IFOL/FOL + 7 ZF axioms + 207 object definitions.
 
-```swift
-public indirect enum Sort: Hashable {
-    case i                       // ZF_Base.i  — terms
-    case o                       // IFOL.o     — formulas
-    case prop                    // Pure.prop
-    case arrow(Sort, Sort)
-    case variable(String)        // 'a — must not survive monomorphise
-}
-```
+### What the reader owes a NAMED refusal, never an absorbed case
 
-**[choice] Ground-ness is a phantom type, not a runtime check.**
+These were `IsaDialect.Refusal`'s cases and they do not stop being obligations
+because the enum is gone:
 
-```swift
-public enum Poly {}            // may contain .variable
-public enum Ground {}          // may not
+| refusal | why |
+|---|---|
+| a type variable | `IRType` has no case for `'a`. **Measured: 12 of 3,616 named ZF theorems (0.3%)**, half of them `split`/`qsplit`. IFOL/FOL/Pure are 37-48% polymorphic, and that layer is cited, never translated |
+| a schematic `Var` (tag 2) | zero occurrences in 16,798 statements — a bet about the export's *preprocessing*, not about Isabelle. If one arrives, fail loudly |
+| `Pure.conjunction` | **0 occurrences** in ZF statements, so refusing costs nothing |
+| `Pure.term`, `Pure.sort_constraint` | Pure-internal, 0 in ZF statements |
+| `Pure.prop` | 0 in ZF statements — erased, not refused |
+| a de Bruijn index out of range | a bound variable is a block argument now, so this becomes "no producer" |
+| a prop that is not a prop | structural |
 
-public struct Statement<Stage> { let prop: Prop; let env: [String: Sort] }
-
-public func monomorphise(_ s: Statement<Poly>) throws -> Statement<Ground>
-```
-
-The underlying enums are shared; only the wrapper is typed. So `convert` takes a
-`Statement<Ground>` and **cannot be handed a polymorphic one** — the 463-refusal
-problem is closed at the type level rather than by a verifier that runs.
-
-### Terms
-
-```swift
-public indirect enum Term {
-    case constant(String, types: [Sort])     // tag 0 — `types` is its instantiation
-    case free(String, sort: Sort)            // tag 1
-    case bound(Int)                          // tag 3 — de Bruijn
-    case abs(String, sort: Sort, body: Term) // tag 4 — λ
-    case app(Term, Term)                     // tag 5
-}
-```
-
-**[choice] Five cases, not six — no schematic `Var` (tag 2).** Measured: **zero
-occurrences** in 16,798 statements; the export writes schematics as `free`.
-⚠ The risk is that this is a fact about the export's *preprocessing*, not about
-Isabelle. If it ever appears, reading fails loudly at the dialect boundary, which
-is the right place for it to fail.
-
-`constant`'s `types` is what makes monomorphise possible: every use site already
-carries its own instantiation.
-
-### Propositions
-
-```swift
-public indirect enum Prop {
-    case term(Term)                             // Trueprop t — the o⇒prop coercion
-    case imp(Prop, Prop)                        // ⟹
-    case all(String, sort: Sort, body: Prop)    // ⋀
-    case eq(Term, Term, sort: Sort)             // ≡
-    case ofClass(Sort, String)                  // OFCLASS
-}
-```
-
-Read-time decisions, so they never reach a pass:
-`Pure.prop` is the identity and is **erased**; `Pure.conjunction`,
-`Pure.sort_constraint`, `Pure.term` **refuse by name**.
-
-### Proofs — defined, not used in the first cut
-
-```swift
-public indirect enum Proof {
-    case hypothesis(Int)                        // PBound
-    case theorem(ThmID)                         // PThm
-    case axiom(String)                          // PAxm
-    case impIntro(Prop, Proof)                  // AbsP
-    case impElim(Proof, Proof)                  // AppP
-    case allIntro(String, sort: Sort, Proof)    // Abst
-    case allElim(Proof, Term)                   // AppT
-}
-```
-
-Named for what they *do*, not for the export's tags. Seven cases, and the export
-contains no others.
-
-### What the dialect owns
-
-```swift
-func read(_ node: YXML.Node) throws -> Statement<Poly>
-func verify(_ s: Statement<Ground>) throws        // well-sorted; every Bound in range
-```
-
----
+⚠ **`groundnessIsStructural` WENT WITH THE MODULE, AND IT WAS THE ONLY TEST
+PINNING THE POLYMORPHISM REFUSAL.** Re-pin it against the reader — a type
+variable anywhere in a sort must refuse the whole statement, not just that slot.
 
 ## 3. FolDialect
 

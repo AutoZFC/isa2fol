@@ -133,10 +133,10 @@ is gone. §5 says so. Treat every number there as a belief, never a premise.
    print(f'{c}/{t} = {100*c/t:.1f}%')"
    ```
 
-   ⚠ **CURRENTLY 40/268 = 14.9%, OVER THE CAP.** Recorded, not excused: the
-   skeleton is almost entirely type declarations, so the ratio is dominated by
-   eight standing warnings. It must come under 5% as implementation lands — by
-   the denominator growing, never by raising the cap.
+   ✓ **CURRENTLY 25/524 = 4.8%, under the cap** — reached 2026-09-23 the way the
+   rule requires, by the denominator growing and by deleting the comment-heavy
+   skeleton, never by raising the cap. It was 14.9%. Keep it there: a breach is
+   fixed by deleting prose.
 
    Does not apply to `base/**/*.fol.def` headers: those record provenance of
    hand-copied proof text, which is not derivable from the artifact.
@@ -175,33 +175,40 @@ is gone. §5 says so. Treat every number there as a belief, never a premise.
 Package.swift
 Sources/
   YXML/          Isabelle's transfer format → Node tree.  Knows no dialect.
-  IsaDialect/    Sort · Term · Prop · Proof · Statement<Stage>
+  IR/            IRType · Op · Graph · Builder · Pass · legalize
   FolDialect/    Term · Binder · Formula · Declaration · render
-  Framework/     Verdict · Vocabulary · (corpus, convert, ledger — not built)
+  Framework/     Verdict · Vocabulary · (corpus, ledger — not built)
   isa2fol/       CLI
-Tests/           YXMLTests · IsaDialectTests · FolDialectTests
+Tests/           YXMLTests · IRTests · FolDialectTests
 base/            the NBG foundation: axioms.fol.def + 9 tiers, kernel-checked
 docs/            FOUNDATION.md · SOURCE_SURFACE.md · phase2_probes
 data/zf_export/  the Isabelle export
 ```
 
 ```
-     YXML
-       ▲
-  IsaDialect          FolDialect
-       ▲                  ▲
-       └──── Framework ───┘     owns the CONVERT edge, and only that edge
+     YXML        IR
+       ▲       ▲   ▲
+        \     /     FolDialect
+         reader      ▲
+            └─ Framework ─┘
 ```
 
-**A dialect depends on neither the other dialect nor the Framework.** The only
-place that names both vocabularies is the conversion.
+**There is ONE IR and both dialects live in it as ops.** `isa.*` and `fol.*`
+coexist in a single `Graph`; lowering relabels edges while the value nodes
+persist. `Sources/IR/Legalize.swift` is the only place naming both vocabularies,
+and it is one exhaustive switch — adding an `Op` case breaks the build there.
+A rewrite pattern is partial, so that switch is what rule 11 now rests on.
 
-### The two dialects
+⚠ **THE TREE IR IS GONE.** `IsaDialect`'s `Sort`/`Term`/`Prop`/`Proof`/
+`Statement<Stage>` were deleted 2026-09-23: the graph represents the same
+constructs as ops, and keeping both was rule 4's duplication. With them went
+`Statement<Poly>`/`<Ground>`, so **nothing now closes polymorphism at the type
+level** — `IRType` has no case for `'a` and the reader must refuse it by name.
+Measured, that is cheap: **12 of 3,616 named ZF theorems** carry a type
+variable (0.3%), half of them `split`/`qsplit`. The polymorphic layer is
+IFOL/FOL/Pure at 37-48%, and that layer is cited, never translated.
 
-**IsaDialect** — 5 term cases (no schematic `Var`: tag 2 has zero occurrences in
-16,798 statements), the Pure prop forms, 7 proof cases. `Statement<Poly>` vs
-`Statement<Ground>` are phantom stages, so a conversion taking `Ground` cannot be
-handed a polymorphic statement.
+### The dialects
 
 **FolDialect** — `Term` is a struct with one field: *a variable, and there is no
 other term.* That is S1 expressed as a type, and it is what makes a description

@@ -12,10 +12,10 @@ document is dead; it is in git history and nothing depends on it.
 |---|---|
 | `swift --version \| head -1` | `Swift version 6.4 (swift-6.4-RELEASE)` |
 | `swift build` | `Build complete!` |
-| `swift test 2>&1 \| grep -cE '^✔ Test [a-zA-Z]+\(\) passed'` | **`15`** |
-| comment density of `Sources/**/*.swift` (CLAUDE.md rule 9 has the script) | `43/607 = 7.1%` — still over 5%, falling as the denominator grows |
-| `find Sources Tests -name '*.swift' \| wc -l` | `27` (932 lines) |
-| `ls Sources` | `FolDialect Framework IR isa2fol IsaDialect YXML` |
+| `swift test 2>&1 \| grep -cE '^✔ Test [a-zA-Z]+\(\) passed'` | **`14`** |
+| comment density of `Sources/**/*.swift` (CLAUDE.md rule 9 has the script) | `25/524 = 4.8%` — **UNDER the cap**; it must stay there |
+| `find Sources Tests -name '*.swift' \| wc -l` | `21` (834 lines) |
+| `ls Sources` | `FolDialect Framework IR isa2fol YXML` |
 | `grep -cE '^axiom' base/axioms.fol.def` | `17` |
 | `ls base/tiers/*.fol.def \| wc -l` | `10` |
 | `ls docs/phase2_probes/*.fol.def \| wc -l` | `17` |
@@ -46,9 +46,8 @@ is the only place either shows up:
 | `DESIGN.md` | the package design. **§5 lists what was deliberately NOT decided** |
 | `CLAUDE.md` rules 9, 11, 12 | the comment cap and the two Swift rules the guarantees rest on |
 | `Sources/FolDialect/Term.swift` | S1 as a type — one field, and why that kills `iota` |
-| `Sources/IsaDialect/Statement.swift` | `Poly`/`Ground` phantom stages |
 | `docs/FOUNDATION.md` **§2** | S1–S6, the specification everything must satisfy |
-| `docs/SOURCE_SURFACE.md` | the MEASURED source surface — what IsaDialect must cover, and why FOL is proof-only |
+| `docs/SOURCE_SURFACE.md` | the MEASURED source surface — what the reader must cover, and why FOL is proof-only |
 | `DESIGN.md` **§4** | the pass engine — why `legalize` replaces rule 11, and why derivations are append-only |
 | `Sources/IR/Legalize.swift` | the ONE exhaustive switch naming both vocabularies |
 
@@ -73,6 +72,13 @@ is the only place either shows up:
   needs `proof X: UNPROVED`. An `include` carries declarations, never proofs.
 - **⚠ GUARDING A CLASS MAKES THE CLAIM FALSE, NOT REDUNDANT.** Hence
   `Binder.setVar`/`.classVar`; pinned by `aClassBinderCarriesNoGuard`.
+- **⚠ NOTHING CLOSES POLYMORPHISM AT THE TYPE LEVEL ANY MORE.** `Statement<Poly>`/
+  `<Ground>` went with the tree IR on 2026-09-23, and `IRType` has no case for
+  `'a`. The reader must refuse a type variable BY NAME, and
+  `groundnessIsStructural` — the only test that pinned it — went with the module.
+  Re-pin it. Measured, the cost is small: **12 of 3,616 named ZF theorems**
+  carry a type variable (0.3%), half `split`/`qsplit`; IFOL/FOL/Pure are 37-48%
+  but that layer is cited, never translated.
 - **⚠ `IRType.obj` DOES NOT DISTINGUISH A SET FROM A CLASS, AND THAT IS DELIBERATE.**
   NBG is one-sorted; `set(·)` is a predicate, not a sort. So the type system CANNOT
   catch a guard error — only G5's two-sided rule can, and it must run after every
@@ -111,7 +117,6 @@ is the only place either shows up:
 | The YXML reader reads real Isabelle output — 11 Pure axioms, `file=theory.ML` | `aRealExportFileParses` |
 | `render` emits syntax the REAL checker accepts: exit 0, empty stderr, `+ probe` | `theRealCheckerAcceptsWhatRenderEmits` |
 | A class binder renders unguarded; a set binder renders as an implication | `aClassBinderCarriesNoGuard`, `aGuardedForallRendersAsAnImplication` |
-| A type variable anywhere makes a whole sort non-ground | `groundnessIsStructural` |
 | An unbalanced close is an error, not absorbed | `anUnbalancedCloseIsAnError` |
 | `base/axioms.fol.def` still checks clean after the move | `proof_checker base/axioms.fol.def base/axioms.fol.proof` → `OK: 7 claim(s)` |
 | Swift installs no-sudo, GPG-verified, idempotent | `scripts/02-install-swift.sh` |
@@ -163,10 +168,11 @@ EXISTS.** None has a live handle. Re-derive before acting on any of it.
 
 **Read the export into the IR graph: `YXML.Node` → `Graph` of `isa.*` ops.**
 
-The pass engine is built and proved on a 5-op graph (`DESIGN.md` §4); what it
-lacks is real input. `Op` needs the rest of the Isabelle surface —
-`docs/SOURCE_SURFACE.md` names exactly what: 3 Pure constants, 13 IFOL, 4 sorts,
-249 ZF constants.
+The pass engine is built and proved on a 5-op graph (`DESIGN.md` §4); the tree IR
+that used to stand between them is deleted, so the reader now builds a `Graph`
+directly. `DESIGN.md` §2 lists the refusals it owes;
+`docs/SOURCE_SURFACE.md` lists the surface it must cover.
 
 **Done when** every one of the 16,798 export statements either builds a `Graph`
-or fails with a named `IRRefusal` — no absorbed cases.
+or fails with a named `IRRefusal` — no absorbed cases — and the polymorphism
+refusal is re-pinned by a test.
