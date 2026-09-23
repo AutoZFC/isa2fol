@@ -133,7 +133,7 @@ is gone. §5 says so. Treat every number there as a belief, never a premise.
    print(f'{c}/{t} = {100*c/t:.1f}%')"
    ```
 
-   ✓ **CURRENTLY 25/524 = 4.8%, under the cap** — reached 2026-09-23 the way the
+   ✓ **CURRENTLY 26/528 = 4.9%, under the cap** — reached 2026-09-23 the way the
    rule requires, by the denominator growing and by deleting the comment-heavy
    skeleton, never by raising the cap. It was 14.9%. Keep it there: a breach is
    fixed by deleting prose.

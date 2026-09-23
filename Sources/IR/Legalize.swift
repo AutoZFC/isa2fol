@@ -28,7 +28,7 @@ public func legalize(_ g: Graph) throws {
         }
     }
     for v in g.liveValues {
-        for s in g.type(of: v).shapes where s == .meta || s == .fn {
+        for s in g.type(of: v).shapes where s == .prop || s == .fn {
             throw IRRefusal.typeSurvivedLowering(s, v)
         }
     }
@@ -36,5 +36,5 @@ public func legalize(_ g: Graph) throws {
 
 public let folZfcOnly: [Invariant] = [
     .noOpsFrom(.isa), .noOpsFrom(.builtin),
-    .noTypeShape(.meta), .noTypeShape(.fn),
+    .noTypeShape(.prop), .noTypeShape(.fn),
 ]

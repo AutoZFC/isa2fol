@@ -147,17 +147,23 @@ lower one construct and stop.
 Lowering **relabels edges; the nodes persist**. That is what makes it cheap, and it
 works only because Isabelle's `i`/`o` and fol-zfc's object/proposition are the same
 type — they differ by an *obligation* (the R3 guard), not by a sort. NBG is
-one-sorted here and `set(·)` is a predicate, so one `.obj` is faithful; splitting it
-would manufacture a sort the mathematics does not have.
+one-sorted here and `set(·)` is a predicate, so one `.i` is faithful; splitting it
+into set/class would manufacture a sort the mathematics does not have.
 
 ```swift
-enum IRType { case obj, prop, meta; indirect case fn(IRType, IRType) }
+enum IRType { case i, o, prop; indirect case fn(IRType, IRType) }
 ```
 
-**Four cases, one per measured source sort** — `i`, `o`, Pure's `prop`, `fun`.
-`.obj` and `.prop` are the fixpoint; `.meta` and `.fn` lower away. There is no
-fifth: Isabelle has no sort for proofs, so a derivation's type is the
-proposition it proves and its evidence-ness lives on the op. Measured surface, so
+**Four cases carrying the surface's own names** — `i`, `o`, Pure's `prop`, `fun`.
+`.i` and `.o` are the fixpoint and live fully in fol-zfc; `.prop` and `.fn` are
+the meta layer and are eliminated by passes. There is no fifth: Isabelle has no
+sort for proofs, so a derivation's type is the proposition it proves and its
+evidence-ness lives on `Op.producesEvidence`.
+
+⚠ **`.prop` IS PURE'S `prop`, NOT "a proposition".** A formula is `.o`. So
+`legalize`'s `noTypeShape(.prop)` reads as "no meta level survives", which is
+right and looks wrong. An earlier naming had `.prop` mean `o` and `.meta` mean
+Pure's `prop`; that collision is what this naming removes. Measured surface, so
 the lowering touches a minority of the graph: `i` 98.3%, `o` 12.4% arrive already
 target-shaped; only `fn` 21.4% and the Pure constants move (`docs/SOURCE_SURFACE.md`).
 

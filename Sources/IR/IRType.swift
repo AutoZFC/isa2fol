@@ -1,25 +1,25 @@
 public enum TypeShape: Hashable, Sendable {
-    case obj, prop, meta, fn
+    case i, o, prop, fn
 }
 
 public enum IRType: Hashable, Sendable {
-    case obj
+    case i
+    case o
     case prop
-    case meta
     indirect case fn(IRType, IRType)
 
     public var shape: TypeShape {
         switch self {
-        case .obj: return .obj
+        case .i: return .i
+        case .o: return .o
         case .prop: return .prop
-        case .meta: return .meta
         case .fn: return .fn
         }
     }
 
     public var shapes: Set<TypeShape> {
         switch self {
-        case .obj, .prop, .meta:
+        case .i, .o, .prop:
             return Set<TypeShape>([shape])
         case let .fn(a, b):
             return Set<TypeShape>([.fn]).union(a.shapes).union(b.shapes)

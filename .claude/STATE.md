@@ -13,7 +13,7 @@ document is dead; it is in git history and nothing depends on it.
 | `swift --version \| head -1` | `Swift version 6.4 (swift-6.4-RELEASE)` |
 | `swift build` | `Build complete!` |
 | `swift test 2>&1 \| grep -cE '^✔ Test [a-zA-Z]+\(\) passed'` | **`14`** |
-| comment density of `Sources/**/*.swift` (CLAUDE.md rule 9 has the script) | `25/524 = 4.8%` — **UNDER the cap**; it must stay there |
+| comment density of `Sources/**/*.swift` (CLAUDE.md rule 9 has the script) | `26/528 = 4.9%` — **UNDER the cap**; it must stay there |
 | `find Sources Tests -name '*.swift' \| wc -l` | `21` (834 lines) |
 | `ls Sources` | `FolDialect Framework IR isa2fol YXML` |
 | `grep -cE '^axiom' base/axioms.fol.def` | `17` |
@@ -79,10 +79,13 @@ is the only place either shows up:
   Re-pin it. Measured, the cost is small: **12 of 3,616 named ZF theorems**
   carry a type variable (0.3%), half `split`/`qsplit`; IFOL/FOL/Pure are 37-48%
   but that layer is cited, never translated.
-- **⚠ `IRType.obj` DOES NOT DISTINGUISH A SET FROM A CLASS, AND THAT IS DELIBERATE.**
+- **⚠ `IRType.i` DOES NOT DISTINGUISH A SET FROM A CLASS, AND THAT IS DELIBERATE.**
   NBG is one-sorted; `set(·)` is a predicate, not a sort. So the type system CANNOT
   catch a guard error — only G5's two-sided rule can, and it must run after every
   pass, not once at the end.
+- **⚠ `IRType.prop` IS PURE'S `prop`; A FORMULA IS `.o`.** So `folZfcOnly` bans
+  `.prop` — "no meta level survives" — which is correct and reads backwards.
+  The four cases are the surface's own names: `.i`, `.o`, `.prop`, `.fn`.
 - **⚠ A REWRITE PATTERN IS PARTIAL, SO ADDING AN `Op` CASE BREAKS NOTHING.** Rule 11's
   guarantee moved to `legalize`, which is exhaustive. A new op that nothing lowers is
   caught there and nowhere else.

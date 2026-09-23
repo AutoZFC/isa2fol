@@ -6,7 +6,7 @@ private struct LowerFree: RewritePattern {
     func rewrite(_ id: OpID, _ b: inout Builder) throws {
         guard case let .isaFree(n) = b.graph.op(id) else { return }
         let old = b.graph.node(id).results[0]
-        let new = try b.insert(.folVar(n), results: [.obj], before: id)[0]
+        let new = try b.insert(.folVar(n), results: [.i], before: id)[0]
         try b.replaceAllUses(of: old, with: new)
         try b.erase(id)
     }
@@ -18,7 +18,7 @@ private struct LowerAtom: RewritePattern {
         guard case let .isaAtom(n) = b.graph.op(id) else { return }
         let node = b.graph.node(id)
         let new = try b.insert(.folPred(n), operands: node.operands,
-                               results: [.prop], before: id)[0]
+                               results: [.o], before: id)[0]
         try b.replaceAllUses(of: node.results[0], with: new)
         try b.erase(id)
     }
@@ -38,7 +38,7 @@ private struct LowerImp: RewritePattern {
     func rewrite(_ id: OpID, _ b: inout Builder) throws {
         let node = b.graph.node(id)
         let new = try b.insert(.folImplies, operands: node.operands,
-                               results: [.prop], before: id)[0]
+                               results: [.o], before: id)[0]
         try b.replaceAllUses(of: node.results[0], with: new)
         try b.erase(id)
     }
@@ -53,11 +53,11 @@ private let lowerMeta = PatternPass(
 private func mixedGraph() throws -> Graph {
     var b = Builder()
     let r = b.graph.root
-    let x = try b.append(.isaFree("x"), results: [.obj], to: r)[0]
-    let y = try b.append(.isaFree("y"), results: [.obj], to: r)[0]
-    let a = try b.append(.isaAtom("mem"), operands: [x, y], results: [.prop], to: r)[0]
-    let p = try b.append(.isaTrueprop, operands: [a], results: [.meta], to: r)[0]
-    try b.append(.isaImp, operands: [p, p], results: [.meta], to: r)
+    let x = try b.append(.isaFree("x"), results: [.i], to: r)[0]
+    let y = try b.append(.isaFree("y"), results: [.i], to: r)[0]
+    let a = try b.append(.isaAtom("mem"), operands: [x, y], results: [.o], to: r)[0]
+    let p = try b.append(.isaTrueprop, operands: [a], results: [.prop], to: r)[0]
+    try b.append(.isaImp, operands: [p, p], results: [.prop], to: r)
     return b.graph
 }
 
@@ -88,6 +88,6 @@ private func mixedGraph() throws -> Graph {
 extension ValueID {
     fileprivate func isMetaOrFn(in g: Graph) -> Bool {
         let s = g.type(of: self).shapes
-        return s.contains(.meta) || s.contains(.fn)
+        return s.contains(.prop) || s.contains(.fn)
     }
 }
