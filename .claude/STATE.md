@@ -12,8 +12,8 @@ document is dead; it is in git history and nothing depends on it.
 |---|---|
 | `swift --version \| head -1` | `Swift version 6.4 (swift-6.4-RELEASE)` |
 | `swift build` | `Build complete!` |
-| `swift test 2>&1 \| grep -cE '^✔ Test [a-zA-Z]+\(\) passed'` | **`17`** |
-| comment density of `Sources/**/*.swift` (CLAUDE.md rule 9 has the script) | `24/504 = 4.8%` — **UNDER the cap**; it must stay there |
+| `swift test 2>&1 \| grep -cE '^✔ Test [a-zA-Z]+\(\) passed'` | **`14`** |
+| comment density of `Sources/**/*.swift` (CLAUDE.md rule 9 has the script) | `23/466 = 4.9%` — **UNDER the cap**; it must stay there |
 | `find Sources Tests -name '*.swift' \| wc -l` | `22` (852 lines) |
 | `ls Sources` | `FolDialect Framework IR isa2fol YXML` |
 | `grep -cE '^axiom' base/axioms.fol.def` | `17` |
@@ -79,13 +79,13 @@ is the only place either shows up:
   Re-pin it. Measured, the cost is small: **12 of 3,616 named ZF theorems**
   carry a type variable (0.3%), half `split`/`qsplit`; IFOL/FOL/Pure are 37-48%
   but that layer is cited, never translated.
-- **⚠ `producesEvidence` GUARDS AN OP'S RESULT, NOT ITS OPERANDS.** Rewriting a
-  formula that a proof step cites silently changes what is proved. Nothing
-  catches that; what covers it is ORDER — lower every formula, then build the
-  proof layer — and no code enforces the order yet.
-- **⚠ `Op.operands` ALLOCATES, EVEN AT FIXED ARITY** — `return [a, b]` is a heap
-  array. In any loop over the whole graph use `Op.references(_:)`, which does
-  not. Rebuilding every op in `replaceAllUses` cost 1.5× before the guard.
+- **⚠ THE "NEVER REWRITE A DERIVATION" RULE IS IN `DESIGN.md` §4, NOT IN CODE,
+  DELIBERATELY.** It was code — `Op.producesEvidence` — and guarding ops that did
+  not exist got the rule wrong: it froze `isaAxiom`, which is source, so
+  `legalize` was unreachable for any graph with a proof in it. Write it when
+  there is a proof layer to guard.
+- **⚠ `Op.operands` ALLOCATES, EVEN AT FIXED ARITY.** In any loop across the
+  graph use `forEachOperand` or `references(_:)`, which do not.
 - **⚠ `IRType.i` DOES NOT DISTINGUISH A SET FROM A CLASS, AND THAT IS DELIBERATE.**
   NBG is one-sorted; `set(·)` is a predicate, not a sort. So the type system CANNOT
   catch a guard error — only G5's two-sided rule can, and it must run after every
@@ -135,7 +135,6 @@ is the only place either shows up:
 | `PatternPass` is **O(k²)** — release 0.3/1.2/4.7ms at k=200/400/800. Fine per theorem; ~70 min on one corpus-wide graph | `bench()`, **`-c release`** |
 | The pass engine lowers a mixed Isa/Fol graph to fol-zfc-only | `loweringMakesItFolZfcOnly` |
 | A pass that leaves an `isa.*` op behind is rejected AT THAT PASS | `aPassThatLeavesItsEliminatedShapeBehindIsRejected` |
-| A value from a **fol** evidence op cannot be rewritten or erased; `isaAxiom` is source and MUST stay lowerable | `aDerivationCannotBeRewritten`, `aDerivationCannotBeErased`, `anIsaAxiomCanBeLoweredToAFolUse` |
 | A non-converging pattern fixpoint throws rather than capping | `aFixpointThatDoesNotConvergeThrows` |
 | The ZF source surface is 16 logical constants + 4 sorts + 249 ZF constants; proofs cite a frontier of 7 Pure axioms + 132 IFOL/FOL rules + 7 ZF axioms | `scripts/source-surface.py` |
 

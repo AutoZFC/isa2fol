@@ -195,16 +195,23 @@ partial, so a new `Op` case breaks no pattern and would survive lowering silentl
 vocabularies — adding a case breaks the build **there**. That is the seal, relocated
 from the module graph into a single function.
 
-### The one thing the engine enforces, not the reviewer
+### A rule for the proof layer, recorded rather than coded
 
-**A value produced by an evidence op may be built, never rewritten.**
-`Op.producesEvidence` is an exhaustive switch; `replaceAllUses` and `erase` look
-up the producer and throw. A rewritten derivation carries no witness that it is still a
-derivation, and re-establishing that in-process is a second checker, which the
-kernel-as-sole-arbiter rule refuses. Object and proposition values stay freely
-rewritable: a wrong one is a wrong *claim*, which is faithfulness, not soundness.
+**A fol derivation may be built, never rewritten.** A rewritten one carries no
+witness that it is still a derivation, and re-establishing that in-process is a
+second checker, which the kernel-as-sole-arbiter rule refuses.
 
-Pinned by `aDerivationCannotBeRewritten`, `aDerivationCannotBeErased`.
+⚠ **THIS IS NOT IN THE CODE AND SHOULD NOT BE UNTIL THERE IS A PROOF LAYER.** It
+was, as `Op.producesEvidence`, and guarding a thing that did not exist yet got
+the rule *wrong*: it froze `isaAxiom` too, which is source — input — so neither
+`replaceAllUses` nor `erase` could remove it and `legalize` became unreachable
+for any graph containing a proof. Write the guard when `folImpliesElim` and
+friends exist and a pass actually threatens them.
+
+Note also what the guard could never have covered: it protects an evidence op's
+*result*, not its operands, so rewriting a formula a proof step cites still
+changes what is proved. What covers that is ORDER — lower every formula, then
+build the proof layer.
 
 ### Status
 
@@ -258,7 +265,13 @@ There is no `OpNode`. An op *is* the enum; `Graph` keeps three parallel arrays �
 computes what an op yields, so there is no value table and no `results` list
 either. A block argument is an op (`.blockArg`), which keeps binders uniform.
 
-Two things this buys that the previous shape could not:
+**Adding an op costs five exhaustive switches** — `type`, `region`,
+`forEachOperand`, `mapOperands` in `Op`, and `legalize`. It was eight;
+`operands` and `references` are now derived from `forEachOperand`, and `dialect`
+and `producesEvidence` are gone. That number is the extension cost and is worth
+watching: it is what rule 11 charges for its guarantee.
+
+Two things this shape buys that the previous one could not:
 
 - **An arity error is unrepresentable.** `IRRefusal.arityMismatch` is deleted and
   the test that covered it could not be rewritten — `folImplies(OpID, OpID)`

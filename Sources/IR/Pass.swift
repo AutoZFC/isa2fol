@@ -1,5 +1,4 @@
 public enum Invariant: Hashable, Sendable {
-    case noOpsFrom(Dialect)
     case noTypeShape(TypeShape)
 }
 

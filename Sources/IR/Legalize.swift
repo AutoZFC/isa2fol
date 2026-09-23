@@ -1,10 +1,6 @@
 public func verify(_ g: Graph, _ ensures: [Invariant]) throws {
     for inv in ensures {
         switch inv {
-        case let .noOpsFrom(d):
-            for id in g.liveOps where g.op(id).dialect == d {
-                throw IRRefusal.opSurvivedLowering(g.op(id), id)
-            }
         case let .noTypeShape(s):
             for id in g.liveOps where g.type(of: id).shapes.contains(s) {
                 throw IRRefusal.typeSurvivedLowering(s, id)
@@ -21,7 +17,7 @@ public func legalize(_ g: Graph) throws {
         switch g.op(id) {
         case .folVar, .folPred, .folImplies, .folForall, .folUse, .blockArg:
             continue
-        case .isaFree, .isaAtom, .isaTrueprop, .isaImp, .isaAll, .isaAxiom, .cast:
+        case .isaFree, .isaAtom, .isaTrueprop, .isaImp, .isaAll, .isaAxiom:
             throw IRRefusal.opSurvivedLowering(g.op(id), id)
         }
         for s in g.type(of: id).shapes where s == .prop || s == .fn {
@@ -30,6 +26,4 @@ public func legalize(_ g: Graph) throws {
     }
 }
 
-public let folZfcOnly: [Invariant] = [
-    .noOpsFrom(.isa), .noTypeShape(.prop), .noTypeShape(.fn),
-]
+public let folZfcOnly: [Invariant] = [.noTypeShape(.prop), .noTypeShape(.fn)]

@@ -44,16 +44,14 @@ public struct Builder: Sendable {
         }
     }
 
-    public mutating func replaceAllUses(of v: OpID, with w: OpID) throws {
-        if graph.op(v).producesEvidence { throw IRRefusal.rewroteADerivation(v) }
+    public mutating func replaceAllUses(of v: OpID, with w: OpID) {
         for i in graph.storage.indices
         where !graph.dead[i] && graph.storage[i].references(v) {
-            graph.storage[i] = graph.storage[i].substituting { $0 == v ? w : $0 }
+            graph.storage[i] = graph.storage[i].mapOperands { $0 == v ? w : $0 }
         }
     }
 
-    public mutating func erase(_ o: OpID) throws {
-        if graph.op(o).producesEvidence { throw IRRefusal.erasedADerivation(o) }
+    public mutating func erase(_ o: OpID) {
         graph.dead[o.raw] = true
     }
 }

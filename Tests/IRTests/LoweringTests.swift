@@ -6,8 +6,8 @@ private struct LowerFree: RewritePattern {
     func rewrite(_ id: OpID, _ b: inout Builder) throws {
         guard case let .isaFree(n, _) = b.graph.op(id) else { return }
         let new = try b.insert(.folVar(n), before: id)
-        try b.replaceAllUses(of: id, with: new)
-        try b.erase(id)
+        b.replaceAllUses(of: id, with: new)
+        b.erase(id)
     }
 }
 
@@ -16,8 +16,8 @@ private struct LowerAtom: RewritePattern {
     func rewrite(_ id: OpID, _ b: inout Builder) throws {
         guard case let .isaAtom(n, xs) = b.graph.op(id) else { return }
         let new = try b.insert(.folPred(n, xs), before: id)
-        try b.replaceAllUses(of: id, with: new)
-        try b.erase(id)
+        b.replaceAllUses(of: id, with: new)
+        b.erase(id)
     }
 }
 
@@ -25,8 +25,8 @@ private struct EraseTrueprop: RewritePattern {
     func matches(_ op: Op) -> Bool { if case .isaTrueprop = op { return true }; return false }
     func rewrite(_ id: OpID, _ b: inout Builder) throws {
         guard case let .isaTrueprop(a) = b.graph.op(id) else { return }
-        try b.replaceAllUses(of: id, with: a)
-        try b.erase(id)
+        b.replaceAllUses(of: id, with: a)
+        b.erase(id)
     }
 }
 
@@ -35,8 +35,8 @@ private struct LowerImp: RewritePattern {
     func rewrite(_ id: OpID, _ b: inout Builder) throws {
         guard case let .isaImp(a, c) = b.graph.op(id) else { return }
         let new = try b.insert(.folImplies(a, c), before: id)
-        try b.replaceAllUses(of: id, with: new)
-        try b.erase(id)
+        b.replaceAllUses(of: id, with: new)
+        b.erase(id)
     }
 }
 
@@ -64,7 +64,6 @@ private func mixedGraph() throws -> Graph {
     let out = try PassManager([lowerMeta]).run(try mixedGraph())
     try legalize(out)
     for id in out.liveOps {
-        #expect(out.op(id).dialect != .isa, "\(out.op(id)) survived")
         #expect(out.type(of: id) == .i || out.type(of: id) == .o)
     }
 }

@@ -24,7 +24,7 @@ private func ms(_ body: () throws -> Void) rethrows -> Double {
         }
         let live = b.graph.liveOps
         let sweep = ms { _ = b.graph.liveOps }
-        let one = try ms { try b.replaceAllUses(of: live[0], with: live[1]) }
+        let one = ms { b.replaceAllUses(of: live[0], with: live[1]) }
         print("n=\(n)  build=\(r1(build))ms  liveOps=\(r1(sweep))ms  1xreplaceAllUses=\(r1(one))ms")
     }
 
@@ -33,8 +33,8 @@ private func ms(_ body: () throws -> Void) rethrows -> Double {
         func rewrite(_ id: OpID, _ b: inout Builder) throws {
             guard case let .isaFree(n, _) = b.graph.op(id) else { return }
             let new = try b.insert(.folVar(n), before: id)
-            try b.replaceAllUses(of: id, with: new)
-            try b.erase(id)
+            b.replaceAllUses(of: id, with: new)
+            b.erase(id)
         }
     }
     print("--- PatternPass fixpoint ---")
