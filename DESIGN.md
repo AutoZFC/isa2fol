@@ -212,9 +212,29 @@ Pinned by `aDerivationCannotBeRewritten`, `aDerivationCannotBeErased`.
 lower `⟹`/`Trueprop`/atoms/frees end to end (`loweringMakesItFolZfcOnly`) and no
 more. Growing it is the work.
 
-**Unmeasured:** `PatternPass` re-sweeps the whole graph after every single rewrite —
-O(rounds × ops). Correct, and certainly too slow at ~798k proof-term nodes. Measure
-before optimising; a use-list is the obvious fix.
+### Measured, by `bench()`
+
+| | |
+|---|---|
+| `Graph` | **32 bytes** — 3 array refs + root. Copying one is 3 retains |
+| `OpNode` 57 · `ValueNode` 17 · `Op` 17 (stride 24) · `IRType` 8 | |
+| build 10k/20k/40k ops | 3.7 / 7.1 / 14.1 ms — **linear, so mutation is in place** |
+| one `replaceAllUses` | 0.5 / 1.0 / 2.0 ms — linear per call; there is no use-list |
+| `PatternPass` at k = 200/400/800 | 11.0 / 43.1 / 172.3 ms — **4× per doubling, O(k²)** |
+
+**COW is not firing**: if every mutation deep-copied, build would be quadratic and
+it is not. The data structure is fine.
+
+⚠ **THE DRIVER IS QUADRATIC AND ONLY PER-THEOREM USE HIDES IT.** Two causes, both
+in `PatternPass`: it re-sweeps the whole graph after every single rewrite, and
+`replaceAllUses` walks every op. Extrapolating, k=8,000 is ~17s for ONE graph and
+k=80,000 is ~28 minutes. Statements are order-free so the design lowers one theorem
+at a time, where graphs are small — but building one graph over the corpus would not
+finish. A worklist plus a use-list is the fix and is now justified by measurement
+rather than assumed.
+
+`OpNode`'s three `Array` fields cost 24 bytes of pointers for what is usually 0-2
+elements; inline storage would shrink it substantially. Not yet a bottleneck.
 
 ## 5. Framework
 

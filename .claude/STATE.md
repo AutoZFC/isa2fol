@@ -123,6 +123,8 @@ is the only place either shows up:
 | An unbalanced close is an error, not absorbed | `anUnbalancedCloseIsAnError` |
 | `base/axioms.fol.def` still checks clean after the move | `proof_checker base/axioms.fol.def base/axioms.fol.proof` → `OK: 7 claim(s)` |
 | Swift installs no-sudo, GPG-verified, idempotent | `scripts/02-install-swift.sh` |
+| Mutation is in place — COW is NOT firing; graph build is linear in ops | `bench()` |
+| `PatternPass` is **O(k²)** — 11/43/172ms at k=200/400/800. Fine per theorem, hopeless on one corpus-wide graph | `bench()` |
 | The pass engine lowers a mixed Isa/Fol graph to fol-zfc-only | `loweringMakesItFolZfcOnly` |
 | A pass that leaves an `isa.*` op behind is rejected AT THAT PASS | `aPassThatLeavesItsEliminatedShapeBehindIsRejected` |
 | A value from an evidence op cannot be rewritten or erased — and its TYPE does not mark it, only `Op.producesEvidence` does | `aDerivationCannotBeRewritten`, `aDerivationCannotBeErased` |
