@@ -3,84 +3,57 @@ public struct Builder: Sendable {
 
     public init(_ g: Graph = Graph()) { graph = g }
 
-    public mutating func region(args: [IRType], in parent: RegionID? = nil) -> RegionID {
-        let id = RegionID(raw: graph.regionNodes.count)
-        graph.regionNodes.append(Graph.RegionNode(args: [], ops: []))
-        var made: [ValueID] = []
-        for t in args { made.append(freshValue(t, producer: nil)) }
-        graph.regionNodes[id.raw].args = made
-        _ = parent
+    public mutating func region(args: [IRType]) -> RegionID {
+        let id = RegionID(raw: graph.regionStore.count)
+        graph.regionStore.append(Graph.Region(args: [], ops: []))
+        graph.regionStore[id.raw].args =
+            args.enumerated().map { store(.blockArg($0.offset, $0.element), in: id) }
         return id
     }
 
-    mutating func freshValue(_ t: IRType, producer: OpID?) -> ValueID {
-        let id = ValueID(raw: graph.valueNodes.count)
-        graph.valueNodes.append(Graph.ValueNode(type: t, producer: producer))
+    mutating func store(_ op: Op, in parent: RegionID) -> OpID {
+        let id = OpID(raw: graph.storage.count)
+        graph.storage.append(op)
+        graph.parents.append(parent)
+        graph.dead.append(false)
         return id
     }
 
     @discardableResult
-    public mutating func append(_ op: Op,
-                                operands: [ValueID] = [],
-                                results: [IRType] = [],
-                                regions: [RegionID] = [],
-                                to parent: RegionID) throws -> [ValueID] {
-        try make(op, operands, results, regions, parent, at: nil)
+    public mutating func append(_ op: Op, to parent: RegionID) throws -> OpID {
+        try check(op)
+        let id = store(op, in: parent)
+        graph.regionStore[parent.raw].ops.append(id)
+        return id
     }
 
     @discardableResult
-    public mutating func insert(_ op: Op,
-                                operands: [ValueID] = [],
-                                results: [IRType] = [],
-                                regions: [RegionID] = [],
-                                before anchor: OpID) throws -> [ValueID] {
+    public mutating func insert(_ op: Op, before anchor: OpID) throws -> OpID {
+        try check(op)
         let parent = graph.parent(of: anchor)
-        let at = graph.regionNodes[parent.raw].ops.firstIndex(of: anchor)
-        return try make(op, operands, results, regions, parent, at: at)
+        let id = store(op, in: parent)
+        let at = graph.regionStore[parent.raw].ops.firstIndex(of: anchor)
+            ?? graph.regionStore[parent.raw].ops.count
+        graph.regionStore[parent.raw].ops.insert(id, at: at)
+        return id
     }
 
-    mutating func make(_ op: Op, _ operands: [ValueID], _ results: [IRType],
-                       _ regions: [RegionID], _ parent: RegionID,
-                       at index: Int?) throws -> [ValueID] {
-        if let n = op.arity, n != operands.count {
-            throw IRRefusal.arityMismatch(op, expected: n, got: operands.count)
+    func check(_ op: Op) throws {
+        for v in op.operands where v.raw >= graph.storage.count {
+            throw IRRefusal.unknownOperand(v)
         }
-        for v in operands where v.raw >= graph.valueNodes.count {
-            throw IRRefusal.unknownValue(v)
-        }
-        let id = OpID(raw: graph.opNodes.count)
-        graph.opNodes.append(Graph.OpNode(op: op, operands: operands, results: [],
-                                          regions: regions, parent: parent,
-                                          erased: false))
-        let made = results.map { freshValue($0, producer: id) }
-        graph.opNodes[id.raw].results = made
-        if let i = index {
-            graph.regionNodes[parent.raw].ops.insert(id, at: i)
-        } else {
-            graph.regionNodes[parent.raw].ops.append(id)
-        }
-        return made
     }
 
-    public mutating func replaceAllUses(of v: ValueID, with w: ValueID) throws {
-        if let p = graph.producer(of: v), graph.op(p).producesEvidence {
-            throw IRRefusal.rewroteADerivation(v)
-        }
-        for i in graph.opNodes.indices {
-            for j in graph.opNodes[i].operands.indices where graph.opNodes[i].operands[j] == v {
-                graph.opNodes[i].operands[j] = w
-            }
+    public mutating func replaceAllUses(of v: OpID, with w: OpID) throws {
+        if graph.op(v).producesEvidence { throw IRRefusal.rewroteADerivation(v) }
+        for i in graph.storage.indices
+        where !graph.dead[i] && graph.storage[i].references(v) {
+            graph.storage[i] = graph.storage[i].substituting { $0 == v ? w : $0 }
         }
     }
 
     public mutating func erase(_ o: OpID) throws {
-        if graph.op(o).producesEvidence {
-            throw IRRefusal.erasedADerivation(o)
-        }
-        graph.opNodes[o.raw].erased = true
-    }
-
-    public mutating func setOperands(_ o: OpID, _ vs: [ValueID]) {
-        graph.opNodes[o.raw].operands = vs
+        if graph.op(o).producesEvidence { throw IRRefusal.erasedADerivation(o) }
+        graph.dead[o.raw] = true
     }
 }

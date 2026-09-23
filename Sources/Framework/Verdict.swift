@@ -4,7 +4,6 @@ public enum Verdict: Sendable {
     case refused(String)
 }
 
-/// What an Isabelle constant becomes.
 public struct Entry: Sendable {
     public let predicate: String
     public let arity: Int

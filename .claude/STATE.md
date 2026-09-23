@@ -12,9 +12,9 @@ document is dead; it is in git history and nothing depends on it.
 |---|---|
 | `swift --version \| head -1` | `Swift version 6.4 (swift-6.4-RELEASE)` |
 | `swift build` | `Build complete!` |
-| `swift test 2>&1 \| grep -cE '^✔ Test [a-zA-Z]+\(\) passed'` | **`14`** |
-| comment density of `Sources/**/*.swift` (CLAUDE.md rule 9 has the script) | `26/528 = 4.9%` — **UNDER the cap**; it must stay there |
-| `find Sources Tests -name '*.swift' \| wc -l` | `21` (834 lines) |
+| `swift test 2>&1 \| grep -cE '^✔ Test [a-zA-Z]+\(\) passed'` | **`16`** |
+| comment density of `Sources/**/*.swift` (CLAUDE.md rule 9 has the script) | `23/502 = 4.6%` — **UNDER the cap**; it must stay there |
+| `find Sources Tests -name '*.swift' \| wc -l` | `22` (852 lines) |
 | `ls Sources` | `FolDialect Framework IR isa2fol YXML` |
 | `grep -cE '^axiom' base/axioms.fol.def` | `17` |
 | `ls base/tiers/*.fol.def \| wc -l` | `10` |
@@ -79,6 +79,9 @@ is the only place either shows up:
   Re-pin it. Measured, the cost is small: **12 of 3,616 named ZF theorems**
   carry a type variable (0.3%), half `split`/`qsplit`; IFOL/FOL/Pure are 37-48%
   but that layer is cited, never translated.
+- **⚠ `Op.operands` ALLOCATES, EVEN AT FIXED ARITY** — `return [a, b]` is a heap
+  array. In any loop over the whole graph use `Op.references(_:)`, which does
+  not. Rebuilding every op in `replaceAllUses` cost 1.5× before the guard.
 - **⚠ `IRType.i` DOES NOT DISTINGUISH A SET FROM A CLASS, AND THAT IS DELIBERATE.**
   NBG is one-sorted; `set(·)` is a predicate, not a sort. So the type system CANNOT
   catch a guard error — only G5's two-sided rule can, and it must run after every
@@ -124,7 +127,8 @@ is the only place either shows up:
 | `base/axioms.fol.def` still checks clean after the move | `proof_checker base/axioms.fol.def base/axioms.fol.proof` → `OK: 7 claim(s)` |
 | Swift installs no-sudo, GPG-verified, idempotent | `scripts/02-install-swift.sh` |
 | Mutation is in place — COW is NOT firing; graph build is linear in ops | `bench()` |
-| `PatternPass` is **O(k²)** — 11/43/172ms at k=200/400/800. Fine per theorem, hopeless on one corpus-wide graph | `bench()` |
+| ⚠ **DEBUG IS 38× SLOWER THAN RELEASE** (k=800: 161.9ms vs 4.3ms). Benchmark with `-c release` or the number is meaningless | `bench()` |
+| `PatternPass` is **O(k²)** — release 0.3/1.2/4.7ms at k=200/400/800. Fine per theorem; ~70 min on one corpus-wide graph | `bench()`, **`-c release`** |
 | The pass engine lowers a mixed Isa/Fol graph to fol-zfc-only | `loweringMakesItFolZfcOnly` |
 | A pass that leaves an `isa.*` op behind is rejected AT THAT PASS | `aPassThatLeavesItsEliminatedShapeBehindIsRejected` |
 | A value from an evidence op cannot be rewritten or erased — and its TYPE does not mark it, only `Op.producesEvidence` does | `aDerivationCannotBeRewritten`, `aDerivationCannotBeErased` |

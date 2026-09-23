@@ -216,25 +216,71 @@ more. Growing it is the work.
 
 | | |
 |---|---|
-| `Graph` | **32 bytes** — 3 array refs + root. Copying one is 3 retains |
-| `OpNode` 57 · `ValueNode` 17 · `Op` 17 (stride 24) · `IRType` 8 | |
-| build 10k/20k/40k ops | 3.7 / 7.1 / 14.1 ms — **linear, so mutation is in place** |
-| one `replaceAllUses` | 0.5 / 1.0 / 2.0 ms — linear per call; there is no use-list |
-| `PatternPass` at k = 200/400/800 | 11.0 / 43.1 / 172.3 ms — **4× per doubling, O(k²)** |
+| `Graph` | **40 bytes** — 4 array refs + root. Copying one is 4 retains |
+| `Op` 25 (stride 32) · `OpID` 8 · `IRType` 8 · `Region` 16 | |
+| per op | **~41 bytes** and, at fixed arity, **zero heap arrays** |
+| build 10k/20k/40k ops | **0.5 / 0.8 / 1.7 ms** — linear, so mutation is in place |
+| one `replaceAllUses` | under 0.05 ms — linear per call; there is no use-list |
+| `PatternPass` at k = 200/400/800 | **0.3 / 1.2 / 4.7 ms** — ~4× per doubling, O(k²) |
+
+⚠ **THOSE ARE RELEASE NUMBERS AND DEBUG IS 38× SLOWER** (`k=800`: 4.3 ms vs
+161.9 ms). `swift test` defaults to debug, so benchmark with `-c release` or the
+figure is meaningless. The gap is ARC and the `b.graph` getter copy — 32 bytes
+plus three retains per access — which `-O` borrows and inlines away and `-Onone`
+does not.
 
 **COW is not firing**: if every mutation deep-copied, build would be quadratic and
 it is not. The data structure is fine.
 
 ⚠ **THE DRIVER IS QUADRATIC AND ONLY PER-THEOREM USE HIDES IT.** Two causes, both
 in `PatternPass`: it re-sweeps the whole graph after every single rewrite, and
-`replaceAllUses` walks every op. Extrapolating, k=8,000 is ~17s for ONE graph and
-k=80,000 is ~28 minutes. Statements are order-free so the design lowers one theorem
+`replaceAllUses` walks every op. The constant factor was debug noise; the
+*scaling* survives `-O` unchanged. Extrapolating release: k=8,000 ≈ 0.4s,
+k=80,000 ≈ 43s, and the whole 798k-node corpus as one graph ≈ 70 minutes. Statements are order-free so the design lowers one theorem
 at a time, where graphs are small — but building one graph over the corpus would not
 finish. A worklist plus a use-list is the fix and is now justified by measurement
 rather than assumed.
 
-`OpNode`'s three `Array` fields cost 24 bytes of pointers for what is usually 0-2
-elements; inline storage would shrink it substantially. Not yet a bottleneck.
+### The pattern, and why not classes
+
+**An index-handle arena, and the op enum carries its own operands.**
+
+```swift
+case isaImp(OpID, OpID)             // arity is the CASE, not a runtime check
+case isaAtom(String, [OpID])        // only genuinely variadic ops hold an array
+case isaAll(IRType, RegionID)
+```
+
+There is no `OpNode`. An op *is* the enum; `Graph` keeps three parallel arrays —
+`storage: [Op]`, `parents`, `dead` — plus the regions.
+
+**One value per op, so `ValueID` and `OpID` are the same thing.** `Op.type`
+computes what an op yields, so there is no value table and no `results` list
+either. A block argument is an op (`.blockArg`), which keeps binders uniform.
+
+Two things this buys that the previous shape could not:
+
+- **An arity error is unrepresentable.** `IRRefusal.arityMismatch` is deleted and
+  the test that covered it could not be rewritten — `folImplies(OpID, OpID)`
+  cannot be given one operand.
+- **Pattern matching destructures the wiring.** `case let .isaImp(a, b)` replaces
+  `node.operands[0]`, `node.operands[1]`, so a rewrite reads as the rule it is.
+
+Class-based nodes would pay ARC on every traversal step, need `weak` to break
+op→region→op cycles, and could be neither `Sendable` nor snapshotted. MLIR makes
+the same choice with bump-arena pointers — morally identical, and for the same
+reason: no per-node refcounting. The cost we accept is that a stale `OpID` indexes
+garbage rather than failing, and that an ID means nothing without its `Graph`.
+
+Consequences worth knowing:
+
+- **A snapshot is three retains.** `let before = b.graph` is O(1); COW makes the
+  divergence lazy. This is what makes a pass cheap to run speculatively.
+- **`Builder` travels `inout`**, so the pass pipeline never copies it.
+- **Deletion is a tombstone** (`erased`), so IDs stay stable and nothing is
+  invalidated by an erase.
+- **`Op` carries `String`s.** Interning names to an `Int` would shrink `Op` from
+  25 bytes and make comparison O(1). Unmeasured.
 
 ## 5. Framework
 
