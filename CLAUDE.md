@@ -133,7 +133,7 @@ is gone. §5 says so. Treat every number there as a belief, never a premise.
    print(f'{c}/{t} = {100*c/t:.1f}%')"
    ```
 
-   ✓ **CURRENTLY 6/160 = 3.75%, under the cap.** Keep it there: a breach is
+   ✓ **CURRENTLY 8/434 = 1.84%, under the cap.** Keep it there: a breach is
    fixed by deleting prose, never by raising the cap.
 
    Does not apply to `base/**/*.fol.def` headers: those record provenance of
@@ -173,10 +173,10 @@ is gone. §5 says so. Treat every number there as a belief, never a premise.
 Package.swift
 Sources/
   YXML/          Isabelle's transfer format → Node tree.  Knows no dialect.
-  IR/            IRType only; DESIGN.md §4 is built here
+  IR/            Node · Table · transform · index engine · passes · legalize
   FolDialect/    Term · Binder · Formula · Declaration · render
   isa2fol/       CLI
-Tests/           YXMLTests · FolDialectTests
+Tests/           YXMLTests · FolDialectTests · IRTests
 base/            the NBG foundation: axioms.fol.def + 9 tiers, kernel-checked
 docs/            FOUNDATION.md · SOURCE_SURFACE.md · phase2_probes
 data/zf_export/  the Isabelle export
@@ -191,8 +191,8 @@ Nothing connects them yet: the reader (YXML → IR) and the emitter
 
 **There is ONE formula table per unit, holding isa and fol nodes together** —
 interned, immutable, de Bruijn; proof steps live in scope regions and point into
-it. That is `DESIGN.md` §4, **DECIDED BUT NOT BUILT**: `Sources/IR` holds only
-`IRType`; the rest is built there test-first.
+it. That is `DESIGN.md` §4; the framework is built in `Sources/IR`, the renderer
+and the proof layer are not.
 `legalize` — one exhaustive switch over node kinds — stays the only place naming
 both vocabularies; a rewrite is partial, so that switch is what rule 11 rests on.
 

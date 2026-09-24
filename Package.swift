@@ -12,6 +12,7 @@ let package = Package(
         .executableTarget(name: "isa2fol"),
         .testTarget(name: "YXMLTests", dependencies: ["YXML"]),
         .testTarget(name: "FolDialectTests", dependencies: ["FolDialect"]),
+        .testTarget(name: "IRTests", dependencies: ["IR"]),
     ],
     swiftLanguageModes: [.v5]
 )

@@ -10,11 +10,11 @@
 | command (from the repo root) | expect |
 |---|---|
 | `swift --version \| head -1` | `Swift version 6.4 (swift-6.4-RELEASE)` |
-| `MEM=16G scripts/capped.sh swift test 2>&1 \| grep -cE '^✔ Test [a-zA-Z]+\(\) passed'` | **`7`** |
+| `MEM=16G scripts/capped.sh swift test 2>&1 \| grep -cE '^✔ Test [a-zA-Z]+\(\) passed'` | **`39`** |
 | `ls Sources` | `FolDialect IR isa2fol YXML` |
 | `ls docs` | `FOUNDATION.md phase2_probes SOURCE_SURFACE.md` |
-| `find Sources Tests -name '*.swift' \| wc -l` | `10` (285 lines) |
-| comment density of `Sources` (CLAUDE.md rule 9 has the script) | `6/160 = 3.75%` — **UNDER the 5% cap** |
+| `find Sources Tests -name '*.swift' \| wc -l` | `19` (1039 lines) |
+| comment density of `Sources` (CLAUDE.md rule 9 has the script) | `8/434 = 1.84%` — **UNDER the 5% cap** |
 | `scripts/source-surface.py \| head -1` | `population: 3616 named ZF theorems, 37 ZF.* theories` |
 | `grep -cE '^axiom' base/axioms.fol.def` · `ls base/tiers/*.fol.def \| wc -l` | `17` · `10` |
 | `ls docs/phase2_probes/*.fol.def \| wc -l` · `ls data/zf_export \| wc -l` | `17` · `40` |
@@ -33,7 +33,8 @@ Worktree `/home/arthur/repos/isa2fol`, tree CLEAN, **ahead of
 | path | what to look for |
 |---|---|
 | `DESIGN.md` **§2, §4** | the ZF-surface dialect; the interned table, node identity, de Bruijn + D2 shifting, D5 determinism, the proof layer — DECIDED, NOT BUILT |
-| `Sources/IR/IRType.swift` | the only IR code: `i`, `o`, Pure's `prop`, `fn` |
+| `Sources/IR/Node.swift` | the flat Node; `mapChildren` — the ONE place binders are named — and `boundVariable` |
+| `Sources/IR/Table.swift`, `Traversal.swift`, `Index.swift` | interning + validation at `intern`; the one `transform`; shift/instantiate/abstract as rules |
 | `~/repos/fol-zfc-comb/src/proof/nd/stack.cpp`, `src/core/formula.cpp` | the checker the design mirrors: derived-formula marking, scopes, `instantiate_gen`/`shift`/`abstract` |
 | `docs/SOURCE_SURFACE.md` | the MEASURED source surface; regenerates |
 | `docs/FOUNDATION.md` **§2** | S1–S6, the specification everything must satisfy |
@@ -44,7 +45,8 @@ Worktree `/home/arthur/repos/isa2fol`, tree CLEAN, **ahead of
 | invariant | enforced by |
 |---|---|
 | A unit is valid only when the checker exits 0 **AND** stderr is empty | `theRealCheckerAcceptsWhatRenderEmits` |
-| No isa node and no `prop`/`fn` type survives lowering | `legalize` — NOT BUILT (`DESIGN.md` §4.5) |
+| No source kind survives a lowered root | `legalize`, pinned by `legalizeRefusesAReachableSourceKindByName` |
+| Equal content is one node; a node is well-formed or it does not exist | `Table.intern`, pinned by `TableTests` |
 | Emitted text is a function of input content | NOT BUILT — the cross-table test, `DESIGN.md` §4.6 |
 | `docs/FOUNDATION.md` is mathematics, with no code reference | nothing checks it; discipline |
 | Comments ≤ 5% of `Sources/**/*.swift` | the §0 row; **delete prose, never raise the cap** |
@@ -78,10 +80,12 @@ Worktree `/home/arthur/repos/isa2fol`, tree CLEAN, **ahead of
 
 | claim | verified by |
 |---|---|
+| The index engine satisfies D2's five laws over 300 seeded random formulas each, and its worked cases | `IndexTests` |
+| The tests have teeth: `instantiate` without the `k − 1` fails 4 tests; `isaAbs` not marked binding fails 2 | a mutation, by hand — re-run it after touching `Index.swift`/`Node.swift` |
 | YXML parses real export output; `render` emits what the REAL checker accepts | `aRealExportFileParses`, `theRealCheckerAcceptsWhatRenderEmits` |
 | `base/axioms.fol.def` checks clean | `proof_checker base/axioms.fol.{def,proof}` → `OK: 7 claim(s)`, empty stderr |
 
-**No IR is built beyond `IRType`**, and there is no reader.
+**The framework is built; no concrete pass, no reader, no renderer.**
 
 ## 5. Beliefs — NOT verified
 
@@ -115,8 +119,8 @@ experiments — review the framework, not their bugs.
 
 **The IR is designed on paper, `DESIGN.md` §2 and §4, and only `IRType` is built.**
 Build order, each step discussed in its concrete Swift shape first, tests first:
-1. the formula table — interning, immutable nodes, `looseBound`; the §4.3 node kinds
-2. D2 — the five laws, then `mapVars` and shift/instantiate/abstract
+1. ~~the formula table~~ — built
+2. ~~D2's index engine, the traversal, passes, legalize~~ — built
 3. decide whether `FolDialect.Formula` survives; then D5's level-named renderer,
    accepted by the real checker
 

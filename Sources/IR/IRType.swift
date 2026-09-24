@@ -1,4 +1,4 @@
-public enum IRType: Hashable, Sendable, CustomStringConvertible {
+@frozen public enum IRType: Hashable, Sendable, CustomStringConvertible {
     case i
     case o
     case prop

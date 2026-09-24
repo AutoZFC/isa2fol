@@ -11,11 +11,11 @@ are marked **[choice]** — push back on any of them.
 Package.swift
 Sources/
   YXML/          Isabelle's transfer format → node tree.   Knows no dialect.
-  IR/            IRType only. §4 is built here, test-first.
+  IR/            §4's framework: Node · Table · transform · index engine · passes · legalize.  BUILT
   FolDialect/    types · print
   isa2fol/       CLI
 Tests/
-  YXMLTests/  FolDialectTests/
+  YXMLTests/  FolDialectTests/  IRTests/
 ```
 
 ```
@@ -44,11 +44,21 @@ either is silent.
 it never transcribes raw `ZApp`.** `ZApp(ZApp(ZConst "Pure.imp", a), b)` is read as
 one `imp` node; connectives and binders are node kinds, not application spines.
 
-**The dialect is the ZF SURFACE** — Isabelle/ZF's own vocabulary: Pure's and IFOL's
-logic as named node kinds, and constants applied to their arguments (§4.3). The
+**The dialect is the ZF SURFACE, built downstream-first.** FOL's surface is the
+base; from IFOL only what FOL cannot express is imported; from Pure only what IFOL
+cannot. A construct the downstream surface covers is READ AS the downstream
+construct — Pure's `⟹` is `folImplies`, never a kind of its own. ZF's own vocabulary —
+constants applied to their arguments — is the generic term language (§4.3). The
 reader recognises exactly that shape and **refuses anything else by name** — an
 η-short binder argument (`All(P)`), a partially applied constant, a β-redex. It
 never normalises.
+
+**Measured, statements of the 3,616 named ZF theorems** (`isa-deps --logic --named`,
+`~/repos/isabelle-study/bin/isa-deps`): every logical constant is fully applied and
+every binder argument is a `λ`, without exception. Bare and partial applications —
+225 bare `Trueprop`, partial `eq`/`iff` — occur only inside PROOF terms, where the
+proof layer meets them; across all 16,798 files proof terms also hold 8,989
+`Pure.dummy_pattern`, none in the named ZF theorems.
 
 **Normalisation is added per shape, and only on evidence.** If a non-surface shape
 occurs, a pass brings it to the surface — Isabelle does the same with βη-normalisation
@@ -151,8 +161,8 @@ checker accepts — not against our own reading of the grammar.
 
 ## 4. IR  **[DECIDED, NOT BUILT]**
 
-**Only `IRType` is built.** Everything below is built from its tests first. The
-previous region graph — formulas edited in place through `replaceAllUses`/`insert`/
+**§4.2–§4.5 and §4.6's R1–R3 are built** (`Sources/IR`, pinned by `Tests/IRTests`);
+§4.6's renderer (R4) and §4.7's proof layer are not. The previous region graph — formulas edited in place through `replaceAllUses`/`insert`/
 `erase`, measured O(n²) per pass — is deleted; do not restore it from history.
 
 ### 4.1 Two layers, mirroring the checker
@@ -176,6 +186,9 @@ This is fol-zfc's own split: `GlobalContext`'s `FormulaRegistry` and the
   ID. **ID equality IS formula equality** — the checker's semantics: its
   `Registry::register_item` deduplicates (`src/util/registry.h`) and
   `implies_elim` compares handles (`src/proof/nd/stack.cpp:339`).
+- **Validated at `intern`, the only way in.** Children exist and are well-typed; a
+  function-typed argument is an `isaAbs`; a `folPred` argument is a `folBound`; an
+  application is full. Anything else throws — an ill-formed node cannot exist in a table.
 - **Immutable.** A node is never edited. Rewriting builds new nodes; nothing is
   deleted, and a node no root reaches is simply unreferenced.
 - **One table per unit** — a unit's statements and proofs, plus the signatures it
@@ -197,27 +210,42 @@ This is fol-zfc's own split: `GlobalContext`'s `FormulaRegistry` and the
 > split and ID equality stops meaning checker equality. Nothing less — its type
 > and meaning must follow from the node alone, or one node means two things.
 
-**The isa side is the ZF surface (§2).** Every node other than an abstraction is
-fully applied and has a base type (`i`, `o`, `prop`):
+**The isa side is the ZF surface (§2), downstream-first.** How each logical construct
+lands:
+
+| Isabelle | covered by FOL? | read as |
+|---|---|---|
+| IFOL `conj` `disj` `imp` `iff` `Not` `False` | yes | `folAnd` `folOr` `folImplies` `folIff` `folNot` `folBottom` |
+| Pure `⟹` | yes — the target has one implication | `folImplies` |
+| `Trueprop`, `Pure.prop` | yes — the `o ⇒ prop` coercion is the identity once `prop` is `o` | erased |
+| Pure `≡` at `o` or `prop` | yes | `folIff` |
+| IFOL `∀x:T` / `∃x:T`, Pure `⋀x:T` | **no** — a set quantifier owes the R3 guard, a class one does not | **`ifolAll(T, body)`, `ifolEx(T, body)`** — the only dedicated imports |
+| IFOL `eq[i]`, Pure `≡` at `i` | no — `folPred` takes variables, these take terms until S1 | `isaConst("IFOL.eq", …)` |
+| `True`, `Ex1`, `Let`, `Uniq` | no — defined constants | `isaConst` |
+| Pure `≡` at a function type — definitions `f ≡ λx. t` | not by FOL or IFOL | `isaConst("Pure.eq", …)`, consumed by S2 |
+| Pure `⋀` at a function type | not by FOL or IFOL; S5 | named refusal until S5 is designed |
+
+**The quantifier is the one dedicated import because the guard is the calling
+convention (§4a).** Everything else is a relabel or data S1/S2 treat alike; as data,
+`isaConst("IFOL.All", …)` would be matched by a name string, and a quantifier the
+lowering missed would silently change every signature. As a kind, rule 11 covers it.
+
+The generic term language — ZF's own vocabulary, not logic at any level:
 
 | node | source | added | left out |
 |---|---|---|---|
-| `isaTrueprop(t)` · `isaImp(a, b)` · `isaAll(T, body)` · `isaEq[T](a, b)` | Pure: `Trueprop`, `⟹`, `⋀`, `≡` | | the `λ` under `⋀`: the body is de Bruijn |
-| `iff` `conj` `disj` `imp` `Not` `True` `False` `All(T, body)` `Ex(T, body)` `eq[T](a, b)` | IFOL's logic | | the `λ` under a quantifier |
-| `isaConst(name, typeArgs, args)` | any other constant — the 249 ZF constants, `IFOL.Ex1`, `IFOL.Let` — fully applied | | its type: the unit's constant declarations. One kind for `o`-valued atoms (`mem`) and `i`-valued terms (`QPair`) |
+| `isaConst(name, T, args)` | any constant not read as logic above — the 249 ZF constants, `IFOL.eq`, `True`, `Ex1`, `Let`, `Uniq`, `Pure.eq` at a function type — fully applied | its INSTANTIATED type `T` — it determines the type arguments and back, so the identity is the same | the declared scheme: declarations stay polymorphic (`IFOL.eq :: 'a ⇒ 'a ⇒ o`) though every use is ground, so the READER instantiates once from `theory/consts` and no `'a` enters the table |
 | `isaFree(name, T)` | free `ZVar` | the type, from the `frees` header | |
 | `isaBound(k, T)` | `ZBound k` | **the type**, from the enclosing binder | |
-| `isaVarApp(head, args)` | a variable applied — a class variable `P(x)`, `P : i ⇒ o` | | — the head is an `isaFree` or `isaBound`, never merged into the constant namespace (rule 3) |
+| `isaVarApp(head, args)` | a variable applied — a class variable `P(x)` | | the head is an `isaFree` or `isaBound`, never merged into the constant namespace (rule 3) |
 | `isaAbs(T, body)` | `ZAbs`, ONLY as a function-typed argument: `Collect(A, λx. …)` | | **`x`** |
 
-`Pure.prop` is erased; a type variable, a schematic `Var`, `Pure.conjunction`/`term`/
-`type`/`sort_constraint` and `OFCLASS` are named refusals (§2). The logic gets
-dedicated kinds because lowering translates it structurally; the ZF constants share
-one kind because S1/S2 treat every one alike — the binders among them are told
-apart by an argument's TYPE, never by name.
+`IRType.prop` never appears in a node. A type variable, a schematic `Var`,
+`Pure.conjunction`/`term`/`type`/`sort_constraint` and `OFCLASS` are named refusals (§2).
 
 **The fol side mirrors fol-zfc** (`src/core/formula.h`): a term is a bound variable
-(de Bruijn) or a fixed variable; a formula is a predicate over terms, a
+(de Bruijn) or a fixed variable — the fixed one arrives with the proof layer, which is
+what introduces it (`fix`, `exists_elim`); a formula is a predicate over terms, a
 connective, or a quantifier over a body. **The set/class binder kind is NOT
 identity** — the checker cannot see it, and `∀A. (set(A) → ψ)` is valid text for
 both. It is the translator's bookkeeping, known where lowering builds the binder.
@@ -288,25 +316,75 @@ so each tests the arithmetic AND deterministic building:
 | `shift(shift(φ, a), b) == shift(φ, a + b)` | shifts compose |
 | `looseBound(φ) == 0` ⇒ every operation returns `φ`'s ID | closed is untouched |
 
-### 4.5 Rewriting
+### 4.5 The framework: traversal, index engine, passes
 
-- **A rewrite is a recursive function that builds the new formula.** A statement
-  moves to the new root.
-- **A fixpoint is a pass that returns the same root ID.** No round cap: a pass that
-  does not approach its fixpoint is a bug in its rules.
-- **A rewrite may take arguments beyond the node** — binder depth, the statement's
-  ordered free variables. Closing a statement over its frees needs them: one
-  interned free-variable node becomes `bvar 0` at one site and `bvar 1` under an
-  inner binder.
-- **No cache.** A shared node reached twice is rewritten twice, and interning makes
-  the result identical, so this costs time, never correctness. It goes exponential
-  only on nested sharing; the export is a tree, so a statement's paths are bounded
-  by its export size unless a pass DUPLICATES subformulas. Add a memo when a
-  measurement asks — keyed on every argument of the function, or it is silently wrong.
+```
+  Node        SOURCE kinds (isa*, ifol*) and TARGET kinds (fol*) — ONE FLAT enum
+  Table       intern · subscript · type(of:) · looseBound(of:)          §4.2
+  transform   THE traversal: descend, count binders, apply a Rule, rebuild through the table
+     ├── index engine   shift · instantiate · abstract — Rules on variable leaves  §4.4
+     └── passes         Rules on the kinds a pass lowers
+  Unit        the table + statements [(name, root)] in source order
+  legalize    no source kind reachable from a lowered root
+```
 
-⚠ **`legalize` STAYS THE SEAL.** A rewrite is partial, so a new node kind breaks
-nothing; one exhaustive switch over node kinds, walked from a lowered root, refusing
-any isa kind, is where rule 11 lives.
+**Flat, not nested source/target.** Nesting is per node, not per statement — a
+`folAnd` holds `NodeID`s either way, so both represent a partly lowered statement, and
+anything that walks children must handle both dialects regardless. Nesting would only
+tidy `legalize`.
+
+**One traversal serves the index engine AND every pass.** Both need "descend, count
+binders, rebuild through the table"; an index operation is a rule that fires on variable
+leaves, a pass is a rule that fires on the kinds it lowers.
+
+```swift
+public protocol Rule {   // nil = no match: rebuild the node from its rewritten children
+    func apply(_ id: NodeID, depth: Int, in t: inout Table) throws -> NodeID?
+}
+public func transform(_ root: NodeID, _ rule: Rule, in t: inout Table) throws -> NodeID
+public protocol Pass { var name: String { get }
+                       func run(_ root: NodeID, in t: inout Table) throws -> NodeID }
+```
+
+- **A pass never writes its own recursion.** It supplies a rule for the kinds it handles;
+  every other kind is rebuilt from its rewritten children.
+- **A fixpoint is a pass that returns the same root ID.** No round cap: a pass that does
+  not approach its fixpoint is a bug in its rules.
+- **A pass may take arguments beyond the node** — binder depth from the traversal, and
+  whole-statement parameters it computes from the root before transforming (the ordered
+  frees that closing needs: one interned free-variable node becomes `bvar 0` at one
+  site and `bvar 1` under an inner binder).
+- **A pipeline** runs its passes in order over every statement root. `legalize` is a
+  separate call, made where lowering is meant to be complete — a pipeline may end at a
+  mixed stage.
+- **A rule sees a node BEFORE its children, and a non-nil result replaces that subtree
+  without descending into it.** Returning the node itself means "unchanged, do not
+  descend" — how the index engine prunes a closed subtree (§4.4).
+- **No cache.** A shared node reached twice is rewritten twice, and interning makes the
+  result identical — time, never correctness. It goes exponential only on nested
+  sharing; the export is a tree, so a statement's paths are bounded by its export size
+  unless a pass DUPLICATES subformulas. Add a memo when a measurement asks — keyed on
+  every argument of the function, or it is silently wrong.
+- **One unit per run**; imports arrive as text or a compiled library, as `proof_checker`
+  loads them. So one table per process, and an out-of-range ID is the only foreign ID.
+
+**Four exhaustive switches — adding a kind breaks exactly these** (rule 11):
+
+| switch | its question | derived from it |
+|---|---|---|
+| **structure** — `mapChildren(node, f(child, underBinder))` | children, and which sit under a binder | children (`f` records), rebuild (`f` returns new), binder body, `looseBound` = max over children of `looseBound(child) − (underBinder ? 1 : 0)` |
+| **bound variable** | is this a bound variable, at which index | the `k + 1` leaf of `looseBound`; the index engine's leaves |
+| **type** | the node's type, and whether its children are well-typed | `intern`'s validation |
+| **legalize** | source or target | the seal |
+
+⚠ **WHICH KINDS BIND EXISTS IN EXACTLY ONE PLACE — THE STRUCTURE SWITCH.** The traversal,
+the index engine and `looseBound` all derive from it, so they cannot disagree. Separate
+functions could, and the disagreement is D2's silent error: a binder one of them misses
+has its body skipped by `shift`. The cost — "children" is read by rebuilding, allocating
+for `isaConst`/`folPred`'s arrays — is an unmeasured constant factor.
+
+⚠ **`legalize` STAYS THE SEAL.** A rule is partial, so a new kind breaks no pass; the
+legalize switch is where a kind nothing lowers is caught.
 
 ### 4.6 Determinism
 
