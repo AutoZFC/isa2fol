@@ -13,25 +13,18 @@ Sources/
   YXML/          Isabelle's transfer format → node tree.   Knows no dialect.
   IR/            IRType · Op · Graph · Builder · Pass · legalize.   BUILT
   Lowering/      the statement passes.                              BUILT
-  FolDialect/    types · verify · print
-  Framework/     corpus · ledger · driver
+  FolDialect/    types · print
   isa2fol/       CLI
 Tests/
   YXMLTests/  IRTests/  LoweringTests/  FolDialectTests/
 ```
 
 ```
-          YXML
-            ▲
-       IsaDialect          FolDialect
-            ▲                  ▲
-            └──── Framework ───┘        owns the CONVERT edge, and only that
-                     ▲
-                  isa2fol
+  YXML        IR ◀── Lowering        FolDialect
 ```
 
-**A dialect depends on neither the other dialect nor the Framework.** The only
-place that knows both vocabularies is `Framework/Convert.swift`.
+**Nothing connects them yet.** The reader (YXML → IR) and the emitter
+(IR → FolDialect) are unbuilt, and where each lives is undecided.
 
 ### Two rules that make the guarantee real
 
@@ -157,12 +150,12 @@ enum IRType { case i, o, prop; indirect case fn(IRType, IRType) }
 
 **Four cases carrying the surface's own names** — `i`, `o`, Pure's `prop`, `fun`.
 `.i` and `.o` are the fixpoint and live fully in fol-zfc; `.prop` and `.fn` are
-the meta layer and are eliminated by passes. There is no fifth: Isabelle has no
-sort for proofs, so a derivation's type is the proposition it proves and its
-evidence-ness lives on `Op.producesEvidence`.
+the meta layer and are eliminated by passes. **How a proof is typed is
+undecided** — there are no proof ops, and a proof typed `.prop` would be
+indistinguishable from the proposition it proves.
 
 ⚠ **`.prop` IS PURE'S `prop`, NOT "a proposition".** A formula is `.o`. So
-`legalize`'s `noTypeShape(.prop)` reads as "no meta level survives", which is
+`legalize` refusing `.prop` reads as "no meta level survives", which is
 right and looks wrong. An earlier naming had `.prop` mean `o` and `.meta` mean
 Pure's `prop`; that collision is what this naming removes. Measured surface, so
 the lowering touches a minority of the graph: `i` 98.3%, `o` 12.4% arrive already
@@ -200,14 +193,18 @@ Pinned only as far as `aRegionHoldsABinderBody` goes.
 ### Passes
 
 ```swift
-protocol Pass { var name: String { get }; var ensures: [Invariant] { get }
-                func run(_ b: inout Builder) throws }
+protocol Pass { var name: String { get }; func run(_ b: inout Builder) throws }
 protocol RewritePattern { func matches(_ op: Op) -> Bool
                           func rewrite(_ id: OpID, _ b: inout Builder) throws }
 ```
 
-`PassManager` verifies `ensures` after **every** pass. Most passes are a bag of
-patterns; adding a lowering is adding a pattern.
+Most passes are a bag of patterns; adding a lowering is adding a pattern.
+
+**A fixpoint is a walk that changes nothing.** `PatternPass` walks every live op,
+applies every match, and repeats until a walk fires no pattern. There is no round
+cap: a pass whose walks do not approach the fixpoint is a bug in its patterns, and
+a counter would only relabel that bug as a refusal. Pinned by
+`aConvergentPassNeedsNoCap`.
 
 ⚠ **THIS WEAKENS RULE 11 AND `legalize` IS THE REPLACEMENT.** A rewrite pattern is
 partial, so a new `Op` case breaks no pattern and would survive lowering silently.
@@ -235,38 +232,14 @@ build the proof layer.
 
 ### Status
 
-`legalize`'s `folZfcOnly` is the target. `Op` currently carries 12 ops — enough to
-lower `⟹`/`Trueprop`/atoms/frees end to end (`loweringMakesItFolZfcOnly`) and no
-more. Growing it is the work.
+`legalize` is the target. `Op` carries 10 ops — enough to lower
+`⟹`/`Trueprop`/atoms/frees end to end and no more.
 
-### Measured, by `bench()`
+⚠ **BENCHMARK WITH `-c release`.** `swift test` is debug, where ARC and the
+`b.graph` getter copy dominate; any figure from it is meaningless.
 
-| | |
-|---|---|
-| `Graph` | **40 bytes** — 4 array refs + root. Copying one is 4 retains |
-| `Op` 25 (stride 32) · `OpID` 8 · `IRType` 8 · `Region` 16 | |
-| per op | **~41 bytes** and, at fixed arity, **zero heap arrays** |
-| build 10k/20k/40k ops | **0.5 / 0.8 / 1.7 ms** — linear, so mutation is in place |
-| one `replaceAllUses` | under 0.05 ms — linear per call; there is no use-list |
-| `PatternPass` at k = 200/400/800 | **0.3 / 1.2 / 4.7 ms** — ~4× per doubling, O(k²) |
-
-⚠ **THOSE ARE RELEASE NUMBERS AND DEBUG IS 38× SLOWER** (`k=800`: 4.3 ms vs
-161.9 ms). `swift test` defaults to debug, so benchmark with `-c release` or the
-figure is meaningless. The gap is ARC and the `b.graph` getter copy — 32 bytes
-plus three retains per access — which `-O` borrows and inlines away and `-Onone`
-does not.
-
-**COW is not firing**: if every mutation deep-copied, build would be quadratic and
-it is not. The data structure is fine.
-
-⚠ **THE DRIVER IS QUADRATIC AND ONLY PER-THEOREM USE HIDES IT.** Two causes, both
-in `PatternPass`: it re-sweeps the whole graph after every single rewrite, and
-`replaceAllUses` walks every op. The constant factor was debug noise; the
-*scaling* survives `-O` unchanged. Extrapolating release: k=8,000 ≈ 0.4s,
-k=80,000 ≈ 43s, and the whole 798k-node corpus as one graph ≈ 70 minutes. Statements are order-free so the design lowers one theorem
-at a time, where graphs are small — but building one graph over the corpus would not
-finish. A worklist plus a use-list is the fix and is now justified by measurement
-rather than assumed.
+⚠ **`replaceAllUses` WALKS EVERY OP — THERE IS NO USE-LIST** (`Builder.swift`).
+So a pass costs O(rewrites × ops) however few walks it takes.
 
 ### The pattern, and why not classes
 
@@ -286,9 +259,7 @@ computes what an op yields, so there is no value table and no `results` list
 either. A block argument is an op (`.blockArg`), which keeps binders uniform.
 
 **Adding an op costs five exhaustive switches** — `type`, `region`,
-`forEachOperand`, `mapOperands` in `Op`, and `legalize`. It was eight;
-`operands` and `references` are now derived from `forEachOperand`, and `dialect`
-and `producesEvidence` are gone. That number is the extension cost and is worth
+`forEachOperand`, `mapOperands` in `Op`, and `legalize`. That number is the extension cost and is worth
 watching: it is what rule 11 charges for its guarantee.
 
 Two things this shape buys that the previous one could not:
@@ -312,8 +283,7 @@ Consequences worth knowing:
 - **`Builder` travels `inout`**, so the pass pipeline never copies it.
 - **Deletion is a tombstone** (`erased`), so IDs stay stable and nothing is
   invalidated by an erase.
-- **`Op` carries `String`s.** Interning names to an `Int` would shrink `Op` from
-  25 bytes and make comparison O(1). Unmeasured.
+- **`Op` carries `String`s.** Interning names to an `Int` would shrink `Op` and make comparison O(1). Unmeasured.
 
 ## 4a. Statement lowering  **[BUILT]**
 
@@ -350,33 +320,7 @@ came from, so PHASE 2 recovers that by **re-running this lowering** over the
 global counters, no dependence on dictionary order. Pinned by
 `loweringIsDeterministic`, which compares whole graphs.
 
-## 5. Framework
-
-```swift
-public struct Corpus { … }                    // the export, indexed by (theory, serial)
-
-public protocol Vocabulary {                  // what an Isabelle constant becomes
-    func entry(_ isabelle: String) -> Entry?
-}
-public struct Entry { let predicate: String; let arity: Int; let source: Source }
-public enum Source { case base, translated }  // FOUNDATION §3: Isabelle's Pair
-                                              // is NOT the compiler's tuple
-
-public enum Verdict {
-    case declared
-    case waiting(on: String)                  // a constant the Vocabulary lacks
-    case refused(Refusal)
-}
-public struct Ledger { … }                    // verdicts, and blockers ranked by count
-
-func convert(_ s: Isa.Statement<Ground>, _ v: Vocabulary) throws -> Fol.Declaration
-```
-
-`convert` is the **only** function that names both dialects.
-
----
-
-## 6. What I did not decide
+## 5. What I did not decide
 
 | | |
 |---|---|

@@ -63,11 +63,11 @@ struct GuardBinder: RewritePattern {
 /// ⚠ ORDER IS FORCED. `GuardBinder` builds a `folImplies` over the region's
 /// result, which must already be a formula — so Pure's coercion has to go first.
 public let statementLowering = PassManager([
-    PatternPass(name: "lower-pure", ensures: [],
+    PatternPass(name: "lower-pure",
                 patterns: [LowerTrueprop(), LowerImp()]),
-    PatternPass(name: "lower-ifol", ensures: [],
+    PatternPass(name: "lower-ifol",
                 patterns: [LowerFree(), LowerAtom()]),
-    PatternPass(name: "guard-binders", ensures: folZfcOnly,
+    PatternPass(name: "guard-binders",
                 patterns: [GuardBinder()]),
 ])
 

@@ -1,212 +1,142 @@
 # STATE — isa2fol
-`cf2c1972` · `feature/exists-descent` · 2026-09-23.
+`HEAD` · `feature/exists-descent` · 2026-09-23.
 **RUN §0 BEFORE TRUSTING ANY LINE BELOW.**
 
 ## 0. Staleness checks
 
-**⚠ THE RUST TREE IS GONE.** Deleted at `f2ce5bbf`. Any `rs/…` path in any
-document is dead; it is in git history and nothing depends on it.
 `swift` is NOT on a non-login shell's PATH — it is at `~/.local/bin`.
+⚠ **BENCHMARK WITH `-c release` OR THE NUMBER IS MEANINGLESS.** There is no benchmark now.
 
 | command (from the repo root) | expect |
 |---|---|
 | `swift --version \| head -1` | `Swift version 6.4 (swift-6.4-RELEASE)` |
-| `swift build` | `Build complete!` |
-| `swift test 2>&1 \| grep -cE '^✔ Test [a-zA-Z]+\(\) passed'` | **`15`** |
-| comment density of `Sources/**/*.swift` (CLAUDE.md rule 9 has the script) | `26/551 = 4.72%` — **UNDER the cap**; it must stay there |
-| `find Sources Tests -name '*.swift' \| wc -l` | `24` (881 lines) |
-| `ls Sources` | `FolDialect Framework IR isa2fol Lowering YXML` |
-| `grep -cE '^axiom' base/axioms.fol.def` | `17` |
-| `ls base/tiers/*.fol.def \| wc -l` | `10` |
-| `ls docs/phase2_probes/*.fol.def \| wc -l` | `17` |
+| `MEM=16G scripts/capped.sh swift test 2>&1 \| grep -cE '^✔ Test [a-zA-Z]+\(\) passed'` | **`14`** |
+| `ls Sources` | `FolDialect IR isa2fol Lowering YXML` |
+| `ls docs` | `FOUNDATION.md phase2_probes SOURCE_SURFACE.md` |
+| `find Sources Tests -name '*.swift' \| wc -l` | `22` (743 lines) |
+| comment density of `Sources` (CLAUDE.md rule 9 has the script) | `21/470 = 4.47%` — **UNDER the 5% cap** |
 | `scripts/source-surface.py \| head -1` | `population: 3616 named ZF theorems, 37 ZF.* theories` |
-| `ls data/zf_export \| wc -l` | `40` |
+| `grep -cE '^axiom' base/axioms.fol.def` · `ls base/tiers/*.fol.def \| wc -l` | `17` · `10` |
+| `ls docs/phase2_probes/*.fol.def \| wc -l` · `ls data/zf_export \| wc -l` | `17` · `40` |
 | `test -x ~/repos/fol-zfc-comb/bazel-bin/src/tools/proof_checker` | exit 0 |
 
 If a row disagrees, **this file is stale**: trust the code, fix this file.
 
 ## 1. Where
 
-Worktree `/home/arthur/repos/isa2fol`, tree CLEAN, **72 ahead of
-`origin/feature/exists-descent`, NOT pushed**.
+Worktree `/home/arthur/repos/isa2fol`, tree CLEAN, **ahead of
+`origin/feature/exists-descent`, NOT pushed** — count: `git rev-list --count origin/feature/exists-descent..HEAD`.
 ⚠ **THE BRANCH NAME DESCRIBES WORK THAT NO LONGER EXISTS** — see §6.
-⚠ **TWO DEAD WORKTREES REST ON THE DELETED RUST LAYER**, and `git worktree list`
-is the only place either shows up:
-- `.claude/worktrees/contig` (`fix/contiguous-slots`) — gitignored, never
-  `git add -A` it.
-- `/home/arthur/repos/isa2fol-build` (`feature/build-integration`, `6f7703f0`) —
-  outside this worktree, still carrying `rs/`, `BUILD.bazel`, its own `CLAUDE.md`.
-
-`git worktree remove` clears either.
 
 ## 2. Read these first-hand
 
 | path | what to look for |
 |---|---|
-| `DESIGN.md` | the package design. **§5 lists what was deliberately NOT decided** |
-| `CLAUDE.md` rules 9, 11, 12 | the comment cap and the two Swift rules the guarantees rest on |
-| `Sources/FolDialect/Term.swift` | S1 as a type — one field, and why that kills `iota` |
+| `DESIGN.md` **§4, §4a** | the pass engine and the statement lowering — the two live parts |
+| `Sources/IR/Op.swift` | the op enum carries its own operands; 4 switches here + `legalize` = the extension cost |
+| `Sources/Lowering/Statement.swift` | the three passes, and why their order is forced |
+| `docs/SOURCE_SURFACE.md` | the MEASURED source surface; regenerates |
 | `docs/FOUNDATION.md` **§2** | S1–S6, the specification everything must satisfy |
-| `docs/SOURCE_SURFACE.md` | the MEASURED source surface — what the reader must cover, and why FOL is proof-only |
-| `DESIGN.md` **§4** | the pass engine — why `legalize` replaces rule 11, and why derivations are append-only |
-| `Sources/IR/Legalize.swift` | the ONE exhaustive switch naming both vocabularies |
+| `CLAUDE.md` rules 1, 9, 10, 11 | no fallbacks · comment cap · never run uncapped · no `default:` |
 
 ## 3. Invariants
 
 | invariant | enforced by |
 |---|---|
 | A unit is valid only when the checker exits 0 **AND** stderr is empty | `theRealCheckerAcceptsWhatRenderEmits` |
-| No `default:` in a switch over an IR enum | CLAUDE.md rule 11 — **nothing checks this; it is discipline** |
-| IR enums stay `internal` or `@frozen` | CLAUDE.md rule 12 — same |
-| Only `base/` may carry a bare `axiom` | not yet enforced in code |
-| Comments ≤ 5% of `Sources/**/*.swift` | the §0 row; **delete prose, never raise the cap** |
+| No `isa.*` op and no `prop`/`fn` type survives lowering | `legalize` — one exhaustive switch |
+| Lowering is a deterministic function of the statement | `loweringIsDeterministic` |
 | `docs/FOUNDATION.md` is mathematics, with no code reference | nothing checks it; discipline |
+| Comments ≤ 5% of `Sources/**/*.swift` | the §0 row; **delete prose, never raise the cap** |
 
 **Standing warnings — silent if repeated:**
 
-- **⚠ `Conditional` IS NOT `Proved` AND THEY ARE NEVER SUMMED.** The checker
-  reports three states. A corpus conditional on one missing lemma reads as a
-  triumph if they are added.
+- **⚠ `Conditional` IS NOT `Proved` AND THEY ARE NEVER SUMMED.**
 - **⚠ A CLAIM WITH NO PROOF BLOCK IS NOT CITABLE.** `use X` on a declared-only
-  claim fails `unknown axiom/theorem in ctx` — *not* `Conditional`. `Conditional`
-  needs `proof X: UNPROVED`. An `include` carries declarations, never proofs.
-- **⚠ GUARDING A CLASS MAKES THE CLAIM FALSE, NOT REDUNDANT.** Hence
-  `Binder.setVar`/`.classVar`; pinned by `aClassBinderCarriesNoGuard`.
-- **⚠ NOTHING CLOSES POLYMORPHISM AT THE TYPE LEVEL ANY MORE.** `Statement<Poly>`/
-  `<Ground>` went with the tree IR on 2026-09-23, and `IRType` has no case for
-  `'a`. The reader must refuse a type variable BY NAME, and
-  `groundnessIsStructural` — the only test that pinned it — went with the module.
-  Re-pin it. Measured, the cost is small: **12 of 3,616 named ZF theorems**
-  carry a type variable (0.3%), half `split`/`qsplit`; IFOL/FOL/Pure are 37-48%
-  but that layer is cited, never translated.
-- **⚠ THE "NEVER REWRITE A DERIVATION" RULE IS IN `DESIGN.md` §4, NOT IN CODE,
-  DELIBERATELY.** It was code — `Op.producesEvidence` — and guarding ops that did
-  not exist got the rule wrong: it froze `isaAxiom`, which is source, so
-  `legalize` was unreachable for any graph with a proof in it. Write it when
-  there is a proof layer to guard.
-- **⚠ A REGION'S VALUE IS `result`, NEVER "THE LAST OP".** `GuardBinder` appends
-  to the region; reading the body positionally would silently rebind. And
-  `replaceAllUses` must maintain `result` as well as operands — it did not, and
-  an erased op stayed the body.
-- **⚠ A REGION REPRESENTS SCOPE BUT NOTHING ENFORCES IT.** An op outside a region
-  may reference that region's `blockArg` and neither `walk` nor `legalize`
-  objects. The structure to verify dominance is there; the verifier is not.
-- **⚠ `Op.operands` ALLOCATES, EVEN AT FIXED ARITY.** In any loop across the
-  graph use `forEachOperand` or `references(_:)`, which do not.
-- **⚠ `IRType.i` DOES NOT DISTINGUISH A SET FROM A CLASS, AND THAT IS DELIBERATE.**
-  NBG is one-sorted; `set(·)` is a predicate, not a sort. So the type system CANNOT
-  catch a guard error — only G5's two-sided rule can, and it must run after every
-  pass, not once at the end.
-- **⚠ `IRType.prop` IS PURE'S `prop`; A FORMULA IS `.o`.** So `folZfcOnly` bans
-  `.prop` — "no meta level survives" — which is correct and reads backwards.
-  The four cases are the surface's own names: `.i`, `.o`, `.prop`, `.fn`.
-- **⚠ A REWRITE PATTERN IS PARTIAL, SO ADDING AN `Op` CASE BREAKS NOTHING.** Rule 11's
-  guarantee moved to `legalize`, which is exhaustive. A new op that nothing lowers is
-  caught there and nowhere else.
-- **⚠ SERIALS COLLIDE ACROSS THEORIES** — 760 of them. Any index over the export
-  must key on `(theory, serial)`.
-- **⚠ `IsaDialect.Term` HAS FIVE CASES BECAUSE THE EXPORT HAS NO TAG 2.** That is
-  a fact about the export's *preprocessing*, not about Isabelle. Reading must fail
-  loudly if one arrives, never absorb it.
-- **⚠ THE RUST-ERA DESIGN DOCS WERE DELETED 2026-09-23 — DO NOT RESTORE ONE TO
-  ANSWER A DESIGN QUESTION.** `FOUNDATION_TO_FOLZFC.md`, `DECLARE.md`,
-  `REPLAY.md`, `KERNEL_ABI.md`, `fol_abi.h`, `DESIGN_rs.md`. They planned the
-  Rust implementation — `IR1`–`IR4`, `H → S → E → LOWER`, `PassContext`,
-  `Vec<Step>` dialect-partitioned passes, `src/replay/`'s two-phase driver — and
-  none of it survives the language change. They read as current and they are not;
-  that is exactly how a session re-imports a dead architecture. **Structure comes
-  from `DESIGN.md` and the code. `docs/FOUNDATION.md` supplies the mathematics
-  and nothing else.**
-- **⚠ `docs/FOUNDATION.md` CARRIES NO CODE REFERENCE AND MUST NOT GAIN ONE.**
-  Module paths, function names and test names were stripped 2026-09-23: each
-  named deleted code while reading as live evidence. Cite a `base/` tier or a
-  probe — the kernel checks those — or state the claim with no handle.
-- **⚠ EVERY CORPUS FIGURE IN `FOUNDATION.md` IS UNEVIDENCED**, and its §5 now
-  says so outright. The measuring code went with the encoder. Belief, not state.
-- **⚠ THE CHECKER PATH IN OLDER DOCS IS WRONG.** It is
-  `~/repos/fol-zfc-comb/bazel-bin/src/tools/proof_checker`, never
-  `/home/arthur/Documents/repo/fol-zfc/`.
+  claim fails `unknown axiom/theorem in ctx`, *not* `Conditional`, which needs
+  `proof X: UNPROVED`. So the artifact must carry stubs — §6.3.
+- **⚠ A REGION'S VALUE IS `result`, NEVER "THE LAST OP"** — a pass that appends
+  would rebind the binder, and `replaceAllUses` must maintain `result` too. Its
+  SCOPE, though, is represented and not enforced: an op outside a region may
+  reference that region's `blockArg` and no verifier objects.
+- **⚠ A REWRITE PATTERN IS PARTIAL, SO ADDING AN `Op` CASE BREAKS NOTHING.**
+  Rule 11's guarantee lives in `legalize` alone.
+- **⚠ `IRType.i` DOES NOT DISTINGUISH A SET FROM A CLASS, DELIBERATELY.** NBG is
+  one-sorted. Only G5's two-sided rule can catch a guard error.
+- **⚠ NOTHING CLOSES POLYMORPHISM AT THE TYPE LEVEL.** `IRType` has no `'a`; the
+  reader must refuse by name, and `groundnessIsStructural` needs re-pinning.
+- **⚠ A `ZVar` CARRIES NO TYPE.** A free variable's sort is in the `frees` table
+  at the head of the proof file — `pair tfrees (pair frees (pair prop proof))`.
+- **⚠ THE RUST-ERA DESIGN DOCS WERE DELETED — DO NOT RESTORE ONE.** They planned
+  `IR1`–`IR4`, `H → S → E → LOWER`, `PassContext`, `src/replay/`, and read as
+  current. `git log` finds them; `DESIGN.md` supersedes them.
+- **⚠ EVERY CORPUS FIGURE IN `FOUNDATION.md` IS UNEVIDENCED** — its §5 says so.
+- **⚠ SERIALS COLLIDE ACROSS THEORIES.** Index on `(theory, serial)`.
+- **⚠ `isa2fol-build` (§1) IS A LIVE WORKTREE ON THE DELETED RUST TREE.**
 
 ## 4. State
 
 | claim | verified by |
 |---|---|
-| The YXML reader reads real Isabelle output — 11 Pure axioms, `file=theory.ML` | `aRealExportFileParses` |
-| `render` emits syntax the REAL checker accepts: exit 0, empty stderr, `+ probe` | `theRealCheckerAcceptsWhatRenderEmits` |
-| A class binder renders unguarded; a set binder renders as an implication | `aClassBinderCarriesNoGuard`, `aGuardedForallRendersAsAnImplication` |
-| An unbalanced close is an error, not absorbed | `anUnbalancedCloseIsAnError` |
-| `base/axioms.fol.def` still checks clean after the move | `proof_checker base/axioms.fol.def base/axioms.fol.proof` → `OK: 7 claim(s)` |
-| Swift installs no-sudo, GPG-verified, idempotent | `scripts/02-install-swift.sh` |
-| `⋀x. φ` lowers to `∀x. (set(x) → φ)` — the statement's shape CHANGES | `theGuardIsTheAntecedentOfTheRegionResult` |
-| Lowering is a deterministic function — same statement in, identical graph out | `loweringIsDeterministic` |
+| A mixed isa/fol graph lowers to fol-zfc-only | `theStatementLoweringAddsTheGuard` |
+| `⋀x. φ` becomes `∀x. (set(x) → φ)` — the statement's SHAPE changes | `theGuardIsTheAntecedentOfTheRegionResult` |
 | A binder at a non-`i` sort refuses rather than guessing a guard | `aBinderAtANonSetSortRefusesRatherThanGuessing` |
-| Mutation is in place — COW is NOT firing; graph build is linear in ops | `bench()` |
-| ⚠ **DEBUG IS 38× SLOWER THAN RELEASE** (k=800: 161.9ms vs 4.3ms). Benchmark with `-c release` or the number is meaningless | `bench()` |
-| `PatternPass` is **O(k²)** — release 0.3/1.2/4.7ms at k=200/400/800. Fine per theorem; ~70 min on one corpus-wide graph | `bench()`, **`-c release`** |
-| The pass engine lowers a mixed Isa/Fol graph to fol-zfc-only | `loweringMakesItFolZfcOnly` |
-| A pass that leaves an `isa.*` op behind is rejected AT THAT PASS | `aPassThatLeavesItsEliminatedShapeBehindIsRejected` |
-| A non-converging pattern fixpoint throws rather than capping | `aFixpointThatDoesNotConvergeThrows` |
-| The ZF source surface is 16 logical constants + 4 sorts + 249 ZF constants; proofs cite a frontier of 7 Pure axioms + 132 IFOL/FOL rules + 7 ZF axioms | `scripts/source-surface.py` |
+| A region holds a binder body; the bound variable is an ordinary op | `aRegionHoldsABinderBody` |
+| A fixpoint is a walk that changes nothing; no round cap exists — a pass with 1,000 rewrites converges | `aConvergentPassNeedsNoCap` |
+| `replaceAllUses` scans every op (no use-list), so a pass is O(rewrites × ops) | `Sources/IR/Builder.swift` `replaceAllUses` |
+| Adding one `Op` case costs **5** exhaustive switches | `grep -c 'switch self' Sources/IR/Op.swift` + `legalize` |
+| YXML parses real export output; `render` emits what the REAL checker accepts | `aRealExportFileParses`, `theRealCheckerAcceptsWhatRenderEmits` |
+| `base/axioms.fol.def` checks clean | `proof_checker base/axioms.fol.{def,proof}` → `OK: 7 claim(s)`, empty stderr |
 
-**Nothing above the YXML reader is implemented.** `Framework` has types only;
-there is no corpus driver, no conversion, no reader from `Node` to `Statement`.
+**There is no reader.** Nothing turns `YXML.Node` into a `Graph`; every test builds
+its graph by hand.
 
 ## 5. Beliefs — NOT verified
 
-**⚠ EVERY CORPUS MEASUREMENT BELOW WAS TAKEN WITH RUST CODE THAT NO LONGER
-EXISTS.** None has a live handle. Re-derive before acting on any of it.
-
-- **868** statements declare; **15,243** wait on a constant; **687** genuinely
-  refuse — of which **463** are `sort 'a` (polymorphism).
-- Of 868 declared proofs, **794** reach PASS S and **74** carry a βη-redex, so
-  most proofs are already normal and PASS S is the wall.
-- **197** term constants in **27** definitional levels, plus 54 predicates.
-  *This one is partly independent*: `~/isabelle-object-constants.md` has the table
-  and the `.thy` pointers, and the split was pinned by a test that is now deleted.
-- The Pure metalogic is 7 rules, 5 of them 99.2% of citations —
-  `~/isabelle-pure-metalogic.md`, likewise from deleted code.
-- The theorem citation graph is acyclic (16,798 nodes, 0 unordered).
+- **197** term constants in **27** levels — `~/isabelle-object-constants.md`, which
+  says of itself "no standing test handle". Live and close but not the same
+  population: `source-surface.py` measures **190** `i`-valued, **55** `o`-valued.
+- **794** of 868 declared proofs reach PASS S, **74** carry a βη-redex. From
+  deleted Rust code; nothing reproduces it.
 
 ## 6. Open decisions
 
-1. **The branch.** `feature/exists-descent` names deleted work; 72 commits
-   unpushed. Rename, branch fresh, or merge to `main`?
-2. **What monomorphise instantiates at** — the use-site type argument (faithful;
-   leaves a statement's own free `'a` undecided) or always `'a := i` (resolves
-   `eq`/`All`/`Ex`/`split` at once, but a generic IFOL theorem then means only its
-   `i`-instance, which is WEAKER than Isabelle's).
-3. **The ZF primitive surface** — a third dialect, or a stage inside IsaDialect?
-   Parked by the user; constants are explicitly *not* primitives.
-4. **What `base/` becomes** — `.fol.def` text today. Does `FolDialect` read it,
-   or is it opaque input handed to the checker?
-5. **`UNPROVED` as `extern`.** Separate compilation needs it; the old L gate
-   refused it outright ("R2 admits no debt"). The rule arguably belongs at the
-   final link, not per unit. Nowhere written down since the companion docs went.
-6. **Circular reasoning in §18's fixpoint.** The user flagged it as suspect —
-   fol-zfc does not support circular reasoning, and §18's "it is a DAG at artifact
-   granularity" is the only thing holding it up, from a design since deleted.
+1. **The branch.** `feature/exists-descent` names deleted work; nothing pushed (§1).
+   Rename, branch fresh, or merge to `main`? `isa2fol-build` still holds `rs/`.
+2. **Flatten at read time, or keep the curried `ZApp` spine?** `isaAtom(String,
+   [OpID])` already presumes head+args, and S1 materialises per *application* —
+   against which, flattening is where the reader stops being a transcription.
+3. **`UNPROVED` as `extern`.** Separate compilation needs it (§3's citability
+   warning); R2 says "no debt". Ban at the final link, or per unit?
+4. **What monomorphise instantiates at** — use-site type argument (faithful) or
+   always `'a := i` (resolves `eq`/`All`/`Ex`/`split`, but a generic IFOL theorem
+   then means only its `i`-instance, WEAKER than Isabelle's).
+5. **Is the linkable interface the `.fol.def` text or the lowered graph?** Text
+   needs `parse` (already required, `DESIGN.md` §3) and buys separate
+   compilation; the graph needs no parser but forces one process.
 
 ## 7. Next action
 
-**Read the export into the IR graph: `YXML.Node` → `Graph` of `isa.*` ops.**
+**Framework design, one piece at a time, each discussed with the user BEFORE any
+code.** This is not feature work. Minimal first; add slowly. Passes are
+experiments — review the framework, not their bugs.
 
-Everything downstream of the reader now exists: `Lowering` takes an Isabelle
-statement graph to a fol-zfc one, guards and all (`DESIGN.md` §4a). What is
-missing is real input. From the decoded surface, three gaps:
+Next to discuss: **the mutation API.** `insert(before:)` silently appends when
+the anchor is not in the region's `ops` (`?? count`, a rule-1 fallback);
+`erase` tombstones without checking for remaining uses; `DESIGN.md` §4 claims
+lowering "relabels edges, nodes persist" while every pattern inserts a new op +
+`replaceAllUses` + `erase`. `Trueprop`'s coercion needs forwarding, not relabel.
 
-1. **`isaConst` / `isaApply`** — nothing represents an `i`-valued constant
-   application like `QPair(a,b)`. That is S1's materialisation target, and the
-   only lowering that CREATES a node instead of relabelling one.
-2. **IFOL's connectives** — `iff`, `conj`, `disj`, `not`, `All`, `Ex`. Only
-   Pure's `⟹` exists. `QPair_iff` alone needs `iff` and `conj`.
-3. **A structural ztyp decoder** — YXML tag 0 is both `ZConst` and `Type`, and
-   `IFOL.eq` carries its `ZF_Base.i` instantiation nested inside. Resolve by
-   position in the tree, never by regex.
+Queued for discussion, not decided:
+- how a proof is typed — a proof of φ must be distinguishable from φ
+- substitution into a region (∀-elim at a term, β, schema instantiation)
+- formula equality — interning pure ops vs α-equivalence over regions
+- citations: a symbol table of lowered signatures (ties to §6.3, §6.5)
+- provenance on created ops, instead of phase 2 re-running lowering
+- a structural verifier: operand live/typed/in scope, region result set, one owner
+- duplicated facts: `Binder` in `IR` and `FolDialect`; `isaAll`'s sort vs its region arg
+- `FolDialect.Formula` beside the `fol.*` ops — two representations of one thing
 
-⚠ **A `ZVar` CARRIES NO TYPE.** A free variable's sort comes from the `frees`
-table at the head of the proof file — `pair tfrees (pair frees (pair prop
-proof))`. Read that environment first, then the prop.
-
-**Done when** every one of the 16,798 export statements either builds a `Graph`
-or fails with a named `IRRefusal` — no absorbed cases — and the polymorphism
-refusal is re-pinned by a test.
+**Deferred until the framework settles: the reader.** Decoding `QPair_iff`
+(`ZF.QPair`, serial 6958) needs an `i`-valued constant application, IFOL's
+`iff`/`conj`, and a positional ztyp decoder (tag 0 is both `ZConst` and `Type`).

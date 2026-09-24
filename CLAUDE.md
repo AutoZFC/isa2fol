@@ -133,10 +133,8 @@ is gone. §5 says so. Treat every number there as a belief, never a premise.
    print(f'{c}/{t} = {100*c/t:.1f}%')"
    ```
 
-   ✓ **CURRENTLY 26/551 = 4.72%, under the cap** — reached 2026-09-23 the way the
-   rule requires, by the denominator growing and by deleting the comment-heavy
-   skeleton, never by raising the cap. It was 14.9%. Keep it there: a breach is
-   fixed by deleting prose.
+   ✓ **CURRENTLY 21/470 = 4.47%, under the cap.** Keep it there: a breach is
+   fixed by deleting prose, never by raising the cap.
 
    Does not apply to `base/**/*.fol.def` headers: those record provenance of
    hand-copied proof text, which is not derivable from the artifact.
@@ -178,7 +176,6 @@ Sources/
   IR/            IRType · Op · Graph · Builder · Pass · legalize
   Lowering/      the statement passes: pure · ifol · R3 guards
   FolDialect/    Term · Binder · Formula · Declaration · render
-  Framework/     Verdict · Vocabulary · (corpus, ledger — not built)
   isa2fol/       CLI
 Tests/           YXMLTests · IRTests · LoweringTests · FolDialectTests
 base/            the NBG foundation: axioms.fol.def + 9 tiers, kernel-checked
@@ -187,12 +184,11 @@ data/zf_export/  the Isabelle export
 ```
 
 ```
-     YXML        IR
-       ▲       ▲   ▲
-        \     /     FolDialect
-         reader      ▲
-            └─ Framework ─┘
+  YXML        IR ◀── Lowering        FolDialect
 ```
+
+Nothing connects them yet: the reader (YXML → IR) and the emitter
+(IR → FolDialect) are unbuilt.
 
 **There is ONE IR and both dialects live in it as ops.** `isa.*` and `fol.*`
 coexist in a single `Graph`; lowering relabels edges while the value nodes

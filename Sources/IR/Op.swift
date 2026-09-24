@@ -11,19 +11,17 @@ public enum Op: Hashable, Sendable {
     case isaTrueprop(OpID)
     case isaImp(OpID, OpID)
     case isaAll(IRType, RegionID)
-    case isaAxiom(String)
 
     case folVar(String)
     case folPred(String, [OpID])
     case folImplies(OpID, OpID)
     case folForall(Binder, RegionID)
-    case folUse(String)
 
     public var type: IRType {
         switch self {
         case let .blockArg(_, t), let .isaFree(_, t): return t
-        case .isaAtom, .folPred, .folImplies, .folForall, .folUse: return .o
-        case .isaTrueprop, .isaImp, .isaAll, .isaAxiom: return .prop
+        case .isaAtom, .folPred, .folImplies, .folForall: return .o
+        case .isaTrueprop, .isaImp, .isaAll: return .prop
         case .folVar: return .i
         }
     }
@@ -31,16 +29,14 @@ public enum Op: Hashable, Sendable {
     public var region: RegionID? {
         switch self {
         case let .isaAll(_, r), let .folForall(_, r): return r
-        case .blockArg, .isaFree, .isaAtom, .isaTrueprop, .isaImp, .isaAxiom,
-             .folVar, .folPred, .folImplies, .folUse: return nil
+        case .blockArg, .isaFree, .isaAtom, .isaTrueprop, .isaImp,
+             .folVar, .folPred, .folImplies: return nil
         }
     }
 
-    /// ⚠ READ-ONLY AND ALLOCATION-FREE. Use this over `operands` in any loop
-    /// across the graph; `operands` heap-allocates even at fixed arity.
     public func forEachOperand(_ body: (OpID) -> Void) {
         switch self {
-        case .blockArg, .isaFree, .isaAxiom, .folVar, .folUse, .isaAll, .folForall:
+        case .blockArg, .isaFree, .folVar, .isaAll, .folForall:
             return
         case let .isaTrueprop(a):
             body(a)
@@ -53,7 +49,7 @@ public enum Op: Hashable, Sendable {
 
     public func mapOperands(_ f: (OpID) -> OpID) -> Op {
         switch self {
-        case .blockArg, .isaFree, .isaAxiom, .folVar, .folUse, .isaAll, .folForall:
+        case .blockArg, .isaFree, .folVar, .isaAll, .folForall:
             return self
         case let .isaTrueprop(a): return .isaTrueprop(f(a))
         case let .isaImp(a, b): return .isaImp(f(a), f(b))
@@ -61,12 +57,6 @@ public enum Op: Hashable, Sendable {
         case let .isaAtom(n, xs): return .isaAtom(n, xs.map(f))
         case let .folPred(n, xs): return .folPred(n, xs.map(f))
         }
-    }
-
-    public var operands: [OpID] {
-        var out: [OpID] = []
-        forEachOperand { out.append($0) }
-        return out
     }
 
     public func references(_ v: OpID) -> Bool {

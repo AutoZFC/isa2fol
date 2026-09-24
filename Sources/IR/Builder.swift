@@ -39,9 +39,9 @@ public struct Builder: Sendable {
     }
 
     func check(_ op: Op) throws {
-        for v in op.operands where v.raw >= graph.storage.count {
-            throw IRRefusal.unknownOperand(v)
-        }
+        var unknown: OpID?
+        op.forEachOperand { if unknown == nil && $0.raw >= graph.storage.count { unknown = $0 } }
+        if let unknown { throw IRRefusal.unknownOperand(unknown) }
     }
 
     public mutating func replaceAllUses(of v: OpID, with w: OpID) {
