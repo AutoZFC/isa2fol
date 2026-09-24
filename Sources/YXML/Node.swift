@@ -1,5 +1,3 @@
-/// X = 0x05 separates chunks, Y = 0x06 separates fields within a markup chunk.
-/// `XY name Y k=v Y … X` opens an element; `XYX` closes one; else text.
 public struct Node: Sendable {
     public var tag: String
     public var attributes: [String: String]

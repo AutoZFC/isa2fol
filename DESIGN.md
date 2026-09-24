@@ -11,16 +11,15 @@ are marked **[choice]** — push back on any of them.
 Package.swift
 Sources/
   YXML/          Isabelle's transfer format → node tree.   Knows no dialect.
-  IR/            IRType · Op · Graph · Builder · Pass · legalize.   BUILT
-  Lowering/      the statement passes.                              BUILT
+  IR/            IRType only. §4 is built here, test-first.
   FolDialect/    types · print
   isa2fol/       CLI
 Tests/
-  YXMLTests/  IRTests/  LoweringTests/  FolDialectTests/
+  YXMLTests/  FolDialectTests/
 ```
 
 ```
-  YXML        IR ◀── Lowering        FolDialect
+  YXML        IR        FolDialect
 ```
 
 **Nothing connects them yet.** The reader (YXML → IR) and the emitter
@@ -41,10 +40,26 @@ either is silent.
 
 ## 2. Reading the export  **[NOT BUILT]**
 
-The tree IR — `Sort`, `Term`, `Prop`, `Proof`, `Statement<Stage>` — was deleted
-2026-09-23. §4's graph represents the same constructs as ops, and keeping both
-was rule 4's duplication. What the reader must do survives; what it must produce
-is now an `IR.Graph`, not a `Statement`.
+**It produces isa nodes in the unit's formula table (§4.2), and it RECOGNISES —
+it never transcribes raw `ZApp`.** `ZApp(ZApp(ZConst "Pure.imp", a), b)` is read as
+one `imp` node; connectives and binders are node kinds, not application spines.
+
+**The dialect is the ZF SURFACE** — Isabelle/ZF's own vocabulary: Pure's and IFOL's
+logic as named node kinds, and constants applied to their arguments (§4.3). The
+reader recognises exactly that shape and **refuses anything else by name** — an
+η-short binder argument (`All(P)`), a partially applied constant, a β-redex. It
+never normalises.
+
+**Normalisation is added per shape, and only on evidence.** If a non-surface shape
+occurs, a pass brings it to the surface — Isabelle does the same with βη-normalisation
+and its print translations, so nothing about it is impossible; it is just not built
+before the data asks. The census `.claude/tasks/ISA_SHAPE_CENSUS.md` →
+`docs/ISA_SHAPES.md` TESTS this shape: every export term reads into it or refuses,
+and it counts which refusals occur.
+
+**β-reduction we CREATE is ours to reduce, where we create it.** Instantiating a class
+variable `P := λy. φ` makes `(λy. φ)(x)`; that happens in `forall_elim` or S4, not in
+reading, and the operation that makes the redex reduces it (§4.4 `instantiate`).
 
 **The surface it must cover is measured** — `docs/SOURCE_SURFACE.md`, which
 regenerates: 3 Pure statement constants, 13 IFOL, **0 FOL**, 4 sorts, 249 ZF
@@ -63,7 +78,7 @@ because the enum is gone:
 | `Pure.conjunction` | **0 occurrences** in ZF statements, so refusing costs nothing |
 | `Pure.term`, `Pure.sort_constraint` | Pure-internal, 0 in ZF statements |
 | `Pure.prop` | 0 in ZF statements — erased, not refused |
-| a de Bruijn index out of range | a bound variable is a block argument now, so this becomes "no producer" |
+| a `ZBound` with no enclosing binder | structural: its type, which the node must carry (§4.3), has nowhere to come from |
 | a prop that is not a prop | structural |
 
 ⚠ **`groundnessIsStructural` WENT WITH THE MODULE, AND IT WAS THE ONLY TEST
@@ -71,6 +86,10 @@ PINNING THE POLYMORPHISM REFUSAL.** Re-pin it against the reader — a type
 variable anywhere in a sort must refuse the whole statement, not just that slot.
 
 ## 3. FolDialect
+
+⚠ **WHETHER THIS SURVIVES IS OPEN.** The table's fol nodes (§4.3) mirror fol-zfc's
+own formula representation; a second tree of the same formulas is rule 4's
+duplication unless `render` needs it. §5.
 
 ### Terms — the defining constraint
 
@@ -130,162 +149,248 @@ checker accepts — not against our own reading of the grammar.
 
 ---
 
-## 4. IR — the pass engine  **[BUILT]**
+## 4. IR  **[DECIDED, NOT BUILT]**
 
-**One graph, ops from both dialects, values typed by logical result.** Progressive
-lowering in the MLIR sense: a partially-lowered graph is well-formed, so a pass may
-lower one construct and stop.
+**Only `IRType` is built.** Everything below is built from its tests first. The
+previous region graph — formulas edited in place through `replaceAllUses`/`insert`/
+`erase`, measured O(n²) per pass — is deleted; do not restore it from history.
 
-### Nodes are values, edges are ops, the dialect labels the edge
-
-Lowering **relabels edges; the nodes persist**. That is what makes it cheap, and it
-works only because Isabelle's `i`/`o` and fol-zfc's object/proposition are the same
-type — they differ by an *obligation* (the R3 guard), not by a sort. NBG is
-one-sorted here and `set(·)` is a predicate, so one `.i` is faithful; splitting it
-into set/class would manufacture a sort the mathematics does not have.
-
-```swift
-enum IRType { case i, o, prop; indirect case fn(IRType, IRType) }
-```
-
-**Four cases carrying the surface's own names** — `i`, `o`, Pure's `prop`, `fun`.
-`.i` and `.o` are the fixpoint and live fully in fol-zfc; `.prop` and `.fn` are
-the meta layer and are eliminated by passes. **How a proof is typed is
-undecided** — there are no proof ops, and a proof typed `.prop` would be
-indistinguishable from the proposition it proves.
-
-⚠ **`.prop` IS PURE'S `prop`, NOT "a proposition".** A formula is `.o`. So
-`legalize` refusing `.prop` reads as "no meta level survives", which is
-right and looks wrong. An earlier naming had `.prop` mean `o` and `.meta` mean
-Pure's `prop`; that collision is what this naming removes. Measured surface, so
-the lowering touches a minority of the graph: `i` 98.3%, `o` 12.4% arrive already
-target-shaped; only `fn` 21.4% and the Pure constants move (`docs/SOURCE_SURFACE.md`).
-
-⚠ **`fn` IS TWO DIFFERENT JOBS.** As a binder scope it becomes a **Region** and costs
-nothing — that is most of the 21.4%. As a constant's *operand* it becomes a class
-(S5), which is the expensive path.
-
-### Binders are Regions, not de Bruijn
-
-A **region** is a scope: `{ args: [OpID], ops: [OpID] }`. A binding op carries
-one, and the bound variable is an ordinary op inside it. `∀x. (set(x) → mem(x,y))`:
+### 4.1 Two layers, mirroring the checker
 
 ```
-^0():
-  %0:i = folVar("y")
-  %5:o = folForall(setVar, ^1)
-    ^1(%1:i):                        ← the region's argument IS the bound x
-      %2:o = folPred("set", [%1])
-      %3:o = folPred("mem", [%1, %0])   ← %0 closes over the enclosing scope
-      %4:o = folImplies(%2, %3)
+  formula table — one per unit                   proof steps — per proof
+  ────────────────────────────                   ───────────────────────
+  interned, immutable, isa AND fol kinds          ops in SCOPE REGIONS
+  bound variables: de Bruijn                      fix / assume / exists_elim open a scope
+  a statement = name → root ID                    forall_intro / implies_intro / exists_intro close it
+          ▲                                       a step: rule, premise steps, → conclusion node
+          └──────── steps reference table nodes ──────┘
 ```
 
-Isabelle uses `Bound n` instead — nameless, node-less. The cost of that under
-free-form rewriting is renumbering: move a subterm under or out of a binder and
-every index inside shifts, silently producing a well-formed term that means
-something else. With a region the bound variable is just `%1` and substitution is
-operand replacement.
+This is fol-zfc's own split: `GlobalContext`'s `FormulaRegistry` and the
+`ProofStack` (`~/repos/fol-zfc-comb/src/core/formula.h`, `src/proof/nd/stack.h`).
 
-⚠ **SCOPE IS REPRESENTED, NOT ENFORCED.** Nothing stops an op in `^0` from
-referencing `%1`. The structure to verify dominance is present; no verifier is.
-Pinned only as far as `aRegionHoldsABinderBody` goes.
+### 4.2 The formula table
 
-### Passes
+- **Interned.** A node is its kind + payload + child IDs; equal content is the same
+  ID. **ID equality IS formula equality** — the checker's semantics: its
+  `Registry::register_item` deduplicates (`src/util/registry.h`) and
+  `implies_elim` compares handles (`src/proof/nd/stack.cpp:339`).
+- **Immutable.** A node is never edited. Rewriting builds new nodes; nothing is
+  deleted, and a node no root reaches is simply unreferenced.
+- **One table per unit** — a unit's statements and proofs, plus the signatures it
+  cites, IMPORTED into the same table, as `proof_checker` loads dependency headers
+  into one `GlobalContext` (`src/tools/proof_checker.cpp:39-82`). IDs are
+  table-local and never compared across tables. What a unit is — a theorem or a
+  theory — is open.
+- **isa and fol kinds share it.** A partly lowered statement is an ordinary root
+  whose DAG mixes both vocabularies.
+- **Memory is not the constraint** — an ESTIMATE, from a throwaway decode that was not
+  kept: ≈10M conclusion nodes across the whole export without any sharing, ~1–2 GB
+  for all of ZF in one table. **Re-measure before relying on it.** The real
+  exponential risk is INLINING a citation instead of linking it.
 
-```swift
-protocol Pass { var name: String { get }; func run(_ b: inout Builder) throws }
-protocol RewritePattern { func matches(_ op: Op) -> Bool
-                          func rewrite(_ id: OpID, _ b: inout Builder) throws }
+### 4.3 What a node is
+
+> **A node's identity is exactly what its dialect's semantics distinguishes.**
+> Nothing more — no cosmetic name, no translator annotation — or equal formulas
+> split and ID equality stops meaning checker equality. Nothing less — its type
+> and meaning must follow from the node alone, or one node means two things.
+
+**The isa side is the ZF surface (§2).** Every node other than an abstraction is
+fully applied and has a base type (`i`, `o`, `prop`):
+
+| node | source | added | left out |
+|---|---|---|---|
+| `isaTrueprop(t)` · `isaImp(a, b)` · `isaAll(T, body)` · `isaEq[T](a, b)` | Pure: `Trueprop`, `⟹`, `⋀`, `≡` | | the `λ` under `⋀`: the body is de Bruijn |
+| `iff` `conj` `disj` `imp` `Not` `True` `False` `All(T, body)` `Ex(T, body)` `eq[T](a, b)` | IFOL's logic | | the `λ` under a quantifier |
+| `isaConst(name, typeArgs, args)` | any other constant — the 249 ZF constants, `IFOL.Ex1`, `IFOL.Let` — fully applied | | its type: the unit's constant declarations. One kind for `o`-valued atoms (`mem`) and `i`-valued terms (`QPair`) |
+| `isaFree(name, T)` | free `ZVar` | the type, from the `frees` header | |
+| `isaBound(k, T)` | `ZBound k` | **the type**, from the enclosing binder | |
+| `isaVarApp(head, args)` | a variable applied — a class variable `P(x)`, `P : i ⇒ o` | | — the head is an `isaFree` or `isaBound`, never merged into the constant namespace (rule 3) |
+| `isaAbs(T, body)` | `ZAbs`, ONLY as a function-typed argument: `Collect(A, λx. …)` | | **`x`** |
+
+`Pure.prop` is erased; a type variable, a schematic `Var`, `Pure.conjunction`/`term`/
+`type`/`sort_constraint` and `OFCLASS` are named refusals (§2). The logic gets
+dedicated kinds because lowering translates it structurally; the ZF constants share
+one kind because S1/S2 treat every one alike — the binders among them are told
+apart by an argument's TYPE, never by name.
+
+**The fol side mirrors fol-zfc** (`src/core/formula.h`): a term is a bound variable
+(de Bruijn) or a fixed variable; a formula is a predicate over terms, a
+connective, or a quantifier over a body. **The set/class binder kind is NOT
+identity** — the checker cannot see it, and `∀A. (set(A) → ψ)` is valid text for
+both. It is the translator's bookkeeping, known where lowering builds the binder.
+
+### 4.4 Binders are de Bruijn
+
+Both ends are: Isabelle's `ZBound`/`ZBoundp`, fol-zfc's `Gen(k)`, and `forall_elim`
+is `instantiate_gen` (`src/proof/nd/stack.cpp:530`). Interning needs it — two
+α-equivalent formulas are one node only if a bound variable is a position, not an ID.
+
+⚠ **AN INDEX MEANS A POSITION, SO MOVING A FORMULA SILENTLY CHANGES WHAT IT SAYS.**
+`mem(1, 0)` under two binders is `∀x∀y. mem(x, y)`; put unchanged under three it is
+`∀x∀y∀z. mem(y, z)` — well-formed, wrong, and nothing downstream objects. Every change
+of depth must adjust indices, in one place.
+
+A variable is **loose** in a node when its binder lies outside that node; only loose
+variables are ever adjusted. Depth changes in exactly three ways, and each has one
+operation:
+
+| operation | at bound `k`, at depth `d` | at named `x` | used by |
+|---|---|---|---|
+| `shift(φ, δ)` — a binder was added above | `k ≥ d` → `k + δ` | — | S1 wrapping `∀r` around an atom |
+| `instantiate(body, t)` — a binder was removed | `k = d` → `t` shifted by `d`; `k > d` → `k − 1` | — | `forall_elim`, `exists_elim`, β-reduction (S4) |
+| `abstract(φ, x)` — close over a name | `k ≥ d` → `k + 1` | `x` → `d` | closing a statement over its frees |
+
+The guard needs none: `∀. body` → `∀. (set(0) → body)` leaves the body at its depth.
+
+```
+  S1:           ∀. mem(f(0), 0)          →  ∀. ∀. ( F(1, 0) → mem(0, 1) )      old x: 0 → 1 under the new r
+  forall_elim:  ∀. ∀. (mem(1,0) → mem(0,1)) at a  →  ∀. (mem(a, 0) → mem(0, a))  x is 1 inside the inner ∀
+  capture:      ∀. mem(1, 0), x := z (= 0)  →  ∀. mem(1, 0), NOT ∀. mem(0, 0)     t shifted under y
+  β:            (λ. mem(0, 1)) z             →  mem(0, 0)                          1 → 0: the λ is gone
+  close x:      mem(x, A) → ∀. mem(0, x)     →  ∀. ( mem(0, A) → ∀. mem(0, 1) )     ONE node x: 0 here, 1 there
 ```
 
-Most passes are a bag of patterns; adding a lowering is adding a pattern.
+Frees close in one pass, in the `frees` header's order: free `i` of `n` at depth `d`
+↦ `d + (n − 1 − i)`, the first outermost.
 
-**A fixpoint is a walk that changes nothing.** `PatternPass` walks every live op,
-applies every match, and repeats until a walk fires no pattern. There is no round
-cap: a pass whose walks do not approach the fixpoint is a bug in its patterns, and
-a counter would only relabel that bug as a refusal. Pinned by
-`aConvergentPassNeedsNoCap`.
+**One traversal, three leaf rules.** `mapVars(node, depth, leaf)` descends, counts
+binders into `depth`, asks `leaf` at every variable, and rebuilds through the intern
+table (unchanged children ⇒ the same ID). Its exhaustive switch over node kinds is
+**the only place that knows which kinds are binders**; shift, instantiate and
+abstract are the three `leaf` rules. fol-zfc writes the walk four times
+(`src/core/formula.cpp:285-470`); the isa side has many binder kinds, and every copy
+must know all of them — a missed one is exactly the silent error above.
 
-⚠ **THIS WEAKENS RULE 11 AND `legalize` IS THE REPLACEMENT.** A rewrite pattern is
-partial, so a new `Op` case breaks no pattern and would survive lowering silently.
-`legalize` is one exhaustive switch over `Op` and is the only place naming both
-vocabularies — adding a case breaks the build **there**. That is the seal, relocated
-from the module graph into a single function.
+**`looseBound`** — the largest loose index + 1, 0 when closed — is computed when a
+node is interned: `k + 1` at bound `k`; `max(0, body − 1)` at a binder; the max of the
+children otherwise. Derived, so not identity. It lets `shift` and `instantiate` return
+a node untouched, SAME ID, when nothing inside can change, so closed subformulas cost
+O(1) and stay shared; it makes closedness of a statement's root one comparison, which
+is where the reader's unbound-`ZBound` refusal lands (§2). `abstract` targets a name,
+which `looseBound` cannot see; it walks the statement once, closing every free together.
 
-### A rule for the proof layer, recorded rather than coded
+**Types.** An isa bound variable carries its type (§4.3): `shift` keeps it, and
+`instantiate` THROWS unless `type(t)` equals it. fol bound variables are untyped —
+NBG is one-sorted.
+
+**Pinned by laws over seeded random formulas**, plus boundary cases at `k = d`,
+`d − 1`, `d + 1` — written first, failing first. Under interning `==` is ID equality,
+so each tests the arithmetic AND deterministic building:
+
+| law | |
+|---|---|
+| `instantiate(shift(φ, 1), t) == φ` | add an unused binder, fill it: no change |
+| `instantiate(abstract(φ, x), x) == φ` | close over `x`, reopen at `x` |
+| `abstract(instantiate(ψ, x), x) == ψ`, `x ∉ ψ` | open at a fresh `x`, close again |
+| `shift(shift(φ, a), b) == shift(φ, a + b)` | shifts compose |
+| `looseBound(φ) == 0` ⇒ every operation returns `φ`'s ID | closed is untouched |
+
+### 4.5 Rewriting
+
+- **A rewrite is a recursive function that builds the new formula.** A statement
+  moves to the new root.
+- **A fixpoint is a pass that returns the same root ID.** No round cap: a pass that
+  does not approach its fixpoint is a bug in its rules.
+- **A rewrite may take arguments beyond the node** — binder depth, the statement's
+  ordered free variables. Closing a statement over its frees needs them: one
+  interned free-variable node becomes `bvar 0` at one site and `bvar 1` under an
+  inner binder.
+- **No cache.** A shared node reached twice is rewritten twice, and interning makes
+  the result identical, so this costs time, never correctness. It goes exponential
+  only on nested sharing; the export is a tree, so a statement's paths are bounded
+  by its export size unless a pass DUPLICATES subformulas. Add a memo when a
+  measurement asks — keyed on every argument of the function, or it is silently wrong.
+
+⚠ **`legalize` STAYS THE SEAL.** A rewrite is partial, so a new node kind breaks
+nothing; one exhaustive switch over node kinds, walked from a lowered root, refusing
+any isa kind, is where rule 11 lives.
+
+### 4.6 Determinism
+
+**The lowered statement is a signature** (§4a), and it is produced more than once: by
+its own unit, by every unit that imports it, by Phase 2 re-lowering it from its proof
+file, on every run. All of them must agree, or a `use` fails to match — or matches the
+wrong formula.
+
+**Determinism means the emitted TEXT is a function of the input CONTENT — not that IDs
+agree.** Within one table interning makes equal content the same ID in any build
+order; across tables (an importer, Phase 2) IDs cannot agree and need not. What must
+never happen is something incidental — an ID, a hash order — reaching the output.
+
+| rule | prevents |
+|---|---|
+| **R1.** A rewrite is a function of its node and its declared arguments (§4.5) | output depending on what else the table holds |
+| **R2.** An ID is an identity — never an ORDER or a NAME in anything that reaches output. Orders come from the source: the `frees` header, child order, the proof's own order | frees sorted by ID close as `∀x∀A` in one unit and `∀A∀x` in an importer whose table interned `A` first — two signatures |
+| **R3.** Never iterate a `Dictionary` or `Set` where the order can reach output or ID assignment; anything ordered is an array, a dictionary only looks up | Swift seeds `Hasher` PER PROCESS: frees kept in a `Set` close in a different order on every run |
+| **R4.** Render names from structure: a bound variable is named by its LEVEL — binders above it from the formula's root, `b0`, `b1`, … — and fixed variables by a disjoint prefix, `f0`, … | capture: the checker resolves a name innermost binder first, then fixed variables (`src/parser/parser_bison.cpp:169-189`), so `∀. mem(0, a)` rendered `forall a. elem(a, a)` under `fix a` means the wrong thing |
+
+⚠ **R3 HAS NO COMPILE-TIME GUARD.** One `for (k, v) in dict` on the path to output is
+nondeterminism that a single process can never observe.
+
+R4: along any path each binder has a distinct level, so no inner name shadows an outer
+one and no bound name equals a fixed one. Index to name: `level = depth − 1 − k`.
+
+```
+  ∀. ∀. ( mem(1, 0) → ∀. mem(0, 2) )
+  forall b0. forall b1. ( elem(b0, b1) -> forall b2. elem(b2, b0) )
+```
+
+Renaming is free to the checker, which compares de Bruijn handles, never names. The
+cost is readability — `b0` for Isabelle's `x` — **accepted**: keeping Isabelle's names
+would need one chosen per interned node, and "first seen" is exactly an order leak.
+
+**Pinned by** a cross-table test — the same statement lowered in two tables pre-filled
+with different unrelated nodes renders byte-identically (R1, R2) — and, once an emitter
+exists, a cross-process diff of two runs, the only check that can see R3.
+
+### 4.7 The proof layer
+
+**The target is natural deduction, not Curry–Howard.** The checker's state is a set
+of DERIVED formulas, each with the scopes it depends on (`formula_deps_`,
+`src/proof/nd/stack.h`); a step checks its premises are derived and marks its
+conclusion derived; `_x = …` names a formula (`step_env`, `src/proof/nd/verifier.cpp`).
+**The proof is the graph from premise formulas to conclusion, by rule, inside scopes.**
+
+- **A step is its own op** — rule, premise steps, conclusion node in the table. A
+  formula may be derived more than once; derivedness belongs to the formula, and a
+  step is one justification of it. Steps are not interned.
+- **There is no proof type.** A step's value is the formula it derives.
+- **A scope is a region**: its argument is the fixed variable or the hypothesis.
+
+| Isabelle `zproof` (`zterm.ML:249`) | fol-zfc step |
+|---|---|
+| `ZAppt p t` | `forall_elim`, then `implies_elim` against a `set(t)` |
+| `ZAppp p q` | `implies_elim` |
+| `ZConstp` (a citation) | `use NAME` |
+| `ZAbsp h:A. p` | `assume A` … `implies_intro` |
+| `ZAbst x. p` | `fix x`, `assume set(x)` … `implies_intro`, `forall_intro` |
+| `ZBoundp` | the `assume` step it names |
+
+**It links like a compiled language.** A claim is a signature, a proof a body,
+`use` a call, an `UNPROVED` stub an `extern` — and **the R3 guard is the calling
+convention**: every caller's `forall_elim` at `t` owes an extra `set(t)`.
 
 **A fol derivation may be built, never rewritten.** A rewritten one carries no
-witness that it is still a derivation, and re-establishing that in-process is a
-second checker, which the kernel-as-sole-arbiter rule refuses.
+witness it is still a derivation, and re-establishing that in-process is a second
+checker.
 
-⚠ **THIS IS NOT IN THE CODE AND SHOULD NOT BE UNTIL THERE IS A PROOF LAYER.** It
-was, as `Op.producesEvidence`, and guarding a thing that did not exist yet got
-the rule *wrong*: it froze `isaAxiom` too, which is source — input — so neither
-`replaceAllUses` nor `erase` could remove it and `legalize` became unreachable
-for any graph containing a proof. Write the guard when `folImpliesElim` and
-friends exist and a pass actually threatens them.
+⚠ **`exists_elim` SCOPES THE REST OF THE DERIVATION**, closed by `exists_intro`
+(`src/proof/nd/stack.cpp:552`). S1's recipe for a compound `ZAppt` goes through it,
+so a proof pass must be able to move the steps that follow into a new scope.
 
-Note also what the guard could never have covered: it protects an evidence op's
-*result*, not its operands, so rewriting a formula a proof step cites still
-changes what is proved. What covers that is ORDER — lower every formula, then
-build the proof layer.
+### 4.8 Open
 
-### Status
+| | |
+|---|---|
+| S1 placement | the fresh `r` at the atom (local) or at the statement (FOUNDATION §2's wording); differs when `f(x)` occurs twice, which the proof sees |
+| the unit | one theorem or one theory per table |
+| the proof layer | step kinds, scope regions, emission order, symbol import |
+| proof-level depth | whether a term `ZBound` inside a proof counts `ZAbst` binders — census question 6 |
 
-`legalize` is the target. `Op` carries 10 ops — enough to lower
-`⟹`/`Trueprop`/atoms/frees end to end and no more.
-
-⚠ **BENCHMARK WITH `-c release`.** `swift test` is debug, where ARC and the
-`b.graph` getter copy dominate; any figure from it is meaningless.
-
-⚠ **`replaceAllUses` WALKS EVERY OP — THERE IS NO USE-LIST** (`Builder.swift`).
-So a pass costs O(rewrites × ops) however few walks it takes.
-
-### The pattern, and why not classes
-
-**An index-handle arena, and the op enum carries its own operands.**
-
-```swift
-case isaImp(OpID, OpID)             // arity is the CASE, not a runtime check
-case isaAtom(String, [OpID])        // only genuinely variadic ops hold an array
-case isaAll(IRType, RegionID)
-```
-
-There is no `OpNode`. An op *is* the enum; `Graph` keeps three parallel arrays —
-`storage: [Op]`, `parents`, `dead` — plus the regions.
-
-**One value per op, so `ValueID` and `OpID` are the same thing.** `Op.type`
-computes what an op yields, so there is no value table and no `results` list
-either. A block argument is an op (`.blockArg`), which keeps binders uniform.
-
-**Adding an op costs five exhaustive switches** — `type`, `region`,
-`forEachOperand`, `mapOperands` in `Op`, and `legalize`. That number is the extension cost and is worth
-watching: it is what rule 11 charges for its guarantee.
-
-Two things this shape buys that the previous one could not:
-
-- **An arity error is unrepresentable.** `IRRefusal.arityMismatch` is deleted and
-  the test that covered it could not be rewritten — `folImplies(OpID, OpID)`
-  cannot be given one operand.
-- **Pattern matching destructures the wiring.** `case let .isaImp(a, b)` replaces
-  `node.operands[0]`, `node.operands[1]`, so a rewrite reads as the rule it is.
-
-Class-based nodes would pay ARC on every traversal step, need `weak` to break
-op→region→op cycles, and could be neither `Sendable` nor snapshotted. MLIR makes
-the same choice with bump-arena pointers — morally identical, and for the same
-reason: no per-node refcounting. The cost we accept is that a stale `OpID` indexes
-garbage rather than failing, and that an ID means nothing without its `Graph`.
-
-Consequences worth knowing:
-
-- **A snapshot is three retains.** `let before = b.graph` is O(1); COW makes the
-  divergence lazy. This is what makes a pass cheap to run speculatively.
-- **`Builder` travels `inout`**, so the pass pipeline never copies it.
-- **Deletion is a tombstone** (`erased`), so IDs stay stable and nothing is
-  invalidated by an erase.
-- **`Op` carries `String`s.** Interning names to an `Int` would shrink `Op` and make comparison O(1). Unmeasured.
-
-## 4a. Statement lowering  **[BUILT]**
+## 4a. Statement lowering  **[NOT BUILT]**
 
 **The statement is TRANSLATED, not passed through.** A declaration is not an
 interface the proof reads unchanged — lowering changes the proposition's shape,
@@ -303,8 +408,8 @@ Three passes, and the order is forced:
 | `lower-ifol` | `isaFree` → `folVar`, `isaAtom` → `folPred` — a pure relabel, node types unchanged |
 | `guard-binders` | **R3**: `⋀x:i. φ` → `∀x. (set(x) → φ)`; a non-`i` sort refuses |
 
-`guard-binders` builds a `folImplies` over the region's result, so that result
-must already be a formula — Pure's coercion has to go first.
+Under §4 each is a recursive rewrite building interned nodes; the guard is
+construction: `∀(set(bvar 0) → body′)`.
 
 ### The guard is half of a contract
 
@@ -316,9 +421,7 @@ identical text but different guard placement are different symbols.
 ⚠ **LOWERING MUST THEREFORE BE A DETERMINISTIC FUNCTION OF THE STATEMENT ALONE.**
 The emitted `.fol.def` records the guards but *not* where a materialised variable
 came from, so PHASE 2 recovers that by **re-running this lowering** over the
-`prop` its own proof file carries. Same input, same output, same `OpID`s — no
-global counters, no dependence on dictionary order. Pinned by
-`loweringIsDeterministic`, which compares whole graphs.
+`prop` its own proof file carries. Same content in, same text out — §4.6.
 
 ## 5. What I did not decide
 
@@ -327,3 +430,4 @@ global counters, no dependence on dictionary order. Pinned by
 | what monomorphise instantiates at | use-site type argument, or always `'a := i`? The second is §11.0's proposal and resolves `eq`/`All`/`Ex`/`split` in one move, but makes a generic IFOL theorem mean only its `i`-instance |
 | whether the ZF primitive surface is a third dialect or a stage inside IsaDialect | parked where you left it |
 | what `base/` becomes | it is `.fol.def` text today; does FolDialect *read* it, or is it opaque input to the checker? |
+| whether `FolDialect.Formula` survives | §4's fol nodes already mirror fol-zfc; `render` could read them directly |

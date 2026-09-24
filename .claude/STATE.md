@@ -1,5 +1,5 @@
 # STATE — isa2fol
-`HEAD` · `feature/exists-descent` · 2026-09-23.
+`HEAD` · `feature/exists-descent` · 2026-09-24.
 **RUN §0 BEFORE TRUSTING ANY LINE BELOW.**
 
 ## 0. Staleness checks
@@ -10,11 +10,11 @@
 | command (from the repo root) | expect |
 |---|---|
 | `swift --version \| head -1` | `Swift version 6.4 (swift-6.4-RELEASE)` |
-| `MEM=16G scripts/capped.sh swift test 2>&1 \| grep -cE '^✔ Test [a-zA-Z]+\(\) passed'` | **`14`** |
-| `ls Sources` | `FolDialect IR isa2fol Lowering YXML` |
+| `MEM=16G scripts/capped.sh swift test 2>&1 \| grep -cE '^✔ Test [a-zA-Z]+\(\) passed'` | **`7`** |
+| `ls Sources` | `FolDialect IR isa2fol YXML` |
 | `ls docs` | `FOUNDATION.md phase2_probes SOURCE_SURFACE.md` |
-| `find Sources Tests -name '*.swift' \| wc -l` | `22` (743 lines) |
-| comment density of `Sources` (CLAUDE.md rule 9 has the script) | `21/470 = 4.47%` — **UNDER the 5% cap** |
+| `find Sources Tests -name '*.swift' \| wc -l` | `10` (285 lines) |
+| comment density of `Sources` (CLAUDE.md rule 9 has the script) | `6/160 = 3.75%` — **UNDER the 5% cap** |
 | `scripts/source-surface.py \| head -1` | `population: 3616 named ZF theorems, 37 ZF.* theories` |
 | `grep -cE '^axiom' base/axioms.fol.def` · `ls base/tiers/*.fol.def \| wc -l` | `17` · `10` |
 | `ls docs/phase2_probes/*.fol.def \| wc -l` · `ls data/zf_export \| wc -l` | `17` · `40` |
@@ -32,9 +32,9 @@ Worktree `/home/arthur/repos/isa2fol`, tree CLEAN, **ahead of
 
 | path | what to look for |
 |---|---|
-| `DESIGN.md` **§4, §4a** | the pass engine and the statement lowering — the two live parts |
-| `Sources/IR/Op.swift` | the op enum carries its own operands; 4 switches here + `legalize` = the extension cost |
-| `Sources/Lowering/Statement.swift` | the three passes, and why their order is forced |
+| `DESIGN.md` **§2, §4** | the ZF-surface dialect; the interned table, node identity, de Bruijn + D2 shifting, D5 determinism, the proof layer — DECIDED, NOT BUILT |
+| `Sources/IR/IRType.swift` | the only IR code: `i`, `o`, Pure's `prop`, `fn` |
+| `~/repos/fol-zfc-comb/src/proof/nd/stack.cpp`, `src/core/formula.cpp` | the checker the design mirrors: derived-formula marking, scopes, `instantiate_gen`/`shift`/`abstract` |
 | `docs/SOURCE_SURFACE.md` | the MEASURED source surface; regenerates |
 | `docs/FOUNDATION.md` **§2** | S1–S6, the specification everything must satisfy |
 | `CLAUDE.md` rules 1, 9, 10, 11 | no fallbacks · comment cap · never run uncapped · no `default:` |
@@ -44,8 +44,8 @@ Worktree `/home/arthur/repos/isa2fol`, tree CLEAN, **ahead of
 | invariant | enforced by |
 |---|---|
 | A unit is valid only when the checker exits 0 **AND** stderr is empty | `theRealCheckerAcceptsWhatRenderEmits` |
-| No `isa.*` op and no `prop`/`fn` type survives lowering | `legalize` — one exhaustive switch |
-| Lowering is a deterministic function of the statement | `loweringIsDeterministic` |
+| No isa node and no `prop`/`fn` type survives lowering | `legalize` — NOT BUILT (`DESIGN.md` §4.5) |
+| Emitted text is a function of input content | NOT BUILT — the cross-table test, `DESIGN.md` §4.6 |
 | `docs/FOUNDATION.md` is mathematics, with no code reference | nothing checks it; discipline |
 | Comments ≤ 5% of `Sources/**/*.swift` | the §0 row; **delete prose, never raise the cap** |
 
@@ -55,12 +55,12 @@ Worktree `/home/arthur/repos/isa2fol`, tree CLEAN, **ahead of
 - **⚠ A CLAIM WITH NO PROOF BLOCK IS NOT CITABLE.** `use X` on a declared-only
   claim fails `unknown axiom/theorem in ctx`, *not* `Conditional`, which needs
   `proof X: UNPROVED`. So the artifact must carry stubs — §6.3.
-- **⚠ A REGION'S VALUE IS `result`, NEVER "THE LAST OP"** — a pass that appends
-  would rebind the binder, and `replaceAllUses` must maintain `result` too. Its
-  SCOPE, though, is represented and not enforced: an op outside a region may
-  reference that region's `blockArg` and no verifier objects.
-- **⚠ A REWRITE PATTERN IS PARTIAL, SO ADDING AN `Op` CASE BREAKS NOTHING.**
-  Rule 11's guarantee lives in `legalize` alone.
+- **⚠ A REWRITE IS PARTIAL, SO ADDING A NODE KIND BREAKS NOTHING.** Rule 11's
+  guarantee lives in `legalize`, and in D2's one traversal for binder kinds.
+- **⚠ DO NOT RESTORE THE REGION GRAPH** (`Sources/IR` before this state) — formulas
+  are interned and immutable now (`DESIGN.md` §4).
+- **⚠ NEVER ITERATE A `Dictionary`/`Set` ON A PATH TO OUTPUT** — Swift seeds
+  `Hasher` per process (`DESIGN.md` §4.6 R3).
 - **⚠ `IRType.i` DOES NOT DISTINGUISH A SET FROM A CLASS, DELIBERATELY.** NBG is
   one-sorted. Only G5's two-sided rule can catch a guard error.
 - **⚠ NOTHING CLOSES POLYMORPHISM AT THE TYPE LEVEL.** `IRType` has no `'a`; the
@@ -78,18 +78,10 @@ Worktree `/home/arthur/repos/isa2fol`, tree CLEAN, **ahead of
 
 | claim | verified by |
 |---|---|
-| A mixed isa/fol graph lowers to fol-zfc-only | `theStatementLoweringAddsTheGuard` |
-| `⋀x. φ` becomes `∀x. (set(x) → φ)` — the statement's SHAPE changes | `theGuardIsTheAntecedentOfTheRegionResult` |
-| A binder at a non-`i` sort refuses rather than guessing a guard | `aBinderAtANonSetSortRefusesRatherThanGuessing` |
-| A region holds a binder body; the bound variable is an ordinary op | `aRegionHoldsABinderBody` |
-| A fixpoint is a walk that changes nothing; no round cap exists — a pass with 1,000 rewrites converges | `aConvergentPassNeedsNoCap` |
-| `replaceAllUses` scans every op (no use-list), so a pass is O(rewrites × ops) | `Sources/IR/Builder.swift` `replaceAllUses` |
-| Adding one `Op` case costs **5** exhaustive switches | `grep -c 'switch self' Sources/IR/Op.swift` + `legalize` |
 | YXML parses real export output; `render` emits what the REAL checker accepts | `aRealExportFileParses`, `theRealCheckerAcceptsWhatRenderEmits` |
 | `base/axioms.fol.def` checks clean | `proof_checker base/axioms.fol.{def,proof}` → `OK: 7 claim(s)`, empty stderr |
 
-**There is no reader.** Nothing turns `YXML.Node` into a `Graph`; every test builds
-its graph by hand.
+**No IR is built beyond `IRType`**, and there is no reader.
 
 ## 5. Beliefs — NOT verified
 
@@ -121,22 +113,21 @@ its graph by hand.
 code.** This is not feature work. Minimal first; add slowly. Passes are
 experiments — review the framework, not their bugs.
 
-Next to discuss: **the mutation API.** `insert(before:)` silently appends when
-the anchor is not in the region's `ops` (`?? count`, a rule-1 fallback);
-`erase` tombstones without checking for remaining uses; `DESIGN.md` §4 claims
-lowering "relabels edges, nodes persist" while every pattern inserts a new op +
-`replaceAllUses` + `erase`. `Trueprop`'s coercion needs forwarding, not relabel.
+**The IR is designed on paper, `DESIGN.md` §2 and §4, and only `IRType` is built.**
+Build order, each step discussed in its concrete Swift shape first, tests first:
+1. the formula table — interning, immutable nodes, `looseBound`; the §4.3 node kinds
+2. D2 — the five laws, then `mapVars` and shift/instantiate/abstract
+3. decide whether `FolDialect.Formula` survives; then D5's level-named renderer,
+   accepted by the real checker
 
-Queued for discussion, not decided:
-- how a proof is typed — a proof of φ must be distinguishable from φ
-- substitution into a region (∀-elim at a term, β, schema instantiation)
-- formula equality — interning pure ops vs α-equivalence over regions
-- citations: a symbol table of lowered signatures (ties to §6.3, §6.5)
-- provenance on created ops, instead of phase 2 re-running lowering
-- a structural verifier: operand live/typed/in scope, region result set, one owner
-- duplicated facts: `Binder` in `IR` and `FolDialect`; `isaAll`'s sort vs its region arg
-- `FolDialect.Formula` beside the `fol.*` ops — two representations of one thing
+D2 (shifting) and D5 (determinism) are decided, `DESIGN.md` §4.4, §4.6. Next to
+discuss: the rest of §4.8 — S1 placement, the unit, the proof layer.
 
-**Deferred until the framework settles: the reader.** Decoding `QPair_iff`
-(`ZF.QPair`, serial 6958) needs an `i`-valued constant application, IFOL's
-`iff`/`conj`, and a positional ztyp decoder (tag 0 is both `ZConst` and `Type`).
+**In flight elsewhere:** the application-shape census,
+`.claude/tasks/ISA_SHAPE_CENSUS.md` → `docs/ISA_SHAPES.md` on branch
+`census/isa-shapes`. It TESTS the ZF-surface shape (`DESIGN.md` §2): which export
+terms read into it, and which refuse.
+
+**The reader comes after step 1**: its node kinds are §4.3's; it also needs a
+positional ztyp decoder (tag 0 is both `ZConst` and `Type`). First target:
+`QPair_iff` (`ZF.QPair`, serial 6958).

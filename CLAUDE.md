@@ -133,7 +133,7 @@ is gone. §5 says so. Treat every number there as a belief, never a premise.
    print(f'{c}/{t} = {100*c/t:.1f}%')"
    ```
 
-   ✓ **CURRENTLY 21/470 = 4.47%, under the cap.** Keep it there: a breach is
+   ✓ **CURRENTLY 6/160 = 3.75%, under the cap.** Keep it there: a breach is
    fixed by deleting prose, never by raising the cap.
 
    Does not apply to `base/**/*.fol.def` headers: those record provenance of
@@ -173,28 +173,28 @@ is gone. §5 says so. Treat every number there as a belief, never a premise.
 Package.swift
 Sources/
   YXML/          Isabelle's transfer format → Node tree.  Knows no dialect.
-  IR/            IRType · Op · Graph · Builder · Pass · legalize
-  Lowering/      the statement passes: pure · ifol · R3 guards
+  IR/            IRType only; DESIGN.md §4 is built here
   FolDialect/    Term · Binder · Formula · Declaration · render
   isa2fol/       CLI
-Tests/           YXMLTests · IRTests · LoweringTests · FolDialectTests
+Tests/           YXMLTests · FolDialectTests
 base/            the NBG foundation: axioms.fol.def + 9 tiers, kernel-checked
 docs/            FOUNDATION.md · SOURCE_SURFACE.md · phase2_probes
 data/zf_export/  the Isabelle export
 ```
 
 ```
-  YXML        IR ◀── Lowering        FolDialect
+  YXML        IR        FolDialect
 ```
 
 Nothing connects them yet: the reader (YXML → IR) and the emitter
 (IR → FolDialect) are unbuilt.
 
-**There is ONE IR and both dialects live in it as ops.** `isa.*` and `fol.*`
-coexist in a single `Graph`; lowering relabels edges while the value nodes
-persist. `Sources/IR/Legalize.swift` is the only place naming both vocabularies,
-and it is one exhaustive switch — adding an `Op` case breaks the build there.
-A rewrite pattern is partial, so that switch is what rule 11 now rests on.
+**There is ONE formula table per unit, holding isa and fol nodes together** —
+interned, immutable, de Bruijn; proof steps live in scope regions and point into
+it. That is `DESIGN.md` §4, **DECIDED BUT NOT BUILT**: `Sources/IR` holds only
+`IRType`; the rest is built there test-first.
+`legalize` — one exhaustive switch over node kinds — stays the only place naming
+both vocabularies; a rewrite is partial, so that switch is what rule 11 rests on.
 
 ⚠ **THE TREE IR IS GONE.** `IsaDialect`'s `Sort`/`Term`/`Prop`/`Proof`/
 `Statement<Stage>` were deleted 2026-09-23: the graph represents the same
