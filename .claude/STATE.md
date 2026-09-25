@@ -10,11 +10,11 @@
 | command (from the repo root) | expect |
 |---|---|
 | `swift --version \| head -1` | `Swift version 6.4 (swift-6.4-RELEASE)` |
-| `MEM=16G scripts/capped.sh swift test 2>&1 \| grep -cE '^✔ Test [a-zA-Z]+\(\) passed'` | **`39`** |
+| `MEM=16G scripts/capped.sh swift test 2>&1 \| grep -cE '^✔ Test [a-zA-Z]+\(\) passed'` | **`45`** |
 | `ls Sources` | `FolDialect IR isa2fol YXML` |
 | `ls docs` | `FOUNDATION.md phase2_probes SOURCE_SURFACE.md` |
-| `find Sources Tests -name '*.swift' \| wc -l` | `19` (1039 lines) |
-| comment density of `Sources` (CLAUDE.md rule 9 has the script) | `8/434 = 1.84%` — **UNDER the 5% cap** |
+| `find Sources Tests -name '*.swift' \| wc -l` | `17` (1133 lines) |
+| comment density of `Sources` (CLAUDE.md rule 9 has the script) | `4/438 = 0.91%` — **UNDER the 5% cap** |
 | `scripts/source-surface.py \| head -1` | `population: 3616 named ZF theorems, 37 ZF.* theories` |
 | `grep -cE '^axiom' base/axioms.fol.def` · `ls base/tiers/*.fol.def \| wc -l` | `17` · `10` |
 | `ls docs/phase2_probes/*.fol.def \| wc -l` · `ls data/zf_export \| wc -l` | `17` · `40` |
@@ -82,7 +82,9 @@ Worktree `/home/arthur/repos/isa2fol`, tree CLEAN, **ahead of
 |---|---|
 | The index engine satisfies D2's five laws over 300 seeded random formulas each, and its worked cases | `IndexTests` |
 | The tests have teeth: `instantiate` without the `k − 1` fails 4 tests; `isaAbs` not marked binding fails 2 | a mutation, by hand — re-run it after touching `Index.swift`/`Node.swift` |
-| YXML parses real export output; `render` emits what the REAL checker accepts | `aRealExportFileParses`, `theRealCheckerAcceptsWhatRenderEmits` |
+| YXML parses real export output | `aRealExportFileParses` |
+| `render` emits what the REAL checker accepts and proves — every construct, and `false` as ⊥ (rendering `False` fails it: a mutation, by hand) | `theRealCheckerAcceptsWhatRenderEmits` |
+| Qualified names in claim/predicate positions are NOT yet accepted by the checker — the grammar change in fol-zfc-comb is unmade (`DESIGN.md` §3) | the real-checker test uses only plain names |
 | `base/axioms.fol.def` checks clean | `proof_checker base/axioms.fol.{def,proof}` → `OK: 7 claim(s)`, empty stderr |
 
 **The framework is built; no concrete pass, no reader, no renderer.**
@@ -121,11 +123,15 @@ experiments — review the framework, not their bugs.
 Build order, each step discussed in its concrete Swift shape first, tests first:
 1. ~~the formula table~~ — built
 2. ~~D2's index engine, the traversal, passes, legalize~~ — built
-3. decide whether `FolDialect.Formula` survives; then D5's level-named renderer,
-   accepted by the real checker
+3. ~~`FolDialect` as the text boundary~~ — `render` built; `parse` waits for imports
+4. the proof layer's framework (`DESIGN.md` §4.7, DECIDED): `Rule.after`; the 22 step
+   kinds with conclusions computed at `intern`; two binder namespaces (term,
+   hypothesis) — confirm the counting against census question 6 first; emission of
+   binders as `fix`/`assume`
 
-D2 (shifting) and D5 (determinism) are decided, `DESIGN.md` §4.4, §4.6. Next to
-discuss: the rest of §4.8 — S1 placement, the unit, the proof layer.
+Every framework question is decided except proof-level depth (`DESIGN.md` §4.8), which
+waits on census question 6. Pass-level questions (S1 placement, meta functions as function
+classes) are in §4a and are NOT framework.
 
 **In flight elsewhere:** the application-shape census,
 `.claude/tasks/ISA_SHAPE_CENSUS.md` → `docs/ISA_SHAPES.md` on branch

@@ -8,10 +8,10 @@ let package = Package(
     targets: [
         .target(name: "YXML"),
         .target(name: "IR"),
-        .target(name: "FolDialect"),
+        .target(name: "FolDialect", dependencies: ["IR"]),
         .executableTarget(name: "isa2fol"),
         .testTarget(name: "YXMLTests", dependencies: ["YXML"]),
-        .testTarget(name: "FolDialectTests", dependencies: ["FolDialect"]),
+        .testTarget(name: "FolDialectTests", dependencies: ["FolDialect", "IR"]),
         .testTarget(name: "IRTests", dependencies: ["IR"]),
     ],
     swiftLanguageModes: [.v5]

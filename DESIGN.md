@@ -12,7 +12,7 @@ Package.swift
 Sources/
   YXML/          Isabelle's transfer format → node tree.   Knows no dialect.
   IR/            §4's framework: Node · Table · transform · index engine · passes · legalize.  BUILT
-  FolDialect/    types · print
+  FolDialect/    render · parse · Declaration — the text boundary over IR (§3)
   isa2fol/       CLI
 Tests/
   YXMLTests/  FolDialectTests/  IRTests/
@@ -95,74 +95,80 @@ because the enum is gone:
 PINNING THE POLYMORPHISM REFUSAL.** Re-pin it against the reader — a type
 variable anywhere in a sort must refuse the whole statement, not just that slot.
 
-## 3. FolDialect
+## 3. FolDialect — the text boundary over the table  **[render BUILT; parse NOT]**
 
-⚠ **WHETHER THIS SURVIVES IS OPEN.** The table's fol nodes (§4.3) mirror fol-zfc's
-own formula representation; a second tree of the same formulas is rule 4's
-duplication unless `render` needs it. §5.
+**There is no second representation of a fol formula.** The table's fol nodes (§4.3)
+ARE the formulas; `FolDialect` only turns them into fol-zfc text and back.
 
-### Terms — the defining constraint
-
-```swift
-public struct Term {           // A VARIABLE. There is no other term.
-    public let name: String
-}
+```
+  table fol nodes ──render──▶ .fol.def / .fol.proof text     names from depth (§4.6 R4)
+  table fol nodes ◀──parse─── .fol.def text                  imported signatures (§4.5)
 ```
 
-Not an enum, and not an oversight: **S1 says the signature has no function
-symbols**, so a description former, an application, a literal — none of them have
-anywhere to live. This is the type that killed `iota`.
+`FolDialect` imports `IR`. What it owns:
 
-### Formulas
+| | |
+|---|---|
+| `Declaration` | `(kind, name, root)` — kind `claim` or `definition(predicate)`, rendered `claim NAME: …` and `@def(P) axiom NAME: …`. There is NO `axiom` case: only `base/` has axioms, and `base/` is text the checker reads, never something we emit — so G1 holds by construction. `schema` waits for schemas |
+| `render` | the table → text: one line per declaration, bound variables named by level `b0, b1, …`; refuses an isa node, an unclosed root, a malformed name |
+| `parse` | text → table nodes, for imports — when imports are built |
 
-```swift
-public enum Binder { case setVar, classVar }
+⚠ **THE ROUND TRIP IS AN ID COMPARISON:** `intern(parse(render(root))) == root`.
+Interning makes it exact. The checker's grammar is the only authority on the syntax,
+so the text in that test must also be text the REAL checker accepts — never only our
+own reading of the grammar.
 
-public indirect enum Formula {
-    case predicate(String, args: [Term], isSchema: Bool)
-    case bottom
-    case not(Formula)
-    case binary(BinOp, Formula, Formula)              // & | -> <->
-    case quantified(Quantifier, Binder, String, body: Formula)
-}
-```
+**Where the dialect's invariants live now:**
 
-**[choice] the binder carries its kind.** Measured: with no kind, `gate::guards`
-reports a *correct* class quantifier as an R3 violation, and nothing can check the
-other direction — a class that IS guarded, which makes the claim false rather than
-redundant. One field makes the rule two-sided.
+| | enforced by |
+|---|---|
+| G4 — no term former beyond a variable | `Table.intern`: a `folPred` argument is a `folBound` |
+| G5 — a set binder guarded, a class binder not | the lowering that BUILDS the binder, where the source type says which it is (§4.3) — never re-derived from the formula, which would check the guard against itself |
+| G1 — an axiom's origin is `base/` | `Declaration` has no `axiom` case |
 
-### Declarations
+**Names: Isabelle's own, unchanged — no sanitization anywhere.** A qualified name
+(`ZF_Base.mem`, `QPair.QPair_iff`) is legal in exactly two kinds of position, and never
+in a variable's:
 
-```swift
-public enum Declaration {
-    case axiom(String, Formula)                        // only base/ may emit one
-    case claim(String, Formula)
-    case schema(String, params: [(String, Int)], Formula)
-}
-```
+| position | example |
+|---|---|
+| a CLAIM NAME — declaration, proof header, `use` | `claim QPair.QPair_iff: …` · `_3 = use QPair.QPair_iff` |
+| a PREDICATE NAME | `forall b0. ZF_Base.mem(b0, b1)` |
 
-### What the dialect owns
+The grammar decides by position, not whitespace: a variable is never qualified, so after
+`forall x` a `DOT` ends the binder, and in predicate position an identifier followed by
+`DOT` can only continue a qualified name. `render` still writes `forall b0. body` with
+the space. **Requires a checker change** — `qualified ::= IDENTIFIER (DOT IDENTIFIER)*`
+in those positions, from existing tokens, no lexer change — in fol-zfc-comb, with its
+own tests there.
 
-```swift
-func verify(_ d: Declaration) throws
-//  G4  no term former beyond a variable   — free from the Term type
-//  G5  every setVar binder guarded AND every classVar binder unguarded
-//  G1  an axiom's origin is base/
+Measured over the export's 4,230 theorem and constant names (`theory/thms`,
+`theory/consts`): the only characters outside `[A-Za-z0-9_]` are `.` (qualification), `'`
+(10, only at a segment's end) and `(N)` (627, only as a trailing fact index). So:
 
-func render(_ d: Declaration) -> String      // .fol.def text
-```
+- `'` joins the qualified-name rule — the grammar uses it nowhere else.
+- A fact index is not part of the name: the export carries `(name, index)` as two
+  attributes, and `(N)` is only Isabelle's display. It is spelled `name.N` — injective
+  because no segment starts with a digit, which the READER CHECKS, refusing any name
+  with a digit-initial segment rather than assuming the count.
+- `render` validates every name against the rule and throws on a malformed one.
 
-⚠ **`render` must round-trip.** The checker's bison grammar is the only authority
-on the surface syntax, so the test is `parse(render(d)) == d` against text the
-checker accepts — not against our own reading of the grammar.
+Why qualified predicates and not unqualified ones, measured: `pred` names two constants
+(`Arith.pred`, `Order.pred`), and ten unqualified names — `Inf`, `Pow`, `PrimReplace`,
+`Replace`, `The`, `Union`, `Upair`, `eq`, `succ`, `zero` — are already predicates in
+`base/`. Unqualified, `ZF_Base.Union` and `base/`'s `Union` would coincide by spelling,
+silently substituting one constant for another; qualified, identifying them is an
+explicit vocabulary entry in a pass.
+
+**No schema variables yet.** If a schema is ever emitted — FOUNDATION's arity-0 `?P` —
+a schema variable becomes a table node kind then: one more case in the four switches.
 
 ---
 
-## 4. IR  **[DECIDED, NOT BUILT]**
+## 4. IR  **[FRAMEWORK BUILT; renderer and proof layer NOT]**
 
-**§4.2–§4.5 and §4.6's R1–R3 are built** (`Sources/IR`, pinned by `Tests/IRTests`);
-§4.6's renderer (R4) and §4.7's proof layer are not. The previous region graph — formulas edited in place through `replaceAllUses`/`insert`/
+**§4.2–§4.6 are built** (`Sources/IR`, `Sources/FolDialect`, pinned by `Tests/`);
+§4.7's proof layer is not. The previous region graph — formulas edited in place through `replaceAllUses`/`insert`/
 `erase`, measured O(n²) per pass — is deleted; do not restore it from history.
 
 ### 4.1 Two layers, mirroring the checker
@@ -194,8 +200,17 @@ This is fol-zfc's own split: `GlobalContext`'s `FormulaRegistry` and the
 - **One table per unit** — a unit's statements and proofs, plus the signatures it
   cites, IMPORTED into the same table, as `proof_checker` loads dependency headers
   into one `GlobalContext` (`src/tools/proof_checker.cpp:39-82`). IDs are
-  table-local and never compared across tables. What a unit is — a theorem or a
-  theory — is open.
+  table-local and never compared across tables.
+- **A unit is one THEORY** — Isabelle's own unit, and one fol-zfc header/proof pair.
+  88.5% of a ZF proof's citations leave its theory (59.4% into Pure/IFOL/FOL, 29.1%
+  into other ZF theories, 11.5% within), so a finer unit saves no linking and only
+  re-parses popular signatures; and the unnamed sub-derivation boxes, 1,288 of them
+  shared between theorems, have no single owning theorem. The checker still reports
+  per claim.
+- ⚠ **A REFUSAL IS PER STATEMENT, NEVER PER UNIT.** The unit records each statement's
+  outcome — translated, or refused with its reason. A refused theorem is absent from
+  the header, so whatever cites it fails to find it — loudly, never as `Conditional`.
+  **NOT BUILT:** `Unit` holds statements, not yet their outcomes.
 - **isa and fol kinds share it.** A partly lowered statement is an ordinary root
   whose DAG mixes both vocabularies.
 - **Memory is not the constraint** — an ESTIMATE, from a throwaway decode that was not
@@ -244,8 +259,8 @@ The generic term language — ZF's own vocabulary, not logic at any level:
 `Pure.conjunction`/`term`/`type`/`sort_constraint` and `OFCLASS` are named refusals (§2).
 
 **The fol side mirrors fol-zfc** (`src/core/formula.h`): a term is a bound variable
-(de Bruijn) or a fixed variable — the fixed one arrives with the proof layer, which is
-what introduces it (`fix`, `exists_elim`); a formula is a predicate over terms, a
+(de Bruijn) — fol-zfc's FIXED variables are emission's concern, not a node kind (§4.7);
+a formula is a predicate over terms, a
 connective, or a quantifier over a body. **The set/class binder kind is NOT
 identity** — the checker cannot see it, and `∀A. (set(A) → ψ)` is valid text for
 both. It is the translator's bookkeeping, known where lowering builds the binder.
@@ -383,6 +398,10 @@ functions could, and the disagreement is D2's silent error: a binder one of them
 has its body skipped by `shift`. The cost — "children" is read by rebuilding, allocating
 for `isaConst`/`folPred`'s arrays — is an unmeasured constant factor.
 
+**`render` is a FIFTH exhaustive switch** — an emitter must know every target kind's
+text, so it cannot be derived; its source-kind cases throw. Adding a kind that can reach
+the text costs five switches.
+
 ⚠ **`legalize` STAYS THE SEAL.** A rule is partial, so a new kind breaks no pass; the
 legalize switch is where a kind nothing lowers is caught.
 
@@ -424,48 +443,117 @@ would need one chosen per interned node, and "first seen" is exactly an order le
 with different unrelated nodes renders byte-identically (R1, R2) — and, once an emitter
 exists, a cross-process diff of two runs, the only check that can see R3.
 
-### 4.7 The proof layer
+### 4.7 The proof layer  **[DECIDED, NOT BUILT]**
 
 **The target is natural deduction, not Curry–Howard.** The checker's state is a set
-of DERIVED formulas, each with the scopes it depends on (`formula_deps_`,
-`src/proof/nd/stack.h`); a step checks its premises are derived and marks its
-conclusion derived; `_x = …` names a formula (`step_env`, `src/proof/nd/verifier.cpp`).
-**The proof is the graph from premise formulas to conclusion, by rule, inside scopes.**
+of DERIVED formulas (`formula_deps_`, `src/proof/nd/stack.h`); a step checks its
+premises are derived and marks its conclusion derived.
 
-- **A step is its own op** — rule, premise steps, conclusion node in the table. A
-  formula may be derived more than once; derivedness belongs to the formula, and a
-  step is one justification of it. Steps are not interned.
-- **There is no proof type.** A step's value is the formula it derives.
-- **A scope is a region**: its argument is the fixed variable or the hypothesis.
+**A step is a function from derived statements to a new derived statement** — a node
+in the SAME table, lowered by the SAME `transform` and `RulePass` as formulas. Its
+conclusion is a formula node, computed at `intern` the way a formula node's type is.
+There is no separate proof tree, no builder, and no step-by-step driver.
 
-| Isabelle `zproof` (`zterm.ML:249`) | fol-zfc step |
+⚠ **A STEP CONSTRAINS ONLY ITS PRINCIPAL CONNECTIVE.** An ELIMINATION rule consumes: its
+major premise must have the rule's connective at the top. An INTRODUCTION rule produces:
+its conclusion has it at the top. Every other part — other premises, sub-formulas —
+may be isa, fol or mixed, and `intern` checks the principal connective and nothing else:
+
+```
+  and_intro A B     A = mem(a, A), B = ifolAll(i, …)   → folAnd(mem(a, A), ifolAll(i, …))   fol top, isa inside
+  and_elim_l p      p ⊢ folAnd(ifolAll(i, …), X)       → ifolAll(i, …)                      an isa statement, by a fol step
+  implies_elim p q  p ⊢ folImplies(A, B), q ⊢ A BY ID  → B                                  whatever dialect B is
+```
+
+An isa step is typed the same way by ITS principal connective: `isaAllElim` needs
+`ifolAll` at the top of its major premise.
+
+**The surface is read downstream-first, like formulas.** A zproof constructor whose
+connective the downstream already covers IS the fol step from the moment it is read;
+isa steps exist only where the connective is still isa:
+
+| zproof (`zterm.ML:249`) | acts on | read as |
+|---|---|---|
+| `ZAppp` — ⟹-elim | `folImplies` (Pure `⟹` reads as it) | `folImpliesElim` |
+| `ZAbsp` — ⟹-intro | produces `folImplies` | `folImpliesIntro` |
+| `ZAppt` — ⋀-elim | `ifolAll`: the guard is not there yet | an isa step |
+| `ZAbst` — ⋀-intro | produces `ifolAll` | an isa step |
+
+**Lowering rewrites isa steps into fol steps, bottom-up.** A rewritten step concludes a
+new statement; when it keeps its conclusion its consumers are untouched, when it changes
+a connective they are rewritten in turn:
+
+```
+  p  = cite thm            ⊢ ifolAll(i, mem(0, A))
+  s  = isaAllElim(p, a)    ⊢ mem(a, A)
+         the citation's signature is lowered (§4a):
+  p′ = cite thm            ⊢ folForall(set(0) → mem(0, A))
+  s  = isaAllElim(p′, a)   ✗ an isa step on a fol ∀
+  s′ = folImpliesElim(folForallElim(p′, a), ⟨set(a)⟩)   ⊢ mem(a, A)   unchanged: consumers untouched
+```
+
+**Done is: no isa step reachable, every conclusion fol-zfc, and the last one equals the
+lowered claim — by ID.** `legalize` refuses a reachable isa step as it refuses an isa
+connective.
+
+What the framework gains (NOT BUILT):
+
+| | |
 |---|---|
-| `ZAppt p t` | `forall_elim`, then `implies_elim` against a `set(t)` |
-| `ZAppp p q` | `implies_elim` |
-| `ZConstp` (a citation) | `use NAME` |
-| `ZAbsp h:A. p` | `assume A` … `implies_intro` |
-| `ZAbst x. p` | `fix x`, `assume set(x)` … `implies_intro`, `forall_intro` |
-| `ZBoundp` | the `assume` step it names |
+| `Rule.after(node, depth)` | the node with its REWRITTEN children, before `intern` — a step can only be rewritten once its premises have been, and `intern` would reject `isaAllElim(p′, a)`. `before` stays for pruning |
+| conclusion at `intern` | the type switch computes it; a step whose principal connective is wrong cannot exist |
+| D1 for steps | a hypothesis reference carries its formula, as `isaBound` carries its type; a citation carries its statement's root, imported into the table |
+| two binder namespaces | term binders (`∀`, `λ`, ⋀-intro) and hypothesis binders (⟹-intro) number separately: the structure switch says which, `looseBound` is per namespace, and discharging a hypothesis is a proof-level `instantiate`. Isabelle's counting is census question 6 |
+| emission | a proof tree becomes the checker's linear stack program — `folImpliesIntro(A, body)` → `assume A` … `implies_intro` — in `FolDialect`. A binder's scope is its body subtree, so `exists_elim` wraps a LOCAL subproof; nothing moves "the rest" |
 
-**It links like a compiled language.** A claim is a signature, a proof a body,
-`use` a call, an `UNPROVED` stub an `extern` — and **the R3 guard is the calling
-convention**: every caller's `forall_elim` at `t` owes an extra `set(t)`.
+**The step kinds — minimal: a checker rule is a kind only when something the source
+contains needs it.** Every Isabelle proof bottoms out in Pure's constructors and in
+citations; a citation is a step concluding the cited statement, so ONE kind covers every
+axiom — how `use conjI` becomes `and_intro`, or `use combination` becomes CONG, is pass
+detail.
 
-**A fol derivation may be built, never rewritten.** A rewritten one carries no
-witness it is still a derivation, and re-establishing that in-process is a second
-checker.
+| | kinds |
+|---|---|
+| neutral — concludes what it carries, any dialect | `use(name, root)` (`PThm`/`PAxm`; `root` imported into the table) · `hyp(k, A)` (`PBound`; carries `A`, D1) |
+| fol intro | `andIntro(p, q)` · `orIntroL(p, B)` · `orIntroR(A, q)` · `impliesIntro(A, body)` ◆ · `notIntro(A, body)` ◆ · `iffIntro(p, q)` · `forallIntro(body)` ● · `existsIntro(p, v)` |
+| fol elim | `andElimL(p)` · `andElimR(p)` · `orElim(p, q, r)` · `impliesElim(p, q)` — `q` concludes the antecedent BY ID · `notElim(p, q)` · `iffElimL(p, q)` · `iffElimR(p, q)` · `forallElim(p, v)` — `v` a fol variable (S1) · `existsElim(p, body)` ●◆ · `bottomElim(p, C)` |
+| fol classical | `classicalAbsurd(A, body)` ◆ — with `notElim` it covers FOL's one axiom, `(¬P ⟹ P) ⟹ P` |
+| isa — the typed quantifier only | `isaAllIntro(T, body)` ● (`ZAbst`, produces `ifolAll`) · `isaAllElim(p, t)` (`ZAppt`, consumes `ifolAll`; `t` any isa term of type `T`, concluding `instantiate(body, t)`). They also cover `⋀P:o` and `⋀P:i⇒o` — instantiating a proposition or class variable, as citing an IFOL rule does |
 
-⚠ **`exists_elim` SCOPES THE REST OF THE DERIVATION**, closed by `exists_intro`
-(`src/proof/nd/stack.cpp:552`). S1's recipe for a compound `ZAppt` goes through it,
-so a proof pass must be able to move the steps that follow into a new scope.
+◆ binds a hypothesis, ● a term variable — exactly the checker rules that close a scope
+(`src/proof/nd/stack.cpp`: `implies_intro:303`, `not_intro:351`, `forall_intro:495`,
+`exists_intro:552` closing `exists_elim`, `classical_absurd:698`). Left out until a pass
+needs them: `double_neg_elim`, `excluded_middle`, `peirce` (covered classically above);
+`eq_subst`, `eq_sym` (`eq` is a defined predicate, FOUNDATION §2 retires `eq_subst`);
+`schema_inst` (no schemas); `iota_elim` (S1).
+
+**`fix` and `assume` are emitted from binders; the table has no fixed-variable node.** A
+term binder's body proves `φ` with the bound variable as loose index 0, so `forallIntro`
+concludes `folForall(conclusion(body))` — no `abstract`, no fresh-name counter, and the
+eigenvariable condition holds by construction. Emission writes the checker's stack
+program from the tree:
+
+```
+  forallIntro(                               fix f0
+    impliesIntro(set(0),                     _0 = assume set(f0)
+      impliesIntro(P(0),                     _1 = assume P(f0)
+        hyp(0, P(0)))))                      _2 = implies_intro _1
+                                             _3 = implies_intro _2
+                                             _4 = forall_intro _3
+                                             qed _4
+```
+
+A term binder becomes `fix f_k` and its loose index renders as `f_k`; a hypothesis binder
+becomes `assume A`; `hyp(k, …)` renders as that `assume` step's name.
+
+**It links like a compiled language.** A claim is a signature, a proof a body, `use` a
+call, an `UNPROVED` stub an `extern` — and **the R3 guard is the calling convention**:
+every caller's `forall_elim` at `t` owes an extra `set(t)`.
 
 ### 4.8 Open
 
 | | |
 |---|---|
-| S1 placement | the fresh `r` at the atom (local) or at the statement (FOUNDATION §2's wording); differs when `f(x)` occurs twice, which the proof sees |
-| the unit | one theorem or one theory per table |
-| the proof layer | step kinds, scope regions, emission order, symbol import |
 | proof-level depth | whether a term `ZBound` inside a proof counts `ZAbst` binders — census question 6 |
 
 ## 4a. Statement lowering  **[NOT BUILT]**
@@ -489,6 +577,13 @@ Three passes, and the order is forced:
 Under §4 each is a recursive rewrite building interned nodes; the guard is
 construction: `∀(set(bvar 0) → body′)`.
 
+### Pass-level questions — for the passes, not the framework
+
+| | |
+|---|---|
+| S1 placement | where the fresh `r` for a term is bound. FOUNDATION §2 requires the proof's interior to correspond step for step, which needs ONE `r` per distinct term — so hoisted, not per atom. The framework already gives what the pass needs: statement-level parameters and `shift` |
+| meta functions | a meta-level function (a λ of type `i ⇒ i`, e.g. `RepFun(A, λx. f(x))`) is encoded as a FUNCTION CLASS — its graph — not refused |
+
 ### The guard is half of a contract
 
 Inserting `set(x)` puts an obligation on the proof: every `forall_elim` at a term
@@ -508,4 +603,3 @@ came from, so PHASE 2 recovers that by **re-running this lowering** over the
 | what monomorphise instantiates at | use-site type argument, or always `'a := i`? The second is §11.0's proposal and resolves `eq`/`All`/`Ex`/`split` in one move, but makes a generic IFOL theorem mean only its `i`-instance |
 | whether the ZF primitive surface is a third dialect or a stage inside IsaDialect | parked where you left it |
 | what `base/` becomes | it is `.fol.def` text today; does FolDialect *read* it, or is it opaque input to the checker? |
-| whether `FolDialect.Formula` survives | §4's fol nodes already mirror fol-zfc; `render` could read them directly |

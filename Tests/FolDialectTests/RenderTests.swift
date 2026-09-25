@@ -1,53 +1,136 @@
 import Foundation
 import Testing
+import IR
 @testable import FolDialect
 
-private func v(_ n: String) -> Term { Term(n) }
-private func p(_ n: String, _ a: String...) -> Formula {
-    .predicate(n, args: a.map(Term.init), isSchema: false)
+private struct Fol {
+    var t = Table()
+    mutating func b(_ k: Int) throws -> NodeID { try t.intern(.folBound(k)) }
+    mutating func p(_ n: String, _ args: NodeID...) throws -> NodeID { try t.intern(.folPred(n, args: args)) }
+    mutating func all(_ body: NodeID) throws -> NodeID { try t.intern(.folForall(body: body)) }
+    mutating func ex(_ body: NodeID) throws -> NodeID { try t.intern(.folExists(body: body)) }
+    mutating func imp(_ a: NodeID, _ b: NodeID) throws -> NodeID { try t.intern(.folImplies(a, b)) }
+    mutating func text(_ root: NodeID) throws -> String { try render(formula: root, in: t) }
 }
 
-@Test func aGuardedForallRendersAsAnImplication() {
-    let f = Formula.quantified(.forAll, .setVar, "x",
-        body: .binary(.implies, p("set", "x"), p("elem", "x", "y")))
-    #expect(render(f) == "forall x. (set(x) -> elem(x, y))")
+@Test func aGuardedForallRendersWithLevelNames() throws {
+    var f = Fol()
+    let root = try f.all(try f.all(try f.imp(try f.p("set", try f.b(1)), try f.p("elem", try f.b(1), try f.b(0)))))
+    #expect(try f.text(root) == "forall b0. forall b1. (set(b0) -> elem(b0, b1))")
 }
 
-@Test func aClassBinderCarriesNoGuard() {
-    let f = Formula.quantified(.forAll, .classVar, "A", body: p("elem", "x", "A"))
-    #expect(render(f) == "forall A. elem(x, A)")
-    #expect(!render(f).contains("set(A)"), "guarding a class makes the claim FALSE")
+/// `level = depth − 1 − k`: the same index names different binders at different depths.
+@Test func aBoundIndexIsNamedByItsBindersLevel() throws {
+    var f = Fol()
+    let inner = try f.all(try f.p("elem", try f.b(0), try f.b(2)))
+    let root = try f.all(try f.all(try f.imp(try f.p("elem", try f.b(1), try f.b(0)), inner)))
+    #expect(try f.text(root) == "forall b0. forall b1. (elem(b0, b1) -> (forall b2. elem(b2, b0)))")
 }
 
-/// ⚠ THE CHECKER'S GRAMMAR IS THE ONLY AUTHORITY. This is the test that keeps
-/// `render` honest; anything else only checks our own reading of it.
+@Test func everyConnectiveHasTheCheckersSyntax() throws {
+    var f = Fol()
+    let set0 = try f.p("set", try f.b(0))
+    let notBottom = try f.t.intern(.folNot(try f.t.intern(.folBottom)))
+    let conj = try f.t.intern(.folAnd(set0, notBottom))
+    let iff = try f.t.intern(.folIff(try f.p("elem", try f.b(0), try f.b(0)), set0))
+    let root = try f.ex(try f.t.intern(.folOr(conj, iff)))
+    #expect(try f.text(root) == "exists b0. ((set(b0) & ~false) | (elem(b0, b0) <-> set(b0)))")
+    let negatedForall = try f.t.intern(.folNot(try f.all(set0)))
+    #expect(try f.text(negatedForall) == "~(forall b0. set(b0))")
+    #expect(try f.text(try f.p("nullary")) == "nullary")
+}
+
+@Test func aDeclarationRendersAsItsLine() throws {
+    var f = Fol()
+    let body = try f.all(try f.p("set", try f.b(0)))
+    #expect(try render(Declaration(kind: .claim, name: "QPair.QPair_iff", root: body), in: f.t)
+            == "claim QPair.QPair_iff: forall b0. set(b0)")
+    #expect(try render(Declaration(kind: .definition(predicate: "ZF_Base.Pow"), name: "ZF_Base.Pow_def", root: body), in: f.t)
+            == "@def(ZF_Base.Pow) axiom ZF_Base.Pow_def: forall b0. set(b0)")
+}
+
+@Test func qualifiedNamesPrimesAndFactIndicesAreNames() throws {
+    var f = Fol()
+    for name in ["ZF_Base.mem", "IFOL.allE'", "Univ.rank_rls.4", "set", "eq_refl"] {
+        #expect(try f.text(try f.p(name)) == name)
+    }
+}
+
+@Test func aMalformedNameIsRefused() throws {
+    var f = Fol()
+    for bad in ["1bad", "forall", "a..b", "a.", ".a", "ZF Base", "a'b", "mem(4)"] {
+        #expect(throws: RenderError.notAName(bad)) { try f.text(try f.p(bad)) }
+    }
+    let body = try f.p("set", try f.b(0))
+    #expect(throws: RenderError.notAName("claim")) {
+        try render(Declaration(kind: .claim, name: "claim", root: try f.all(body)), in: f.t)
+    }
+}
+
+@Test func anOpenRootIsRefused() throws {
+    var f = Fol()
+    let open = try f.p("set", try f.b(0))
+    #expect(throws: RenderError.notClosed(open)) { try f.text(open) }
+}
+
+@Test func anIsaNodeIsRefused() throws {
+    var f = Fol()
+    let a = try f.t.intern(.isaFree("a", .i))
+    let atom = try f.t.intern(.isaConst("ZF_Base.mem", .fn(.i, .fn(.i, .o)), args: [a, a]))
+    let root = try f.t.intern(.folAnd(try f.t.intern(.folBottom), atom))
+    #expect(throws: RenderError.sourceKind(atom)) { try f.text(root) }
+}
+
+/// ⚠ THE CHECKER'S GRAMMAR IS THE ONLY AUTHORITY. Every construct `render` emits is fed to
+/// the real checker; `probe_bottom` PROVES something only true if `false` is ⊥ — a mere parse
+/// would accept `False`, which lexes as a nullary predicate.
 @Test func theRealCheckerAcceptsWhatRenderEmits() throws {
     let ck = ProcessInfo.processInfo.environment["PROOF_CHECKER"]
-        ?? NSString(string: "~/repos/fol-zfc-comb/bazel-bin/src/tools/proof_checker")
-            .expandingTildeInPath
+        ?? NSString(string: "~/repos/fol-zfc-comb/bazel-bin/src/tools/proof_checker").expandingTildeInPath
     guard FileManager.default.isExecutableFile(atPath: ck) else {
         Issue.record("no proof_checker at \(ck); set PROOF_CHECKER")
         return
     }
-    let members = Declaration.axiom("members_are_sets",
-        .quantified(.forAll, .setVar, "x",
-            body: .quantified(.forAll, .setVar, "y",
-                body: .binary(.implies, p("elem", "x", "y"), p("set", "x")))))
-    let goal = Declaration.claim("probe", members.statement)
+    let repo = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+        .deletingLastPathComponent().deletingLastPathComponent()
+    let axioms = repo.appendingPathComponent("base/axioms.fol.def")
 
-    let dir = URL(fileURLWithPath: NSTemporaryDirectory())
-        .appendingPathComponent("isa2fol-render-\(getpid())")
+    var f = Fol()
+    let membersAreSets = try f.all(try f.all(try f.imp(try f.p("elem", try f.b(1), try f.b(0)), try f.p("set", try f.b(1)))))
+    let notBottom = try f.t.intern(.folNot(try f.t.intern(.folBottom)))
+    let set0 = try f.p("set", try f.b(0))
+    let every = try f.ex(try f.t.intern(.folOr(
+        try f.t.intern(.folAnd(set0, notBottom)),
+        try f.t.intern(.folIff(try f.p("elem", try f.b(0), try f.b(0)),
+                               try f.t.intern(.folNot(try f.all(try f.p("elem", try f.b(0), try f.b(1))))))))))
+    let decls = [Declaration(kind: .claim, name: "probe", root: membersAreSets),
+                 Declaration(kind: .claim, name: "probe_bottom", root: notBottom),
+                 Declaration(kind: .claim, name: "probe_syntax", root: every)]
+    let def = try decls.map { try render($0, in: f.t) }.joined(separator: "\n") + "\n"
+    let proof = """
+        proof probe:
+            _a = use members_are_sets
+            qed _a
+
+        proof probe_bottom:
+            _a = assume false
+            _b = not_intro _a
+            qed _b
+
+        proof probe_syntax: UNPROVED
+
+        """
+
+    let dir = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("isa2fol-render-\(getpid())")
     try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
     defer { try? FileManager.default.removeItem(at: dir) }
-    let def = dir.appendingPathComponent("p.fol.def")
-    let prf = dir.appendingPathComponent("p.fol.proof")
-    try "\(render(members))\n\n\(render(goal))\n".write(to: def, atomically: true, encoding: .utf8)
-    try "proof probe:\n    _a = use members_are_sets\n    qed _a\n"
-        .write(to: prf, atomically: true, encoding: .utf8)
+    let defURL = dir.appendingPathComponent("p.fol.def"), prfURL = dir.appendingPathComponent("p.fol.proof")
+    try def.write(to: defURL, atomically: true, encoding: .utf8)
+    try proof.write(to: prfURL, atomically: true, encoding: .utf8)
 
     let proc = Process()
     proc.executableURL = URL(fileURLWithPath: ck)
-    proc.arguments = [def.path, prf.path]
+    proc.arguments = [defURL.path, prfURL.path, axioms.path]
     let out = Pipe(), err = Pipe()
     proc.standardOutput = out
     proc.standardError = err
@@ -56,7 +139,8 @@ private func p(_ n: String, _ a: String...) -> Formula {
     let stderr = String(decoding: err.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
     proc.waitUntilExit()
 
-    #expect(proc.terminationStatus == 0, "checker rejected our syntax:\n\(stdout)\(stderr)")
+    #expect(proc.terminationStatus == 0, "checker rejected what render emits:\n\(def)\n\(stdout)\(stderr)")
     #expect(stderr.isEmpty, "stderr must be empty: \(stderr)")
-    #expect(stdout.contains("+ probe"), "the claim did not prove:\n\(stdout)")
+    #expect(stdout.contains("+ probe\n") || stdout.contains("+ probe "), "probe did not prove:\n\(stdout)")
+    #expect(stdout.contains("+ probe_bottom"), "probe_bottom did not prove -- is false rendered as ⊥?\n\(stdout)")
 }

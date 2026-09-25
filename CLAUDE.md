@@ -96,9 +96,12 @@ is gone. §5 says so. Treat every number there as a belief, never a premise.
 4. **Unified code paths.** One canonical way to handle each construct. No
    duplicate logic, no parallel paths doing similar things differently.
 
-5. **One sanitization function.** When identifier sanitization is built
-   (`ZF_Base.mem` → `ZF_Base_2emem`), it lives in exactly one place and
-   everything else delegates to it.
+5. **No name sanitization — Isabelle's names reach the text unchanged.** The
+   checker accepts qualified names (`ZF_Base.mem`, `QPair.QPair_iff`) in claim-name
+   and predicate positions, never in a variable's (`DESIGN.md` §3). Do NOT
+   introduce a mangling function: `ZF_Base.mem` → `ZF_Base_2emem` collides with a
+   name that is literally `ZF_Base_2emem`, and silently. A fact index `name(4)` is
+   spelled `name.4`.
 
 6. **Test before implement.** Write the failing test that documents the
    expected behaviour, then implement to it.
@@ -133,7 +136,7 @@ is gone. §5 says so. Treat every number there as a belief, never a premise.
    print(f'{c}/{t} = {100*c/t:.1f}%')"
    ```
 
-   ✓ **CURRENTLY 8/434 = 1.84%, under the cap.** Keep it there: a breach is
+   ✓ **CURRENTLY 4/438 = 0.91%, under the cap.** Keep it there: a breach is
    fixed by deleting prose, never by raising the cap.
 
    Does not apply to `base/**/*.fol.def` headers: those record provenance of
@@ -174,7 +177,7 @@ Package.swift
 Sources/
   YXML/          Isabelle's transfer format → Node tree.  Knows no dialect.
   IR/            Node · Table · transform · index engine · passes · legalize
-  FolDialect/    Term · Binder · Formula · Declaration · render
+  FolDialect/    Declaration · render — the text boundary over IR (DESIGN.md §3)
   isa2fol/       CLI
 Tests/           YXMLTests · FolDialectTests · IRTests
 base/            the NBG foundation: axioms.fol.def + 9 tiers, kernel-checked
@@ -191,8 +194,8 @@ Nothing connects them yet: the reader (YXML → IR) and the emitter
 
 **There is ONE formula table per unit, holding isa and fol nodes together** —
 interned, immutable, de Bruijn; proof steps live in scope regions and point into
-it. That is `DESIGN.md` §4; the framework is built in `Sources/IR`, the renderer
-and the proof layer are not.
+it. That is `DESIGN.md` §4; the framework is built in `Sources/IR`, `render` in
+`Sources/FolDialect`; the proof layer is not.
 `legalize` — one exhaustive switch over node kinds — stays the only place naming
 both vocabularies; a rewrite is partial, so that switch is what rule 11 rests on.
 

@@ -1,17 +1,18 @@
-public enum Declaration: Sendable {
-    case axiom(String, Formula)                             // only base/ may emit one
-    case claim(String, Formula)
-    case schema(String, params: [(String, Int)], Formula)
+import IR
 
-    public var name: String {
-        switch self {
-        case .axiom(let n, _), .claim(let n, _), .schema(let n, _, _): return n
-        }
-    }
+@frozen public enum DeclarationKind: Equatable, Sendable {
+    case claim
+    case definition(predicate: String)
+}
 
-    public var statement: Formula {
-        switch self {
-        case .axiom(_, let f), .claim(_, let f), .schema(_, _, let f): return f
-        }
+public struct Declaration: Sendable {
+    public let kind: DeclarationKind
+    public let name: String
+    public let root: NodeID
+
+    public init(kind: DeclarationKind, name: String, root: NodeID) {
+        self.kind = kind
+        self.name = name
+        self.root = root
     }
 }
