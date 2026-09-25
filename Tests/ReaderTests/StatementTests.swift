@@ -84,3 +84,32 @@ private func zfBase() throws -> (Table, [String: Read])? {
         return
     }
 }
+
+@Test func aMalformedFileIsReportedWithItsPath() throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent("isa2fol-\(UUID())").path
+    defer { try? FileManager.default.removeItem(atPath: root) }
+    for dir in ["ZF.T/theory", "ZF.T/proofs"] {
+        try FileManager.default.createDirectory(atPath: "\(root)/\(dir)", withIntermediateDirectories: true)
+    }
+    let consts = constEntity("IFOL.Trueprop", parameters: [], scheme: fn(o, prop))
+        + constEntity("ZF_Base.mem", parameters: [], scheme: fn(i, fn(i, o)))
+    try consts.write(toFile: "\(root)/ZF.T/theory/consts", atomically: true, encoding: .utf8)
+    try proofFile(frees: [("A", i), ("a", i)], prop: memAa).write(toFile: "\(root)/ZF.T/proofs/7", atomically: true, encoding: .utf8)
+    var export = try Export(root: root)
+    var t = Table()
+    do {
+        _ = try export.statements("ZF.T", into: &t)
+        Issue.record("expected a ReadFailure")
+    } catch let failure as ReadFailure {
+        #expect(failure.file == "ZF.T/proofs/7")
+        #expect(failure.error as? MalformedExport == .freesHeader(header: ["A", "a"], occurring: ["a", "A"]))
+    }
+}
+
+/// `elim_format` states a rule over `W :: prop`; FOUNDATION S4 classifies an arity-0 propositional variable out.
+@Test func aMetaLevelPropositionalVariableIsRefusedByName() throws {
+    var t = Table()
+    let prop = app(const("Pure.imp"), memAa, free("W"))
+    #expect(try read(proofFile(frees: [("a", i), ("A", i), ("W", typeT("prop"))], prop: prop), into: &t)
+            == .refused(.propositionalVariable("W")))
+}

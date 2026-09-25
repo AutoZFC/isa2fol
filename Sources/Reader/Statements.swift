@@ -7,6 +7,15 @@ import YXML
     case refused(ReaderRefusal)
 }
 
+public struct ReadFailure: Error {
+    public let file: String
+    public let error: any Error
+}
+
+private func located<T>(_ file: String, _ body: () throws -> T) throws -> T {
+    do { return try body() } catch { throw ReadFailure(file: file, error: error) }
+}
+
 public struct Read: Equatable, Sendable {
     public let serial: Int
     public let name: String?
@@ -28,7 +37,10 @@ struct StatementReader {
         guard occurring == names else { throw MalformedExport.freesHeader(header: names, occurring: occurring) }
         do {
             if let a = tfrees.first { throw ReaderRefusal.typeVariable(a) }
-            let typed = try header.map { ($0.0, try $0.1.irType()) }
+            let typed = try header.map { name, T in
+                guard T != .type("prop", []) else { throw ReaderRefusal.propositionalVariable(name) }
+                return (name, try T.irType())
+            }
             let terms = Terms(decode: d, constants: constants, frees: Dictionary(uniqueKeysWithValues: typed))
             let root = try terms.proposition(prop, in: &t)
             return .translated(root: root, frees: try typed.map { try t.intern(.isaFree($0.0, $0.1)) })
@@ -87,13 +99,15 @@ public struct Export {
         self.root = root
         theories = try FileManager.default.contentsOfDirectory(atPath: root).sorted()
         for theory in theories where FileManager.default.fileExists(atPath: "\(root)/\(theory)/theory/consts") {
-            let body = try forest.parse(contentsOf: "\(root)/\(theory)/theory/consts")
-            try constants.load(body, in: forest)
+            try located("\(theory)/theory/consts") {
+                let body = try forest.parse(contentsOf: "\(root)/\(theory)/theory/consts")
+                try constants.load(body, in: forest)
+            }
         }
     }
 
     public mutating func statements(_ theory: String, into t: inout Table) throws -> [Read] {
-        let entities = try names(theory)
+        let entities = try located("\(theory)/theory/thms") { try names(theory) }
         let dir = "\(root)/\(theory)/proofs"
         guard FileManager.default.fileExists(atPath: dir) else { return [] }
         let serials = try FileManager.default.contentsOfDirectory(atPath: dir).map { file in
@@ -102,17 +116,19 @@ public struct Export {
         }.sorted()
         var reads: [Read] = []
         for serial in serials {
-            let body = try forest.parse(contentsOf: "\(dir)/\(serial)")
-            let reader = StatementReader(decode: Decode(forest: forest), constants: constants)
-            var name: String?
-            let outcome: Outcome
-            do {
-                name = try entities[serial].map(claimName)
-                outcome = try reader.read(body, into: &t)
-            } catch let r as ReaderRefusal {
-                outcome = .refused(r)
-            }
-            reads.append(Read(serial: serial, name: name, outcome: outcome))
+            reads.append(try located("\(theory)/proofs/\(serial)") {
+                let body = try forest.parse(contentsOf: "\(dir)/\(serial)")
+                let reader = StatementReader(decode: Decode(forest: forest), constants: constants)
+                var name: String?
+                let outcome: Outcome
+                do {
+                    name = try entities[serial].map(claimName)
+                    outcome = try reader.read(body, into: &t)
+                } catch let r as ReaderRefusal {
+                    outcome = .refused(r)
+                }
+                return Read(serial: serial, name: name, outcome: outcome)
+            })
         }
         return reads
     }

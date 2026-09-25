@@ -9,11 +9,11 @@
 | command (from the repo root) | expect |
 |---|---|
 | `swift --version \| head -1` | `Swift version 6.4 (swift-6.4-RELEASE)` |
-| `MEM=16G scripts/capped.sh swift test 2>&1 \| grep -cE '^✔ Test [a-zA-Z]+\(\) passed'` | **`130`** |
+| `MEM=16G scripts/capped.sh swift test 2>&1 \| grep -cE '^✔ Test [a-zA-Z]+\(\) passed'` | **`132`** |
 | `ls Sources` · `ls docs` | `FolDialect IR Reader isa2fol YXML` · `FOUNDATION.md phase2_probes SOURCE_SURFACE.md` |
-| `find Sources Tests -name '*.swift' \| wc -l` | `32` (3288 lines) |
-| comment density of `Sources` (CLAUDE.md rule 9's script) | `4/1463 = 0.27%` |
-| `grep -rc 'default:' Sources \| grep -v ':0'` | nothing |
+| `find Sources Tests -name '*.swift' \| wc -l` | `32` (3389 lines) |
+| comment density of `Sources` (CLAUDE.md rule 9's script) | `4/1528 = 0.26%` |
+| `grep -rnE '^\s*default:' Sources` (a switch default — rule 11) | nothing |
 | `scripts/source-surface.py \| head -1` | `population: 3616 named ZF theorems, 37 ZF.* theories` |
 | `readlink ~/repos/fol-zfc-comb/bazel-bin \| sed 's\|.*bazel-out/\|\|'` | `k8-opt/bin` — and `proof_checker` is executable there |
 | `git -C ~/repos/fol-zfc-comb log -1 --format=%h qualified-names` | `487c68c` (unmerged) |
@@ -87,7 +87,9 @@ deleted work — §6. fol-zfc-comb sits on its own `comb-verifier` with an uncom
 | D2's five laws hold over 300 seeded formulas each | `IndexTests` |
 | The tests have teeth: 5 hand mutations (`instantiate`'s k−1, `isaAbs` binder, ∃-intro index, a hypothesis binder, a fixed-variable level) are each caught | re-run by hand after touching `Index.swift`/`Node.swift`/`Render.swift` |
 | In the named ZF statements every logical constant is fully applied and every binder argument is a λ | `isa-deps --logic --named` (`~/repos/isabelle-study/bin/isa-deps`, untracked there) |
-| No concrete pass and no reader exist | `ls Sources` |
+| No concrete pass exists | `ls Sources/IR` |
+| The statement reader reads ALL 15,946 proof files, none malformed: of 3,616 named `ZF`/`ZF.*` theorems 3,596 translate; refused 12 type variable · 6 propositional variable · 1 `quantifierOverFunction` · 1 `ofclass` | `swift build -c release && .build/release/isa2fol statements data/zf_export` (25 s); `--show KIND` lists them |
+| Terms read η-long and type-directed; 3 mutations of the index arithmetic are each caught | `TermTests`; mutate `Scope.bound`, `abstraction`'s extras, `etaLong`'s head |
 | YXML refuses a missing, malformed or duplicate attribute by name; an optional one is read as `attributes[name]` | `aMissingAttributeIsAnErrorNotEmpty`, `anAttributeFieldWithoutEqualsIsAnError`, `aDuplicateAttributeIsAnError` |
 | The reader's three decisions — own type with `'a`/`prop`; frees left open for a closing pass; per-statement outcomes, only reader refusals caught — are decided; `IRType` has no `prop` | `DESIGN.md` §2 "Three decisions"; `Sources/IR/IRType.swift` |
 | `YXML` parses in ONE hash-consing pass: the 3.1 GB file reads as < 20,000 nodes in 21 s (release) | `ISA2FOL_SCALE=1 swift test -c release -Xswiftc -enable-testing --filter theLargestProofFile` |
@@ -115,12 +117,16 @@ deleted work — §6. fol-zfc-comb sits on its own `comb-verifier` with an uncom
    hypothesis-namespace `shift` the index engine does not have (`Index.swift:34` filters to
    terms). `ProofTests.afterRewritesAStepOnceItsPremisesAreRewritten` sidesteps both with a
    loose `hyp(0, …)`.
+5. **A build-independent identity for unnamed proof boxes.** A serial names a box only within
+   one build (CLAUDE.md), yet emission needs claim names and an order that are a function of
+   content (`DESIGN.md` §4.6 R2). Named theorems have names; the 12,000+ unnamed boxes do not.
+   Options: name a box by a hash of its statement and proof, or inline boxes into their unique
+   citer where there is one. Decide before emission.
 
 ## 7. Next action
 
-**Build the statement reader, phase 2**: terms → isa nodes (η-long, `DESIGN.md` §2) and
-statements (envelope, frees header = the proposition's frees, per-statement outcomes), on
-slice 1's `IsaType`/`Constants`. The frees-order premise is settled from `proofterm.ML`
-(§4.4). Statements only — proofs wait for census question 6.
-**Done when** every statement of the 15,946 export files reads into the table or refuses
-with a named reason, and a type variable anywhere refuses the whole statement.
+**Read proofs.** Decode each proof file's zproof into proof steps (`DESIGN.md` §4.7), on the
+same `Terms` for the terms inside it. Settle census question 6 first — whether a term `ZBound`
+inside a proof counts `ZAbst` binders (`.claude/tasks/ISA_SHAPE_CENSUS.md`). Decoding MUST be
+memoised on `(Ref, scope)`: one box is 312 M tree nodes over 11,604 distinct ones (`DESIGN.md`
+§2). **Done when** every proof file's proof reads or refuses by name, in bounded time and memory.

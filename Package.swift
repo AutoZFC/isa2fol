@@ -10,7 +10,7 @@ let package = Package(
         .target(name: "IR"),
         .target(name: "FolDialect", dependencies: ["IR"]),
         .target(name: "Reader", dependencies: ["YXML", "IR"]),
-        .executableTarget(name: "isa2fol"),
+        .executableTarget(name: "isa2fol", dependencies: ["Reader", "IR"]),
         .testTarget(name: "YXMLTests", dependencies: ["YXML"]),
         .testTarget(name: "FolDialectTests", dependencies: ["FolDialect", "IR"]),
         .testTarget(name: "IRTests", dependencies: ["IR"]),

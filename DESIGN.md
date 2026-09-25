@@ -38,7 +38,13 @@ either is silent.
 
 ---
 
-## 2. Reading the export  **[NOT BUILT]**
+## 2. Reading the export  **[STATEMENTS BUILT; proofs NOT]**
+
+**Measured, one build** (`swift build -c release && .build/release/isa2fol statements data/zf_export`,
+25 s): every one of the 15,946 proof files reads or refuses by name, none is malformed. Of the
+3,616 named theorems of `ZF` and `ZF.*`, **3,596 translate**; the 20 refusals are 12 type
+variables, 6 propositional variables, 1 `Pure.all` over a function (S5), 1 `OFCLASS`.
+`--show KIND` lists each refused statement.
 
 **It produces isa nodes in the unit's formula table (§4.2), and it RECOGNISES —
 it never transcribes raw `ZApp`.** `ZApp(ZApp(ZConst "Pure.imp", a), b)` is read as
@@ -129,6 +135,7 @@ because the enum is gone:
 | `Pure.conjunction` | **0 occurrences** in ZF statements, so refusing costs nothing |
 | `Pure.term`, `Pure.sort_constraint` | Pure-internal, 0 in ZF statements |
 | `Pure.prop` | 0 in ZF statements — erased, not refused |
+| a free of type `prop` | a META-LEVEL propositional variable — `elim_format`'s `W` (`upair.singletonE`, the datatype `free_elims`). FOUNDATION S4: arity 0 is classified out, never translated. 6 named ZF theorems, each an elim-format restatement of a translatable fact |
 | a `ZBound` with no enclosing binder | structural: its type, which the node must carry (§4.3), has nowhere to come from |
 | a prop that is not a prop | structural |
 

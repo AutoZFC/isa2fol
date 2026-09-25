@@ -6,8 +6,9 @@ The Rust tree (`rs/`, 12,781 lines) was **deleted 2026-09-22**. It is in git
 history and nothing depends on it. `docs/`, `base/` and `scripts/capped.sh`
 were hoisted out of it first and are live.
 
-**Nothing is built yet.** `DESIGN.md` is the plan; `Sources/` is a skeleton of
-dialect types plus the YXML reader.
+**The statement reader is built.** `isa2fol statements data/zf_export` reads every
+statement of the export into the IR or refuses it by name; proofs, lowering and
+emission are not built. `DESIGN.md` is the plan.
 
 ## Build
 
@@ -190,8 +191,8 @@ data/zf_export/  the Isabelle export — a LOCAL CACHE, never committed: scripts
   YXML        IR        FolDialect
 ```
 
-The reader (YXML → IR) is being built in `Sources/Reader` — types and constants
-so far; the emitter (IR → FolDialect) is unbuilt.
+The reader (YXML → IR) reads statements (`Sources/Reader`); proofs, the lowering
+passes and the emitter (IR → FolDialect) are unbuilt.
 
 **There is ONE formula table per unit, holding isa and fol nodes together** —
 interned, immutable, de Bruijn; proof steps live in scope regions and point into
