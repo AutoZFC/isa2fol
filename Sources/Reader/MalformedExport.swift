@@ -1,3 +1,5 @@
+import IR
+
 @frozen public enum MalformedExport: Error, Equatable, Sendable {
     case notANode(tag: String)
     case bodyLength(expected: Int, found: Int)
@@ -12,4 +14,9 @@
     case schemeVariables(constant: String)
     case typeArgumentCount(constant: String, declared: Int, found: Int)
     case constructorArity(String, Int)
+    case unboundBound(Int)
+    case undeclaredFree(String)
+    case unexpectedAbstraction(expected: IRType)
+    case typeMismatch(expected: IRType, found: IRType?)
+    case applicationArity(String, expected: Int, found: Int)
 }

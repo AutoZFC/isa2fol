@@ -48,3 +48,22 @@ struct Decode {
         return e.tag
     }
 }
+
+func one(_ atoms: [String]) throws -> String {
+    guard atoms.count == 1 else { throw MalformedExport.atoms(atoms) }
+    return atoms[0]
+}
+
+func indexname(_ atoms: [String]) throws -> (String, Int) {
+    if atoms.count == 1 { return (atoms[0], 0) }
+    guard atoms.count == 2 else { throw MalformedExport.atoms(atoms) }
+    return (atoms[0], try Decode.int(atoms[1]))
+}
+
+func noAtoms(_ atoms: [String]) throws {
+    guard atoms.isEmpty else { throw MalformedExport.atoms(atoms) }
+}
+
+func emptyBody(_ ts: Body) throws {
+    guard ts.isEmpty else { throw MalformedExport.bodyLength(expected: 0, found: ts.count) }
+}

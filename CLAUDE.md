@@ -136,7 +136,7 @@ is gone. §5 says so. Treat every number there as a belief, never a premise.
    print(f'{c}/{t} = {100*c/t:.1f}%')"
    ```
 
-   ✓ **CURRENTLY 4/1078 = 0.37%, under the cap.** Keep it there: a breach is
+   ✓ **CURRENTLY 4/1333 = 0.30%, under the cap.** Keep it there: a breach is
    fixed by deleting prose, never by raising the cap.
 
    Does not apply to `base/**/*.fol.def` headers: those record provenance of
@@ -178,7 +178,7 @@ Sources/
   YXML/          Isabelle's transfer format → a hash-consed Forest (equal subtrees, one Ref).  Knows no dialect.
   IR/            Node · Table · transform · index engine · passes · legalize
   FolDialect/    Declaration · render (formulas and proofs) — the text boundary over IR
-  Reader/        the export → isa nodes: IsaType · Constants · (terms, statements: unbuilt)
+  Reader/        the export → isa nodes: IsaType · Constants · Terms (η-long) · (statements: unbuilt)
   isa2fol/       CLI
 Tests/           YXMLTests · FolDialectTests · IRTests · ReaderTests
 base/            the NBG foundation: axioms.fol.def + 9 tiers, kernel-checked

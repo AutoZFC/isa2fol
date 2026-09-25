@@ -55,17 +55,6 @@ extension Decode {
     }
 }
 
-private func one(_ atoms: [String]) throws -> String {
-    guard atoms.count == 1 else { throw MalformedExport.atoms(atoms) }
-    return atoms[0]
-}
-
-private func indexname(_ atoms: [String]) throws -> (String, Int) {
-    if atoms.count == 1 { return (atoms[0], 0) }
-    guard atoms.count == 2 else { throw MalformedExport.atoms(atoms) }
-    return (atoms[0], try Decode.int(atoms[1]))
-}
-
 private func arity(_ name: String, _ args: [IsaType], _ n: Int) throws {
     guard args.count == n else { throw MalformedExport.constructorArity(name, args.count) }
 }
