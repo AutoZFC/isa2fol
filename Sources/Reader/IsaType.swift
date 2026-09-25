@@ -5,17 +5,6 @@ indirect enum IsaType: Hashable, Sendable {
     case tfree(String, sort: [String])
     case tvar(String, index: Int, sort: [String])
 
-    init(_ body: Body) throws {
-        self = try Decode.variant([
-            { atoms, ts in .type(try one(atoms), try Decode.list(IsaType.init, ts)) },
-            { atoms, ts in .tfree(try one(atoms), sort: try Decode.list(Decode.string, ts)) },
-            { atoms, ts in
-                let (name, index) = try indexname(atoms)
-                return .tvar(name, index: index, sort: try Decode.list(Decode.string, ts))
-            },
-        ], body)
-    }
-
     var variables: Set<IsaType> {
         switch self {
         case let .type(_, args): return args.reduce(into: []) { $0.formUnion($1.variables) }
@@ -50,6 +39,19 @@ indirect enum IsaType: Hashable, Sendable {
         case let .tfree(name, _), let .tvar(name, _, _):
             throw ReaderRefusal.typeVariable(name)
         }
+    }
+}
+
+extension Decode {
+    func type(_ body: Body) throws -> IsaType {
+        try variant([
+            { atoms, ts in .type(try one(atoms), try list(type, ts)) },
+            { atoms, ts in .tfree(try one(atoms), sort: try list(string, ts)) },
+            { atoms, ts in
+                let (name, index) = try indexname(atoms)
+                return .tvar(name, index: index, sort: try list(string, ts))
+            },
+        ], body)
     }
 }
 

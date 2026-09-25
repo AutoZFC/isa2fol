@@ -1,4 +1,5 @@
 import YXML
+@testable import Reader
 
 private let X = "\u{05}"
 private let Y = "\u{06}"
@@ -30,4 +31,8 @@ func constEntity(_ name: String, parameters: [String], scheme: String) -> String
     ])
 }
 
-func body(_ s: String) throws -> [YXML.Node] { try YXML.parse(Array(s.utf8)).children }
+func decodeType(_ s: String) throws -> IsaType {
+    var f = Forest()
+    let body = try f.parse(Array(s.utf8))
+    return try Decode(forest: f).type(body)
+}

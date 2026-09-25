@@ -136,7 +136,7 @@ is gone. §5 says so. Treat every number there as a belief, never a premise.
    print(f'{c}/{t} = {100*c/t:.1f}%')"
    ```
 
-   ✓ **CURRENTLY 4/773 = 0.52%, under the cap.** Keep it there: a breach is
+   ✓ **CURRENTLY 4/1078 = 0.37%, under the cap.** Keep it there: a breach is
    fixed by deleting prose, never by raising the cap.
 
    Does not apply to `base/**/*.fol.def` headers: those record provenance of
@@ -175,22 +175,23 @@ is gone. §5 says so. Treat every number there as a belief, never a premise.
 ```
 Package.swift
 Sources/
-  YXML/          Isabelle's transfer format → Node tree.  Knows no dialect.
+  YXML/          Isabelle's transfer format → a hash-consed Forest (equal subtrees, one Ref).  Knows no dialect.
   IR/            Node · Table · transform · index engine · passes · legalize
   FolDialect/    Declaration · render (formulas and proofs) — the text boundary over IR
+  Reader/        the export → isa nodes: IsaType · Constants · (terms, statements: unbuilt)
   isa2fol/       CLI
-Tests/           YXMLTests · FolDialectTests · IRTests
+Tests/           YXMLTests · FolDialectTests · IRTests · ReaderTests
 base/            the NBG foundation: axioms.fol.def + 9 tiers, kernel-checked
 docs/            FOUNDATION.md · SOURCE_SURFACE.md · phase2_probes
-data/zf_export/  the Isabelle export
+data/zf_export/  the Isabelle export — a LOCAL CACHE, never committed: scripts/03-export-zf.sh
 ```
 
 ```
   YXML        IR        FolDialect
 ```
 
-Nothing connects them yet: the reader (YXML → IR) and the emitter
-(IR → FolDialect) are unbuilt.
+The reader (YXML → IR) is being built in `Sources/Reader` — types and constants
+so far; the emitter (IR → FolDialect) is unbuilt.
 
 **There is ONE formula table per unit, holding isa and fol nodes together** —
 interned, immutable, de Bruijn; proof steps live in scope regions and point into
@@ -251,12 +252,23 @@ the violated assumption, and propose fixing the design.
 Which file triggers it (theory + serial)? Expected output? Actual? At which
 stage does the divergence start?
 
-⚠ **Serials are not globally unique** — they are unique only within a theory,
-and 760 collide. Any index over the export must key on `(theory, serial)`.
+⚠ **Serials are not globally unique** — they are unique only within a theory.
+Any index over the export must key on `(theory, serial)`.
+
+⚠ **A SERIAL NAMES A THEOREM ONLY WITHIN ONE BUILD OF THE EXPORT.** It is a
+per-process counter, and parallel proof checking hands it out in a different order
+each run: two builds of the same sources differ in 1,021 of 3,955 named serials. A
+test, fixture or document never names a serial — name the theorem, and resolve it
+through `theory/thms` of the build at hand.
 
 ## Data
 
-`data/zf_export/` — one directory per theory:
+`data/zf_export/` — one directory per theory. **A local cache, git-ignored:**
+`bash scripts/03-export-zf.sh` builds it from ONE Isabelle2025-2 run (~8 min;
+64-bit Poly/ML, the 32-bit default runs out of store on ZF.List). Never merge
+files from two builds: a serial means something only within its own build, and
+a merged export once had a named statement pointing at another theorem's proof
+and 402 dangling citations.
 
 | | |
 |---|---|
@@ -265,5 +277,7 @@ and 760 collide. Any index over the export must key on `(theory, serial)`.
 | `theory/axioms` | axiom statements — only `Pure/` has one |
 | `proofs/NNN` | one proof term per serial (YXML) |
 
-16,798 proof terms across 37 `ZF.*` theories plus `Pure`, `IFOL`, `FOL`.
+`find data/zf_export -path '*/proofs/*' -type f | wc -l` → 15,946 proof terms
+across the `ZF.*` theories plus `Pure`, `IFOL`, `FOL` — 3.2 GB, of which ONE file,
+a box inside `List.nth_upt`'s proof, is 3.1 GB.
 Entities carry a `file=` attribute naming their Isabelle source.

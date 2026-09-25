@@ -32,6 +32,12 @@ Nobody has measured that. That is this task.
 
 ## The export (verified facts)
 
+⚠ **Every figure in this file was measured on the pre-2026-09-25 export, which merged two
+Isabelle builds.** `data/zf_export` is now a local cache built by `scripts/03-export-zf.sh`
+from ONE build: 15,946 proof files, every citation resolves, and serials differ from build to
+build — re-measure every anchor below, and never record a serial as an example (name the
+theorem instead).
+
 - `data/zf_export/<theory>/proofs/<serial>`: 16,798 files, 40 theories.
   Envelope: `pair tfrees (pair frees (pair prop proof))` (`proofterm.ML:2062`, `export_proof`).
 - `data/zf_export/<theory>/theory/consts`: constant declarations with types. Use them to get

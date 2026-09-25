@@ -9,14 +9,15 @@
 | command (from the repo root) | expect |
 |---|---|
 | `swift --version \| head -1` | `Swift version 6.4 (swift-6.4-RELEASE)` |
-| `MEM=16G scripts/capped.sh swift test 2>&1 \| grep -cE '^✔ Test [a-zA-Z]+\(\) passed'` | **`63`** |
-| `ls Sources` · `ls docs` | `FolDialect IR isa2fol YXML` · `FOUNDATION.md phase2_probes SOURCE_SURFACE.md` |
-| `find Sources Tests -name '*.swift' \| wc -l` | `19` (1835 lines) |
-| comment density of `Sources` (CLAUDE.md rule 9's script) | `4/781 = 0.51%` |
+| `MEM=16G scripts/capped.sh swift test 2>&1 \| grep -cE '^✔ Test [a-zA-Z]+\(\) passed'` | **`99`** |
+| `ls Sources` · `ls docs` | `FolDialect IR Reader isa2fol YXML` · `FOUNDATION.md phase2_probes SOURCE_SURFACE.md` |
+| `find Sources Tests -name '*.swift' \| wc -l` | `28` (2496 lines) |
+| comment density of `Sources` (CLAUDE.md rule 9's script) | `4/1078 = 0.37%` |
 | `grep -rc 'default:' Sources \| grep -v ':0'` | nothing |
 | `scripts/source-surface.py \| head -1` | `population: 3616 named ZF theorems, 37 ZF.* theories` |
 | `readlink ~/repos/fol-zfc-comb/bazel-bin \| sed 's\|.*bazel-out/\|\|'` | `k8-opt/bin` — and `proof_checker` is executable there |
 | `git -C ~/repos/fol-zfc-comb log -1 --format=%h qualified-names` | `487c68c` (unmerged) |
+| `find data/zf_export -path '*/proofs/*' -type f \| wc -l` | `15946` — else rebuild: `bash scripts/03-export-zf.sh` |
 
 If a row disagrees, **this file is stale**: trust the code, fix this file.
 
@@ -68,6 +69,12 @@ deleted work — §6. fol-zfc-comb sits on its own `comb-verifier` with an uncom
 - **⚠ fol-zfc-comb's `//src/library` DOES NOT BUILD AS CONFIGURED** (GCC 11 `-O3`
   `stringop-overflow` under `-Werror`, pre-existing); test with `--cxxopt=-Wno-error=stringop-overflow`.
 - **⚠ SERIALS COLLIDE ACROSS THEORIES** — key on `(theory, serial)`.
+- **⚠ A SERIAL NAMES A THEOREM ONLY WITHIN ONE BUILD.** Two builds of the export differ in 1,021
+  of 3,955 named serials. Never write a serial into a test, fixture or doc — name the theorem.
+- **⚠ `data/zf_export` IS ONE BUILD OR NOTHING** — rebuilt whole by `scripts/03-export-zf.sh`,
+  never patched. The merged pre-2026-09-25 export mismatched `List.upt_type`, dangled 402 citations.
+- **⚠ ONE PROOF FILE IS 3.1 GB** (a box inside `List.nth_upt`). A statement is the file's first
+  field; `YXML.parse` reads the whole file — the reader must not.
 - **⚠ EVERY CORPUS FIGURE IN `FOUNDATION.md` IS UNEVIDENCED**; the Rust-era design docs are
   deleted — do not restore one.
 
@@ -83,12 +90,15 @@ deleted work — §6. fol-zfc-comb sits on its own `comb-verifier` with an uncom
 | No concrete pass and no reader exist | `ls Sources` |
 | YXML refuses a missing, malformed or duplicate attribute by name; an optional one is read as `attributes[name]` | `aMissingAttributeIsAnErrorNotEmpty`, `anAttributeFieldWithoutEqualsIsAnError`, `aDuplicateAttributeIsAnError` |
 | The reader's three decisions — own type with `'a`/`prop`; frees left open for a closing pass; per-statement outcomes, only reader refusals caught — are decided; `IRType` has no `prop` | `DESIGN.md` §2 "Three decisions"; `Sources/IR/IRType.swift` |
+| `YXML` parses in ONE hash-consing pass: the 3.1 GB file reads as < 20,000 nodes in 21 s (release) | `ISA2FOL_SCALE=1 swift test -c release -Xswiftc -enable-testing --filter theLargestProofFile` |
+| `data/zf_export` is one build: every named statement equals its proof file, every one of 2,986,521 citations resolves | `scratchpad/compare/compare.py`, NOT kept — the export check is unbuilt |
+| The export is not reproducible byte-for-byte: two builds differ in 7,258 paths, same statements | a second `scripts/03-export-zf.sh` run, `diff -rq` |
 | The census has not started: no `census/isa-shapes` branch | `git branch -a \| grep census` |
 
 ## 5. Beliefs — NOT verified
 
 - ~1–2 GB for all of ZF in one table, no sharing — a throwaway decode, not kept.
-- 838 unresolved citations; 1,780,478 proof nodes — the same throwaway decode.
+- 838 unresolved citations; 1,780,478 proof nodes — the same throwaway decode, on the MERGED export: void.
 - 197 term constants in 27 levels — `~/isabelle-object-constants.md`, no handle.
 
 ## 6. Open decisions
@@ -108,10 +118,9 @@ deleted work — §6. fol-zfc-comb sits on its own `comb-verifier` with an uncom
 
 ## 7. Next action
 
-**Build the statement reader** on `DESIGN.md` §2's three decisions — YXML → isa nodes in a
-unit's table, recognising the ZF surface (§2, §4.3) and refusing everything else by name.
-FIRST test the one unverified premise: the frees closing order equals the order citing
-proofs' `ZAppt`s instantiate in. Encoder ground truth: `zterm.ML` in `~/repos/isabelle-study`.
-Statements only — proofs wait for census question 6 (`.claude/tasks/ISA_SHAPE_CENSUS.md`).
-**Done when** every statement of the 16,798 export files reads into the table or refuses
+**Build the statement reader, phase 2**: terms → isa nodes (η-long, `DESIGN.md` §2) and
+statements (envelope, frees header = the proposition's frees, per-statement outcomes), on
+slice 1's `IsaType`/`Constants`. The frees-order premise is settled from `proofterm.ML`
+(§4.4). Statements only — proofs wait for census question 6.
+**Done when** every statement of the 15,946 export files reads into the table or refuses
 with a named reason, and a type variable anywhere refuses the whole statement.

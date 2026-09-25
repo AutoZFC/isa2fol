@@ -4,7 +4,17 @@ import Testing
 import YXML
 @testable import Reader
 
-private func file(_ entities: String...) throws -> YXML.Node { try YXML.parse(Array(entities.joined().utf8)) }
+private func load(_ c: inout Constants, _ entities: String...) throws {
+    var f = Forest()
+    let body = try f.parse(Array(entities.joined().utf8))
+    try c.load(body, in: f)
+}
+
+private func load(_ c: inout Constants, contentsOf path: String) throws {
+    var f = Forest()
+    let body = try f.parse(contentsOf: path)
+    try c.load(body, in: f)
+}
 
 private let a = IsaType.tfree("'a", sort: [])
 private let b = IsaType.tfree("'b", sort: [])
@@ -14,36 +24,36 @@ private func fnT(_ x: IsaType, _ y: IsaType) -> IsaType { .type("fun", [x, y]) }
 
 @Test func aConstantLoadsItsParametersInOrderAndItsScheme() throws {
     var c = Constants()
-    try c.load(file(constEntity("T.k", parameters: ["'b", "'a"], scheme: fn(tfree("'a"), tfree("'b")))))
+    try load(&c, constEntity("T.k", parameters: ["'b", "'a"], scheme: fn(tfree("'a"), tfree("'b"))))
     #expect(c["T.k"] == Constants.Declaration(parameters: ["'b", "'a"], scheme: fnT(a, b)))
     #expect(c["T.absent"] == nil)
 }
 
 @Test func instantiationSubstitutesTypeArgumentsByPosition() throws {
     var c = Constants()
-    try c.load(file(constEntity("T.k", parameters: ["'b", "'a"], scheme: fn(tfree("'a"), tfree("'b")))))
+    try load(&c, constEntity("T.k", parameters: ["'b", "'a"], scheme: fn(tfree("'a"), tfree("'b"))))
     #expect(try c.instantiate("T.k", [iT, oT]) == fnT(oT, iT))
 }
 
 @Test func aGroundConstantInstantiatesWithNoArguments() throws {
     var c = Constants()
-    try c.load(file(constEntity("T.k", parameters: [], scheme: fn(i, o))))
+    try load(&c, constEntity("T.k", parameters: [], scheme: fn(i, o)))
     #expect(try c.instantiate("T.k", []) == fnT(iT, oT))
 }
 
 @Test func constantsFromSeveralFilesShareOneTable() throws {
     var c = Constants()
-    try c.load(file(constEntity("T.k", parameters: [], scheme: i)))
-    try c.load(file(constEntity("U.k", parameters: [], scheme: o)))
+    try load(&c, constEntity("T.k", parameters: [], scheme: i))
+    try load(&c, constEntity("U.k", parameters: [], scheme: o))
     #expect(try c.instantiate("T.k", []) == iT)
     #expect(try c.instantiate("U.k", []) == oT)
 }
 
 @Test func aConstantDeclaredTwiceIsMalformed() throws {
     var c = Constants()
-    try c.load(file(constEntity("T.k", parameters: [], scheme: i)))
+    try load(&c, constEntity("T.k", parameters: [], scheme: i))
     #expect(throws: MalformedExport.duplicateConstant("T.k")) {
-        try c.load(file(constEntity("T.k", parameters: [], scheme: i)))
+        try load(&c, constEntity("T.k", parameters: [], scheme: i))
     }
 }
 
@@ -53,7 +63,7 @@ private func fnT(_ x: IsaType, _ y: IsaType) -> IsaType { .type("fun", [x, y]) }
 
 @Test func aTypeArgumentCountOtherThanTheParameterCountIsMalformed() throws {
     var c = Constants()
-    try c.load(file(constEntity("T.k", parameters: ["'a"], scheme: fn(tfree("'a"), o))))
+    try load(&c, constEntity("T.k", parameters: ["'a"], scheme: fn(tfree("'a"), o)))
     #expect(throws: MalformedExport.typeArgumentCount(constant: "T.k", declared: 1, found: 2)) {
         try c.instantiate("T.k", [iT, iT])
     }
@@ -70,20 +80,20 @@ private func fnT(_ x: IsaType, _ y: IsaType) -> IsaType { .type("fun", [x, y]) }
     for (name, parameters, scheme) in schemes {
         var c = Constants()
         #expect(throws: MalformedExport.schemeVariables(constant: name)) {
-            try c.load(file(constEntity(name, parameters: parameters, scheme: scheme)))
+            try load(&c, constEntity(name, parameters: parameters, scheme: scheme))
         }
     }
 }
 
 @Test func aFileChildThatIsNotAnEntityIsMalformed() {
     var c = Constants()
-    #expect(throws: MalformedExport.notAnEntity(tag: "thm")) { try c.load(file(element("thm", [("name", "x")], []))) }
+    #expect(throws: MalformedExport.notAnEntity(tag: "thm")) { try load(&c, element("thm", [("name", "x")], [])) }
 }
 
 @Test func anEntityWithoutItsBodyIsMalformed() {
     var c = Constants()
     #expect(throws: MalformedExport.bodyLength(expected: 2, found: 0)) {
-        try c.load(file(element("entity", [("name", "T.k")], [])))
+        try load(&c, element("entity", [("name", "T.k")], []))
     }
 }
 
@@ -95,7 +105,7 @@ private func realConstants(_ theories: String...) throws -> Constants? {
             Issue.record("export missing at \(path) — run from the repo root")
             return nil
         }
-        try c.load(YXML.parse(contentsOf: path))
+        try load(&c, contentsOf: path)
     }
     return c
 }
@@ -127,7 +137,7 @@ private func realConstants(_ theories: String...) throws -> Constants? {
     }
     var c = Constants()
     for t in theories where FileManager.default.fileExists(atPath: "\(root)/\(t)/theory/consts") {
-        try c.load(YXML.parse(contentsOf: "\(root)/\(t)/theory/consts"))
+        try load(&c, contentsOf: "\(root)/\(t)/theory/consts")
     }
     #expect(c["Pure.eq"] != nil)
     #expect(c["IFOL.eq"] != nil)

@@ -1,3 +1,6 @@
 .build/
 *.o
 .claude/worktrees/
+data/zf_export/
+data/.isabelle/
+data/.zf_export.*

@@ -49,15 +49,27 @@ base; from IFOL only what FOL cannot express is imported; from Pure only what IF
 cannot. A construct the downstream surface covers is READ AS the downstream
 construct — Pure's `⟹` is `folImplies`, never a kind of its own. ZF's own vocabulary —
 constants applied to their arguments — is the generic term language (§4.3). The
-reader recognises exactly that shape and **refuses anything else by name** — an
-η-short binder argument (`All(P)`), a partially applied constant, a β-redex. It
-never normalises.
+reader recognises exactly that shape and **refuses anything else by name** — a β-redex,
+a bare λ. It
+never normalises — with ONE exception, below.
+
+**η: every function-typed argument is read η-LONG.** Isabelle stores a function argument as the
+source wrote it: `Ball(A, P)`, `Part(sum(A,B), Inl)`, `congruent(r, split(f))` (a partial
+application). Measured (facts run, not kept): 462 of 3,616 named ZF theorems pass a
+function-typed ZF argument that is not a λ, 58 a partial application; the logical binders are
+all λ. The reader wraps such an argument as `λx⃗. t(x⃗)`, bound types from its function type:
+`P ↦ λx. P(x)`, `Inl ↦ λx. Inl(x)`, `split(f) ↦ λp. split(f, p)`. It is η, a Pure primitive
+rule, so the meaning is Isabelle's. ⚠ **IT IS REQUIRED, NOT COSMETIC:** Isabelle compares
+terms up to η and the table by ID, so without ONE canonical η-form `Collect(A, P)` and
+`Collect(A, λx. P(x))` are different nodes, and a step matching premises by ID fails where
+Isabelle's did not. η-long is the form in which `intern`'s "a function-typed argument is an
+`isaAbs`" and S4/S5 see one shape.
 
 **Measured, statements of the 3,616 named ZF theorems** (`isa-deps --logic --named`,
 `~/repos/isabelle-study/bin/isa-deps`): every logical constant is fully applied and
 every binder argument is a `λ`, without exception. Bare and partial applications —
 225 bare `Trueprop`, partial `eq`/`iff` — occur only inside PROOF terms, where the
-proof layer meets them; across all 16,798 files proof terms also hold 8,989
+proof layer meets them; across all 16,798 files of the pre-2026-09-25 export, which merged two builds, proof terms also hold 8,989
 `Pure.dummy_pattern`, none in the named ZF theorems.
 
 **Normalisation is added per shape, and only on evidence.** If a non-surface shape
@@ -76,6 +88,27 @@ regenerates: 3 Pure statement constants, 13 IFOL, **0 FOL**, 4 sorts, 249 ZF
 constants; and on the proof side a frontier of 7 Pure axioms + 6 Pure derived +
 132 IFOL/FOL + 7 ZF axioms + 207 object definitions.
 
+### Reading scales with the DAG, never the tree
+
+Isabelle holds a proof as a DAG and its exporter writes the tree: every shared sub-proof is
+spelled out once per path. Measured over one build (a throwaway structural-hash count):
+
+| | tree nodes | distinct subtrees |
+|---|---|---|
+| the box inside `List.nth_upt`'s proof — ONE file, 3.1 GB | 312,298,646 | 11,604 |
+| the other 15,945 proof files | 29.0 M | ≤ 1.94 M |
+
+So **reading is one pass that interns as it parses.** `YXML` parses into a hash-consed forest
+— equal subtrees are one `Ref`, across files too — so memory follows the DAG and time the
+bytes. Decoding a `Ref` into table nodes is memoised on `(Ref, context)`: the same XML subtree
+under different binders is a different term (`ZBound 0` takes its binder's type). ⚠ A reader
+that builds the tree, or decodes without the memo, is exponential on real input.
+
+**Isabelle's exporter stays the source of truth.** An exporter of our own that kept the
+sharing would be a second encoder to trust; reading the tree it writes in one hash-consing
+pass costs nothing extra. Its one-time build (`scripts/03-export-zf.sh`, ~8 min under a 64 GB
+cap) is revisited only for a corpus larger than ZF.
+
 ### Three decisions the reader is built on
 
 | | decided |
@@ -92,7 +125,7 @@ because the enum is gone:
 | refusal | why |
 |---|---|
 | a type variable | `IRType` has no case for `'a`. **Measured: 12 of 3,616 named ZF theorems (0.3%)**, half of them `split`/`qsplit`. IFOL/FOL/Pure are 37-48% polymorphic, and that layer is cited, never translated |
-| a schematic `Var` (tag 2) | zero occurrences in 16,798 statements — a bet about the export's *preprocessing*, not about Isabelle. If one arrives, fail loudly |
+| a schematic `Var` (tag 2) | zero occurrences in the 16,798 statements of the pre-2026-09-25 export, which merged two builds — a bet about the export's *preprocessing*, not about Isabelle. If one arrives, fail loudly |
 | `Pure.conjunction` | **0 occurrences** in ZF statements, so refusing costs nothing |
 | `Pure.term`, `Pure.sort_constraint` | Pure-internal, 0 in ZF statements |
 | `Pure.prop` | 0 in ZF statements — erased, not refused |
@@ -309,8 +342,10 @@ of `n` at depth `d` ↦ `d + (n − 1 − i)`, the first outermost. That is Isab
 (`forall_intr_variables_term`, `variables_of` in `proofterm.ML`), which fixes the order in
 which every citation's `ZAppt`s instantiate. The `frees` header lists the same frees first
 (`standard_vars`, `zterm.ML`) and then any that occur ONLY in the proof — ⚠ closing over those
-too adds a `∀` no citation fills. The reader checks the proposition's frees are a prefix of
-the header and refuses by name otherwise.
+too adds a `∀` no citation fills. The header EQUALS the proposition's frees — measured over all 16,798
+files of the pre-2026-09-25 export, which merged two builds, and forced by the encoder: `standard_hidden_terms` (`zterm.ML`) turns every proof-only variable into
+`dummy_pattern` before the header is built. The reader checks equality; a mismatch is a
+malformed export, not a refusal.
 
 **One traversal, three leaf rules.** `mapVars(node, depth, leaf)` descends, counts
 binders into `depth`, asks `leaf` at every variable, and rebuilds through the intern

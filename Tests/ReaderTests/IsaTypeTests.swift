@@ -3,53 +3,53 @@ import Testing
 @testable import Reader
 
 @Test func aTypeConstructorDecodesWithItsArguments() throws {
-    let T = try IsaType(body(fn(i, o)))
+    let T = try decodeType(fn(i, o))
     #expect(T == .type("fun", [.type("ZF_Base.i", []), .type("IFOL.o", [])]))
 }
 
 @Test func aFreeTypeVariableKeepsItsSort() throws {
-    #expect(try IsaType(body(tfree("'a", "HOL.type", "Foo.bar"))) == .tfree("'a", sort: ["HOL.type", "Foo.bar"]))
+    #expect(try decodeType(tfree("'a", "HOL.type", "Foo.bar")) == .tfree("'a", sort: ["HOL.type", "Foo.bar"]))
 }
 
 @Test func aSchematicTypeVariableWithOneAtomHasIndexZero() throws {
-    #expect(try IsaType(body(tvar(["'a"]))) == .tvar("'a", index: 0, sort: []))
+    #expect(try decodeType(tvar(["'a"])) == .tvar("'a", index: 0, sort: []))
 }
 
 @Test func aSchematicTypeVariableKeepsItsIndex() throws {
-    #expect(try IsaType(body(tvar(["'a", "3"], "Foo.bar"))) == .tvar("'a", index: 3, sort: ["Foo.bar"]))
+    #expect(try decodeType(tvar(["'a", "3"], "Foo.bar")) == .tvar("'a", index: 3, sort: ["Foo.bar"]))
 }
 
 @Test func anUnknownVariantTagIsMalformed() {
-    #expect(throws: MalformedExport.unknownVariant(tag: "3")) { try IsaType(body(tagged(3, ["x"], []))) }
+    #expect(throws: MalformedExport.unknownVariant(tag: "3")) { try decodeType(tagged(3, ["x"], [])) }
 }
 
 @Test func aTypeBodyOfTwoTreesIsMalformed() {
-    #expect(throws: MalformedExport.bodyLength(expected: 1, found: 2)) { try IsaType(body(i + o)) }
+    #expect(throws: MalformedExport.bodyLength(expected: 1, found: 2)) { try decodeType(i + o) }
 }
 
 @Test func anArgumentOutsideANodeIsMalformed() {
-    #expect(throws: MalformedExport.notANode(tag: "0")) { try IsaType(body(tagged(0, ["fun"], [i, o]))) }
+    #expect(throws: MalformedExport.notANode(tag: "0")) { try decodeType(tagged(0, ["fun"], [i, o])) }
 }
 
 @Test func aSortClassThatIsNotTextIsMalformed() {
-    #expect(throws: MalformedExport.notAString) { try IsaType(body(tfree("'a", i))) }
+    #expect(throws: MalformedExport.notAString) { try decodeType(tfree("'a", i)) }
 }
 
 @Test func attributesThatAreNotAVectorAreMalformed() {
     let skipped = element("0", [("1", "ZF_Base.i")], [])
-    #expect(throws: MalformedExport.vector(names: ["1"])) { try IsaType(body(skipped)) }
+    #expect(throws: MalformedExport.vector(names: ["1"])) { try decodeType(skipped) }
 }
 
 @Test func aConstructorWithTwoNamesIsMalformed() {
-    #expect(throws: MalformedExport.atoms(["ZF_Base.i", "x"])) { try IsaType(body(tagged(0, ["ZF_Base.i", "x"], []))) }
+    #expect(throws: MalformedExport.atoms(["ZF_Base.i", "x"])) { try decodeType(tagged(0, ["ZF_Base.i", "x"], [])) }
 }
 
 @Test func aSchematicIndexThatIsNotAnIntegerIsMalformed() {
-    #expect(throws: MalformedExport.notAnInt("x")) { try IsaType(body(tvar(["'a", "x"]))) }
+    #expect(throws: MalformedExport.notAnInt("x")) { try decodeType(tvar(["'a", "x"])) }
 }
 
 @Test func iOAndFunConvertToIRType() throws {
-    #expect(try IsaType(body(fn(i, fn(i, o)))).irType() == .fn(.i, .fn(.i, .o)))
+    #expect(try decodeType(fn(i, fn(i, o))).irType() == .fn(.i, .fn(.i, .o)))
 }
 
 @Test func aFreeTypeVariableIsRefusedByName() {

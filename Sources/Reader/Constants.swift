@@ -10,13 +10,16 @@ struct Constants {
 
     subscript(_ name: String) -> Declaration? { declarations[name] }
 
-    mutating func load(_ file: YXML.Node) throws {
-        for entity in file.children {
-            guard entity.tag == "entity" else { throw MalformedExport.notAnEntity(tag: entity.tag) }
+    mutating func load(_ body: [Ref], in forest: Forest) throws {
+        let d = Decode(forest: forest)
+        for r in body {
+            guard case let .element(entity) = forest[r], entity.tag == "entity" else {
+                throw MalformedExport.notAnEntity(tag: d.tag(r))
+            }
             let name = try entity.attribute("name")
-            let (_, rest) = try Decode.pair({ $0 }, { $0 }, entity.children)
-            let (parameters, typed) = try Decode.pair({ try Decode.list(Decode.string, $0) }, { $0 }, rest)
-            let (scheme, _) = try Decode.pair(IsaType.init, { $0 }, typed)
+            let (_, rest) = try d.pair({ $0 }, { $0 }, entity.children)
+            let (parameters, typed) = try d.pair({ try d.list(d.string, $0) }, { $0 }, rest)
+            let (scheme, _) = try d.pair(d.type, { $0 }, typed)
             guard parameters.count == Set(parameters).count,
                   scheme.variables == Set(parameters.map { IsaType.tfree($0, sort: []) }) else {
                 throw MalformedExport.schemeVariables(constant: name)
