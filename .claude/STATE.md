@@ -11,8 +11,8 @@
 | `swift --version \| head -1` | `Swift version 6.4 (swift-6.4-RELEASE)` |
 | `MEM=16G scripts/capped.sh swift test 2>&1 \| grep -cE '^✔ Test [a-zA-Z]+\(\) passed'` | **`63`** |
 | `ls Sources` · `ls docs` | `FolDialect IR isa2fol YXML` · `FOUNDATION.md phase2_probes SOURCE_SURFACE.md` |
-| `find Sources Tests -name '*.swift' \| wc -l` | `19` (1837 lines) |
-| comment density of `Sources` (CLAUDE.md rule 9's script) | `4/783 = 0.51%` |
+| `find Sources Tests -name '*.swift' \| wc -l` | `19` (1835 lines) |
+| comment density of `Sources` (CLAUDE.md rule 9's script) | `4/781 = 0.51%` |
 | `grep -rc 'default:' Sources \| grep -v ':0'` | nothing |
 | `scripts/source-surface.py \| head -1` | `population: 3616 named ZF theorems, 37 ZF.* theories` |
 | `readlink ~/repos/fol-zfc-comb/bazel-bin \| sed 's\|.*bazel-out/\|\|'` | `k8-opt/bin` — and `proof_checker` is executable there |
@@ -82,6 +82,7 @@ deleted work — §6. fol-zfc-comb sits on its own `comb-verifier` with an uncom
 | In the named ZF statements every logical constant is fully applied and every binder argument is a λ | `isa-deps --logic --named` (`~/repos/isabelle-study/bin/isa-deps`, untracked there) |
 | No concrete pass and no reader exist | `ls Sources` |
 | YXML refuses a missing, malformed or duplicate attribute by name; an optional one is read as `attributes[name]` | `aMissingAttributeIsAnErrorNotEmpty`, `anAttributeFieldWithoutEqualsIsAnError`, `aDuplicateAttributeIsAnError` |
+| The reader's three decisions — own type with `'a`/`prop`; frees left open for a closing pass; per-statement outcomes, only reader refusals caught — are decided; `IRType` has no `prop` | `DESIGN.md` §2 "Three decisions"; `Sources/IR/IRType.swift` |
 | The census has not started: no `census/isa-shapes` branch | `git branch -a \| grep census` |
 
 ## 5. Beliefs — NOT verified
@@ -98,12 +99,7 @@ deleted work — §6. fol-zfc-comb sits on its own `comb-verifier` with an uncom
    then a real-checker test can emit an Isabelle name.
 3. **`UNPROVED` as `extern`.** Separate compilation needs stubs; R2 says no debt — ban at the
    final link, or per unit?
-
-4. **Before the reader:** (a) the reader's own decoded type with `'a`/`prop`, `IRType` losing
-   `.prop` — or keep `.prop` and have `intern` refuse it; (b) the reader leaves frees as
-   `isaFree` for a closing pass — or closes them itself; (c) per-statement outcome
-   (`translated`/`refused(reason)`) keyed on `(theory, serial)` in `Unit`.
-5. **Proof lowering, before any proof pass:** a `Rule` sees only (node, depth), but lowering
+4. **Proof lowering, before any proof pass:** a `Rule` sees only (node, depth), but lowering
    `isaAllElim` needs WHICH hypothesis proves `set(t)` — a context parameter, or a custom
    `Pass`; and lowering `isaAllIntro` inserts a hypothesis binder, which needs a
    hypothesis-namespace `shift` the index engine does not have (`Index.swift:34` filters to
@@ -112,9 +108,10 @@ deleted work — §6. fol-zfc-comb sits on its own `comb-verifier` with an uncom
 
 ## 7. Next action
 
-**Discuss the statement reader's shape, then build it** — YXML → isa nodes in a unit's
-table, recognising the ZF surface (`DESIGN.md` §2, §4.3) and refusing everything else by
-name. Statements only: census question 6 (term indices vs proof binders) bears on PROOF
-terms, so proofs wait for the census (`.claude/tasks/ISA_SHAPE_CENSUS.md`, not started).
+**Build the statement reader** on `DESIGN.md` §2's three decisions — YXML → isa nodes in a
+unit's table, recognising the ZF surface (§2, §4.3) and refusing everything else by name.
+FIRST test the one unverified premise: the frees closing order equals the order citing
+proofs' `ZAppt`s instantiate in. Encoder ground truth: `zterm.ML` in `~/repos/isabelle-study`.
+Statements only — proofs wait for census question 6 (`.claude/tasks/ISA_SHAPE_CENSUS.md`).
 **Done when** every statement of the 16,798 export files reads into the table or refuses
 with a named reason, and a type variable anywhere refuses the whole statement.

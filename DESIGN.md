@@ -76,6 +76,14 @@ regenerates: 3 Pure statement constants, 13 IFOL, **0 FOL**, 4 sorts, 249 ZF
 constants; and on the proof side a frontier of 7 Pure axioms + 6 Pure derived +
 132 IFOL/FOL + 7 ZF axioms + 207 object definitions.
 
+### Three decisions the reader is built on
+
+| | decided |
+|---|---|
+| **types** | The reader decodes `ztyp` into ITS OWN type, which has `'a` and `prop`. A `ZConst` carries only its type ARGUMENTS (`ZConst1 (a, b) => ([a], list ztyp [b])`, `zterm.ML`'s encoder), so `isaConst`'s instantiated type is the declared scheme from `theory/consts` (`IFOL.eq :: ['a, 'a] ⇒ o`) with those arguments substituted. Converting to `IRType` refuses a leftover type variable by name. `IRType` has no `prop`: every `prop` position is recognised and erased, so a `prop` that reaches conversion is an unrecognised shape — a named refusal |
+| **frees** | Left as `isaFree`, typed from the `frees` header; a closing pass abstracts them (§4.4). A statement and its proof share the same interned free nodes, so ONE closing applies to both. ⚠ **The closing order must equal the order in which every citing proof's `ZAppt`s instantiate the theorem — UNVERIFIED.** Test it against real citations before anything relies on it |
+| **outcomes** | Per statement: translated `(root)` or refused `(reason)`, keyed on `(theory, serial)`, in source order. ONLY the reader's own refusal enum is caught and recorded; a `TableError` or `YXMLError` is a bug or a corrupt file and stops the run — catching it would count our bugs as refusals |
+
 ### What the reader owes a NAMED refusal, never an absorbed case
 
 These were `IsaDialect.Refusal`'s cases and they do not stop being obligations
@@ -255,7 +263,7 @@ The generic term language — ZF's own vocabulary, not logic at any level:
 | `isaVarApp(head, args)` | a variable applied — a class variable `P(x)` | | the head is an `isaFree` or `isaBound`, never merged into the constant namespace (rule 3) |
 | `isaAbs(T, body)` | `ZAbs`, ONLY as a function-typed argument: `Collect(A, λx. …)` | | **`x`** |
 
-`IRType.prop` never appears in a node. A type variable, a schematic `Var`,
+`IRType` has no `prop` case (§2). A type variable, a schematic `Var`,
 `Pure.conjunction`/`term`/`type`/`sort_constraint` and `OFCLASS` are named refusals (§2).
 
 **The fol side mirrors fol-zfc** (`src/core/formula.h`): a term is a bound variable
@@ -606,6 +614,5 @@ came from, so PHASE 2 recovers that by **re-running this lowering** over the
 
 | | |
 |---|---|
-| what monomorphise instantiates at | use-site type argument, or always `'a := i`? The second is §11.0's proposal and resolves `eq`/`All`/`Ex`/`split` in one move, but makes a generic IFOL theorem mean only its `i`-instance |
 | whether the ZF primitive surface is a third dialect or a stage inside IsaDialect | parked where you left it |
 | what `base/` becomes | it is `.fol.def` text today; does FolDialect *read* it, or is it opaque input to the checker? |
