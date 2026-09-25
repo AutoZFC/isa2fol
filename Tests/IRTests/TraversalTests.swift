@@ -91,8 +91,8 @@ private func memOf(_ a: NodeID, _ b: NodeID, _ t: inout Table) throws -> NodeID 
     let a = try t.intern(.isaFree("a", i))
     let s1 = try memOf(a, a, &t)
     let s2 = try t.intern(.folNot(try memOf(a, a, &t)))
-    var unit = Unit(table: t, statements: [Statement(name: "s1", root: s1),
-                                           Statement(name: "s2", root: s2)])
+    var unit = Unit(table: t, statements: [Statement(serial: 1, name: "s1", root: s1),
+                                           Statement(serial: 2, name: nil, root: s2)])
     let pipeline = Pipeline(passes: [RulePass(name: "a-to-b", rule: Rename(from: "a", to: "b")),
                                      RulePass(name: "b-to-c", rule: Rename(from: "b", to: "c"))])
     try pipeline.run(&unit)

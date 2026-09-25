@@ -81,8 +81,8 @@ constants; and on the proof side a frontier of 7 Pure axioms + 6 Pure derived +
 | | decided |
 |---|---|
 | **types** | The reader decodes `ztyp` into ITS OWN type, which has `'a` and `prop`. A `ZConst` carries only its type ARGUMENTS (`ZConst1 (a, b) => ([a], list ztyp [b])`, `zterm.ML`'s encoder), so `isaConst`'s instantiated type is the declared scheme from `theory/consts` (`IFOL.eq :: ['a, 'a] ⇒ o`) with those arguments substituted. Converting to `IRType` refuses a leftover type variable by name. `IRType` has no `prop`: every `prop` position is recognised and erased, so a `prop` that reaches conversion is an unrecognised shape — a named refusal |
-| **frees** | Left as `isaFree`, typed from the `frees` header; a closing pass abstracts them (§4.4). A statement and its proof share the same interned free nodes, so ONE closing applies to both. ⚠ **The closing order must equal the order in which every citing proof's `ZAppt`s instantiate the theorem — UNVERIFIED.** Test it against real citations before anything relies on it |
-| **outcomes** | Per statement: translated `(root)` or refused `(reason)`, keyed on `(theory, serial)`, in source order. ONLY the reader's own refusal enum is caught and recorded; a `TableError` or `YXMLError` is a bug or a corrupt file and stops the run — catching it would count our bugs as refusals |
+| **frees** | Left as `isaFree`, typed from the `frees` header; a closing pass abstracts them (§4.4). A statement and its proof share the same interned free nodes, so ONE closing applies to both. The order is Isabelle's closure order, read from `proofterm.ML` (§4.4); the data check is a citation instantiated by its `ZAppt`s concluding what the citing proof uses, by ID — once proofs are read |
+| **outcomes** | The READER owns them, never IR: in source order, `(serial, name?, translated(root) \| refused(reason))`. A refused statement never enters IR; IR's `Statement` is keyed `(serial, name?)` — unnamed proof boxes have no name — within its unit's theory. ONLY the reader's own refusal enum is caught and recorded; a `TableError` or `YXMLError` is a bug or a corrupt file and stops the run — catching it would count our bugs as refusals |
 
 ### What the reader owes a NAMED refusal, never an absorbed case
 
@@ -304,8 +304,13 @@ The guard needs none: `∀. body` → `∀. (set(0) → body)` leaves the body a
   close x:      mem(x, A) → ∀. mem(0, x)     →  ∀. ( mem(0, A) → ∀. mem(0, 1) )     ONE node x: 0 here, 1 there
 ```
 
-Frees close in one pass, in the `frees` header's order: free `i` of `n` at depth `d`
-↦ `d + (n − 1 − i)`, the first outermost.
+Frees close in one pass, over the PROPOSITION's frees in first-occurrence order: free `i`
+of `n` at depth `d` ↦ `d + (n − 1 − i)`, the first outermost. That is Isabelle's own closure
+(`forall_intr_variables_term`, `variables_of` in `proofterm.ML`), which fixes the order in
+which every citation's `ZAppt`s instantiate. The `frees` header lists the same frees first
+(`standard_vars`, `zterm.ML`) and then any that occur ONLY in the proof — ⚠ closing over those
+too adds a `∀` no citation fills. The reader checks the proposition's frees are a prefix of
+the header and refuses by name otherwise.
 
 **One traversal, three leaf rules.** `mapVars(node, depth, leaf)` descends, counts
 binders into `depth`, asks `leaf` at every variable, and rebuilds through the intern

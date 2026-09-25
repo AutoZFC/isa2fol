@@ -23,10 +23,12 @@ public struct RulePass: Pass {
 }
 
 public struct Statement: Sendable {
-    public let name: String
+    public let serial: Int
+    public let name: String?
     public var root: NodeID
 
-    public init(name: String, root: NodeID) {
+    public init(serial: Int, name: String?, root: NodeID) {
+        self.serial = serial
         self.name = name
         self.root = root
     }
