@@ -12,8 +12,30 @@ private func bytes(_ s: String) -> [UInt8] { Array(s.utf8) }
     let e = n.elements
     #expect(e.count == 1)
     #expect(e[0].tag == "0")
-    #expect(e[0].attribute("0") == "ZF_Base.mem")
-    #expect(e[0].attribute("absent") == "")
+    #expect(try e[0].attribute("0") == "ZF_Base.mem")
+}
+
+@Test func aMissingAttributeIsAnErrorNotEmpty() throws {
+    let e = try parse(bytes("\(X)\(Y)0\(Y)0=ZF_Base.mem\(X)\(X)\(Y)\(X)")).elements[0]
+    #expect(throws: YXMLError.missingAttribute(tag: "0", name: "absent")) { try e.attribute("absent") }
+    #expect(e.attributes["absent"] == nil)
+}
+
+@Test func anEmptyAttributeValueIsPresent() throws {
+    let e = try parse(bytes("\(X)\(Y)0\(Y)k=\(X)\(X)\(Y)\(X)")).elements[0]
+    #expect(try e.attribute("k") == "")
+}
+
+@Test func anAttributeFieldWithoutEqualsIsAnError() {
+    #expect(throws: YXMLError.malformedAttribute(tag: "0", field: "junk")) {
+        _ = try parse(bytes("\(X)\(Y)0\(Y)junk\(X)\(X)\(Y)\(X)"))
+    }
+}
+
+@Test func aDuplicateAttributeIsAnError() {
+    #expect(throws: YXMLError.duplicateAttribute(tag: "0", name: "k")) {
+        _ = try parse(bytes("\(X)\(Y)0\(Y)k=a\(Y)k=b\(X)\(X)\(Y)\(X)"))
+    }
 }
 
 @Test func textBetweenMarkupSurvives() throws {
@@ -37,9 +59,9 @@ private func bytes(_ s: String) -> [UInt8] { Array(s.utf8) }
     let n = try parse(contentsOf: root)
     let entities = n.children.filter { $0.tag == "entity" }
     #expect(entities.count >= 11, "Pure declares 11 axioms")
-    let names = Set(entities.map { $0.attribute("name") })
+    let names = Set(try entities.map { try $0.attribute("name") })
     #expect(names.contains("Pure.reflexive"))
     #expect(names.contains("Pure.conjunction_def"))
-    #expect(entities.first { $0.attribute("name") == "Pure.reflexive" }?
-        .attribute("file") == "theory.ML")
+    let reflexive = entities.first { $0.attributes["name"] == "Pure.reflexive" }
+    #expect(try reflexive?.attribute("file") == "theory.ML")
 }

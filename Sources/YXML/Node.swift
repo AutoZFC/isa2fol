@@ -14,8 +14,9 @@ public struct Node: Sendable {
 
     public var isText: Bool { tag.isEmpty }
 
-    public func attribute(_ name: String) -> String {
-        attributes[name] ?? ""
+    public func attribute(_ name: String) throws -> String {
+        guard let value = attributes[name] else { throw YXMLError.missingAttribute(tag: tag, name: name) }
+        return value
     }
 
     public var elements: [Node] {
