@@ -19,4 +19,7 @@ import IR
     case unexpectedAbstraction(expected: IRType)
     case typeMismatch(expected: IRType, found: IRType?)
     case applicationArity(String, expected: Int, found: Int)
+    case freesHeader(header: [String], occurring: [String])
+    case notASerial(String)
+    case duplicateSerial(Int)
 }

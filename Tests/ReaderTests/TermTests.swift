@@ -160,6 +160,17 @@ private let pq = [("P", o), ("Q", o)]
     #expect(short == long)
 }
 
+@Test func anEtaVariableOfFunctionTypeIsItselfEtaLong() throws {
+    var r = try Reading()
+    let short = try r.proposition(trueprop(app(const("IFOL.eq", i), app(const("T.k"), const("T.h")), free("a"))),
+                                  frees: [("a", i)])
+    let long = try r.proposition(trueprop(app(const("IFOL.eq", i),
+                                              app(const("T.k"), lam("P", fn(i, o), app(const("T.h"), lam("x", i, app(bound(1), bound(0)))))),
+                                              free("a"))),
+                                 frees: [("a", i)])
+    #expect(short == long)
+}
+
 @Test func aSchematicVariableIsRefused() throws {
     var r = try Reading()
     #expect(throws: ReaderRefusal.schematicVariable("P")) { try r.proposition(trueprop(schematic("P"))) }

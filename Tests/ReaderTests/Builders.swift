@@ -74,6 +74,8 @@ private let declarations: [(String, [String], String)] = [
     ("EquivClass.congruent", [], fn(i, fn(fn(i, i), o))),
     ("T.f", [], fn(i, fn(i, i))),
     ("T.g", [], fn(fn(i, fn(i, i)), i)),
+    ("T.h", [], fn(fn(i, o), o)),
+    ("T.k", [], fn(fn(fn(i, o), o), i)),
 ]
 
 func testConstants() throws -> Constants {
@@ -82,4 +84,10 @@ func testConstants() throws -> Constants {
     var c = Constants()
     try c.load(body, in: f)
     return c
+}
+
+func proofFile(tfrees: [String] = [], frees: [(String, String)], prop: String) -> String {
+    let tf = tfrees.map { node(node($0), node()) }.joined()
+    let fr = frees.map { node(node($0.0), node($0.1)) }.joined()
+    return node(tf) + node(node(fr) + node(node(prop) + node(tagged(0, [], []))))
 }

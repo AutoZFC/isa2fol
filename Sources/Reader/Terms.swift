@@ -112,45 +112,40 @@ struct Terms {
     }
 
     private func argument(_ a: Argument, _ U: IRType, _ s: Scope, _ t: inout Table) throws -> NodeID {
-        try applied(a, [], U, s, &t)
-    }
-
-    private func applied(_ a: Argument, _ extra: [NodeID], _ U: IRType, _ s: Scope, _ t: inout Table) throws -> NodeID {
-        if case let .fn(T, rest) = U {
-            return try t.intern(.isaAbs(T, body: try abstraction(a, extra, T, rest, s, &t)))
-        }
         switch a {
-        case let .source(body):
-            return try spine(body, extra, U, s, &t)
-        case let .decoded(n):
-            return extra.isEmpty ? n : try t.intern(.isaVarApp(head: n, args: extra))
+        case let .source(body): return try applied(body, [], U, s, &t)
+        case let .decoded(n): return n
         }
     }
 
-    private func abstraction(_ a: Argument, _ extra: [NodeID], _ T: IRType, _ rest: IRType,
+    private func applied(_ body: Body, _ extra: [NodeID], _ U: IRType, _ s: Scope, _ t: inout Table) throws -> NodeID {
+        guard case let .fn(T, rest) = U else { return try spine(body, extra, U, s, &t) }
+        return try t.intern(.isaAbs(T, body: try abstraction(body, extra, T, rest, s, &t)))
+    }
+
+    private func abstraction(_ body: Body, _ extra: [NodeID], _ T: IRType, _ rest: IRType,
                              _ s: Scope, _ t: inout Table) throws -> NodeID {
-        if extra.isEmpty, case let .source(body) = a, case let (domain, inner)? = try lambda(body) {
+        if extra.isEmpty, case let (domain, inner)? = try lambda(body) {
             let D = try domain.irType()
             guard D == T else { throw MalformedExport.typeMismatch(expected: T, found: D) }
             return try argument(.source(inner), rest, s.source(T), &t)
         }
-        let deeper = s.eta()
-        let y = try argument(.decoded(try t.intern(.isaBound(0, T))), T, deeper, &t)
+        let y = try etaLong(try t.intern(.isaBound(0, T)), [], T, &t)
         let shifted = try extra.map { try shift($0, by: 1, in: &t) }
-        return try applied(try self.shifted(a, &t), shifted + [y], rest, deeper, &t)
+        return try applied(body, shifted + [y], rest, s.eta(), &t)
+    }
+
+    private func etaLong(_ v: NodeID, _ args: [NodeID], _ U: IRType, _ t: inout Table) throws -> NodeID {
+        guard case let .fn(T, rest) = U else { return args.isEmpty ? v : try t.intern(.isaVarApp(head: v, args: args)) }
+        let y = try etaLong(try t.intern(.isaBound(0, T)), [], T, &t)
+        let shifted = try args.map { try shift($0, by: 1, in: &t) }
+        return try t.intern(.isaAbs(T, body: try etaLong(try shift(v, by: 1, in: &t), shifted + [y], rest, &t)))
     }
 
     private func lambda(_ body: Body) throws -> (IsaType, Body)? {
         let (head, arguments) = try decode.spine(body)
         guard arguments.isEmpty, case let .abstraction(domain, inner) = head else { return nil }
         return (domain, inner)
-    }
-
-    private func shifted(_ a: Argument, _ t: inout Table) throws -> Argument {
-        switch a {
-        case .source: return a
-        case let .decoded(n): return .decoded(try shift(n, by: 1, in: &t))
-        }
     }
 
     private func spine(_ body: Body, _ extra: [NodeID], _ U: IRType, _ s: Scope, _ t: inout Table) throws -> NodeID {
@@ -246,7 +241,15 @@ struct Terms {
 
     private func binder(_ name: String, _ T: IRType, _ arguments: [Argument], _ s: Scope, _ t: inout Table) throws -> NodeID {
         guard arguments.count == 1 else { throw MalformedExport.applicationArity(name, expected: 1, found: arguments.count) }
-        return try abstraction(arguments[0], [], T, .o, s, &t)
+        switch arguments[0] {
+        case let .source(body):
+            return try abstraction(body, [], T, .o, s, &t)
+        case let .decoded(n):
+            guard case let .isaAbs(D, body) = t[n], D == T else {
+                throw MalformedExport.typeMismatch(expected: .fn(T, .o), found: t.type(of: n))
+            }
+            return body
+        }
     }
 
     private func typeArgument(_ name: String, _ types: [IsaType]) throws -> IsaType {

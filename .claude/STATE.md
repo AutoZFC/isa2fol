@@ -9,10 +9,10 @@
 | command (from the repo root) | expect |
 |---|---|
 | `swift --version \| head -1` | `Swift version 6.4 (swift-6.4-RELEASE)` |
-| `MEM=16G scripts/capped.sh swift test 2>&1 \| grep -cE '^✔ Test [a-zA-Z]+\(\) passed'` | **`121`** |
+| `MEM=16G scripts/capped.sh swift test 2>&1 \| grep -cE '^✔ Test [a-zA-Z]+\(\) passed'` | **`130`** |
 | `ls Sources` · `ls docs` | `FolDialect IR Reader isa2fol YXML` · `FOUNDATION.md phase2_probes SOURCE_SURFACE.md` |
-| `find Sources Tests -name '*.swift' \| wc -l` | `30` (3042 lines) |
-| comment density of `Sources` (CLAUDE.md rule 9's script) | `4/1333 = 0.30%` |
+| `find Sources Tests -name '*.swift' \| wc -l` | `32` (3288 lines) |
+| comment density of `Sources` (CLAUDE.md rule 9's script) | `4/1463 = 0.27%` |
 | `grep -rc 'default:' Sources \| grep -v ':0'` | nothing |
 | `scripts/source-surface.py \| head -1` | `population: 3616 named ZF theorems, 37 ZF.* theories` |
 | `readlink ~/repos/fol-zfc-comb/bazel-bin \| sed 's\|.*bazel-out/\|\|'` | `k8-opt/bin` — and `proof_checker` is executable there |

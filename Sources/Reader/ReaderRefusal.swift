@@ -7,4 +7,5 @@
     case pureInternal(String)
     case betaRedex
     case quantifierOverFunction
+    case nameSegment(String)
 }
