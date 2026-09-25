@@ -9,10 +9,12 @@ let package = Package(
         .target(name: "YXML"),
         .target(name: "IR"),
         .target(name: "FolDialect", dependencies: ["IR"]),
+        .target(name: "Reader", dependencies: ["YXML", "IR"]),
         .executableTarget(name: "isa2fol"),
         .testTarget(name: "YXMLTests", dependencies: ["YXML"]),
         .testTarget(name: "FolDialectTests", dependencies: ["FolDialect", "IR"]),
         .testTarget(name: "IRTests", dependencies: ["IR"]),
+        .testTarget(name: "ReaderTests", dependencies: ["Reader", "YXML", "IR"]),
     ],
     swiftLanguageModes: [.v5]
 )
