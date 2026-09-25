@@ -28,7 +28,13 @@ guard arguments.count == 2 || (arguments.count == 4 && arguments[2] == "--show")
 }
 let show = arguments.count == 4 ? arguments[3] : nil
 
-var all: [String: Int] = [:], named: [String: Int] = [:]
+func session(_ theory: String) -> String? {
+    if theory.hasPrefix("ZF-") { return String(theory.prefix { $0 != "." }) }
+    if theory == "ZF" || theory == "ZFC" || theory.hasPrefix("ZF.") { return "ZF" }
+    return nil
+}
+
+var all: [String: Int] = [:], named: [String: [String: Int]] = [:]
 do {
     var export = try Export(root: arguments[1])
     for theory in export.theories {
@@ -42,14 +48,18 @@ do {
                 if kind(r) == show { print("\(theory)/proofs/\(read.serial)\t\(read.name ?? "-")\t\(r)") }
             }
             all[key, default: 0] += 1
-            if read.name != nil, theory == "ZF" || theory.hasPrefix("ZF.") { named[key, default: 0] += 1 }
+            if read.name != nil, let session = session(theory) { named[session, default: [:]][key, default: 0] += 1 }
         }
     }
 } catch let failure as ReadFailure {
     fail("malformed export at \(failure.file): \(failure.error)", 1)
 }
 
-for (title, counts) in [("named ZF theorems", named), ("all proof files", all)] {
+func report(_ title: String, _ counts: [String: Int]) {
     print("\(title): \(counts.values.reduce(0, +))")
     for key in counts.keys.sorted() { print("  \(key): \(counts[key]!)") }
 }
+
+report("named theorems, all ZF sessions", named.values.reduce(into: [:]) { $0.merge($1, uniquingKeysWith: +) })
+for s in named.keys.sorted() { report("  \(s)", named[s]!) }
+report("all proof files", all)

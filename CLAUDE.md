@@ -265,11 +265,15 @@ through `theory/thms` of the build at hand.
 ## Data
 
 `data/zf_export/` — one directory per theory. **A local cache, git-ignored:**
-`bash scripts/03-export-zf.sh` builds it from ONE Isabelle2025-2 run (~8 min;
-64-bit Poly/ML, the 32-bit default runs out of store on ZF.List). Never merge
-files from two builds: a serial means something only within its own build, and
-a merged export once had a named statement pointing at another theorem's proof
-and 402 dangling citations.
+`bash scripts/03-export-zf.sh` builds it from ONE Isabelle2025-2 run (64-bit Poly/ML,
+the 32-bit default runs out of store on ZF.List). Never merge files from two builds:
+a serial means something only within its own build, and a merged export once had a
+named statement pointing at another theorem's proof and 402 dangling citations.
+
+**Eight of the nine sessions of `src/ZF/ROOT`** — ZF, ZF-AC, ZF-Coind, ZF-Constructible,
+ZF-IMP, ZF-Induct, ZF-Resid, ZF-ex. ⚠ **ZF-UNITY is missing:** Isabelle's exporter
+rewrites one of its proofs (`Comp.Increasing_preserves_Stable`) past 64 GB, walking
+proofs as trees; ZF-UNITY builds in 17 s with export off.
 
 | | |
 |---|---|
@@ -278,7 +282,6 @@ and 402 dangling citations.
 | `theory/axioms` | axiom statements — only `Pure/` has one |
 | `proofs/NNN` | one proof term per serial (YXML) |
 
-`find data/zf_export -path '*/proofs/*' -type f | wc -l` → 15,946 proof terms
-across the `ZF.*` theories plus `Pure`, `IFOL`, `FOL` — 3.2 GB, of which ONE file,
-a box inside `List.nth_upt`'s proof, is 3.1 GB.
+`find data/zf_export -path '*/proofs/*' -type f | wc -l` → 38,923 proof terms, 4.2 GB,
+of which ONE file, a box inside `List.nth_upt`'s proof, is 3.1 GB.
 Entities carry a `file=` attribute naming their Isabelle source.

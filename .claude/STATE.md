@@ -17,7 +17,7 @@
 | `scripts/source-surface.py \| head -1` | `population: 3616 named ZF theorems, 37 ZF.* theories` |
 | `readlink ~/repos/fol-zfc-comb/bazel-bin \| sed 's\|.*bazel-out/\|\|'` | `k8-opt/bin` — and `proof_checker` is executable there |
 | `git -C ~/repos/fol-zfc-comb log -1 --format=%h qualified-names` | `487c68c` (unmerged) |
-| `find data/zf_export -path '*/proofs/*' -type f \| wc -l` | `15946` — else rebuild: `bash scripts/03-export-zf.sh` |
+| `find data/zf_export -path '*/proofs/*' -type f \| wc -l` | `38923` — else rebuild: `bash scripts/03-export-zf.sh` |
 
 If a row disagrees, **this file is stale**: trust the code, fix this file.
 
