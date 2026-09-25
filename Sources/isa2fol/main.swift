@@ -18,7 +18,6 @@ func kind(_ r: ReaderRefusal) -> String {
     case .betaRedex: return "betaRedex"
     case .quantifierOverFunction: return "quantifierOverFunction"
     case .nameSegment: return "nameSegment"
-    case .propositionalVariable: return "propositionalVariable"
     }
 }
 

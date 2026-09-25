@@ -106,10 +106,12 @@ private func zfBase() throws -> (Table, [String: Read])? {
     }
 }
 
-/// `elim_format` states a rule over `W :: prop`; FOUNDATION S4 classifies an arity-0 propositional variable out.
-@Test func aMetaLevelPropositionalVariableIsRefusedByName() throws {
+/// `elim_format`'s `W :: prop` is a formula variable: Pure's `prop` reads as `o` (DESIGN §4.3).
+@Test func aMetaLevelPropositionalVariableReadsAsAFormulaVariable() throws {
     var t = Table()
     let prop = app(const("Pure.imp"), memAa, free("W"))
-    #expect(try read(proofFile(frees: [("a", i), ("A", i), ("W", typeT("prop"))], prop: prop), into: &t)
-            == .refused(.propositionalVariable("W")))
+    let got = try read(proofFile(frees: [("a", i), ("A", i), ("W", typeT("prop"))], prop: prop), into: &t)
+    let a = try t.intern(.isaFree("a", .i)), A = try t.intern(.isaFree("A", .i)), W = try t.intern(.isaFree("W", .o))
+    let mem = try t.intern(.isaConst("ZF_Base.mem", .fn(.i, .fn(.i, .o)), args: [a, A]))
+    #expect(got == .translated(root: try t.intern(.folImplies(mem, W)), frees: [a, A, W]))
 }

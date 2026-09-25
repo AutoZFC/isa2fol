@@ -8,5 +8,4 @@
     case betaRedex
     case quantifierOverFunction
     case nameSegment(String)
-    case propositionalVariable(String)
 }

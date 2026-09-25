@@ -42,8 +42,8 @@ either is silent.
 
 **Measured, one build** (`swift build -c release && .build/release/isa2fol statements data/zf_export`,
 25 s): every one of the 15,946 proof files reads or refuses by name, none is malformed. Of the
-3,616 named theorems of `ZF` and `ZF.*`, **3,596 translate**; the 20 refusals are 12 type
-variables, 6 propositional variables, 1 `Pure.all` over a function (S5), 1 `OFCLASS`.
+3,616 named theorems of `ZF` and `ZF.*`, **3,602 translate**; the 14 refusals are 12 type
+variables, 1 `Pure.all` over a function (S5), 1 `OFCLASS`.
 `--show KIND` lists each refused statement.
 
 **It produces isa nodes in the unit's formula table (§4.2), and it RECOGNISES —
@@ -119,7 +119,7 @@ cap) is revisited only for a corpus larger than ZF.
 
 | | decided |
 |---|---|
-| **types** | The reader decodes `ztyp` into ITS OWN type, which has `'a` and `prop`. A `ZConst` carries only its type ARGUMENTS (`ZConst1 (a, b) => ([a], list ztyp [b])`, `zterm.ML`'s encoder), so `isaConst`'s instantiated type is the declared scheme from `theory/consts` (`IFOL.eq :: ['a, 'a] ⇒ o`) with those arguments substituted. Converting to `IRType` refuses a leftover type variable by name. `IRType` has no `prop`: every `prop` position is recognised and erased, so a `prop` that reaches conversion is an unrecognised shape — a named refusal |
+| **types** | The reader decodes `ztyp` into ITS OWN type, which has `'a` and `prop`. A `ZConst` carries only its type ARGUMENTS (`ZConst1 (a, b) => ([a], list ztyp [b])`, `zterm.ML`'s encoder), so `isaConst`'s instantiated type is the declared scheme from `theory/consts` (`IFOL.eq :: ['a, 'a] ⇒ o`) with those arguments substituted. Converting to `IRType` refuses a leftover type variable by name. `IRType` has no `prop`. At a VARIABLE's type — a free, a λ or binder domain, the type argument of `Pure.eq`/`Pure.all` — `prop` reads as `o`, the coercion being the identity (§4.3): `elim_format`'s `W :: prop` is a formula variable exactly as `P :: o` is, and FOUNDATION S4's arity-0 question is LOWERING's, for both. ⚠ Refusing `W` while reading `P` split one construct in two (6 theorems vs 194). In a CONSTANT's type, `prop` is an unrecognised shape — a named refusal |
 | **frees** | Left as `isaFree`, typed from the `frees` header; a closing pass abstracts them (§4.4). A statement and its proof share the same interned free nodes, so ONE closing applies to both. The order is Isabelle's closure order, read from `proofterm.ML` (§4.4); the data check is a citation instantiated by its `ZAppt`s concluding what the citing proof uses, by ID — once proofs are read |
 | **outcomes** | The READER owns them, never IR: in source order, `(serial, name?, translated(root) \| refused(reason))`. A refused statement never enters IR; IR's `Statement` is keyed `(serial, name?)` — unnamed proof boxes have no name — within its unit's theory. ONLY the reader's own refusal enum is caught and recorded; a `TableError` or `YXMLError` is a bug or a corrupt file and stops the run — catching it would count our bugs as refusals |
 
@@ -135,7 +135,6 @@ because the enum is gone:
 | `Pure.conjunction` | **0 occurrences** in ZF statements, so refusing costs nothing |
 | `Pure.term`, `Pure.sort_constraint` | Pure-internal, 0 in ZF statements |
 | `Pure.prop` | 0 in ZF statements — erased, not refused |
-| a free of type `prop` | a META-LEVEL propositional variable — `elim_format`'s `W` (`upair.singletonE`, the datatype `free_elims`). FOUNDATION S4: arity 0 is classified out, never translated. 6 named ZF theorems, each an elim-format restatement of a translatable fact |
 | a `ZBound` with no enclosing binder | structural: its type, which the node must carry (§4.3), has nowhere to come from |
 | a prop that is not a prop | structural |
 

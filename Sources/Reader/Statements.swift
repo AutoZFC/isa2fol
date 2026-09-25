@@ -37,10 +37,7 @@ struct StatementReader {
         guard occurring == names else { throw MalformedExport.freesHeader(header: names, occurring: occurring) }
         do {
             if let a = tfrees.first { throw ReaderRefusal.typeVariable(a) }
-            let typed = try header.map { name, T in
-                guard T != .type("prop", []) else { throw ReaderRefusal.propositionalVariable(name) }
-                return (name, try T.irType())
-            }
+            let typed = try header.map { ($0.0, try $0.1.variableType()) }
             let terms = Terms(decode: d, constants: constants, frees: Dictionary(uniqueKeysWithValues: typed))
             let root = try terms.proposition(prop, in: &t)
             return .translated(root: root, frees: try typed.map { try t.intern(.isaFree($0.0, $0.1)) })

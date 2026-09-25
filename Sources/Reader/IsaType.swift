@@ -20,11 +20,15 @@ indirect enum IsaType: Hashable, Sendable {
         }
     }
 
-    func irType() throws -> IRType {
+    func irType() throws -> IRType { try converted(propAsO: false) }
+
+    func variableType() throws -> IRType { try converted(propAsO: true) }
+
+    private func converted(propAsO: Bool) throws -> IRType {
         switch self {
         case let .type("fun", args):
             try arity("fun", args, 2)
-            return .fn(try args[0].irType(), try args[1].irType())
+            return .fn(try args[0].converted(propAsO: propAsO), try args[1].converted(propAsO: propAsO))
         case let .type("ZF_Base.i", args):
             try arity("ZF_Base.i", args, 0)
             return .i
@@ -33,7 +37,8 @@ indirect enum IsaType: Hashable, Sendable {
             return .o
         case let .type("prop", args):
             try arity("prop", args, 0)
-            throw ReaderRefusal.prop
+            guard propAsO else { throw ReaderRefusal.prop }
+            return .o
         case let .type(name, _):
             throw ReaderRefusal.typeConstructor(name)
         case let .tfree(name, _), let .tvar(name, _, _):

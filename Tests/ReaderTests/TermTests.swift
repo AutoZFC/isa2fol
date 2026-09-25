@@ -103,6 +103,13 @@ private let pq = [("P", o), ("Q", o)]
     #expect(got == (try r.n(.ifolAll(oT, body: try r.bound(0, oT)))))
 }
 
+@Test func aMetaQuantifierOverAPropositionIsAFormulaQuantifier() throws {
+    var r = try Reading()
+    let got = try r.proposition(app(const("Pure.all", prop), lam("W", prop, app(const("Pure.imp"), bound(0), bound(0)))))
+    let W = try r.bound(0, oT)
+    #expect(got == (try r.n(.ifolAll(oT, body: try r.n(.folImplies(W, W))))))
+}
+
 @Test func aMetaQuantifierOverAFunctionIsRefused() throws {
     var r = try Reading()
     #expect(throws: ReaderRefusal.quantifierOverFunction) {
