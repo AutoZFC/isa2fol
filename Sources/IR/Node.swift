@@ -3,6 +3,20 @@ public struct NodeID: Hashable, Sendable, CustomStringConvertible {
     public var description: String { "%\(raw)" }
 }
 
+@frozen public enum Namespace: Hashable, Sendable {
+    case term
+    case hyp
+}
+
+public struct Binds: Hashable, Sendable {
+    public let terms: Int
+    public let hyps: Int
+    public static let none = Binds(terms: 0, hyps: 0)
+    public static let term = Binds(terms: 1, hyps: 0)
+    public static let hyp = Binds(terms: 0, hyps: 1)
+    public static let termAndHyp = Binds(terms: 1, hyps: 1)
+}
+
 @frozen public enum Node: Hashable, Sendable {
     case folBound(Int)
     case folPred(String, args: [NodeID])
@@ -24,42 +38,94 @@ public struct NodeID: Hashable, Sendable, CustomStringConvertible {
     case isaVarApp(head: NodeID, args: [NodeID])
     case isaAbs(IRType, body: NodeID)
 
-    /// ⚠ THE ONLY PLACE THAT SAYS WHICH KINDS BIND. The traversal, the index engine
+    case use(String, NodeID)
+    case hyp(Int, NodeID)
+
+    case folAndIntro(NodeID, NodeID)
+    case folAndElimL(NodeID)
+    case folAndElimR(NodeID)
+    case folOrIntroL(NodeID, NodeID)
+    case folOrIntroR(NodeID, NodeID)
+    case folOrElim(NodeID, NodeID, NodeID)
+    case folImpliesIntro(NodeID, body: NodeID)
+    case folImpliesElim(NodeID, NodeID)
+    case folNotIntro(NodeID, body: NodeID)
+    case folNotElim(NodeID, NodeID)
+    case folIffIntro(NodeID, NodeID)
+    case folIffElimL(NodeID, NodeID)
+    case folIffElimR(NodeID, NodeID)
+    case folForallIntro(body: NodeID)
+    case folForallElim(NodeID, NodeID)
+    case folExistsIntro(NodeID, NodeID)
+    case folExistsElim(NodeID, body: NodeID)
+    case folBottomElim(NodeID, NodeID)
+    case folClassicalAbsurd(NodeID, body: NodeID)
+
+    case isaAllIntro(IRType, body: NodeID)
+    case isaAllElim(NodeID, NodeID)
+
+    /// ⚠ THE ONLY PLACE THAT SAYS WHICH KINDS BIND, AND WHAT. The traversal, the index engine
     /// and `looseBound` all read it here; a second list would let them disagree.
-    public func mapChildren(_ f: (NodeID, _ underBinder: Bool) throws -> NodeID) rethrows -> Node {
+    public func mapChildren(_ f: (NodeID, Binds) throws -> NodeID) rethrows -> Node {
         switch self {
         case .folBound, .folBottom, .isaFree, .isaBound:
             return self
-        case let .folPred(n, xs):
-            return .folPred(n, args: try xs.map { try f($0, false) })
-        case let .folAnd(a, b): return .folAnd(try f(a, false), try f(b, false))
-        case let .folOr(a, b): return .folOr(try f(a, false), try f(b, false))
-        case let .folImplies(a, b): return .folImplies(try f(a, false), try f(b, false))
-        case let .folIff(a, b): return .folIff(try f(a, false), try f(b, false))
-        case let .folNot(a): return .folNot(try f(a, false))
-        case let .folForall(b): return .folForall(body: try f(b, true))
-        case let .folExists(b): return .folExists(body: try f(b, true))
-        case let .ifolAll(T, b): return .ifolAll(T, body: try f(b, true))
-        case let .ifolEx(T, b): return .ifolEx(T, body: try f(b, true))
-        case let .isaConst(n, T, xs):
-            return .isaConst(n, T, args: try xs.map { try f($0, false) })
+        case let .folPred(n, xs): return .folPred(n, args: try xs.map { try f($0, .none) })
+        case let .folAnd(a, b): return .folAnd(try f(a, .none), try f(b, .none))
+        case let .folOr(a, b): return .folOr(try f(a, .none), try f(b, .none))
+        case let .folImplies(a, b): return .folImplies(try f(a, .none), try f(b, .none))
+        case let .folIff(a, b): return .folIff(try f(a, .none), try f(b, .none))
+        case let .folNot(a): return .folNot(try f(a, .none))
+        case let .folForall(b): return .folForall(body: try f(b, .term))
+        case let .folExists(b): return .folExists(body: try f(b, .term))
+        case let .ifolAll(T, b): return .ifolAll(T, body: try f(b, .term))
+        case let .ifolEx(T, b): return .ifolEx(T, body: try f(b, .term))
+        case let .isaConst(n, T, xs): return .isaConst(n, T, args: try xs.map { try f($0, .none) })
         case let .isaVarApp(h, xs):
-            return .isaVarApp(head: try f(h, false), args: try xs.map { try f($0, false) })
-        case let .isaAbs(T, b): return .isaAbs(T, body: try f(b, true))
+            return .isaVarApp(head: try f(h, .none), args: try xs.map { try f($0, .none) })
+        case let .isaAbs(T, b): return .isaAbs(T, body: try f(b, .term))
+        case let .use(n, root): return .use(n, try f(root, .none))
+        case let .hyp(k, a): return .hyp(k, try f(a, .none))
+        case let .folAndIntro(p, q): return .folAndIntro(try f(p, .none), try f(q, .none))
+        case let .folAndElimL(p): return .folAndElimL(try f(p, .none))
+        case let .folAndElimR(p): return .folAndElimR(try f(p, .none))
+        case let .folOrIntroL(p, b): return .folOrIntroL(try f(p, .none), try f(b, .none))
+        case let .folOrIntroR(a, q): return .folOrIntroR(try f(a, .none), try f(q, .none))
+        case let .folOrElim(p, q, r): return .folOrElim(try f(p, .none), try f(q, .none), try f(r, .none))
+        case let .folImpliesIntro(a, b): return .folImpliesIntro(try f(a, .none), body: try f(b, .hyp))
+        case let .folImpliesElim(p, q): return .folImpliesElim(try f(p, .none), try f(q, .none))
+        case let .folNotIntro(a, b): return .folNotIntro(try f(a, .none), body: try f(b, .hyp))
+        case let .folNotElim(p, q): return .folNotElim(try f(p, .none), try f(q, .none))
+        case let .folIffIntro(p, q): return .folIffIntro(try f(p, .none), try f(q, .none))
+        case let .folIffElimL(p, q): return .folIffElimL(try f(p, .none), try f(q, .none))
+        case let .folIffElimR(p, q): return .folIffElimR(try f(p, .none), try f(q, .none))
+        case let .folForallIntro(b): return .folForallIntro(body: try f(b, .term))
+        case let .folForallElim(p, v): return .folForallElim(try f(p, .none), try f(v, .none))
+        case let .folExistsIntro(p, v): return .folExistsIntro(try f(p, .none), try f(v, .none))
+        case let .folExistsElim(p, b): return .folExistsElim(try f(p, .none), body: try f(b, .termAndHyp))
+        case let .folBottomElim(p, c): return .folBottomElim(try f(p, .none), try f(c, .none))
+        case let .folClassicalAbsurd(a, b): return .folClassicalAbsurd(try f(a, .none), body: try f(b, .hyp))
+        case let .isaAllIntro(T, b): return .isaAllIntro(T, body: try f(b, .term))
+        case let .isaAllElim(p, x): return .isaAllElim(try f(p, .none), try f(x, .none))
         }
     }
 
-    public func forEachChild(_ f: (NodeID, _ underBinder: Bool) throws -> Void) rethrows {
-        _ = try mapChildren { c, under in try f(c, under); return c }
+    public func forEachChild(_ f: (NodeID, Binds) throws -> Void) rethrows {
+        _ = try mapChildren { c, binds in try f(c, binds); return c }
     }
 
-    public var boundVariable: (index: Int, reindexed: (Int) -> Node)? {
+    public var boundVariable: (namespace: Namespace, index: Int, reindexed: (Int) -> Node)? {
         switch self {
-        case let .folBound(k): return (k, { .folBound($0) })
-        case let .isaBound(k, T): return (k, { .isaBound($0, T) })
+        case let .folBound(k): return (.term, k, { .folBound($0) })
+        case let .isaBound(k, T): return (.term, k, { .isaBound($0, T) })
+        case let .hyp(k, a): return (.hyp, k, { .hyp($0, a) })
         case .folPred, .folAnd, .folOr, .folImplies, .folIff, .folNot, .folBottom,
              .folForall, .folExists, .ifolAll, .ifolEx, .isaConst, .isaFree,
-             .isaVarApp, .isaAbs:
+             .isaVarApp, .isaAbs, .use, .folAndIntro, .folAndElimL, .folAndElimR,
+             .folOrIntroL, .folOrIntroR, .folOrElim, .folImpliesIntro, .folImpliesElim,
+             .folNotIntro, .folNotElim, .folIffIntro, .folIffElimL, .folIffElimR,
+             .folForallIntro, .folForallElim, .folExistsIntro, .folExistsElim,
+             .folBottomElim, .folClassicalAbsurd, .isaAllIntro, .isaAllElim:
             return nil
         }
     }

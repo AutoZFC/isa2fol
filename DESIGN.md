@@ -167,8 +167,8 @@ a schema variable becomes a table node kind then: one more case in the four swit
 
 ## 4. IR  **[FRAMEWORK BUILT; renderer and proof layer NOT]**
 
-**§4.2–§4.6 are built** (`Sources/IR`, `Sources/FolDialect`, pinned by `Tests/`);
-§4.7's proof layer is not. The previous region graph — formulas edited in place through `replaceAllUses`/`insert`/
+**§4.2–§4.7's framework is built** (`Sources/IR`, `Sources/FolDialect`, pinned by
+`Tests/`). No concrete pass and no reader are. The previous region graph — formulas edited in place through `replaceAllUses`/`insert`/
 `erase`, measured O(n²) per pass — is deleted; do not restore it from history.
 
 ### 4.1 Two layers, mirroring the checker
@@ -443,7 +443,7 @@ would need one chosen per interned node, and "first seen" is exactly an order le
 with different unrelated nodes renders byte-identically (R1, R2) — and, once an emitter
 exists, a cross-process diff of two runs, the only check that can see R3.
 
-### 4.7 The proof layer  **[DECIDED, NOT BUILT]**
+### 4.7 The proof layer  **[FRAMEWORK BUILT]**
 
 **The target is natural deduction, not Curry–Howard.** The checker's state is a set
 of DERIVED formulas (`formula_deps_`, `src/proof/nd/stack.h`); a step checks its
@@ -496,7 +496,7 @@ a connective they are rewritten in turn:
 lowered claim — by ID.** `legalize` refuses a reachable isa step as it refuses an isa
 connective.
 
-What the framework gains (NOT BUILT):
+What the framework gained (BUILT — `Sources/IR`, emission in `Sources/FolDialect/Render.swift`):
 
 | | |
 |---|---|
@@ -545,6 +545,12 @@ program from the tree:
 
 A term binder becomes `fix f_k` and its loose index renders as `f_k`; a hypothesis binder
 becomes `assume A`; `hyp(k, …)` renders as that `assume` step's name.
+
+**As built, three things are the caller's to guarantee, never checked:**
+- a `hyp(k, A)` carries the formula its binder introduced (for `folExistsElim`, the ∃'s
+  body) — contextual, like `isaBound`'s type;
+- `isaAllIntro(T, …)`'s body uses its bound variable at type `T`;
+- emission unfolds a shared subproof once per use — no memo, as for rewrites (§4.5).
 
 **It links like a compiled language.** A claim is a signature, a proof a body, `use` a
 call, an `UNPROVED` stub an `extern` — and **the R3 guard is the calling convention**:

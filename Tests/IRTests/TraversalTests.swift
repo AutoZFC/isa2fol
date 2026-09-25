@@ -7,28 +7,26 @@ private func fn(_ a: IRType, _ b: IRType) -> IRType { .fn(a, b) }
 private let mem = "ZF_Base.mem"
 private let memT = fn(i, fn(i, o))
 
-private struct NoMatch: Rule {
-    func apply(_ id: NodeID, depth: Int, in t: inout Table) throws -> NodeID? { nil }
-}
+private struct NoMatch: Rule {}
 
 private final class DepthLog: Rule {
     var seen: [(Node, Int)] = []
-    func apply(_ id: NodeID, depth: Int, in t: inout Table) throws -> NodeID? {
-        seen.append((t[id], depth))
+    func before(_ id: NodeID, depth: Depth, in t: inout Table) throws -> NodeID? {
+        seen.append((t[id], depth.terms))
         return nil
     }
 }
 
 private struct Rename: Rule {
     let from: String, to: String
-    func apply(_ id: NodeID, depth: Int, in t: inout Table) throws -> NodeID? {
+    func before(_ id: NodeID, depth: Depth, in t: inout Table) throws -> NodeID? {
         guard case let .isaFree(n, T) = t[id], n == from else { return nil }
         return try t.intern(.isaFree(to, T))
     }
 }
 
 private struct DropDoubleNegation: Rule {
-    func apply(_ id: NodeID, depth: Int, in t: inout Table) throws -> NodeID? {
+    func before(_ id: NodeID, depth: Depth, in t: inout Table) throws -> NodeID? {
         guard case let .folNot(a) = t[id], case let .folNot(b) = t[a] else { return nil }
         return b
     }

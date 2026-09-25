@@ -10,11 +10,11 @@
 | command (from the repo root) | expect |
 |---|---|
 | `swift --version \| head -1` | `Swift version 6.4 (swift-6.4-RELEASE)` |
-| `MEM=16G scripts/capped.sh swift test 2>&1 \| grep -cE '^✔ Test [a-zA-Z]+\(\) passed'` | **`45`** |
+| `MEM=16G scripts/capped.sh swift test 2>&1 \| grep -cE '^✔ Test [a-zA-Z]+\(\) passed'` | **`59`** |
 | `ls Sources` | `FolDialect IR isa2fol YXML` |
 | `ls docs` | `FOUNDATION.md phase2_probes SOURCE_SURFACE.md` |
-| `find Sources Tests -name '*.swift' \| wc -l` | `17` (1133 lines) |
-| comment density of `Sources` (CLAUDE.md rule 9 has the script) | `4/438 = 0.91%` — **UNDER the 5% cap** |
+| `find Sources Tests -name '*.swift' \| wc -l` | `19` (1805 lines) |
+| comment density of `Sources` (CLAUDE.md rule 9 has the script) | `4/773 = 0.52%` — **UNDER the 5% cap** |
 | `scripts/source-surface.py \| head -1` | `population: 3616 named ZF theorems, 37 ZF.* theories` |
 | `grep -cE '^axiom' base/axioms.fol.def` · `ls base/tiers/*.fol.def \| wc -l` | `17` · `10` |
 | `ls docs/phase2_probes/*.fol.def \| wc -l` · `ls data/zf_export \| wc -l` | `17` · `40` |
@@ -75,19 +75,30 @@ Worktree `/home/arthur/repos/isa2fol`, tree CLEAN, **ahead of
 - **⚠ EVERY CORPUS FIGURE IN `FOUNDATION.md` IS UNEVIDENCED** — its §5 says so.
 - **⚠ SERIALS COLLIDE ACROSS THEORIES.** Index on `(theory, serial)`.
 - **⚠ `isa2fol-build` (§1) IS A LIVE WORKTREE ON THE DELETED RUST TREE.**
+- **⚠ BUILDING fol-zfc-comb IN ITS DEFAULT CONFIG REPOINTS `bazel-bin`** from `k8-opt`
+  (where `proof_checker` lives) to `k8-fastbuild`, and isa2fol's real-checker test then
+  fails to find the checker. Restore: `ln -sfn <execroot>/bazel-out/k8-opt/bin bazel-bin`.
+- **⚠ fol-zfc-comb's `//src/library` DOES NOT BUILD HERE AS CONFIGURED** — GCC 11 `-O3`
+  `stringop-overflow` in `library.cpp` under `.bazelrc`'s `-Werror`; pre-existing. Its
+  tests run with `--cxxopt=-Wno-error=stringop-overflow`.
 
 ## 4. State
 
 | claim | verified by |
 |---|---|
+| A proof step constrains only its principal connective; conclusions are computed at `intern` | `ProofTests` |
+| The real checker PROVES an emitted proof for every rule family (forall, exists, classical, not, or, iff, and, use) | `theRealCheckerProvesWhatEmissionWrites` |
+| `Rule.after` rewrites a step once its premises are rewritten, conclusion unchanged | `afterRewritesAStepOnceItsPremisesAreRewritten` |
 | The index engine satisfies D2's five laws over 300 seeded random formulas each, and its worked cases | `IndexTests` |
 | The tests have teeth: `instantiate` without the `k − 1` fails 4 tests; `isaAbs` not marked binding fails 2 | a mutation, by hand — re-run it after touching `Index.swift`/`Node.swift` |
 | YXML parses real export output | `aRealExportFileParses` |
 | `render` emits what the REAL checker accepts and proves — every construct, and `false` as ⊥ (rendering `False` fails it: a mutation, by hand) | `theRealCheckerAcceptsWhatRenderEmits` |
-| Qualified names in claim/predicate positions are NOT yet accepted by the checker — the grammar change in fol-zfc-comb is unmade (`DESIGN.md` §3) | the real-checker test uses only plain names |
+| Qualified names in claim/predicate positions: the grammar change is DRAFTED on fol-zfc-comb branch `qualified-names` (`487c68c`), NOT merged; the checker isa2fol runs is still the old one, so the real-checker test uses only plain names | `git -C ~/repos/fol-zfc-comb log -1 qualified-names`; its `//test:qualified_names_test` |
 | `base/axioms.fol.def` checks clean | `proof_checker base/axioms.fol.{def,proof}` → `OK: 7 claim(s)`, empty stderr |
 
-**The framework is built; no concrete pass, no reader, no renderer.**
+**The framework is built — formulas, proof steps, rendering, emission. No concrete pass,
+no reader.** Pre-existing rule-1 violation found, not fixed: `Sources/YXML/Node.swift:18`
+reads a missing attribute as `""`.
 
 ## 5. Beliefs — NOT verified
 
@@ -124,10 +135,9 @@ Build order, each step discussed in its concrete Swift shape first, tests first:
 1. ~~the formula table~~ — built
 2. ~~D2's index engine, the traversal, passes, legalize~~ — built
 3. ~~`FolDialect` as the text boundary~~ — `render` built; `parse` waits for imports
-4. the proof layer's framework (`DESIGN.md` §4.7, DECIDED): `Rule.after`; the 22 step
-   kinds with conclusions computed at `intern`; two binder namespaces (term,
-   hypothesis) — confirm the counting against census question 6 first; emission of
-   binders as `fix`/`assume`
+4. ~~the proof layer's framework~~ — built: 22 step kinds, conclusions at `intern`,
+   two binder namespaces, `Rule.before`/`after`, emission. Census Q6 now only bears on
+   the READER (how Isabelle's indices map to ours), not the framework
 
 Every framework question is decided except proof-level depth (`DESIGN.md` §4.8), which
 waits on census question 6. Pass-level questions (S1 placement, meta functions as function

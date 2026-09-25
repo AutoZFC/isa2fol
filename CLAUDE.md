@@ -136,7 +136,7 @@ is gone. §5 says so. Treat every number there as a belief, never a premise.
    print(f'{c}/{t} = {100*c/t:.1f}%')"
    ```
 
-   ✓ **CURRENTLY 4/438 = 0.91%, under the cap.** Keep it there: a breach is
+   ✓ **CURRENTLY 4/773 = 0.52%, under the cap.** Keep it there: a breach is
    fixed by deleting prose, never by raising the cap.
 
    Does not apply to `base/**/*.fol.def` headers: those record provenance of
@@ -177,7 +177,7 @@ Package.swift
 Sources/
   YXML/          Isabelle's transfer format → Node tree.  Knows no dialect.
   IR/            Node · Table · transform · index engine · passes · legalize
-  FolDialect/    Declaration · render — the text boundary over IR (DESIGN.md §3)
+  FolDialect/    Declaration · render (formulas and proofs) — the text boundary over IR
   isa2fol/       CLI
 Tests/           YXMLTests · FolDialectTests · IRTests
 base/            the NBG foundation: axioms.fol.def + 9 tiers, kernel-checked
@@ -194,8 +194,8 @@ Nothing connects them yet: the reader (YXML → IR) and the emitter
 
 **There is ONE formula table per unit, holding isa and fol nodes together** —
 interned, immutable, de Bruijn; proof steps live in scope regions and point into
-it. That is `DESIGN.md` §4; the framework is built in `Sources/IR`, `render` in
-`Sources/FolDialect`; the proof layer is not.
+it. That is `DESIGN.md` §4; the framework — formulas AND proof steps — is built in
+`Sources/IR`, rendering and proof emission in `Sources/FolDialect`. No pass, no reader.
 `legalize` — one exhaustive switch over node kinds — stays the only place naming
 both vocabularies; a rewrite is partial, so that switch is what rule 11 rests on.
 
