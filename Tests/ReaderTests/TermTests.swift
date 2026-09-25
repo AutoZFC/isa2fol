@@ -110,6 +110,20 @@ private let pq = [("P", o), ("Q", o)]
     #expect(got == (try r.n(.ifolAll(oT, body: try r.n(.folImplies(W, W))))))
 }
 
+@Test func aPropositionValuedConstantReadsAsAFormulaConstant() throws {
+    var r = try Reading()
+    let got = try r.proposition(app(const("Pure.imp"), const("T.claim"), trueprop(const("IFOL.False"))))
+    #expect(got == (try r.n(.folImplies(try r.const("T.claim", oT), try r.n(.folBottom)))))
+}
+
+@Test func aConstantOverPropositionsReadsWithPropAsO() throws {
+    var r = try Reading()
+    let got = try r.proposition(app(const("T.metaEx", i), lam("x", i, trueprop(app(const("ZF_Base.mem"), bound(0), free("A"))))),
+                                frees: [("A", i)])
+    let mem = try r.const("ZF_Base.mem", memT, try r.bound(0), try r.free("A", iT))
+    #expect(got == (try r.const("T.metaEx", fnT(fnT(iT, oT), oT), try r.abs(iT, mem))))
+}
+
 @Test func aMetaQuantifierOverAFunctionIsRefused() throws {
     var r = try Reading()
     #expect(throws: ReaderRefusal.quantifierOverFunction) {

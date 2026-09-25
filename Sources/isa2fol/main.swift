@@ -10,7 +10,6 @@ func fail(_ message: String, _ code: Int32) -> Never {
 func kind(_ r: ReaderRefusal) -> String {
     switch r {
     case .typeVariable: return "typeVariable"
-    case .prop: return "prop"
     case .typeConstructor: return "typeConstructor"
     case .schematicVariable: return "schematicVariable"
     case .ofclass: return "ofclass"

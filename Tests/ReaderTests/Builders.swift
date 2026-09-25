@@ -76,6 +76,8 @@ private let declarations: [(String, [String], String)] = [
     ("T.g", [], fn(fn(i, fn(i, i)), i)),
     ("T.h", [], fn(fn(i, o), o)),
     ("T.k", [], fn(fn(fn(i, o), o), i)),
+    ("T.claim", [], prop),
+    ("T.metaEx", ["'a"], fn(fn(typeA, prop), prop)),
 ]
 
 func testConstants() throws -> Constants {

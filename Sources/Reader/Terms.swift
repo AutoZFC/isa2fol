@@ -126,7 +126,7 @@ struct Terms {
     private func abstraction(_ body: Body, _ extra: [NodeID], _ T: IRType, _ rest: IRType,
                              _ s: Scope, _ t: inout Table) throws -> NodeID {
         if extra.isEmpty, case let (domain, inner)? = try lambda(body) {
-            let D = try domain.variableType()
+            let D = try domain.irType()
             guard D == T else { throw MalformedExport.typeMismatch(expected: T, found: D) }
             return try argument(.source(inner), rest, s.source(T), &t)
         }
@@ -219,7 +219,7 @@ struct Terms {
             return try t.intern(.folIff(ab[0], ab[1]))
         case .metaEquality:
             let A = try typeArgument(name, types)
-            let T = try A.variableType()
+            let T = try A.irType()
             let ab = try operands(name, [T, T], arguments, s, &t)
             switch T {
             case .o: return try t.intern(.folIff(ab[0], ab[1]))
@@ -227,14 +227,14 @@ struct Terms {
             case .fn: return try t.intern(.isaConst("Pure.eq", .fn(T, .fn(T, .o)), args: ab))
             }
         case .metaAll:
-            let T = try typeArgument(name, types).variableType()
+            let T = try typeArgument(name, types).irType()
             if case .fn = T { throw ReaderRefusal.quantifierOverFunction }
             return try t.intern(.ifolAll(T, body: try binder(name, T, arguments, s, &t)))
         case .all:
-            let T = try typeArgument(name, types).variableType()
+            let T = try typeArgument(name, types).irType()
             return try t.intern(.ifolAll(T, body: try binder(name, T, arguments, s, &t)))
         case .ex:
-            let T = try typeArgument(name, types).variableType()
+            let T = try typeArgument(name, types).irType()
             return try t.intern(.ifolEx(T, body: try binder(name, T, arguments, s, &t)))
         }
     }

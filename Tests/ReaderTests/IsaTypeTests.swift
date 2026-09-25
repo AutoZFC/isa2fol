@@ -65,8 +65,8 @@ import Testing
     #expect(throws: ReaderRefusal.typeVariable("'a")) { try T.irType() }
 }
 
-@Test func propReachingConversionIsRefused() {
-    #expect(throws: ReaderRefusal.prop) { try IsaType.type("prop", []).irType() }
+@Test func propConvertsToO() throws {
+    #expect(try IsaType.type("fun", [.type("prop", []), .type("prop", [])]).irType() == .fn(.o, .o))
 }
 
 @Test func anUnsupportedTypeConstructorIsRefusedByName() {

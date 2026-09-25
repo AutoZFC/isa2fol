@@ -124,9 +124,9 @@ private func realConstants(_ theories: String...) throws -> Constants? {
     #expect(try c.instantiate("ZF_Base.mem", []).irType() == .fn(.i, .fn(.i, .o)))
 }
 
-@Test func pureEqAtIIsRefusedForItsProp() throws {
+@Test func pureEqAtIConvertsWithPropAsO() throws {
     guard let c = try realConstants("Pure") else { return }
-    #expect(throws: ReaderRefusal.prop) { try c.instantiate("Pure.eq", [iT]).irType() }
+    #expect(try c.instantiate("Pure.eq", [iT]).irType() == .fn(.i, .fn(.i, .o)))
 }
 
 @Test func everyExportedConstsFileLoadsIntoOneTable() throws {

@@ -9,7 +9,7 @@
 | command (from the repo root) | expect |
 |---|---|
 | `swift --version \| head -1` | `Swift version 6.4 (swift-6.4-RELEASE)` |
-| `MEM=16G scripts/capped.sh swift test 2>&1 \| grep -cE '^✔ Test [a-zA-Z]+\(\) passed'` | **`133`** |
+| `MEM=16G scripts/capped.sh swift test 2>&1 \| grep -cE '^✔ Test [a-zA-Z]+\(\) passed'` | **`135`** |
 | `ls Sources` · `ls docs` | `FolDialect IR Reader isa2fol YXML` · `FOUNDATION.md phase2_probes SOURCE_SURFACE.md` |
 | `find Sources Tests -name '*.swift' \| wc -l` | `32` (3389 lines) |
 | comment density of `Sources` (CLAUDE.md rule 9's script) | `4/1528 = 0.26%` |
@@ -88,7 +88,7 @@ deleted work — §6. fol-zfc-comb sits on its own `comb-verifier` with an uncom
 | The tests have teeth: 5 hand mutations (`instantiate`'s k−1, `isaAbs` binder, ∃-intro index, a hypothesis binder, a fixed-variable level) are each caught | re-run by hand after touching `Index.swift`/`Node.swift`/`Render.swift` |
 | In the named ZF statements every logical constant is fully applied and every binder argument is a λ | `isa-deps --logic --named` (`~/repos/isabelle-study/bin/isa-deps`, untracked there) |
 | No concrete pass exists | `ls Sources/IR` |
-| The statement reader reads ALL 15,946 proof files, none malformed: of 3,616 named `ZF`/`ZF.*` theorems 3,602 translate; refused 12 type variable · 1 `quantifierOverFunction` · 1 `ofclass` | `swift build -c release && .build/release/isa2fol statements data/zf_export` (25 s); `--show KIND` lists them |
+| The statement reader reads ALL 38,923 proof files of the eight exported sessions, none malformed: 9,382 of 9,420 named theorems translate; refused 23 type variable · 14 `quantifierOverFunction` · 1 `ofclass` | `swift build -c release && .build/release/isa2fol statements data/zf_export` (36 s); `--show KIND` lists them |
 | Terms read η-long and type-directed; 3 mutations of the index arithmetic are each caught | `TermTests`; mutate `Scope.bound`, `abstraction`'s extras, `etaLong`'s head |
 | YXML refuses a missing, malformed or duplicate attribute by name; an optional one is read as `attributes[name]` | `aMissingAttributeIsAnErrorNotEmpty`, `anAttributeFieldWithoutEqualsIsAnError`, `aDuplicateAttributeIsAnError` |
 | The reader's three decisions — own type with `'a`/`prop`; frees left open for a closing pass; per-statement outcomes, only reader refusals caught — are decided; `IRType` has no `prop` | `DESIGN.md` §2 "Three decisions"; `Sources/IR/IRType.swift` |
