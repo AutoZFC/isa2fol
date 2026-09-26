@@ -9,12 +9,12 @@
 | command (from the repo root) | expect |
 |---|---|
 | `swift --version \| head -1` | `Swift version 6.4 (swift-6.4-RELEASE)` |
-| `MEM=16G scripts/capped.sh swift test 2>&1 \| grep -cE '^✔ Test [a-zA-Z]+\(\) passed'` | **`135`** |
+| `MEM=16G scripts/capped.sh swift test 2>&1 \| grep -cE '^✔ Test [a-zA-Z]+\(\) passed'` | **`144`** |
 | `ls Sources` · `ls docs` | `FolDialect IR Reader isa2fol YXML` · `FOUNDATION.md phase2_probes SOURCE_SURFACE.md` |
-| `find Sources Tests -name '*.swift' \| wc -l` | `32` (3389 lines) |
-| comment density of `Sources` (CLAUDE.md rule 9's script) | `4/1528 = 0.26%` |
+| `find Sources Tests -name '*.swift' \| wc -l` | `37` (4046 lines) |
+| comment density of `Sources` (CLAUDE.md rule 9's script) | `4/1972 = 0.20%` |
 | `grep -rnE '^\s*default:' Sources` (a switch default — rule 11) | nothing |
-| `scripts/source-surface.py \| head -1` | `population: 3616 named ZF theorems, 37 ZF.* theories` |
+| `.build/release/isa2fol surface data/zf_export \| grep '^| \*\*all'` | `\| **all** \| **9420** \|` |
 | `readlink ~/repos/fol-zfc-comb/bazel-bin \| sed 's\|.*bazel-out/\|\|'` | `k8-opt/bin` — and `proof_checker` is executable there |
 | `git -C ~/repos/fol-zfc-comb log -1 --format=%h qualified-names` | `487c68c` (unmerged) |
 | `find data/zf_export -path '*/proofs/*' -type f \| wc -l` | `38923` — else rebuild: `bash scripts/03-export-zf.sh` |
@@ -126,7 +126,7 @@ deleted work — §6. fol-zfc-comb sits on its own `comb-verifier` with an uncom
 ## 7. Next action
 
 **Read proofs.** Decode each proof file's zproof into proof steps (`DESIGN.md` §4.7), on the
-same `Terms` for the terms inside it. Settle census question 6 first — whether a term `ZBound`
-inside a proof counts `ZAbst` binders (`.claude/tasks/ISA_SHAPE_CENSUS.md`). Decoding MUST be
-memoised on `(Ref, scope)`: one box is 312 M tree nodes over 11,604 distinct ones (`DESIGN.md`
-§2). **Done when** every proof file's proof reads or refuses by name, in bounded time and memory.
+same `Terms`: census question 6 is settled (§4.8) — a term `ZBound` counts `ZAbst` binders only,
+so `Scope` serves unchanged. Decoding MUST be memoised on `(Ref, scope)`: one box is 312 M tree
+nodes over 11,604 distinct ones (`DESIGN.md` §2). **Done when** every proof file's proof reads
+or refuses by name, in bounded time and memory.

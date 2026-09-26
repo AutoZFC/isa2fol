@@ -88,8 +88,22 @@ func testConstants() throws -> Constants {
     return c
 }
 
-func proofFile(tfrees: [String] = [], frees: [(String, String)], prop: String) -> String {
+func proofFile(tfrees: [String] = [], frees: [(String, String)], prop: String, proof: String = pnop) -> String {
     let tf = tfrees.map { node(node($0), node()) }.joined()
     let fr = frees.map { node(node($0.0), node($0.1)) }.joined()
-    return node(tf) + node(node(fr) + node(node(prop) + node(tagged(0, [], []))))
+    return node(tf) + node(node(fr) + node(node(prop) + node(proof)))
+}
+
+let pnop = tagged(0, [], [])
+func pbound(_ k: Int) -> String { tagged(1, [], [String(k)]) }
+func pabst(_ name: String, _ T: String, _ body: String) -> String { tagged(2, [name], [node(T), node(body)]) }
+func pabsp(_ name: String, _ t: String, _ body: String) -> String { tagged(3, [name], [node(t), node(body)]) }
+func pappt(_ p: String, _ t: String) -> String { tagged(4, [], [node(p), node(t)]) }
+func pappp(_ p: String, _ args: String...) -> String { args.reduce(p) { tagged(5, [], [node($0), node($1)]) } }
+func phyp(_ t: String) -> String { tagged(6, [], [t]) }
+func paxiom(_ name: String, _ types: String...) -> String { tagged(7, [name], types.map { node($0) }) }
+func pofclass(_ T: String, _ c: String) -> String { tagged(8, [c], [T]) }
+func poracle(_ name: String) -> String { tagged(9, [name], []) }
+func pcite(_ serial: Int, _ theory: String, _ name: String = "", _ types: String...) -> String {
+    tagged(10, [String(serial), theory, name, "0"], types.map { node($0) })
 }

@@ -30,7 +30,7 @@ State which mode you're using and why.
 Find the minimal trigger. Get concrete data:
 - Which proof file? (serial number + theory)
 - Run it: `MEM=16G scripts/capped.sh swift test --filter <test>` (rule 10).
-  Corpus state comes from `scripts/source-surface.py`, which regenerates
+  Corpus state comes from `isa2fol surface data/zf_export`, which generates
   `docs/SOURCE_SURFACE.md`; a single unit from the real `proof_checker`
 - Capture the actual output vs what was expected
 

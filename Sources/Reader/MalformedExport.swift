@@ -22,4 +22,5 @@ import IR
     case freesHeader(header: [String], occurring: [String])
     case notASerial(String)
     case duplicateSerial(Int)
+    case unresolvedCitation(theory: String, serial: Int)
 }

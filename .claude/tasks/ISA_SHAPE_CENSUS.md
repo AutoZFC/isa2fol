@@ -24,7 +24,7 @@ Nobody has measured that. That is this task.
 2. `Isabelle2025-2/src/Pure/zterm.ML` under `~/repos/isabelle-study/`:
    lines 11-27 (`ztyp`, `zterm`), 249-258 (`zproof`), 1460-1506 (the XML encoder, the
    ground truth for tags and child order).
-3. `scripts/source-surface.py` and `docs/SOURCE_SURFACE.md`: how an existing census is
+3. `isa2fol surface` (`Sources/Reader/Surface.swift`) and `docs/SOURCE_SURFACE.md`: how an existing census is
    built and documented. It loads `~/repos/isabelle-study/bin/isa-deps` (the YXML decoder and
    `ZPROOF` tag map); reuse that loading pattern.
 4. `~/isabelle-pure-metalogic.md` §0 and §A: reading notes. Treat their numbers as claims to
@@ -54,7 +54,7 @@ theorem instead).
 
 Split every count by **statements** vs **terms inside proofs** (`ZAppt` arguments,
 `ZAbsp` hypotheses, `ZHyp`). Give two populations, as in the notes: **P1** = all 16,798
-files, **P2** = the 3,616 named ZF theorems (`scripts/source-surface.py` defines P2).
+files, **P2** = the 3,616 named ZF theorems (`isa2fol surface` counts it per session).
 For every non-standard shape, give **≤ 3 examples as `(theory, serial)`**.
 
 1. **Spine heads.** For every maximal `ZApp` spine, what kind is the head: constant, free

@@ -1,185 +1,1291 @@
-# SOURCE SURFACE — what IsaDialect must actually model
+# SOURCE SURFACE — what the isa dialect must model
 
-**Measured, with a standing handle.** Every number below regenerates with
+**Generated — do not edit.** `isa2fol surface data/zf_export`. A census, not mathematics:
+`docs/FOUNDATION.md` says what the translation must satisfy; this says what the corpus contains.
 
-```bash
-scripts/source-surface.py
-```
+**The cut.** The population is the NAMED theorems of the ZF sessions — unnamed boxes are pieces of
+the proofs that reach them. A proof includes every unnamed box it reaches and stops at every named
+theorem. A citation of a Pure/IFOL/FOL rule is a frontier leaf and takes with it the arguments that
+discharge the rule's leading `OFCLASS` premises. A box's statement is a proposition inside its citer's
+proof. Counts are theorems whose statement, or proof, contains the item.
 
-which needs `~/repos/isabelle-study/bin/isa-deps` (set `ISA_DEPS` to override)
-and refuses rather than guessing if it is absent.
+## Population
 
-This is a **census, not mathematics**. `docs/FOUNDATION.md` states what the
-translation must satisfy; this states what the source corpus actually contains.
-Keep them apart: a count never justifies a specification, and FOUNDATION.md
-carries no corpus figure with a live handle.
+| session | named theorems |
+|---|---:|
+| ZF | 3616 |
+| ZF-AC | 477 |
+| ZF-Coind | 288 |
+| ZF-Constructible | 2121 |
+| ZF-IMP | 284 |
+| ZF-Induct | 1496 |
+| ZF-Resid | 340 |
+| ZF-UNITY | **not in the export** |
+| ZF-ex | 798 |
+| **all** | **9420** |
 
----
+## Statements
 
-## The cut, and why it is the one that matters
+### Logical constants
 
-Population: the **3,616 named theorems** of the 37 `ZF.*` theories. Two ways to
-ask what they rest on, and they differ by 20×:
-
-| | |
-|---|---|
-| **surface** | the theorem's own proof region, **stopping at every named theorem**. Sees `IFOL.conjI` and stops — never unfolds it into Pure |
-| **deep** | the whole DAG, down to the axioms |
-
-**The dialect needs the surface.** A proof cites `IFOL.conjI`; the translation
-emits a citation of the target's counterpart. It never replays conjI's own
-derivation, so Pure's role *inside* conjI is not the dialect's problem.
-
-> **⚠ A HIGH `deep` PERCENTAGE IS NOT A REQUIREMENT.** `FOL.excluded_middle` is
-> reached by **89.7%** of ZF theorems and is cited directly by **none** — ZF's
-> proofs cite `FOL.classical`, `ccontr` and `swap` instead. Reading `deep` as
-> "needed" would put 64 rules into the dialect that no ZF proof ever names.
-
-> **⚠ `occ` AND `thms` MEASURE DIFFERENT THINGS AND `occ` CAN BE FAR SMALLER.**
-> Proof regions overlap, and `occ` counts each shared node once. `Pure.equal_intr`
-> is `thms=2027, occ=3`: two thousand theorems reach it through three shared
-> nodes. **Rank by `thms`.**
-
----
-
-## Table 1 — statements
-
-| | constant | thms | % | occ |
-|---|---|---:|---:|---:|
-| `⌜⌝` | `IFOL.Trueprop` | 3348 | 92.6% | 7767 |
-| `⟹` | `Pure.imp` | 2006 | 55.5% | 4452 |
-| `=` | `IFOL.eq` | 1687 | 46.7% | 2102 |
-| `⟷` | `IFOL.iff` | 486 | 13.4% | 492 |
-| `≡` | `Pure.eq` | 288 | 8.0% | 292 |
-| `⋀` | `Pure.all` | 261 | 7.2% | 391 |
-| `¬` | `IFOL.Not` | 257 | 7.1% | 286 |
-| `∧` | `IFOL.conj` | 251 | 6.9% | 362 |
-| `∨` | `IFOL.disj` | 148 | 4.1% | 183 |
-| `⟶` | `IFOL.imp` | 95 | 2.6% | 146 |
-| `∃` | `IFOL.Ex` | 88 | 2.4% | 145 |
-| `∀` | `IFOL.All` | 28 | 0.8% | 45 |
-| `⊥` | `IFOL.False` | 19 | 0.5% | 19 |
-| `⊤` | `IFOL.True` | 16 | 0.4% | 17 |
-| `∃!` | `IFOL.Ex1` | 10 | 0.3% | 10 |
-| `` | `IFOL.Let` | 3 | 0.1% | 5 |
-
-### Sorts
-
-| sort | thms | % | occ |
-|---|---:|---:|---:|
-| `ZF_Base.i` | 3554 | 98.3% | 37153 |
-| `fun` | 774 | 21.4% | 3570 |
-| `IFOL.o` | 448 | 12.4% | 1903 |
-| `prop` | 11 | 0.3% | 23 |
-
-Plus **249 distinct ZF mathematical constants** — the 197 term constants and 54
-predicates, tabulated in `~/isabelle-object-constants.md`.
-
-### Three findings the dialect rests on
-
-1. **FOL contributes ZERO statement constants.** Classical logic appears only in
-   proofs. A statement reader needs Pure + IFOL + ZF and nothing else.
-2. **Pure contributes exactly three: `⟹`, `≡`, `⋀`.**
-   `Pure.conjunction`, `Pure.prop`, `Pure.term` and `Pure.sort_constraint` are
-   absent from every ZF statement — which is why `Prop` has cases for the first
-   three and `Refusal.metaConjunction` / `Refusal.pureInternal` for the rest.
-   Refusing them is not a gap; it is refusing something that never arrives.
-3. **Four sort names, and they are the `Sort` enum.** `ZF_Base.i`, `IFOL.o`,
-   `prop`, `fun` — `.i`, `.o`, `.prop`, `.arrow`. `.variable` covers type
-   variables, which are not tag-0 names and so do not appear here.
-
-> **⚠ THE CENSUS CANNOT TELL A SORT FROM A TERM CONSTANT BY ITSELF.** YXML tag 0
-> is *both* `Type` and `Const` — the variant numbering collides. The four sorts
-> above are separated **by name**, in `SORTS` in the script. A fifth sort would
-> land silently in the constant column; the reader must decode the tree, not
-> match the tag.
-
----
-
-## Table 2 — proofs
-
-The citation frontier: what a ZF proof names that is not itself a ZF theorem.
-
-### Pure — all 7 axioms, plus 6 derived rules
-
-| rule | kind | thms | occ |
-|---|---|---:|---:|
-| `Pure.reflexive` | **axiom** | 2835 | 56069 |
-| `Pure.combination` | **axiom** | 2835 | 52634 |
-| `Pure.equal_elim` | **axiom** | 2837 | 21346 |
-| `Pure.transitive` | **axiom** | 2492 | 17360 |
-| `Pure.symmetric` | **axiom** | 2718 | 15875 |
-| `Pure.protectD` | derived | 2742 | 3175 |
-| `Pure.protectI` | derived | 2741 | 3023 |
-| `Pure.abstract_rule` | **axiom** | 2059 | 1341 |
-| `Pure.conjunctionD2` | derived | 121 | 134 |
-| `Pure.conjunctionD1` | derived | 121 | 116 |
-| `Pure.conjunctionI` | derived | 135 | 76 |
-| `Pure.meta_spec` | derived | 4 | 6 |
-| `Pure.equal_intr` | **axiom** | 2027 | 3 |
-
-**Pure is not avoidable, and not because IFOL is defined over it.** These are
-cited *directly by ZF's own proofs*, 171,158 times. The equational five —
-`reflexive`, `combination`, `equal_elim`, `transitive`, `symmetric` — are 163k of
-that, and they are tactic-generated rewriting inside ZF proofs. Any plan that
-models IFOL and expects Pure to fall out is wrong by two orders of magnitude.
-
-### ZF axioms — all 7 cited on the surface
-
-| ZF axiom | thms | occ | deep |
-|---|---:|---:|---:|
-| `ZF_Base.extension` | 1245 | 18 | 82.9% |
-| `ZF_Base.Union_iff` | 1579 | 58 | 82.8% |
-| `ZF_Base.Pow_iff` | 93 | 244 | 81.4% |
-| `ZF_Base.infinity` | 2 | 3 | 37.6% |
-| `ZF_Base.foundation` | 621 | 4 | 81.7% |
-| `ZF_Base.replacement` | 2 | 2 | 86.4% |
-| `AC.AC` | 2 | 3 | 1.2% |
-
-`replacement` is named by **2** theorems yet underlies 86.4% — it is reached
-through the definitions of comprehension and `Lambda`, not by citation. Choice is
-genuinely isolated at 1.2%.
-
-### IFOL and FOL — 132 rules
-
-60 IFOL + 72 FOL, 107,366 occurrences. The top fifteen:
-
-| rule | thms | occ |
+| constant | theorems | % |
 |---|---:|---:|
-| `IFOL.eq_reflection` | 2143 | 13957 |
-| `IFOL.impI` | 2094 | 11842 |
-| `IFOL.iff_reflection` | 2208 | 11765 |
-| `IFOL.rev_mp` | 1941 | 11186 |
-| `IFOL.iff_reflection_T` | 2116 | 8814 |
-| `IFOL.TrueI` | 2218 | 7966 |
-| `FOL.swap` | 2200 | 4627 |
-| `IFOL.def_imp_iff` | 1879 | 4523 |
-| `IFOL.notE` | 2080 | 3453 |
-| `FOL.ccontr` | 2087 | 3017 |
-| `IFOL.subst` | 1951 | 1604 |
-| `IFOL.meta_eq_to_obj_eq` | 1797 | 1600 |
-| `IFOL.sym` | 1870 | 1531 |
-| `FOL.IFOL_simps(1)` | 1103 | 1463 |
-| `IFOL.conjE` | 1964 | 1313 |
+| `IFOL.Trueprop` | 8010 | 85.0% |
+| `Pure.imp` | 5483 | 58.2% |
+| `IFOL.eq` | 4139 | 43.9% |
+| `IFOL.iff` | 1297 | 13.8% |
+| `Pure.eq` | 1249 | 13.3% |
+| `IFOL.conj` | 1065 | 11.3% |
+| `Pure.all` | 617 | 6.5% |
+| `IFOL.Not` | 546 | 5.8% |
+| `IFOL.imp` | 408 | 4.3% |
+| `IFOL.Ex` | 398 | 4.2% |
+| `IFOL.disj` | 348 | 3.7% |
+| `IFOL.All` | 147 | 1.6% |
+| `IFOL.True` | 63 | 0.7% |
+| `IFOL.Ex1` | 27 | 0.3% |
+| `IFOL.False` | 20 | 0.2% |
+| `IFOL.Let` | 6 | 0.1% |
 
-### And two populations that are not the frontier
+Plus **997 distinct ZF constants**.
 
-- **207 object definitions** (`*_def_raw`), each cited **exactly once** — one per
-  defined constant. These are the `@def` bodies S2/S3 compile from.
-- **2,203 ZF theorems** cited by other ZF theorems. That is ZF content, not the
-  frontier: the dialect resolves them by `(theory, serial)` like any other.
+### Types
 
----
-
-## What the whole surface costs
-
-| | statements | proofs |
+| type | theorems | % |
 |---|---:|---:|
-| Pure | 3 constants | 7 axioms + 6 derived rules |
-| IFOL | 13 constants | 60 rules |
-| FOL | **0** | 72 rules |
-| ZF | 249 constants | 7 axioms + 207 definitions |
-| sorts | 4 | — |
+| `ZF_Base.i` | 9040 | 96.0% |
+| `fun` | 2361 | 25.1% |
+| `IFOL.o` | 1671 | 17.7% |
+| `prop` | 137 | 1.5% |
+| `a type variable` | 23 | 0.2% |
 
-**64 rules are excluded by the surface cut** — 3 Pure, 61 IFOL/FOL, 0 ZF. Every
-ZF axiom is on the surface; nothing about set theory hides below the cut.
+### Other constructs
+
+| construct | theorems | % |
+|---|---:|---:|
+| `OFCLASS(_, IFOL.term)` | 1 | 0.0% |
+
+## Proofs
+
+### Frontier — Pure/IFOL/FOL rules cited
+
+#### Pure
+
+| rule | theorems | % |
+|---|---:|---:|
+| `Pure.protectD` | 5902 | 62.7% |
+| `Pure.protectI` | 5902 | 62.7% |
+| `Pure.conjunctionI` | 1207 | 12.8% |
+| `Pure.conjunctionD1` | 1192 | 12.7% |
+| `Pure.conjunctionD2` | 1188 | 12.6% |
+| `Pure.meta_spec` | 14 | 0.1% |
+| `Pure.termI` | 1 | 0.0% |
+
+#### IFOL
+
+| rule | theorems | % |
+|---|---:|---:|
+| `IFOL.TrueI` | 4637 | 49.2% |
+| `IFOL.eq_reflection` | 4603 | 48.9% |
+| `IFOL.iff_reflection` | 4533 | 48.1% |
+| `IFOL.impI` | 4529 | 48.1% |
+| `IFOL.conjE` | 4466 | 47.4% |
+| `IFOL.iff_reflection_T` | 4413 | 46.8% |
+| `IFOL.conjI` | 4405 | 46.8% |
+| `IFOL.refl` | 4385 | 46.5% |
+| `IFOL.mp` | 4343 | 46.1% |
+| `IFOL.allE` | 4309 | 45.7% |
+| `IFOL.notE` | 4297 | 45.6% |
+| `IFOL.allI` | 4200 | 44.6% |
+| `IFOL.subst` | 4195 | 44.5% |
+| `IFOL.sym` | 4066 | 43.2% |
+| `IFOL.rev_mp` | 4037 | 42.9% |
+| `IFOL.def_imp_iff` | 4011 | 42.6% |
+| `IFOL.exI` | 3946 | 41.9% |
+| `IFOL.exE` | 3928 | 41.7% |
+| `IFOL.iffI` | 3895 | 41.3% |
+| `IFOL.imp_cong` | 3886 | 41.3% |
+| `IFOL.meta_eq_to_obj_eq` | 3813 | 40.5% |
+| `IFOL.notI` | 3541 | 37.6% |
+| `IFOL.iffD2` | 3536 | 37.5% |
+| `IFOL.disjE` | 3334 | 35.4% |
+| `IFOL.iffD1` | 3210 | 34.1% |
+| `IFOL.conjunct1` | 2958 | 31.4% |
+| `IFOL.iff_reflection_F` | 2802 | 29.7% |
+| `IFOL.conj_cong` | 2776 | 29.5% |
+| `IFOL.conjunct2` | 2699 | 28.7% |
+| `IFOL.FalseE` | 1919 | 20.4% |
+| `IFOL.meta_eq_to_iff` | 1401 | 14.9% |
+| `IFOL.not_sym` | 1213 | 12.9% |
+| `IFOL.spec` | 1154 | 12.3% |
+| `IFOL.trans` | 1094 | 11.6% |
+| `IFOL.atomize_imp` | 451 | 4.8% |
+| `IFOL.ssubst` | 235 | 2.5% |
+| `IFOL.iff_sym` | 189 | 2.0% |
+| `IFOL.subst_context` | 186 | 2.0% |
+| `IFOL.atomize_iff` | 180 | 1.9% |
+| `IFOL.disjI1` | 178 | 1.9% |
+| `IFOL.disjI2` | 176 | 1.9% |
+| `IFOL.iff_trans` | 167 | 1.8% |
+| `IFOL.iff_refl` | 150 | 1.6% |
+| `IFOL.atomize_all` | 71 | 0.8% |
+| `IFOL.ex1I` | 60 | 0.6% |
+| `IFOL.impE` | 41 | 0.4% |
+| `IFOL.ex_ex1I` | 28 | 0.3% |
+| `IFOL.eq_commute` | 26 | 0.3% |
+| `IFOL.thin_refl` | 19 | 0.2% |
+| `IFOL.subst_all(2)` | 18 | 0.2% |
+| `IFOL.Let_def` | 12 | 0.1% |
+| `IFOL.ex1E` | 10 | 0.1% |
+| `IFOL.atomize_eq` | 8 | 0.1% |
+| `IFOL.back_subst` | 4 | 0.0% |
+| `IFOL.contrapos` | 4 | 0.0% |
+| `IFOL.forw_subst` | 4 | 0.0% |
+| `IFOL.distrib_simps(3)` | 3 | 0.0% |
+| `IFOL.atomize_conj` | 2 | 0.0% |
+| `IFOL.ex_cong` | 2 | 0.0% |
+| `IFOL.subst_all(1)` | 2 | 0.0% |
+| `IFOL.box_equals` | 1 | 0.0% |
+| `IFOL.conj_simps(1)` | 1 | 0.0% |
+| `IFOL.conj_simps(2)` | 1 | 0.0% |
+| `IFOL.conj_simps(3)` | 1 | 0.0% |
+| `IFOL.disj_cong` | 1 | 0.0% |
+| `IFOL.imp_disj` | 1 | 0.0% |
+| `IFOL.imp_simps(3)` | 1 | 0.0% |
+| `IFOL.quant_simps(4)` | 1 | 0.0% |
+| `IFOL.quant_simps(6)` | 1 | 0.0% |
+| `IFOL.rev_iffD1` | 1 | 0.0% |
+| `IFOL.rev_iffD2` | 1 | 0.0% |
+| `IFOL.term_class.intro` | 1 | 0.0% |
+
+#### FOL
+
+| rule | theorems | % |
+|---|---:|---:|
+| `FOL.swap` | 4555 | 48.4% |
+| `FOL.ccontr` | 4357 | 46.3% |
+| `FOL.impCE` | 4185 | 44.4% |
+| `FOL.IFOL_simps(29)` | 3961 | 42.0% |
+| `FOL.IFOL_simps(22)` | 3617 | 38.4% |
+| `FOL.int_all_simps(3)` | 3441 | 36.5% |
+| `FOL.classical` | 3400 | 36.1% |
+| `FOL.disjCI` | 3157 | 33.5% |
+| `FOL.meta_simps(2)` | 2870 | 30.5% |
+| `FOL.IFOL_simps(6)` | 2740 | 29.1% |
+| `FOL.IFOL_simps(1)` | 2634 | 28.0% |
+| `FOL.IFOL_simps(19)` | 2154 | 22.9% |
+| `FOL.IFOL_simps(33)` | 2028 | 21.5% |
+| `FOL.IFOL_simps(2)` | 1937 | 20.6% |
+| `FOL.IFOL_simps(32)` | 1921 | 20.4% |
+| `FOL.IFOL_simps(3)` | 1909 | 20.3% |
+| `FOL.case_split` | 1774 | 18.8% |
+| `FOL.meta_simps(1)` | 1662 | 17.6% |
+| `FOL.IFOL_simps(24)` | 1583 | 16.8% |
+| `FOL.IFOL_simps(13)` | 1471 | 15.6% |
+| `FOL.IFOL_simps(20)` | 1438 | 15.3% |
+| `FOL.IFOL_simps(23)` | 1436 | 15.2% |
+| `FOL.IFOL_simps(15)` | 1303 | 13.8% |
+| `FOL.IFOL_simps(39)` | 988 | 10.5% |
+| `FOL.cla_simps(7)` | 947 | 10.1% |
+| `FOL.int_ex_simps(2)` | 794 | 8.4% |
+| `FOL.IFOL_simps(10)` | 702 | 7.5% |
+| `FOL.IFOL_simps(25)` | 668 | 7.1% |
+| `FOL.iffCE` | 652 | 6.9% |
+| `FOL.IFOL_simps(11)` | 630 | 6.7% |
+| `FOL.IFOL_simps(14)` | 599 | 6.4% |
+| `FOL.IFOL_simps(5)` | 592 | 6.3% |
+| `FOL.IFOL_simps(12)` | 591 | 6.3% |
+| `FOL.IFOL_simps(37)` | 490 | 5.2% |
+| `FOL.IFOL_simps(28)` | 422 | 4.5% |
+| `FOL.cla_simps(1)` | 422 | 4.5% |
+| `FOL.IFOL_simps(18)` | 414 | 4.4% |
+| `FOL.IFOL_simps(35)` | 407 | 4.3% |
+| `FOL.cla_simps(12)` | 282 | 3.0% |
+| `FOL.imp_elim` | 209 | 2.2% |
+| `FOL.IFOL_simps(30)` | 185 | 2.0% |
+| `FOL.IFOL_simps(27)` | 183 | 1.9% |
+| `FOL.cla_simps(5)` | 170 | 1.8% |
+| `FOL.IFOL_simps(4)` | 150 | 1.6% |
+| `FOL.alt_ex1E` | 139 | 1.5% |
+| `FOL.iff_allI` | 63 | 0.7% |
+| `FOL.uncurry` | 63 | 0.7% |
+| `FOL.IFOL_simps(21)` | 53 | 0.6% |
+| `FOL.IFOL_simps(17)` | 51 | 0.5% |
+| `FOL.int_ex_simps(1)` | 34 | 0.4% |
+| `FOL.int_all_simps(4)` | 25 | 0.3% |
+| `FOL.cla_simps(8)` | 12 | 0.1% |
+| `FOL.IFOL_simps(36)` | 8 | 0.1% |
+| `FOL.IFOL_simps(38)` | 7 | 0.1% |
+| `FOL.IFOL_simps(34)` | 5 | 0.1% |
+| `FOL.IFOL_simps(31)` | 4 | 0.0% |
+| `FOL.contrapos2` | 4 | 0.0% |
+| `FOL.cla_simps(10)` | 3 | 0.0% |
+| `FOL.notnotD` | 3 | 0.0% |
+| `FOL.cla_simps(14)` | 2 | 0.0% |
+| `FOL.cla_simps(6)` | 2 | 0.0% |
+| `FOL.not_disj_iff_imp` | 2 | 0.0% |
+| `FOL.IFOL_simps(7)` | 1 | 0.0% |
+| `FOL.all_comm` | 1 | 0.0% |
+| `FOL.conj_mono` | 1 | 0.0% |
+| `FOL.disj_mono` | 1 | 0.0% |
+| `FOL.ex_comm` | 1 | 0.0% |
+| `FOL.ex_mono` | 1 | 0.0% |
+| `FOL.excluded_middle` | 1 | 0.0% |
+| `FOL.iff_exI` | 1 | 0.0% |
+| `FOL.imp_refl` | 1 | 0.0% |
+
+### Axioms
+
+| axiom | theorems | % |
+|---|---:|---:|
+| `Pure.reflexive` | 6647 | 70.6% |
+| `Pure.equal_elim` | 6636 | 70.4% |
+| `Pure.combination` | 6629 | 70.4% |
+| `Pure.symmetric` | 6453 | 68.5% |
+| `Pure.transitive` | 5526 | 58.7% |
+| `Pure.abstract_rule` | 4538 | 48.2% |
+| `Pure.equal_intr` | 4415 | 46.9% |
+| `FOL.induct_implies_def_raw` | 343 | 3.6% |
+| `Datatypes.enum.enum_def` | 65 | 0.7% |
+| `FOL.induct_forall_def_raw` | 26 | 0.3% |
+| `Tree_Forest.tree_forest.tree_forest_def` | 17 | 0.2% |
+| `Tree_Forest.tree_forest.forest_def` | 16 | 0.2% |
+| `Binary_Trees.bt.bt_def` | 15 | 0.2% |
+| `Tree_Forest.tree_forest.tree_def` | 15 | 0.2% |
+| `Com.evalc.evalc_def` | 12 | 0.1% |
+| `List.list.list_def` | 12 | 0.1% |
+| `Com.bexp.bexp_def` | 11 | 0.1% |
+| `Com.evalb.evalb_def` | 11 | 0.1% |
+| `Dynamic.EvalRel.EvalRel_def` | 11 | 0.1% |
+| `Primrec.prim_rec.prim_rec_def` | 11 | 0.1% |
+| `PropLog.propn.propn_def` | 11 | 0.1% |
+| `PropLog.thms.thms_def` | 11 | 0.1% |
+| `Com.com.com_def` | 10 | 0.1% |
+| `Comb.contract.contract_def` | 10 | 0.1% |
+| `Comb.parcontract.parcontract_def` | 10 | 0.1% |
+| `Formula.formula.formula_def` | 10 | 0.1% |
+| `Language.Exp.Exp_def` | 10 | 0.1% |
+| `Mutil.tiling.tiling_def` | 10 | 0.1% |
+| `Static.ElabRel.ElabRel_def` | 10 | 0.1% |
+| `Brouwer.brouwer.brouwer_def` | 9 | 0.1% |
+| `Com.aexp.aexp_def` | 9 | 0.1% |
+| `Com.evala.evala_def` | 9 | 0.1% |
+| `Datatypes.data.data_def` | 9 | 0.1% |
+| `Ntree.ntree.ntree_def` | 9 | 0.1% |
+| `Redex.Sreg.Sreg_def` | 9 | 0.1% |
+| `Redex.Ssub.Ssub_def` | 9 | 0.1% |
+| `Reduction.Spar_red1.Spar_red1_def` | 9 | 0.1% |
+| `Reduction.Sred1.Sred1_def` | 9 | 0.1% |
+| `Residuals.Sres.Sres_def` | 9 | 0.1% |
+| `AC_in_L.rlist.rlist_def` | 8 | 0.1% |
+| `Bin.bin.bin_def` | 8 | 0.1% |
+| `Comb.comb.comb_def` | 8 | 0.1% |
+| `Confluence.Sconv.Sconv_def` | 8 | 0.1% |
+| `Redex.Scomp.Scomp_def` | 8 | 0.1% |
+| `Redex.redexes.redexes_def` | 8 | 0.1% |
+| `Reduction.Sred.Sred_def` | 8 | 0.1% |
+| `Reduction.lambda.lambda_def` | 8 | 0.1% |
+| `Values.Val_ValEnv.Val_ValEnv_def` | 8 | 0.1% |
+| `Brouwer.Well.Well_def` | 7 | 0.1% |
+| `Com.bexp.bexp_rec_def` | 7 | 0.1% |
+| `Confluence.Sconv1.Sconv1_def` | 7 | 0.1% |
+| `ECR.HasTyRel.HasTyRel_def` | 7 | 0.1% |
+| `Finite.Fin.Fin_def` | 7 | 0.1% |
+| `Finite.FiniteFun.FiniteFun_def` | 7 | 0.1% |
+| `FoldSet.fold_set.fold_set_def` | 7 | 0.1% |
+| `LList.lleq.lleq_def` | 7 | 0.1% |
+| `LList.llist.llist_def` | 7 | 0.1% |
+| `ListN.listn.listn_def` | 7 | 0.1% |
+| `Mutil.domino.domino_def` | 7 | 0.1% |
+| `Ntree.maptree.maptree_def` | 7 | 0.1% |
+| `Ntree.maptree2.maptree2_def` | 7 | 0.1% |
+| `Reduction.Spar_red.Spar_red_def` | 7 | 0.1% |
+| `Rmap.rmap.rmap_def` | 7 | 0.1% |
+| `Term.term.term_def` | 7 | 0.1% |
+| `Types.Ty.Ty_def` | 7 | 0.1% |
+| `Types.TyEnv.TyEnv_def` | 7 | 0.1% |
+| `Zorn.TFin.TFin_def` | 7 | 0.1% |
+| `Acc.acc.acc_def` | 6 | 0.1% |
+| `CoUnit.counit.counit_def` | 6 | 0.1% |
+| `CoUnit.counit2.counit2_def` | 6 | 0.1% |
+| `Com.com.com_rec_def` | 6 | 0.1% |
+| `Language.Exp.Exp_rec_def` | 6 | 0.1% |
+| `Values.Val_ValEnv.Val_def` | 6 | 0.1% |
+| `Com.aexp.aexp_rec_def` | 5 | 0.1% |
+| `Datatypes.data.data_rec_def` | 5 | 0.1% |
+| `Formula.formula.formula_rec_def` | 5 | 0.1% |
+| `Values.Val_ValEnv.ValEnv_def` | 5 | 0.1% |
+| `Bin.bin.bin_rec_def` | 4 | 0.0% |
+| `Brouwer.brouwer.brouwer_rec_def` | 4 | 0.0% |
+| `Comb.comb.comb_rec_def` | 4 | 0.0% |
+| `PropLog.propn.propn_rec_def` | 4 | 0.0% |
+| `Redex.redexes.redexes_rec_def` | 4 | 0.0% |
+| `Tree_Forest.tree_forest.tree_forest_rec_def` | 4 | 0.0% |
+| `Binary_Trees.bt.bt_rec_def` | 3 | 0.0% |
+| `List.list.list_rec_def` | 3 | 0.0% |
+| `Types.Ty.Ty_rec_def` | 3 | 0.0% |
+| `Types.TyEnv.TyEnv_rec_def` | 3 | 0.0% |
+| `FOL.induct_conj_def_raw` | 2 | 0.0% |
+| `FOL.induct_equal_def_raw` | 2 | 0.0% |
+| `AC.AC` | 1 | 0.0% |
+| `AC16_WO4.AC16_def` | 1 | 0.0% |
+| `AC18_AC19.uu_def_raw` | 1 | 0.0% |
+| `AC_Equiv.AC0_def_raw` | 1 | 0.0% |
+| `AC_Equiv.AC10_def_raw` | 1 | 0.0% |
+| `AC_Equiv.AC11_def_raw` | 1 | 0.0% |
+| `AC_Equiv.AC12_def_raw` | 1 | 0.0% |
+| `AC_Equiv.AC13_def_raw` | 1 | 0.0% |
+| `AC_Equiv.AC14_def_raw` | 1 | 0.0% |
+| `AC_Equiv.AC15_def_raw` | 1 | 0.0% |
+| `AC_Equiv.AC16_def_raw` | 1 | 0.0% |
+| `AC_Equiv.AC17_def_raw` | 1 | 0.0% |
+| `AC_Equiv.AC18_def` | 1 | 0.0% |
+| `AC_Equiv.AC19_def_raw` | 1 | 0.0% |
+| `AC_Equiv.AC1_def_raw` | 1 | 0.0% |
+| `AC_Equiv.AC2_def_raw` | 1 | 0.0% |
+| `AC_Equiv.AC3_def_raw` | 1 | 0.0% |
+| `AC_Equiv.AC4_def_raw` | 1 | 0.0% |
+| `AC_Equiv.AC5_def_raw` | 1 | 0.0% |
+| `AC_Equiv.AC6_def_raw` | 1 | 0.0% |
+| `AC_Equiv.AC7_def_raw` | 1 | 0.0% |
+| `AC_Equiv.AC8_def_raw` | 1 | 0.0% |
+| `AC_Equiv.AC9_def_raw` | 1 | 0.0% |
+| `AC_Equiv.WO1_def_raw` | 1 | 0.0% |
+| `AC_Equiv.WO2_def_raw` | 1 | 0.0% |
+| `AC_Equiv.WO3_def_raw` | 1 | 0.0% |
+| `AC_Equiv.WO4_def_raw` | 1 | 0.0% |
+| `AC_Equiv.WO5_def_raw` | 1 | 0.0% |
+| `AC_Equiv.WO6_def_raw` | 1 | 0.0% |
+| `AC_Equiv.WO7_def_raw` | 1 | 0.0% |
+| `AC_Equiv.WO8_def_raw` | 1 | 0.0% |
+| `AC_Equiv.pairwise_disjoint_def_raw` | 1 | 0.0% |
+| `AC_Equiv.sets_of_size_between_def_raw` | 1 | 0.0% |
+| `AC_in_L.DPow_least_def_raw` | 1 | 0.0% |
+| `AC_in_L.DPow_ord_def_raw` | 1 | 0.0% |
+| `AC_in_L.DPow_r_def_raw` | 1 | 0.0% |
+| `AC_in_L.L_r_def_raw` | 1 | 0.0% |
+| `AC_in_L.Lset_new_def_raw` | 1 | 0.0% |
+| `AC_in_L.Nat_Times_Nat_def` | 1 | 0.0% |
+| `AC_in_L.enum.enum_formula_def` | 1 | 0.0% |
+| `AC_in_L.env_form_map_def_raw` | 1 | 0.0% |
+| `AC_in_L.env_form_r_def_raw` | 1 | 0.0% |
+| `AC_in_L.rlimit_def_raw` | 1 | 0.0% |
+| `Arith.add_def_raw` | 1 | 0.0% |
+| `Arith.diff_def_raw` | 1 | 0.0% |
+| `Arith.div_def_raw` | 1 | 0.0% |
+| `Arith.mod_def_raw` | 1 | 0.0% |
+| `Arith.mult_def_raw` | 1 | 0.0% |
+| `Arith.natify_def_raw` | 1 | 0.0% |
+| `Arith.pred_def_raw` | 1 | 0.0% |
+| `Arith.raw_add.raw_add_nat_def` | 1 | 0.0% |
+| `Arith.raw_diff.raw_diff_nat_def` | 1 | 0.0% |
+| `Arith.raw_div_def_raw` | 1 | 0.0% |
+| `Arith.raw_mod_def_raw` | 1 | 0.0% |
+| `Arith.raw_mult.raw_mult_nat_def` | 1 | 0.0% |
+| `Bin.NCons.NCons_bin_def` | 1 | 0.0% |
+| `Bin.bin.Bit_def` | 1 | 0.0% |
+| `Bin.bin.Min_def` | 1 | 0.0% |
+| `Bin.bin.Pls_def` | 1 | 0.0% |
+| `Bin.bin.bin_case_def` | 1 | 0.0% |
+| `Bin.bin_add_def_raw` | 1 | 0.0% |
+| `Bin.bin_adder.bin_adder_bin_def` | 1 | 0.0% |
+| `Bin.bin_minus.bin_minus_bin_def` | 1 | 0.0% |
+| `Bin.bin_mult.bin_mult_bin_def` | 1 | 0.0% |
+| `Bin.bin_pred.bin_pred_bin_def` | 1 | 0.0% |
+| `Bin.bin_succ.bin_succ_bin_def` | 1 | 0.0% |
+| `Bin.integ_of.integ_of_bin_def` | 1 | 0.0% |
+| `Binary_Trees.bt.Br_def` | 1 | 0.0% |
+| `Binary_Trees.bt.Lf_def` | 1 | 0.0% |
+| `Binary_Trees.bt.bt_case_def` | 1 | 0.0% |
+| `Binary_Trees.bt_reflect.bt_reflect_bt_def` | 1 | 0.0% |
+| `Binary_Trees.n_leaves.n_leaves_bt_def` | 1 | 0.0% |
+| `Binary_Trees.n_nodes.n_nodes_bt_def` | 1 | 0.0% |
+| `Binary_Trees.n_nodes_aux.n_nodes_aux_bt_def` | 1 | 0.0% |
+| `Binary_Trees.n_nodes_tail_def_raw` | 1 | 0.0% |
+| `Bool.and_def_raw` | 1 | 0.0% |
+| `Bool.bool_def_raw` | 1 | 0.0% |
+| `Bool.bool_of_o_def_raw` | 1 | 0.0% |
+| `Bool.cond_def_raw` | 1 | 0.0% |
+| `Bool.not_def_raw` | 1 | 0.0% |
+| `Bool.or_def_raw` | 1 | 0.0% |
+| `Bool.xor_def_raw` | 1 | 0.0% |
+| `Brouwer.Well.Sup_def` | 1 | 0.0% |
+| `Brouwer.Well.Well_case_def` | 1 | 0.0% |
+| `Brouwer.brouwer.Lim_def` | 1 | 0.0% |
+| `Brouwer.brouwer.Suc_def` | 1 | 0.0% |
+| `Brouwer.brouwer.Zero_def` | 1 | 0.0% |
+| `Brouwer.brouwer.brouwer_case_def` | 1 | 0.0% |
+| `Cardinal.Card_def_raw` | 1 | 0.0% |
+| `Cardinal.Finite_def_raw` | 1 | 0.0% |
+| `Cardinal.Least_def_raw` | 1 | 0.0% |
+| `Cardinal.cardinal_def_raw` | 1 | 0.0% |
+| `Cardinal.eqpoll_def_raw` | 1 | 0.0% |
+| `Cardinal.lepoll_def_raw` | 1 | 0.0% |
+| `Cardinal.lesspoll_def_raw` | 1 | 0.0% |
+| `CardinalArith.InfCard_def_raw` | 1 | 0.0% |
+| `CardinalArith.cadd_def_raw` | 1 | 0.0% |
+| `CardinalArith.cmult_def_raw` | 1 | 0.0% |
+| `CardinalArith.csquare_rel_def_raw` | 1 | 0.0% |
+| `CardinalArith.csucc_def_raw` | 1 | 0.0% |
+| `CardinalArith.jump_cardinal_def_raw` | 1 | 0.0% |
+| `CoUnit.counit.Con_def` | 1 | 0.0% |
+| `CoUnit.counit.counit_case_def` | 1 | 0.0% |
+| `CoUnit.counit2.Con2_def` | 1 | 0.0% |
+| `CoUnit.counit2.counit2_case_def` | 1 | 0.0% |
+| `Com.aexp.N_def` | 1 | 0.0% |
+| `Com.aexp.Op1_def` | 1 | 0.0% |
+| `Com.aexp.Op2_def` | 1 | 0.0% |
+| `Com.aexp.X_def` | 1 | 0.0% |
+| `Com.aexp.aexp_case_def` | 1 | 0.0% |
+| `Com.bexp.ROp_def` | 1 | 0.0% |
+| `Com.bexp.andi_def` | 1 | 0.0% |
+| `Com.bexp.bexp_case_def` | 1 | 0.0% |
+| `Com.bexp.false_def` | 1 | 0.0% |
+| `Com.bexp.noti_def` | 1 | 0.0% |
+| `Com.bexp.ori_def` | 1 | 0.0% |
+| `Com.bexp.true_def` | 1 | 0.0% |
+| `Com.com.assignment_def` | 1 | 0.0% |
+| `Com.com.com_case_def` | 1 | 0.0% |
+| `Com.com.if_def` | 1 | 0.0% |
+| `Com.com.semicolon_def` | 1 | 0.0% |
+| `Com.com.skip_def` | 1 | 0.0% |
+| `Com.com.while_def` | 1 | 0.0% |
+| `Comb.I_def_raw` | 1 | 0.0% |
+| `Comb.comb.K_def` | 1 | 0.0% |
+| `Comb.comb.S_def` | 1 | 0.0% |
+| `Comb.comb.app_def` | 1 | 0.0% |
+| `Comb.comb.comb_case_def` | 1 | 0.0% |
+| `Comb.diamond_def_raw` | 1 | 0.0% |
+| `Commutation.Church_Rosser_def_raw` | 1 | 0.0% |
+| `Commutation.commute_def_raw` | 1 | 0.0% |
+| `Commutation.confluent_def_raw` | 1 | 0.0% |
+| `Commutation.diamond_def_raw` | 1 | 0.0% |
+| `Commutation.square_def_raw` | 1 | 0.0% |
+| `Commutation.strip_def_raw` | 1 | 0.0% |
+| `Confluence.confluence_def_raw` | 1 | 0.0% |
+| `Confluence.strip_def_raw` | 1 | 0.0% |
+| `DC.DC0_def_raw` | 1 | 0.0% |
+| `DC.DC0_imp_def` | 1 | 0.0% |
+| `DC.DC_def_raw` | 1 | 0.0% |
+| `DC.ff_def_raw` | 1 | 0.0% |
+| `DPow_absolute.Collect_fm_def_raw` | 1 | 0.0% |
+| `DPow_absolute.DPow'_fm_def_raw` | 1 | 0.0% |
+| `DPow_absolute.DPow_sats_fm_def_raw` | 1 | 0.0% |
+| `DPow_absolute.M_DPow_axioms_def` | 1 | 0.0% |
+| `DPow_absolute.M_DPow_def` | 1 | 0.0% |
+| `DPow_absolute.M_Lset_axioms_def` | 1 | 0.0% |
+| `DPow_absolute.M_Lset_def` | 1 | 0.0% |
+| `DPow_absolute.Replace_fm_def_raw` | 1 | 0.0% |
+| `DPow_absolute.constructible_def_raw` | 1 | 0.0% |
+| `DPow_absolute.formula_rec_fm_def_raw` | 1 | 0.0% |
+| `DPow_absolute.is_DPow'_def_raw` | 1 | 0.0% |
+| `DPow_absolute.is_DPow_sats_def_raw` | 1 | 0.0% |
+| `DPow_absolute.is_Lset_def_raw` | 1 | 0.0% |
+| `DPow_absolute.satisfies_fm_def_raw` | 1 | 0.0% |
+| `DPow_absolute.transrec_body_def_raw` | 1 | 0.0% |
+| `Datatype_absolute.Formula_Rec_axioms_def` | 1 | 0.0% |
+| `Datatype_absolute.Formula_Rec_def` | 1 | 0.0% |
+| `Datatype_absolute.M_datatypes_axioms_def` | 1 | 0.0% |
+| `Datatype_absolute.M_datatypes_def` | 1 | 0.0% |
+| `Datatype_absolute.M_eclose_axioms_def` | 1 | 0.0% |
+| `Datatype_absolute.M_eclose_def` | 1 | 0.0% |
+| `Datatype_absolute.contin_def_raw` | 1 | 0.0% |
+| `Datatype_absolute.depth.depth_formula_def` | 1 | 0.0% |
+| `Datatype_absolute.directed_def_raw` | 1 | 0.0% |
+| `Datatype_absolute.formula_N_def_raw` | 1 | 0.0% |
+| `Datatype_absolute.formula_rec_case_def_raw` | 1 | 0.0% |
+| `Datatype_absolute.is_Equal_def_raw` | 1 | 0.0% |
+| `Datatype_absolute.is_Forall_def_raw` | 1 | 0.0% |
+| `Datatype_absolute.is_Member_def_raw` | 1 | 0.0% |
+| `Datatype_absolute.is_Nand_def_raw` | 1 | 0.0% |
+| `Datatype_absolute.is_depth_def_raw` | 1 | 0.0% |
+| `Datatype_absolute.is_eclose_def_raw` | 1 | 0.0% |
+| `Datatype_absolute.is_eclose_n_def_raw` | 1 | 0.0% |
+| `Datatype_absolute.is_formula_N_def_raw` | 1 | 0.0% |
+| `Datatype_absolute.is_formula_case_def_raw` | 1 | 0.0% |
+| `Datatype_absolute.is_formula_def_raw` | 1 | 0.0% |
+| `Datatype_absolute.is_formula_functor_def_raw` | 1 | 0.0% |
+| `Datatype_absolute.is_formula_rec_def_raw` | 1 | 0.0% |
+| `Datatype_absolute.is_iterates_def_raw` | 1 | 0.0% |
+| `Datatype_absolute.is_length_def_raw` | 1 | 0.0% |
+| `Datatype_absolute.is_list_N_def_raw` | 1 | 0.0% |
+| `Datatype_absolute.is_list_def_raw` | 1 | 0.0% |
+| `Datatype_absolute.is_list_functor_def_raw` | 1 | 0.0% |
+| `Datatype_absolute.is_nth_def_raw` | 1 | 0.0% |
+| `Datatype_absolute.is_transrec_def_raw` | 1 | 0.0% |
+| `Datatype_absolute.iterates_MH_def_raw` | 1 | 0.0% |
+| `Datatype_absolute.iterates_replacement_def_raw` | 1 | 0.0% |
+| `Datatype_absolute.list_N_def_raw` | 1 | 0.0% |
+| `Datatype_absolute.mem_eclose_def_raw` | 1 | 0.0% |
+| `Datatype_absolute.mem_formula_def_raw` | 1 | 0.0% |
+| `Datatype_absolute.mem_list_def_raw` | 1 | 0.0% |
+| `Datatype_absolute.transrec_replacement_def_raw` | 1 | 0.0% |
+| `Datatypes.data.Con0_def` | 1 | 0.0% |
+| `Datatypes.data.Con1_def` | 1 | 0.0% |
+| `Datatypes.data.Con2_def` | 1 | 0.0% |
+| `Datatypes.data.Con3_def` | 1 | 0.0% |
+| `Datatypes.data.data_case_def` | 1 | 0.0% |
+| `Datatypes.enum.C00_def` | 1 | 0.0% |
+| `Datatypes.enum.C01_def` | 1 | 0.0% |
+| `Datatypes.enum.C02_def` | 1 | 0.0% |
+| `Datatypes.enum.C03_def` | 1 | 0.0% |
+| `Datatypes.enum.C04_def` | 1 | 0.0% |
+| `Datatypes.enum.C05_def` | 1 | 0.0% |
+| `Datatypes.enum.C06_def` | 1 | 0.0% |
+| `Datatypes.enum.C07_def` | 1 | 0.0% |
+| `Datatypes.enum.C08_def` | 1 | 0.0% |
+| `Datatypes.enum.C09_def` | 1 | 0.0% |
+| `Datatypes.enum.C10_def` | 1 | 0.0% |
+| `Datatypes.enum.C11_def` | 1 | 0.0% |
+| `Datatypes.enum.C12_def` | 1 | 0.0% |
+| `Datatypes.enum.C13_def` | 1 | 0.0% |
+| `Datatypes.enum.C14_def` | 1 | 0.0% |
+| `Datatypes.enum.C15_def` | 1 | 0.0% |
+| `Datatypes.enum.C16_def` | 1 | 0.0% |
+| `Datatypes.enum.C17_def` | 1 | 0.0% |
+| `Datatypes.enum.C18_def` | 1 | 0.0% |
+| `Datatypes.enum.C19_def` | 1 | 0.0% |
+| `Datatypes.enum.C20_def` | 1 | 0.0% |
+| `Datatypes.enum.C21_def` | 1 | 0.0% |
+| `Datatypes.enum.C22_def` | 1 | 0.0% |
+| `Datatypes.enum.C23_def` | 1 | 0.0% |
+| `Datatypes.enum.C24_def` | 1 | 0.0% |
+| `Datatypes.enum.C25_def` | 1 | 0.0% |
+| `Datatypes.enum.C26_def` | 1 | 0.0% |
+| `Datatypes.enum.C27_def` | 1 | 0.0% |
+| `Datatypes.enum.C28_def` | 1 | 0.0% |
+| `Datatypes.enum.C29_def` | 1 | 0.0% |
+| `Datatypes.enum.C30_def` | 1 | 0.0% |
+| `Datatypes.enum.C31_def` | 1 | 0.0% |
+| `Datatypes.enum.C32_def` | 1 | 0.0% |
+| `Datatypes.enum.C33_def` | 1 | 0.0% |
+| `Datatypes.enum.C34_def` | 1 | 0.0% |
+| `Datatypes.enum.C35_def` | 1 | 0.0% |
+| `Datatypes.enum.C36_def` | 1 | 0.0% |
+| `Datatypes.enum.C37_def` | 1 | 0.0% |
+| `Datatypes.enum.C38_def` | 1 | 0.0% |
+| `Datatypes.enum.C39_def` | 1 | 0.0% |
+| `Datatypes.enum.C40_def` | 1 | 0.0% |
+| `Datatypes.enum.C41_def` | 1 | 0.0% |
+| `Datatypes.enum.C42_def` | 1 | 0.0% |
+| `Datatypes.enum.C43_def` | 1 | 0.0% |
+| `Datatypes.enum.C44_def` | 1 | 0.0% |
+| `Datatypes.enum.C45_def` | 1 | 0.0% |
+| `Datatypes.enum.C46_def` | 1 | 0.0% |
+| `Datatypes.enum.C47_def` | 1 | 0.0% |
+| `Datatypes.enum.C48_def` | 1 | 0.0% |
+| `Datatypes.enum.C49_def` | 1 | 0.0% |
+| `Datatypes.enum.C50_def` | 1 | 0.0% |
+| `Datatypes.enum.C51_def` | 1 | 0.0% |
+| `Datatypes.enum.C52_def` | 1 | 0.0% |
+| `Datatypes.enum.C53_def` | 1 | 0.0% |
+| `Datatypes.enum.C54_def` | 1 | 0.0% |
+| `Datatypes.enum.C55_def` | 1 | 0.0% |
+| `Datatypes.enum.C56_def` | 1 | 0.0% |
+| `Datatypes.enum.C57_def` | 1 | 0.0% |
+| `Datatypes.enum.C58_def` | 1 | 0.0% |
+| `Datatypes.enum.C59_def` | 1 | 0.0% |
+| `Datatypes.enum.enum_case_def` | 1 | 0.0% |
+| `Denotation.A.A_aexp_def` | 1 | 0.0% |
+| `Denotation.B.B_bexp_def` | 1 | 0.0% |
+| `Denotation.C.C_com_def` | 1 | 0.0% |
+| `Denotation.Gamma_def_raw` | 1 | 0.0% |
+| `ECR.hastyenv_def_raw` | 1 | 0.0% |
+| `Epsilon.eclose_def_raw` | 1 | 0.0% |
+| `Epsilon.rank_def_raw` | 1 | 0.0% |
+| `Epsilon.rec_def_raw` | 1 | 0.0% |
+| `Epsilon.recursor_def_raw` | 1 | 0.0% |
+| `Epsilon.transrec2_def_raw` | 1 | 0.0% |
+| `Epsilon.transrec_def_raw` | 1 | 0.0% |
+| `EquivClass.congruent2_def_raw` | 1 | 0.0% |
+| `EquivClass.congruent_def_raw` | 1 | 0.0% |
+| `EquivClass.quotient_def_raw` | 1 | 0.0% |
+| `Finite.contents_def_raw` | 1 | 0.0% |
+| `Fixedpt.bnd_mono_def_raw` | 1 | 0.0% |
+| `Fixedpt.gfp_def_raw` | 1 | 0.0% |
+| `Fixedpt.lfp_def_raw` | 1 | 0.0% |
+| `FoldSet.fold_def_raw` | 1 | 0.0% |
+| `FoldSet.fold_typing_def` | 1 | 0.0% |
+| `FoldSet.setsum_def_raw` | 1 | 0.0% |
+| `Formula.And_def_raw` | 1 | 0.0% |
+| `Formula.DPow'_def_raw` | 1 | 0.0% |
+| `Formula.DPow_def_raw` | 1 | 0.0% |
+| `Formula.Exists_def_raw` | 1 | 0.0% |
+| `Formula.Iff_def_raw` | 1 | 0.0% |
+| `Formula.Implies_def_raw` | 1 | 0.0% |
+| `Formula.L_def_raw` | 1 | 0.0% |
+| `Formula.Lset_def_raw` | 1 | 0.0% |
+| `Formula.Neg_def_raw` | 1 | 0.0% |
+| `Formula.Or_def_raw` | 1 | 0.0% |
+| `Formula.arity.arity_formula_def` | 1 | 0.0% |
+| `Formula.formula.Equal_def` | 1 | 0.0% |
+| `Formula.formula.Forall_def` | 1 | 0.0% |
+| `Formula.formula.Member_def` | 1 | 0.0% |
+| `Formula.formula.Nand_def` | 1 | 0.0% |
+| `Formula.formula.formula_case_def` | 1 | 0.0% |
+| `Formula.incr_bv.incr_bv_formula_def` | 1 | 0.0% |
+| `Formula.incr_bv1_def_raw` | 1 | 0.0% |
+| `Formula.incr_var_def_raw` | 1 | 0.0% |
+| `Formula.lrank_def_raw` | 1 | 0.0% |
+| `Formula.ordinal_fm_def_raw` | 1 | 0.0% |
+| `Formula.satisfies.satisfies_formula_def` | 1 | 0.0% |
+| `Formula.subset_fm_def_raw` | 1 | 0.0% |
+| `Formula.transset_fm_def_raw` | 1 | 0.0% |
+| `Group.AutoGroup_def_raw` | 1 | 0.0% |
+| `Group.BijGroup_def_raw` | 1 | 0.0% |
+| `Group.DirProdGroup_def_raw` | 1 | 0.0% |
+| `Group.FactGroup_def_raw` | 1 | 0.0% |
+| `Group.RCOSETS_def_raw` | 1 | 0.0% |
+| `Group.SET_INV_def_raw` | 1 | 0.0% |
+| `Group.auto_def_raw` | 1 | 0.0% |
+| `Group.carrier_def_raw` | 1 | 0.0% |
+| `Group.comm_group_def` | 1 | 0.0% |
+| `Group.comm_monoid_axioms_def` | 1 | 0.0% |
+| `Group.comm_monoid_def` | 1 | 0.0% |
+| `Group.group_axioms_def` | 1 | 0.0% |
+| `Group.group_def` | 1 | 0.0% |
+| `Group.group_hom_axioms_def` | 1 | 0.0% |
+| `Group.group_hom_def` | 1 | 0.0% |
+| `Group.hom_def_raw` | 1 | 0.0% |
+| `Group.iso_def_raw` | 1 | 0.0% |
+| `Group.kernel_def_raw` | 1 | 0.0% |
+| `Group.l_coset_def_raw` | 1 | 0.0% |
+| `Group.m_inv_def_raw` | 1 | 0.0% |
+| `Group.mmult_def_raw` | 1 | 0.0% |
+| `Group.monoid_def` | 1 | 0.0% |
+| `Group.normal_axioms_def` | 1 | 0.0% |
+| `Group.normal_def` | 1 | 0.0% |
+| `Group.one_def_raw` | 1 | 0.0% |
+| `Group.order_def_raw` | 1 | 0.0% |
+| `Group.r_congruent_def_raw` | 1 | 0.0% |
+| `Group.r_coset_def_raw` | 1 | 0.0% |
+| `Group.set_mult_def_raw` | 1 | 0.0% |
+| `Group.subgroup_def` | 1 | 0.0% |
+| `Group.update_carrier_def_raw` | 1 | 0.0% |
+| `HH.HH_def_raw` | 1 | 0.0% |
+| `Hartog.Hartog_def_raw` | 1 | 0.0% |
+| `Int.int_def_raw` | 1 | 0.0% |
+| `Int.int_of_def_raw` | 1 | 0.0% |
+| `Int.intify_def_raw` | 1 | 0.0% |
+| `Int.intrel_def_raw` | 1 | 0.0% |
+| `Int.iszero_def_raw` | 1 | 0.0% |
+| `Int.nat_of_def_raw` | 1 | 0.0% |
+| `Int.raw_nat_of_def_raw` | 1 | 0.0% |
+| `Int.raw_zadd_def_raw` | 1 | 0.0% |
+| `Int.raw_zminus_def_raw` | 1 | 0.0% |
+| `Int.raw_zmult_def_raw` | 1 | 0.0% |
+| `Int.zadd_def_raw` | 1 | 0.0% |
+| `Int.zdiff_def_raw` | 1 | 0.0% |
+| `Int.zle_def_raw` | 1 | 0.0% |
+| `Int.zless_def_raw` | 1 | 0.0% |
+| `Int.zmagnitude_def_raw` | 1 | 0.0% |
+| `Int.zminus_def_raw` | 1 | 0.0% |
+| `Int.zmult_def_raw` | 1 | 0.0% |
+| `Int.znegative_def_raw` | 1 | 0.0% |
+| `IntDiv.adjust_def_raw` | 1 | 0.0% |
+| `IntDiv.divAlg_def_raw` | 1 | 0.0% |
+| `IntDiv.negDivAlg_def_raw` | 1 | 0.0% |
+| `IntDiv.negateSnd_def_raw` | 1 | 0.0% |
+| `IntDiv.posDivAlg_def_raw` | 1 | 0.0% |
+| `IntDiv.quorem_def_raw` | 1 | 0.0% |
+| `IntDiv.zdiv_def_raw` | 1 | 0.0% |
+| `IntDiv.zmod_def_raw` | 1 | 0.0% |
+| `Internalize.Cons_fm_def_raw` | 1 | 0.0% |
+| `Internalize.Equal_fm_def_raw` | 1 | 0.0% |
+| `Internalize.Forall_fm_def_raw` | 1 | 0.0% |
+| `Internalize.Inl_fm_def_raw` | 1 | 0.0% |
+| `Internalize.Inr_fm_def_raw` | 1 | 0.0% |
+| `Internalize.Member_fm_def_raw` | 1 | 0.0% |
+| `Internalize.Nand_fm_def_raw` | 1 | 0.0% |
+| `Internalize.Nil_fm_def_raw` | 1 | 0.0% |
+| `Internalize.and_fm_def_raw` | 1 | 0.0% |
+| `Internalize.bool_of_o_fm_def_raw` | 1 | 0.0% |
+| `Internalize.cartprod_fm_def_raw` | 1 | 0.0% |
+| `Internalize.eclose_n_fm_def_raw` | 1 | 0.0% |
+| `Internalize.formula_N_fm_def_raw` | 1 | 0.0% |
+| `Internalize.formula_functor_fm_def_raw` | 1 | 0.0% |
+| `Internalize.hd_fm_def_raw` | 1 | 0.0% |
+| `Internalize.is_eclose_fm_def_raw` | 1 | 0.0% |
+| `Internalize.is_formula_fm_def_raw` | 1 | 0.0% |
+| `Internalize.is_iterates_fm_def_raw` | 1 | 0.0% |
+| `Internalize.is_list_fm_def_raw` | 1 | 0.0% |
+| `Internalize.is_nat_case_fm_def_raw` | 1 | 0.0% |
+| `Internalize.is_recfun_fm_def_raw` | 1 | 0.0% |
+| `Internalize.is_transrec_fm_def_raw` | 1 | 0.0% |
+| `Internalize.is_wfrec_fm_def_raw` | 1 | 0.0% |
+| `Internalize.iterates_MH_fm_def_raw` | 1 | 0.0% |
+| `Internalize.lambda_fm_def_raw` | 1 | 0.0% |
+| `Internalize.list_N_fm_def_raw` | 1 | 0.0% |
+| `Internalize.list_functor_fm_def_raw` | 1 | 0.0% |
+| `Internalize.mem_eclose_fm_def_raw` | 1 | 0.0% |
+| `Internalize.mem_formula_fm_def_raw` | 1 | 0.0% |
+| `Internalize.mem_list_fm_def_raw` | 1 | 0.0% |
+| `Internalize.not_fm_def_raw` | 1 | 0.0% |
+| `Internalize.or_fm_def_raw` | 1 | 0.0% |
+| `Internalize.quasilist_fm_def_raw` | 1 | 0.0% |
+| `Internalize.quasinat_fm_def_raw` | 1 | 0.0% |
+| `Internalize.sum_fm_def_raw` | 1 | 0.0% |
+| `Internalize.tl_fm_def_raw` | 1 | 0.0% |
+| `LList.flip_LCons` | 1 | 0.0% |
+| `LList.flip_LNil` | 1 | 0.0% |
+| `LList.lconst_def_raw` | 1 | 0.0% |
+| `LList.llist.LCons_def` | 1 | 0.0% |
+| `LList.llist.LNil_def` | 1 | 0.0% |
+| `LList.llist.llist_case_def` | 1 | 0.0% |
+| `L_axioms.L_ClEx_def_raw` | 1 | 0.0% |
+| `L_axioms.L_F0_def_raw` | 1 | 0.0% |
+| `L_axioms.L_FF_def_raw` | 1 | 0.0% |
+| `L_axioms.L_Reflects_def_raw` | 1 | 0.0% |
+| `L_axioms.Memrel_fm_def_raw` | 1 | 0.0% |
+| `L_axioms.big_union_fm_def_raw` | 1 | 0.0% |
+| `L_axioms.bijection_fm_def_raw` | 1 | 0.0% |
+| `L_axioms.composition_fm_def_raw` | 1 | 0.0% |
+| `L_axioms.cons_fm_def_raw` | 1 | 0.0% |
+| `L_axioms.domain_fm_def_raw` | 1 | 0.0% |
+| `L_axioms.empty_fm_def_raw` | 1 | 0.0% |
+| `L_axioms.field_fm_def_raw` | 1 | 0.0% |
+| `L_axioms.finite_ordinal_fm_def_raw` | 1 | 0.0% |
+| `L_axioms.fun_apply_fm_def_raw` | 1 | 0.0% |
+| `L_axioms.function_fm_def_raw` | 1 | 0.0% |
+| `L_axioms.image_fm_def_raw` | 1 | 0.0% |
+| `L_axioms.injection_fm_def_raw` | 1 | 0.0% |
+| `L_axioms.limit_ordinal_fm_def_raw` | 1 | 0.0% |
+| `L_axioms.number1_fm_def_raw` | 1 | 0.0% |
+| `L_axioms.omega_fm_def_raw` | 1 | 0.0% |
+| `L_axioms.order_isomorphism_fm_def_raw` | 1 | 0.0% |
+| `L_axioms.pair_fm_def_raw` | 1 | 0.0% |
+| `L_axioms.pre_image_fm_def_raw` | 1 | 0.0% |
+| `L_axioms.pred_set_fm_def_raw` | 1 | 0.0% |
+| `L_axioms.range_fm_def_raw` | 1 | 0.0% |
+| `L_axioms.relation_fm_def_raw` | 1 | 0.0% |
+| `L_axioms.restriction_fm_def_raw` | 1 | 0.0% |
+| `L_axioms.succ_fm_def_raw` | 1 | 0.0% |
+| `L_axioms.surjection_fm_def_raw` | 1 | 0.0% |
+| `L_axioms.typed_function_fm_def_raw` | 1 | 0.0% |
+| `L_axioms.union_fm_def_raw` | 1 | 0.0% |
+| `L_axioms.upair_fm_def_raw` | 1 | 0.0% |
+| `Language.Exp.Exp_case_def` | 1 | 0.0% |
+| `Language.Exp.e_app_def` | 1 | 0.0% |
+| `Language.Exp.e_const_def` | 1 | 0.0% |
+| `Language.Exp.e_fix_def` | 1 | 0.0% |
+| `Language.Exp.e_fn_def` | 1 | 0.0% |
+| `Language.Exp.e_var_def` | 1 | 0.0% |
+| `Language.c_appI` | 1 | 0.0% |
+| `Language.constNEE` | 1 | 0.0% |
+| `Limit.Dinf_def_raw` | 1 | 0.0% |
+| `Limit.Rp_def_raw` | 1 | 0.0% |
+| `Limit.bot_def_raw` | 1 | 0.0% |
+| `Limit.cf_def_raw` | 1 | 0.0% |
+| `Limit.chain_def_raw` | 1 | 0.0% |
+| `Limit.commute_def_raw` | 1 | 0.0% |
+| `Limit.cont_def_raw` | 1 | 0.0% |
+| `Limit.cpo_def_raw` | 1 | 0.0% |
+| `Limit.dominate_def_raw` | 1 | 0.0% |
+| `Limit.e_gr_def_raw` | 1 | 0.0% |
+| `Limit.e_less_def_raw` | 1 | 0.0% |
+| `Limit.emb_chain_def_raw` | 1 | 0.0% |
+| `Limit.emb_def_raw` | 1 | 0.0% |
+| `Limit.eps_def_raw` | 1 | 0.0% |
+| `Limit.iprod_def_raw` | 1 | 0.0% |
+| `Limit.islub_def_raw` | 1 | 0.0% |
+| `Limit.isub_def_raw` | 1 | 0.0% |
+| `Limit.lub_def_raw` | 1 | 0.0% |
+| `Limit.matrix_def_raw` | 1 | 0.0% |
+| `Limit.mediating_def_raw` | 1 | 0.0% |
+| `Limit.mkcpo_def_raw` | 1 | 0.0% |
+| `Limit.mono_def_raw` | 1 | 0.0% |
+| `Limit.pcpo_def_raw` | 1 | 0.0% |
+| `Limit.po_def_raw` | 1 | 0.0% |
+| `Limit.projpair_def_raw` | 1 | 0.0% |
+| `Limit.rel_def_raw` | 1 | 0.0% |
+| `Limit.rho_emb_def_raw` | 1 | 0.0% |
+| `Limit.rho_proj_def_raw` | 1 | 0.0% |
+| `Limit.set_def_raw` | 1 | 0.0% |
+| `Limit.subchain_def_raw` | 1 | 0.0% |
+| `Limit.subcpo_def_raw` | 1 | 0.0% |
+| `Limit.subpcpo_def_raw` | 1 | 0.0% |
+| `Limit.suffix_def_raw` | 1 | 0.0% |
+| `List.app.app_list_def` | 1 | 0.0% |
+| `List.drop.drop_nat_def` | 1 | 0.0% |
+| `List.filter.filter_list_def` | 1 | 0.0% |
+| `List.flat.flat_list_def` | 1 | 0.0% |
+| `List.hd.hd_list_def` | 1 | 0.0% |
+| `List.length.length_list_def` | 1 | 0.0% |
+| `List.list.Cons_def` | 1 | 0.0% |
+| `List.list.Nil_def` | 1 | 0.0% |
+| `List.list.list_case_def` | 1 | 0.0% |
+| `List.list_add.list_add_list_def` | 1 | 0.0% |
+| `List.list_update_def_raw` | 1 | 0.0% |
+| `List.map.map_list_def` | 1 | 0.0% |
+| `List.max_def_raw` | 1 | 0.0% |
+| `List.min_def_raw` | 1 | 0.0% |
+| `List.nth_def_raw` | 1 | 0.0% |
+| `List.repeat.repeat_nat_def` | 1 | 0.0% |
+| `List.rev.rev_list_def` | 1 | 0.0% |
+| `List.set_of_list.set_of_list_list_def` | 1 | 0.0% |
+| `List.sublist_def_raw` | 1 | 0.0% |
+| `List.take_def_raw` | 1 | 0.0% |
+| `List.tl.tl_list_def` | 1 | 0.0% |
+| `List.upt.upt_nat_def` | 1 | 0.0% |
+| `List.zip_aux.zip_aux_list_def` | 1 | 0.0% |
+| `List.zip_def_raw` | 1 | 0.0% |
+| `Map.PMap_def_raw` | 1 | 0.0% |
+| `Map.TMap_def_raw` | 1 | 0.0% |
+| `Map.map_app_def_raw` | 1 | 0.0% |
+| `Map.map_emp_def_raw` | 1 | 0.0% |
+| `Map.map_owr_def_raw` | 1 | 0.0% |
+| `MetaExists.ex_def_raw` | 1 | 0.0% |
+| `Multiset.MCollect_def_raw` | 1 | 0.0% |
+| `Multiset.funrestrict_def_raw` | 1 | 0.0% |
+| `Multiset.mcount_def_raw` | 1 | 0.0% |
+| `Multiset.mdiff_def_raw` | 1 | 0.0% |
+| `Multiset.mle_def_raw` | 1 | 0.0% |
+| `Multiset.mless_def_raw` | 1 | 0.0% |
+| `Multiset.mset_of_def_raw` | 1 | 0.0% |
+| `Multiset.msingle_def_raw` | 1 | 0.0% |
+| `Multiset.msize_def_raw` | 1 | 0.0% |
+| `Multiset.multirel1_def_raw` | 1 | 0.0% |
+| `Multiset.multirel_def_raw` | 1 | 0.0% |
+| `Multiset.multiset_def_raw` | 1 | 0.0% |
+| `Multiset.munion_def_raw` | 1 | 0.0% |
+| `Multiset.normalize_def_raw` | 1 | 0.0% |
+| `Multiset.omultiset_def_raw` | 1 | 0.0% |
+| `Mutil.evnodd_def_raw` | 1 | 0.0% |
+| `Nat.Ge_def_raw` | 1 | 0.0% |
+| `Nat.Gt_def_raw` | 1 | 0.0% |
+| `Nat.Le_def_raw` | 1 | 0.0% |
+| `Nat.Lt_def_raw` | 1 | 0.0% |
+| `Nat.greater_than_def_raw` | 1 | 0.0% |
+| `Nat.nat_case_def_raw` | 1 | 0.0% |
+| `Nat.nat_def_raw` | 1 | 0.0% |
+| `Nat.nat_rec_def_raw` | 1 | 0.0% |
+| `Nat.quasinat_def_raw` | 1 | 0.0% |
+| `NatSum.sum.sum_nat_def` | 1 | 0.0% |
+| `Normal.Aleph_def_raw` | 1 | 0.0% |
+| `Normal.Closed_Unbounded_def_raw` | 1 | 0.0% |
+| `Normal.Closed_def_raw` | 1 | 0.0% |
+| `Normal.Normal_def_raw` | 1 | 0.0% |
+| `Normal.Unbounded_def_raw` | 1 | 0.0% |
+| `Normal.cont_Ord_def_raw` | 1 | 0.0% |
+| `Normal.cub_family_def` | 1 | 0.0% |
+| `Normal.mono_Ord_def_raw` | 1 | 0.0% |
+| `Normal.mono_le_subset_def_raw` | 1 | 0.0% |
+| `Normal.normalize_def_raw` | 1 | 0.0% |
+| `Ntree.maptree.Sons_def` | 1 | 0.0% |
+| `Ntree.maptree.maptree_case_def` | 1 | 0.0% |
+| `Ntree.maptree2.Sons2_def` | 1 | 0.0% |
+| `Ntree.maptree2.maptree2_case_def` | 1 | 0.0% |
+| `Ntree.ntree.Branch_def` | 1 | 0.0% |
+| `Ntree.ntree.ntree_case_def` | 1 | 0.0% |
+| `Ntree.ntree_copy_def_raw` | 1 | 0.0% |
+| `Ntree.ntree_rec_def_raw` | 1 | 0.0% |
+| `OrdQuant.OUnion_def_raw` | 1 | 0.0% |
+| `OrdQuant.oall_def_raw` | 1 | 0.0% |
+| `OrdQuant.oex_def_raw` | 1 | 0.0% |
+| `OrdQuant.rall_def_raw` | 1 | 0.0% |
+| `OrdQuant.rex_def_raw` | 1 | 0.0% |
+| `OrdQuant.setclass_def_raw` | 1 | 0.0% |
+| `Order.first_def_raw` | 1 | 0.0% |
+| `Order.linear_def_raw` | 1 | 0.0% |
+| `Order.mono_map_def_raw` | 1 | 0.0% |
+| `Order.ord_iso_def_raw` | 1 | 0.0% |
+| `Order.ord_iso_map_def_raw` | 1 | 0.0% |
+| `Order.part_ord_def_raw` | 1 | 0.0% |
+| `Order.partial_order_on_def_raw` | 1 | 0.0% |
+| `Order.pred_def_raw` | 1 | 0.0% |
+| `Order.preorder_on_def_raw` | 1 | 0.0% |
+| `Order.tot_ord_def_raw` | 1 | 0.0% |
+| `Order.well_ord_def_raw` | 1 | 0.0% |
+| `OrderArith.measure_def_raw` | 1 | 0.0% |
+| `OrderArith.radd_def_raw` | 1 | 0.0% |
+| `OrderArith.rmult_def_raw` | 1 | 0.0% |
+| `OrderArith.rvimage_def_raw` | 1 | 0.0% |
+| `OrderArith.wfrank_def_raw` | 1 | 0.0% |
+| `OrderArith.wftype_def_raw` | 1 | 0.0% |
+| `OrderType.Ord_alt_def_raw` | 1 | 0.0% |
+| `OrderType.oadd_def_raw` | 1 | 0.0% |
+| `OrderType.odiff_def_raw` | 1 | 0.0% |
+| `OrderType.omult_def_raw` | 1 | 0.0% |
+| `OrderType.ordermap_def_raw` | 1 | 0.0% |
+| `OrderType.ordertype_def_raw` | 1 | 0.0% |
+| `OrderType.ordify_def_raw` | 1 | 0.0% |
+| `OrderType.raw_oadd_def_raw` | 1 | 0.0% |
+| `Ordinal.Limit_def_raw` | 1 | 0.0% |
+| `Ordinal.Memrel_def_raw` | 1 | 0.0% |
+| `Ordinal.Ord_def_raw` | 1 | 0.0% |
+| `Ordinal.Transset_def_raw` | 1 | 0.0% |
+| `Ordinal.lt_def_raw` | 1 | 0.0% |
+| `Perm.bij_def_raw` | 1 | 0.0% |
+| `Perm.comp_def_raw` | 1 | 0.0% |
+| `Perm.id_def_raw` | 1 | 0.0% |
+| `Perm.inj_def_raw` | 1 | 0.0% |
+| `Perm.surj_def_raw` | 1 | 0.0% |
+| `Primes.coprime_def_raw` | 1 | 0.0% |
+| `Primes.divides_def_raw` | 1 | 0.0% |
+| `Primes.gcd_def_raw` | 1 | 0.0% |
+| `Primes.is_gcd_def_raw` | 1 | 0.0% |
+| `Primes.prime_def_raw` | 1 | 0.0% |
+| `Primrec.ACK.ACK_nat_def` | 1 | 0.0% |
+| `Primrec.COMP_def_raw` | 1 | 0.0% |
+| `Primrec.CONSTANT_def_raw` | 1 | 0.0% |
+| `Primrec.PREC_def_raw` | 1 | 0.0% |
+| `Primrec.PROJ_def_raw` | 1 | 0.0% |
+| `Primrec.SC_def_raw` | 1 | 0.0% |
+| `PropLog.hyps.hyps_propn_def` | 1 | 0.0% |
+| `PropLog.is_true_def_raw` | 1 | 0.0% |
+| `PropLog.is_true_fun.is_true_fun_propn_def` | 1 | 0.0% |
+| `PropLog.logcon_def_raw` | 1 | 0.0% |
+| `PropLog.propn.Fls_def` | 1 | 0.0% |
+| `PropLog.propn.Imp_def` | 1 | 0.0% |
+| `PropLog.propn.Var_def` | 1 | 0.0% |
+| `PropLog.propn.propn_case_def` | 1 | 0.0% |
+| `QPair.QInl_def_raw` | 1 | 0.0% |
+| `QPair.QInr_def_raw` | 1 | 0.0% |
+| `QPair.QPair_def_raw` | 1 | 0.0% |
+| `QPair.QSigma_def_raw` | 1 | 0.0% |
+| `QPair.qcase_def_raw` | 1 | 0.0% |
+| `QPair.qconverse_def_raw` | 1 | 0.0% |
+| `QPair.qfst_def_raw` | 1 | 0.0% |
+| `QPair.qsnd_def_raw` | 1 | 0.0% |
+| `QPair.qsplit_def_raw` | 1 | 0.0% |
+| `QPair.qsum_def_raw` | 1 | 0.0% |
+| `QUniv.quniv_def_raw` | 1 | 0.0% |
+| `Ramsey.Atleast_def_raw` | 1 | 0.0% |
+| `Ramsey.Clique_def_raw` | 1 | 0.0% |
+| `Ramsey.Indept_def_raw` | 1 | 0.0% |
+| `Ramsey.Ramsey_def_raw` | 1 | 0.0% |
+| `Ramsey.Symmetric_def_raw` | 1 | 0.0% |
+| `Rank.M_ord_arith_axioms_def` | 1 | 0.0% |
+| `Rank.M_ord_arith_def` | 1 | 0.0% |
+| `Rank.M_ordertype_axioms_def` | 1 | 0.0% |
+| `Rank.M_ordertype_def` | 1 | 0.0% |
+| `Rank.M_wfrank_axioms_def` | 1 | 0.0% |
+| `Rank.M_wfrank_def` | 1 | 0.0% |
+| `Rank.is_oadd_def_raw` | 1 | 0.0% |
+| `Rank.is_oadd_fun_def_raw` | 1 | 0.0% |
+| `Rank.is_omult_def_raw` | 1 | 0.0% |
+| `Rank.is_omult_fun_def_raw` | 1 | 0.0% |
+| `Rank.obase_def_raw` | 1 | 0.0% |
+| `Rank.omap_def_raw` | 1 | 0.0% |
+| `Rank.omult_eqns_def_raw` | 1 | 0.0% |
+| `Rank.otype_def_raw` | 1 | 0.0% |
+| `Rank.wellfoundedrank_def_raw` | 1 | 0.0% |
+| `Rec_Separation.nth_fm_def_raw` | 1 | 0.0% |
+| `Rec_Separation.rtran_closure_fm_def_raw` | 1 | 0.0% |
+| `Rec_Separation.rtran_closure_mem_fm_def_raw` | 1 | 0.0% |
+| `Rec_Separation.tran_closure_fm_def_raw` | 1 | 0.0% |
+| `Redex.redexes.App_def` | 1 | 0.0% |
+| `Redex.redexes.Fun_def` | 1 | 0.0% |
+| `Redex.redexes.Var_def` | 1 | 0.0% |
+| `Redex.redexes.redexes_case_def` | 1 | 0.0% |
+| `Redex.union_aux.union_aux_redexes_def` | 1 | 0.0% |
+| `Redex.union_def_raw` | 1 | 0.0% |
+| `Reduction.unmark.unmark_redexes_def` | 1 | 0.0% |
+| `Reflection.ex_reflection_axioms_def` | 1 | 0.0% |
+| `Reflection.ex_reflection_def` | 1 | 0.0% |
+| `Reflection.reflection_def` | 1 | 0.0% |
+| `Relative.M_basic_axioms_def` | 1 | 0.0% |
+| `Relative.M_basic_def` | 1 | 0.0% |
+| `Relative.M_trans_def` | 1 | 0.0% |
+| `Relative.M_trivial_axioms_def` | 1 | 0.0% |
+| `Relative.M_trivial_def` | 1 | 0.0% |
+| `Relative.Relation1_def_raw` | 1 | 0.0% |
+| `Relative.Relation2_def_raw` | 1 | 0.0% |
+| `Relative.Relation3_def_raw` | 1 | 0.0% |
+| `Relative.Union_ax_def_raw` | 1 | 0.0% |
+| `Relative.big_inter_def_raw` | 1 | 0.0% |
+| `Relative.big_union_def_raw` | 1 | 0.0% |
+| `Relative.bijection_def_raw` | 1 | 0.0% |
+| `Relative.cartprod_def_raw` | 1 | 0.0% |
+| `Relative.composition_def_raw` | 1 | 0.0% |
+| `Relative.empty_def_raw` | 1 | 0.0% |
+| `Relative.extensionality_def_raw` | 1 | 0.0% |
+| `Relative.finite_ordinal_def_raw` | 1 | 0.0% |
+| `Relative.foundation_ax_def_raw` | 1 | 0.0% |
+| `Relative.fun_apply_def_raw` | 1 | 0.0% |
+| `Relative.hd'_def_raw` | 1 | 0.0% |
+| `Relative.image_def_raw` | 1 | 0.0% |
+| `Relative.injection_def_raw` | 1 | 0.0% |
+| `Relative.inter_def_raw` | 1 | 0.0% |
+| `Relative.is_Collect_def_raw` | 1 | 0.0% |
+| `Relative.is_Cons_def_raw` | 1 | 0.0% |
+| `Relative.is_Inl_def_raw` | 1 | 0.0% |
+| `Relative.is_Inr_def_raw` | 1 | 0.0% |
+| `Relative.is_Nil_def_raw` | 1 | 0.0% |
+| `Relative.is_Replace_def_raw` | 1 | 0.0% |
+| `Relative.is_and_def_raw` | 1 | 0.0% |
+| `Relative.is_bool_of_o_def_raw` | 1 | 0.0% |
+| `Relative.is_cons_def_raw` | 1 | 0.0% |
+| `Relative.is_converse_def_raw` | 1 | 0.0% |
+| `Relative.is_domain_def_raw` | 1 | 0.0% |
+| `Relative.is_field_def_raw` | 1 | 0.0% |
+| `Relative.is_function_def_raw` | 1 | 0.0% |
+| `Relative.is_funspace_def_raw` | 1 | 0.0% |
+| `Relative.is_hd_def_raw` | 1 | 0.0% |
+| `Relative.is_lambda_def_raw` | 1 | 0.0% |
+| `Relative.is_list_case_def_raw` | 1 | 0.0% |
+| `Relative.is_nat_case_def_raw` | 1 | 0.0% |
+| `Relative.is_not_def_raw` | 1 | 0.0% |
+| `Relative.is_or_def_raw` | 1 | 0.0% |
+| `Relative.is_quasilist_def_raw` | 1 | 0.0% |
+| `Relative.is_quasinat_def_raw` | 1 | 0.0% |
+| `Relative.is_range_def_raw` | 1 | 0.0% |
+| `Relative.is_relation_def_raw` | 1 | 0.0% |
+| `Relative.is_sum_def_raw` | 1 | 0.0% |
+| `Relative.is_tl_def_raw` | 1 | 0.0% |
+| `Relative.limit_ordinal_def_raw` | 1 | 0.0% |
+| `Relative.list_case'_def_raw` | 1 | 0.0% |
+| `Relative.membership_def_raw` | 1 | 0.0% |
+| `Relative.number1_def_raw` | 1 | 0.0% |
+| `Relative.number2_def_raw` | 1 | 0.0% |
+| `Relative.number3_def_raw` | 1 | 0.0% |
+| `Relative.omega_def_raw` | 1 | 0.0% |
+| `Relative.order_isomorphism_def_raw` | 1 | 0.0% |
+| `Relative.ordinal_def_raw` | 1 | 0.0% |
+| `Relative.pair_def_raw` | 1 | 0.0% |
+| `Relative.power_ax_def_raw` | 1 | 0.0% |
+| `Relative.powerset_def_raw` | 1 | 0.0% |
+| `Relative.pre_image_def_raw` | 1 | 0.0% |
+| `Relative.pred_set_def_raw` | 1 | 0.0% |
+| `Relative.quasilist_def_raw` | 1 | 0.0% |
+| `Relative.relation1_def_raw` | 1 | 0.0% |
+| `Relative.relation2_def_raw` | 1 | 0.0% |
+| `Relative.relation3_def_raw` | 1 | 0.0% |
+| `Relative.relation4_def_raw` | 1 | 0.0% |
+| `Relative.replacement_def_raw` | 1 | 0.0% |
+| `Relative.restriction_def_raw` | 1 | 0.0% |
+| `Relative.separation_def_raw` | 1 | 0.0% |
+| `Relative.setdiff_def_raw` | 1 | 0.0% |
+| `Relative.strong_replacement_def_raw` | 1 | 0.0% |
+| `Relative.subset_def_raw` | 1 | 0.0% |
+| `Relative.successor_def_raw` | 1 | 0.0% |
+| `Relative.successor_ordinal_def_raw` | 1 | 0.0% |
+| `Relative.surjection_def_raw` | 1 | 0.0% |
+| `Relative.tl'_def_raw` | 1 | 0.0% |
+| `Relative.transitive_set_def_raw` | 1 | 0.0% |
+| `Relative.typed_function_def_raw` | 1 | 0.0% |
+| `Relative.union_def_raw` | 1 | 0.0% |
+| `Relative.univalent_def_raw` | 1 | 0.0% |
+| `Relative.upair_ax_def_raw` | 1 | 0.0% |
+| `Relative.upair_def_raw` | 1 | 0.0% |
+| `Residuals.res_func_def_raw` | 1 | 0.0% |
+| `Ring.a_inv_def_raw` | 1 | 0.0% |
+| `Ring.abelian_group_axioms_def` | 1 | 0.0% |
+| `Ring.abelian_group_def` | 1 | 0.0% |
+| `Ring.abelian_monoid_def` | 1 | 0.0% |
+| `Ring.add_field_def_raw` | 1 | 0.0% |
+| `Ring.cring_def` | 1 | 0.0% |
+| `Ring.domain_axioms_def` | 1 | 0.0% |
+| `Ring.domain_def` | 1 | 0.0% |
+| `Ring.minus_def_raw` | 1 | 0.0% |
+| `Ring.ring_add_def_raw` | 1 | 0.0% |
+| `Ring.ring_axioms_def` | 1 | 0.0% |
+| `Ring.ring_def` | 1 | 0.0% |
+| `Ring.ring_hom_cring_axioms_def` | 1 | 0.0% |
+| `Ring.ring_hom_cring_def` | 1 | 0.0% |
+| `Ring.ring_hom_def_raw` | 1 | 0.0% |
+| `Ring.zero_def_raw` | 1 | 0.0% |
+| `Satisfies_absolute.M_satisfies_axioms_def` | 1 | 0.0% |
+| `Satisfies_absolute.M_satisfies_def` | 1 | 0.0% |
+| `Satisfies_absolute.depth_apply_fm_def_raw` | 1 | 0.0% |
+| `Satisfies_absolute.depth_fm_def_raw` | 1 | 0.0% |
+| `Satisfies_absolute.formula_case_fm_def_raw` | 1 | 0.0% |
+| `Satisfies_absolute.is_depth_apply_def_raw` | 1 | 0.0% |
+| `Satisfies_absolute.is_satisfies_def_raw` | 1 | 0.0% |
+| `Satisfies_absolute.satisfies_MH_def_raw` | 1 | 0.0% |
+| `Satisfies_absolute.satisfies_MH_fm_def_raw` | 1 | 0.0% |
+| `Satisfies_absolute.satisfies_a_def_raw` | 1 | 0.0% |
+| `Satisfies_absolute.satisfies_b_def_raw` | 1 | 0.0% |
+| `Satisfies_absolute.satisfies_c_def_raw` | 1 | 0.0% |
+| `Satisfies_absolute.satisfies_d_def_raw` | 1 | 0.0% |
+| `Satisfies_absolute.satisfies_is_a_def_raw` | 1 | 0.0% |
+| `Satisfies_absolute.satisfies_is_a_fm_def_raw` | 1 | 0.0% |
+| `Satisfies_absolute.satisfies_is_b_def_raw` | 1 | 0.0% |
+| `Satisfies_absolute.satisfies_is_b_fm_def_raw` | 1 | 0.0% |
+| `Satisfies_absolute.satisfies_is_c_def_raw` | 1 | 0.0% |
+| `Satisfies_absolute.satisfies_is_c_fm_def_raw` | 1 | 0.0% |
+| `Satisfies_absolute.satisfies_is_d_def_raw` | 1 | 0.0% |
+| `Satisfies_absolute.satisfies_is_d_fm_def_raw` | 1 | 0.0% |
+| `Static.isof_app` | 1 | 0.0% |
+| `Static.isofenv_def_raw` | 1 | 0.0% |
+| `Substitution.lift_aux.lift_aux_redexes_def` | 1 | 0.0% |
+| `Substitution.lift_rec_def_raw` | 1 | 0.0% |
+| `Substitution.subst_aux.subst_aux_redexes_def` | 1 | 0.0% |
+| `Substitution.subst_rec_def_raw` | 1 | 0.0% |
+| `Sum.Inl_def_raw` | 1 | 0.0% |
+| `Sum.Inr_def_raw` | 1 | 0.0% |
+| `Sum.Part_def_raw` | 1 | 0.0% |
+| `Sum.case_def_raw` | 1 | 0.0% |
+| `Sum.sum_def_raw` | 1 | 0.0% |
+| `Term.postorder_def_raw` | 1 | 0.0% |
+| `Term.preorder_def_raw` | 1 | 0.0% |
+| `Term.reflect_def_raw` | 1 | 0.0% |
+| `Term.term.Apply_def` | 1 | 0.0% |
+| `Term.term.term_case_def` | 1 | 0.0% |
+| `Term.term_map_def_raw` | 1 | 0.0% |
+| `Term.term_rec_def_raw` | 1 | 0.0% |
+| `Term.term_size_def_raw` | 1 | 0.0% |
+| `Trancl.antisym_def_raw` | 1 | 0.0% |
+| `Trancl.asym_def_raw` | 1 | 0.0% |
+| `Trancl.equiv_def_raw` | 1 | 0.0% |
+| `Trancl.irrefl_def_raw` | 1 | 0.0% |
+| `Trancl.refl_def_raw` | 1 | 0.0% |
+| `Trancl.rtrancl_def_raw` | 1 | 0.0% |
+| `Trancl.sym_def_raw` | 1 | 0.0% |
+| `Trancl.trancl_def_raw` | 1 | 0.0% |
+| `Trancl.trans_def_raw` | 1 | 0.0% |
+| `Trancl.trans_on_def_raw` | 1 | 0.0% |
+| `Tree_Forest.list_of_TF.list_of_TF_tree_forest_def` | 1 | 0.0% |
+| `Tree_Forest.map.map_tree_forest_def` | 1 | 0.0% |
+| `Tree_Forest.of_list.of_list_list_def` | 1 | 0.0% |
+| `Tree_Forest.preorder.preorder_tree_forest_def` | 1 | 0.0% |
+| `Tree_Forest.reflect.reflect_tree_forest_def` | 1 | 0.0% |
+| `Tree_Forest.size.size_tree_forest_def` | 1 | 0.0% |
+| `Tree_Forest.tree_forest.Fcons_def` | 1 | 0.0% |
+| `Tree_Forest.tree_forest.Fnil_def` | 1 | 0.0% |
+| `Tree_Forest.tree_forest.Tcons_def` | 1 | 0.0% |
+| `Tree_Forest.tree_forest.tree_forest_case_def` | 1 | 0.0% |
+| `Types.Ty.Ty_case_def` | 1 | 0.0% |
+| `Types.Ty.t_const_def` | 1 | 0.0% |
+| `Types.Ty.t_fun_def` | 1 | 0.0% |
+| `Types.TyEnv.TyEnv_case_def` | 1 | 0.0% |
+| `Types.TyEnv.te_emp_def` | 1 | 0.0% |
+| `Types.TyEnv.te_owr_def` | 1 | 0.0% |
+| `Types.te_app.te_app_TyEnv_def` | 1 | 0.0% |
+| `Types.te_dom.te_dom_TyEnv_def` | 1 | 0.0% |
+| `Univ.Vfrom_def_raw` | 1 | 0.0% |
+| `Univ.Vrec_def_raw` | 1 | 0.0% |
+| `Univ.Vrecursor_def_raw` | 1 | 0.0% |
+| `Univ.univ_def_raw` | 1 | 0.0% |
+| `Values.Val_ValEnv.Val_ValEnv_case_def` | 1 | 0.0% |
+| `Values.Val_ValEnv.v_clos_def` | 1 | 0.0% |
+| `Values.Val_ValEnv.v_const_def` | 1 | 0.0% |
+| `Values.Val_ValEnv.ve_mk_def` | 1 | 0.0% |
+| `Values.ve_app.ve_app_Val_ValEnv_def` | 1 | 0.0% |
+| `Values.ve_dom.ve_dom_Val_ValEnv_def` | 1 | 0.0% |
+| `Values.ve_emp_def_raw` | 1 | 0.0% |
+| `Values.ve_owr.ve_owr_Val_ValEnv_def` | 1 | 0.0% |
+| `WF.is_recfun_def_raw` | 1 | 0.0% |
+| `WF.the_recfun_def_raw` | 1 | 0.0% |
+| `WF.wf_def_raw` | 1 | 0.0% |
+| `WF.wf_on_def_raw` | 1 | 0.0% |
+| `WF.wfrec_def_raw` | 1 | 0.0% |
+| `WF.wfrec_on_def_raw` | 1 | 0.0% |
+| `WF.wftrec_def_raw` | 1 | 0.0% |
+| `WF_absolute.M_trancl_axioms_def` | 1 | 0.0% |
+| `WF_absolute.M_trancl_def` | 1 | 0.0% |
+| `WF_absolute.rtran_closure_def_raw` | 1 | 0.0% |
+| `WF_absolute.rtran_closure_mem_def_raw` | 1 | 0.0% |
+| `WF_absolute.rtrancl_alt_def_raw` | 1 | 0.0% |
+| `WF_absolute.tran_closure_def_raw` | 1 | 0.0% |
+| `WFrec.M_is_recfun_def_raw` | 1 | 0.0% |
+| `WFrec.is_wfrec_def_raw` | 1 | 0.0% |
+| `WFrec.wfrec_replacement_def_raw` | 1 | 0.0% |
+| `WO1_WO7.LEMMA_def_raw` | 1 | 0.0% |
+| `WO2_AC16.recfunAC16_def_raw` | 1 | 0.0% |
+| `WO6_WO1.NN_def_raw` | 1 | 0.0% |
+| `WO6_WO1.gg1_def_raw` | 1 | 0.0% |
+| `WO6_WO1.gg2_def_raw` | 1 | 0.0% |
+| `WO6_WO1.uu_def_raw` | 1 | 0.0% |
+| `WO6_WO1.vv1_def_raw` | 1 | 0.0% |
+| `WO6_WO1.vv2_def_raw` | 1 | 0.0% |
+| `WO6_WO1.ww1_def_raw` | 1 | 0.0% |
+| `WO6_WO1.ww2_def_raw` | 1 | 0.0% |
+| `Wellorderings.irreflexive_def_raw` | 1 | 0.0% |
+| `Wellorderings.linear_rel_def_raw` | 1 | 0.0% |
+| `Wellorderings.transitive_rel_def_raw` | 1 | 0.0% |
+| `Wellorderings.wellfounded_def_raw` | 1 | 0.0% |
+| `Wellorderings.wellfounded_on_def_raw` | 1 | 0.0% |
+| `Wellorderings.wellordered_def_raw` | 1 | 0.0% |
+| `ZF.iterates.iterates_nat_def` | 1 | 0.0% |
+| `ZF.iterates_omega_def_raw` | 1 | 0.0% |
+| `ZF.transrec3_def_raw` | 1 | 0.0% |
+| `ZF_Base.Ball_def_raw` | 1 | 0.0% |
+| `ZF_Base.Bex_def_raw` | 1 | 0.0% |
+| `ZF_Base.Collect_def_raw` | 1 | 0.0% |
+| `ZF_Base.Diff_def_raw` | 1 | 0.0% |
+| `ZF_Base.Int_def_raw` | 1 | 0.0% |
+| `ZF_Base.Inter_def_raw` | 1 | 0.0% |
+| `ZF_Base.Pair_def_raw` | 1 | 0.0% |
+| `ZF_Base.Pi_def_raw` | 1 | 0.0% |
+| `ZF_Base.Pow_iff` | 1 | 0.0% |
+| `ZF_Base.RepFun_def_raw` | 1 | 0.0% |
+| `ZF_Base.Replace_def_raw` | 1 | 0.0% |
+| `ZF_Base.Sigma_def_raw` | 1 | 0.0% |
+| `ZF_Base.Un_def_raw` | 1 | 0.0% |
+| `ZF_Base.Union_iff` | 1 | 0.0% |
+| `ZF_Base.Upair_def_raw` | 1 | 0.0% |
+| `ZF_Base.apply_def_raw` | 1 | 0.0% |
+| `ZF_Base.cons_def_raw` | 1 | 0.0% |
+| `ZF_Base.converse_def_raw` | 1 | 0.0% |
+| `ZF_Base.domain_def_raw` | 1 | 0.0% |
+| `ZF_Base.extension` | 1 | 0.0% |
+| `ZF_Base.field_def_raw` | 1 | 0.0% |
+| `ZF_Base.foundation` | 1 | 0.0% |
+| `ZF_Base.fst_def_raw` | 1 | 0.0% |
+| `ZF_Base.function_def_raw` | 1 | 0.0% |
+| `ZF_Base.if_def_raw` | 1 | 0.0% |
+| `ZF_Base.image_def_raw` | 1 | 0.0% |
+| `ZF_Base.infinity` | 1 | 0.0% |
+| `ZF_Base.lam_def_raw` | 1 | 0.0% |
+| `ZF_Base.range_def_raw` | 1 | 0.0% |
+| `ZF_Base.relation_def_raw` | 1 | 0.0% |
+| `ZF_Base.replacement` | 1 | 0.0% |
+| `ZF_Base.restrict_def_raw` | 1 | 0.0% |
+| `ZF_Base.snd_def_raw` | 1 | 0.0% |
+| `ZF_Base.split_def_raw` | 1 | 0.0% |
+| `ZF_Base.subset_def_raw` | 1 | 0.0% |
+| `ZF_Base.succ_def_raw` | 1 | 0.0% |
+| `ZF_Base.the_def_raw` | 1 | 0.0% |
+| `ZF_Base.vimage_def_raw` | 1 | 0.0% |
+| `Zorn.Chain_def_raw` | 1 | 0.0% |
+| `Zorn.Subset_rel_def_raw` | 1 | 0.0% |
+| `Zorn.chain_def_raw` | 1 | 0.0% |
+| `Zorn.increasing_def_raw` | 1 | 0.0% |
+| `Zorn.maxchain_def_raw` | 1 | 0.0% |
+| `Zorn.super_def_raw` | 1 | 0.0% |
+| `func.update_def_raw` | 1 | 0.0% |
+
+### Proof calculus
+
+| step | theorems | % |
+|---|---:|---:|
+| `⋀-elim` | 9016 | 95.7% |
+| `⟹-elim` | 7813 | 82.9% |
+| `⟹-intro` | 6875 | 73.0% |
+| `hypothesis` | 6848 | 72.7% |
+| `⋀-intro` | 5124 | 54.4% |
+
+### Inside proofs — logical constants, types and constructs of the propositions
+
+| item | theorems | % |
+|---|---:|---:|
+| `IFOL.Trueprop` | 7094 | 75.3% |
+| `Pure.imp` | 6857 | 72.8% |
+| `IFOL.eq` | 6088 | 64.6% |
+| `Pure.prop` | 5902 | 62.7% |
+| `IFOL.conj` | 5542 | 58.8% |
+| `Pure.eq` | 5425 | 57.6% |
+| `IFOL.Not` | 4915 | 52.2% |
+| `IFOL.imp` | 4867 | 51.7% |
+| `IFOL.Ex` | 4815 | 51.1% |
+| `IFOL.All` | 4653 | 49.4% |
+| `IFOL.False` | 4623 | 49.1% |
+| `Pure.all` | 4614 | 49.0% |
+| `IFOL.iff` | 4599 | 48.8% |
+| `IFOL.True` | 4597 | 48.8% |
+| `IFOL.disj` | 3911 | 41.5% |
+| `Pure.dummy_pattern` | 1699 | 18.0% |
+| `Pure.conjunction` | 1207 | 12.8% |
+| `FOL.induct_implies` | 343 | 3.6% |
+| `IFOL.Ex1` | 190 | 2.0% |
+| `FOL.induct_forall` | 26 | 0.3% |
+| `a type variable` | 23 | 0.2% |
+| `IFOL.Let` | 17 | 0.2% |
+| `FOL.induct_conj` | 2 | 0.0% |
+| `FOL.induct_equal` | 2 | 0.0% |
+| `Pure.term` | 1 | 0.0% |
+| `OFCLASS(_, IFOL.term)` | 1 | 0.0% |
+
+**5523 distinct named ZF theorems are cited** by ZF proofs — ZF content, not the frontier.
+**47386 class-premise discharges** were absorbed into the rule citations they belong to.

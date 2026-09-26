@@ -12,7 +12,7 @@ public struct ReadFailure: Error {
     public let error: any Error
 }
 
-private func located<T>(_ file: String, _ body: () throws -> T) throws -> T {
+func located<T>(_ file: String, _ body: () throws -> T) throws -> T {
     do { return try body() } catch { throw ReadFailure(file: file, error: error) }
 }
 
@@ -28,18 +28,15 @@ struct StatementReader {
 
     func read(_ file: Body, into t: inout Table) throws -> Outcome {
         let d = decode
-        let (tfrees, rest) = try d.pair({ try d.list({ try d.pair(d.string, { try d.list(d.string, $0) }, $0).0 }, $0) },
-                                        { $0 }, file)
-        let (header, statement) = try d.pair({ try d.list({ try d.pair(d.string, d.type, $0) }, $0) }, { $0 }, rest)
-        let (prop, _) = try d.pair({ $0 }, { $0 }, statement)
-        let names = header.map(\.0)
-        let occurring = try d.frees(prop)
+        let e = try d.envelope(file)
+        let names = e.frees.map(\.0)
+        let occurring = try d.frees(e.prop)
         guard occurring == names else { throw MalformedExport.freesHeader(header: names, occurring: occurring) }
         do {
-            if let a = tfrees.first { throw ReaderRefusal.typeVariable(a) }
-            let typed = try header.map { ($0.0, try $0.1.irType()) }
+            if let a = e.tfrees.first { throw ReaderRefusal.typeVariable(a) }
+            let typed = try e.frees.map { ($0.0, try $0.1.irType()) }
             let terms = Terms(decode: d, constants: constants, frees: Dictionary(uniqueKeysWithValues: typed))
-            let root = try terms.proposition(prop, in: &t)
+            let root = try terms.proposition(e.prop, in: &t)
             return .translated(root: root, frees: try typed.map { try t.intern(.isaFree($0.0, $0.1)) })
         } catch let r as ReaderRefusal {
             return .refused(r)
@@ -47,7 +44,21 @@ struct StatementReader {
     }
 }
 
+struct Envelope {
+    let tfrees: [String]
+    let frees: [(String, IsaType)]
+    let prop: Body
+    let proof: Body
+}
+
 extension Decode {
+    func envelope(_ file: Body) throws -> Envelope {
+        let (tfrees, rest) = try pair({ try list({ try pair(string, { try list(string, $0) }, $0).0 }, $0) }, { $0 }, file)
+        let (frees, statement) = try pair({ try list({ try pair(string, type, $0) }, $0) }, { $0 }, rest)
+        let (prop, proof) = try pair({ $0 }, { $0 }, statement)
+        return Envelope(tfrees: tfrees, frees: frees, prop: prop, proof: proof)
+    }
+
     func frees(_ body: Body) throws -> [String] {
         var seen = Set<Ref>(), known = Set<String>(), names: [String] = []
         try collect(body, &seen, &known, &names)
@@ -89,7 +100,7 @@ func claimName(_ entity: String) throws -> String {
 public struct Export {
     public let root: String
     public let theories: [String]
-    private var forest = Forest()
+    var forest = Forest()
     private var constants = Constants()
 
     public init(root: String) throws {
@@ -105,16 +116,10 @@ public struct Export {
 
     public mutating func statements(_ theory: String, into t: inout Table) throws -> [Read] {
         let entities = try located("\(theory)/theory/thms") { try names(theory) }
-        let dir = "\(root)/\(theory)/proofs"
-        guard FileManager.default.fileExists(atPath: dir) else { return [] }
-        let serials = try FileManager.default.contentsOfDirectory(atPath: dir).map { file in
-            guard let s = Int(file) else { throw MalformedExport.notASerial(file) }
-            return s
-        }.sorted()
         var reads: [Read] = []
-        for serial in serials {
+        for serial in try proofSerials(theory) {
             reads.append(try located("\(theory)/proofs/\(serial)") {
-                let body = try forest.parse(contentsOf: "\(dir)/\(serial)")
+                let body = try forest.parse(contentsOf: "\(root)/\(theory)/proofs/\(serial)")
                 let reader = StatementReader(decode: Decode(forest: forest), constants: constants)
                 var name: String?
                 let outcome: Outcome
@@ -130,7 +135,16 @@ public struct Export {
         return reads
     }
 
-    private mutating func names(_ theory: String) throws -> [Int: String] {
+    func proofSerials(_ theory: String) throws -> [Int] {
+        let dir = "\(root)/\(theory)/proofs"
+        guard FileManager.default.fileExists(atPath: dir) else { return [] }
+        return try FileManager.default.contentsOfDirectory(atPath: dir).map { file in
+            guard let s = Int(file) else { throw MalformedExport.notASerial(file) }
+            return s
+        }.sorted()
+    }
+
+    mutating func names(_ theory: String) throws -> [Int: String] {
         let path = "\(root)/\(theory)/theory/thms"
         guard FileManager.default.fileExists(atPath: path) else { return [:] }
         var names: [Int: String] = [:]

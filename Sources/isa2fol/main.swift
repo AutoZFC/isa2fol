@@ -21,17 +21,25 @@ func kind(_ r: ReaderRefusal) -> String {
 }
 
 let arguments = Array(CommandLine.arguments.dropFirst())
-let usage = "usage: isa2fol statements EXPORT_DIR [--show REFUSAL]"
+let usage = """
+    usage: isa2fol statements EXPORT_DIR [--show REFUSAL]
+           isa2fol surface EXPORT_DIR
+    """
+
+if arguments.count == 2, arguments[0] == "surface" {
+    do {
+        var export = try Export(root: arguments[1])
+        print(surfaceReport(try export.surface(), command: "isa2fol surface \(arguments[1])"), terminator: "")
+    } catch let failure as ReadFailure {
+        fail("malformed export at \(failure.file): \(failure.error)", 1)
+    }
+    exit(0)
+}
+
 guard arguments.count == 2 || (arguments.count == 4 && arguments[2] == "--show"), arguments[0] == "statements" else {
     fail(usage, 2)
 }
 let show = arguments.count == 4 ? arguments[3] : nil
-
-func session(_ theory: String) -> String? {
-    if theory.hasPrefix("ZF-") { return String(theory.prefix { $0 != "." }) }
-    if theory == "ZF" || theory == "ZFC" || theory.hasPrefix("ZF.") { return "ZF" }
-    return nil
-}
 
 var all: [String: Int] = [:], named: [String: [String: Int]] = [:]
 do {
@@ -47,7 +55,7 @@ do {
                 if kind(r) == show { print("\(theory)/proofs/\(read.serial)\t\(read.name ?? "-")\t\(r)") }
             }
             all[key, default: 0] += 1
-            if read.name != nil, let session = session(theory) { named[session, default: [:]][key, default: 0] += 1 }
+            if read.name != nil, let session = session(of: theory) { named[session, default: [:]][key, default: 0] += 1 }
         }
     }
 } catch let failure as ReadFailure {
