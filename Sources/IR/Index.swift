@@ -56,6 +56,16 @@ private struct Instantiate: Rule {
         guard expected == type else { throw IRRefusal.instantiateType(expected: expected, found: type) }
         return try shift(replacement, by: depth.terms, in: &t)
     }
+
+    func after(_ n: Node, depth: Depth, in t: inout Table) throws -> NodeID? {
+        guard case let .isaVarApp(head, args) = n, case .isaAbs = t[head] else { return nil }
+        var reduced = head
+        for a in args {
+            guard case let .isaAbs(_, body) = t[reduced] else { throw TableError.varAppHeadNotVariable(reduced) }
+            reduced = try instantiate(body, with: a, in: &t)
+        }
+        return reduced
+    }
 }
 
 private struct Abstract: Rule {

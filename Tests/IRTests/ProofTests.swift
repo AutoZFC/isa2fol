@@ -112,9 +112,27 @@ private struct P {
     #expect(p.concl(try p.t.intern(.isaAllIntro(i, body: try p.hyp(0, body)))) == all)
     #expect(p.concl(try p.t.intern(.isaAllElim(try p.hyp(0, all), a))) == (try p.mem(a, a)))
     let formula = try p.mem(a, a)
-    #expect(throws: IRRefusal.instantiateType(expected: i, found: o)) {
+    #expect(throws: TableError.childType(expected: i, found: o)) {
         try p.t.intern(.isaAllElim(try p.hyp(0, all), formula))
     }
+    let vacuous = try p.t.intern(.ifolAll(i, body: formula))
+    #expect(throws: TableError.childType(expected: i, found: o), "even when the body never uses it") {
+        try p.t.intern(.isaAllElim(try p.hyp(0, vacuous), formula))
+    }
+}
+
+/// η-long is the one canonical form: a function-typed term is a λ, here as in every argument position.
+@Test func isaAllElimAtAFunctionTypeTakesAnAbstraction() throws {
+    var p = P()
+    let a = try p.t.intern(.isaFree("a", i))
+    let applied = try p.t.intern(.isaVarApp(head: try p.t.intern(.isaBound(0, fn(i, o))), args: [a]))
+    let all = try p.t.intern(.ifolAll(fn(i, o), body: applied))
+    let bare = try p.t.intern(.isaFree("Q", fn(i, o)))
+    #expect(throws: TableError.functionArgumentNotAbstraction(bare)) {
+        try p.t.intern(.isaAllElim(try p.hyp(0, all), bare))
+    }
+    let lambda = try p.t.intern(.isaAbs(i, body: try p.mem(try p.t.intern(.isaBound(0, i)), a)))
+    #expect(p.concl(try p.t.intern(.isaAllElim(try p.hyp(0, all), lambda))) == (try p.mem(a, a)))
 }
 
 @Test func aStepIsNotAFormulaAndAFormulaIsNotAStep() throws {

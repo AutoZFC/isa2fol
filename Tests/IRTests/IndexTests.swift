@@ -148,6 +148,34 @@ private func memOf(_ a: NodeID, _ b: NodeID, _ t: inout Table) throws -> NodeID 
     #expect(try instantiate(try memOf(b0, b1, &t), with: b0, in: &t) == (try memOf(b0, b0, &t)))
 }
 
+/// `P(a)` with P := `λx. mem(x, A)`: the redex instantiate makes, it reduces.
+@Test func instantiatingAFunctionVariableReducesTheRedexItMakes() throws {
+    var t = Table()
+    let a = try t.intern(.isaFree("a", i)), A = try t.intern(.isaFree("A", i)), b0 = try t.intern(.isaBound(0, i))
+    let body = try t.intern(.isaVarApp(head: try t.intern(.isaBound(0, fn(i, o))), args: [a]))
+    let lambda = try t.intern(.isaAbs(i, body: try memOf(b0, A, &t)))
+    #expect(try instantiate(body, with: lambda, in: &t) == (try memOf(a, A, &t)))
+}
+
+/// `F(λx. mem(x, A))` with F := `λp. p(a)`: reducing one redex makes another, and it reduces too.
+@Test func instantiateReducesHereditarily() throws {
+    var t = Table()
+    let a = try t.intern(.isaFree("a", i)), A = try t.intern(.isaFree("A", i)), b0 = try t.intern(.isaBound(0, i))
+    let argument = try t.intern(.isaAbs(i, body: try memOf(b0, A, &t)))
+    let body = try t.intern(.isaVarApp(head: try t.intern(.isaBound(0, fn(fn(i, o), o))), args: [argument]))
+    let applyToA = try t.intern(.isaAbs(fn(i, o), body: try t.intern(.isaVarApp(head: try t.intern(.isaBound(0, fn(i, o))), args: [a]))))
+    #expect(try instantiate(body, with: applyToA, in: &t) == (try memOf(a, A, &t)))
+}
+
+/// `∀y. P(y)` with P := `λx. mem(x, z)`, z bound outside: z moves under y, x becomes y.
+@Test func aReducedRedexUnderABinderKeepsItsOuterVariables() throws {
+    var t = Table()
+    let b0 = try t.intern(.isaBound(0, i)), b1 = try t.intern(.isaBound(1, i))
+    let body = try t.intern(.ifolAll(i, body: try t.intern(.isaVarApp(head: try t.intern(.isaBound(1, fn(i, o))), args: [b0]))))
+    let lambda = try t.intern(.isaAbs(i, body: try memOf(b0, b1, &t)))
+    #expect(try instantiate(body, with: lambda, in: &t) == (try t.intern(.ifolAll(i, body: try memOf(b0, b1, &t)))))
+}
+
 /// `mem(x, A) → ∀. mem(0, x)` closed over x: the one node x becomes 0 here, 1 there.
 @Test func abstractNumbersANameByItsDepth() throws {
     var t = Table()

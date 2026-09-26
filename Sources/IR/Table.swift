@@ -177,8 +177,9 @@ public struct Table: Sendable {
         case let .isaAllIntro(T, body):
             return .step(concluding: try intern(.ifolAll(T, body: try premise(body))))
         case let .isaAllElim(p, x):
-            guard case let .ifolAll(_, body) = self[try premise(p)] else { throw TableError.principalConnective(p) }
-            _ = try value(x)
+            guard case let .ifolAll(T, body) = self[try premise(p)] else { throw TableError.principalConnective(p) }
+            try expect(T, x)
+            if case .fn = T, !isAbstraction(x) { throw TableError.functionArgumentNotAbstraction(x) }
             return .step(concluding: try instantiate(body, with: x, in: &self))
         }
     }
