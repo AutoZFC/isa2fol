@@ -89,7 +89,7 @@ private enum Argument {
 }
 
 private enum Connective {
-    case erased, implies, and, or, iff, not, bottom, metaEquality, all, ex, metaAll, pureInternal
+    case erased, implies, and, or, iff, not, bottom, metaEquality, all, ex
 }
 
 private let connectives: [String: Connective] = [
@@ -97,9 +97,7 @@ private let connectives: [String: Connective] = [
     "Pure.imp": .implies, "IFOL.imp": .implies,
     "IFOL.conj": .and, "IFOL.disj": .or, "IFOL.iff": .iff, "IFOL.Not": .not, "IFOL.False": .bottom,
     "Pure.eq": .metaEquality,
-    "IFOL.All": .all, "IFOL.Ex": .ex, "Pure.all": .metaAll,
-    "Pure.conjunction": .pureInternal, "Pure.term": .pureInternal, "Pure.type": .pureInternal,
-    "Pure.sort_constraint": .pureInternal, "Pure.dummy_pattern": .pureInternal,
+    "IFOL.All": .all, "IFOL.Ex": .ex, "Pure.all": .all,
 ]
 
 struct Terms {
@@ -196,8 +194,6 @@ struct Terms {
             return try t.intern(.isaConst(name, T, args: try operands(name, T.domains, arguments, s, &t)))
         }
         switch c {
-        case .pureInternal:
-            throw ReaderRefusal.pureInternal(name)
         case .bottom:
             _ = try operands(name, [], arguments, s, &t)
             return try t.intern(.folBottom)
@@ -226,10 +222,6 @@ struct Terms {
             case .i: return try t.intern(.isaConst("IFOL.eq", .fn(.i, .fn(.i, .o)), args: ab))
             case .fn: return try t.intern(.isaConst("Pure.eq", .fn(T, .fn(T, .o)), args: ab))
             }
-        case .metaAll:
-            let T = try typeArgument(name, types).irType()
-            if case .fn = T { throw ReaderRefusal.quantifierOverFunction }
-            return try t.intern(.ifolAll(T, body: try binder(name, T, arguments, s, &t)))
         case .all:
             let T = try typeArgument(name, types).irType()
             return try t.intern(.ifolAll(T, body: try binder(name, T, arguments, s, &t)))

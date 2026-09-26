@@ -13,9 +13,7 @@ func kind(_ r: ReaderRefusal) -> String {
     case .typeConstructor: return "typeConstructor"
     case .schematicVariable: return "schematicVariable"
     case .ofclass: return "ofclass"
-    case .pureInternal: return "pureInternal"
     case .betaRedex: return "betaRedex"
-    case .quantifierOverFunction: return "quantifierOverFunction"
     case .nameSegment: return "nameSegment"
     }
 }

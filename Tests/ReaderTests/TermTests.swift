@@ -35,6 +35,20 @@ private struct Reading {
 private let memT = fnT(iT, fnT(iT, oT))
 private let pq = [("P", o), ("Q", o)]
 
+/// The surface is one to one with the dialect AFTER coverage: a covered Isabelle construct reads
+/// as the SAME node as the FOL construct that covers it.
+@Test func aCoveredConstructReadsAsItsCover() throws {
+    var r = try Reading()
+    let P = trueprop(free("P")), Q = trueprop(free("Q"))
+    #expect(try r.proposition(app(const("Pure.imp"), P, Q), frees: pq)
+            == (try r.proposition(trueprop(app(const("IFOL.imp"), free("P"), free("Q"))), frees: pq)), "⟹ is →")
+    #expect(try r.proposition(app(const("Pure.eq", o), free("P"), free("Q")), frees: pq)
+            == (try r.proposition(trueprop(app(const("IFOL.iff"), free("P"), free("Q"))), frees: pq)), "≡ at o is ↔")
+    let body = app(const("ZF_Base.mem"), bound(0), free("A"))
+    #expect(try r.proposition(app(const("Pure.all", i), lam("x", i, trueprop(body))), frees: [("A", i)])
+            == (try r.proposition(trueprop(app(const("IFOL.All", i), lam("x", i, body))), frees: [("A", i)])), "⋀ is ∀")
+}
+
 @Test func trueFalseIsBottom() throws {
     var r = try Reading()
     #expect(try r.proposition(trueprop(const("IFOL.False"))) == (try r.n(.folBottom)))
@@ -124,11 +138,10 @@ private let pq = [("P", o), ("Q", o)]
     #expect(got == (try r.const("T.metaEx", fnT(fnT(iT, oT), oT), try r.abs(iT, mem))))
 }
 
-@Test func aMetaQuantifierOverAFunctionIsRefused() throws {
+@Test func aMetaQuantifierOverAFunctionIsAQuantifierAtThatType() throws {
     var r = try Reading()
-    #expect(throws: ReaderRefusal.quantifierOverFunction) {
-        try r.proposition(app(const("Pure.all", fn(i, i)), lam("f", fn(i, i), trueprop(const("IFOL.False")))))
-    }
+    let got = try r.proposition(app(const("Pure.all", fn(i, i)), lam("f", fn(i, i), trueprop(const("IFOL.False")))))
+    #expect(got == (try r.n(.ifolAll(fnT(iT, iT), body: try r.n(.folBottom)))))
 }
 
 @Test func aBareVariableArgumentReadsAsItsEtaExpansion() throws {
@@ -202,14 +215,13 @@ private let pq = [("P", o), ("Q", o)]
     #expect(throws: ReaderRefusal.ofclass("IFOL.term")) { try r.proposition(ofclass(i, "IFOL.term")) }
 }
 
-@Test func aPureInternalConstantIsRefusedByName() throws {
+@Test func aPureInternalConstantReadsAsAConstant() throws {
     var r = try Reading()
-    #expect(throws: ReaderRefusal.pureInternal("Pure.term")) {
-        try r.proposition(app(const("Pure.term", i), free("a")), frees: [("a", i)])
-    }
-    #expect(throws: ReaderRefusal.pureInternal("Pure.conjunction")) {
-        try r.proposition(app(const("Pure.conjunction"), trueprop(const("IFOL.False")), trueprop(const("IFOL.False"))))
-    }
+    let term = try r.proposition(app(const("Pure.term", i), free("a")), frees: [("a", i)])
+    #expect(term == (try r.const("Pure.term", fnT(iT, oT), try r.free("a", iT))))
+    let conjunction = try r.proposition(app(const("Pure.conjunction"), trueprop(const("IFOL.False")), trueprop(const("IFOL.False"))))
+    let bottom = try r.n(.folBottom)
+    #expect(conjunction == (try r.const("Pure.conjunction", fnT(oT, fnT(oT, oT)), bottom, bottom)))
 }
 
 @Test func aBetaRedexIsRefused() throws {

@@ -281,7 +281,8 @@ lands:
 | IFOL `eq[i]`, Pure `≡` at `i` | no — `folPred` takes variables, these take terms until S1 | `isaConst("IFOL.eq", …)` |
 | `True`, `Ex1`, `Let`, `Uniq` | no — defined constants | `isaConst` |
 | Pure `≡` at a function type — definitions `f ≡ λx. t` | not by FOL or IFOL | `isaConst("Pure.eq", …)`, consumed by S2 |
-| Pure `⋀` at a function type | not by FOL or IFOL; S5 | refused today; §4.3a proposes `ifolAll(T, body)` |
+| Pure `⋀` at a function type | not by FOL or IFOL; S5 | `ifolAll(T, body)` at the function type — S5 is a pass |
+| Pure's internal constants `&&&` `TERM` `TYPE` `sort_constraint` `_` | not by FOL or IFOL | `isaConst`, generic — a pass lowers each (§4.3a) |
 
 **The quantifier is the one dedicated import because the guard is the calling
 convention (§4a).** Everything else is a relabel or data S1/S2 treat alike; as data,
@@ -298,9 +299,8 @@ The generic term language — ZF's own vocabulary, not logic at any level:
 | `isaVarApp(head, args)` | a variable applied — a class variable `P(x)` | | the head is an `isaFree` or `isaBound`, never merged into the constant namespace (rule 3) |
 | `isaAbs(T, body)` | `ZAbs`, ONLY as a function-typed argument: `Collect(A, λx. …)` | | **`x`** |
 
-`IRType` has no `prop` case (§2). A type variable, a schematic `Var`,
-`Pure.conjunction`/`term`/`type`/`sort_constraint` and `OFCLASS` are refused today; §4.3a
-proposes a reading for each.
+`IRType` has no `prop` case (§2). A type variable, a schematic `Var` and `OFCLASS` are refused
+today; §4.3a proposes how each is read.
 
 **The fol side mirrors fol-zfc** (`src/core/formula.h`): a term is a bound variable
 (de Bruijn) — fol-zfc's FIXED variables are emission's concern, not a node kind (§4.7);
@@ -309,33 +309,63 @@ connective, or a quantifier over a body. **The set/class binder kind is NOT
 identity** — the checker cannot see it, and `∀A. (set(A) → ψ)` is valid text for
 both. It is the translator's bookkeeping, known where lowering builds the binder.
 
-### 4.3a PROPOSED — the isa dialect covers the whole export
+### 4.3a The isa surface, from the verified primitives — ACCEPTED 2026-09-25
 
-**Not built; for review.** It applies §2's principle: every construct the export contains is
-read, and a refusal becomes lowering's. Counts are statement files of the eight exported
-sessions (`isa2fol statements data/zf_export --show KIND`); proofs are not read yet.
+**The dialect side is built; the reader's class bookkeeping and per-instance reading are not.** It
+replaced a proposal to add type variables and `itself` to `IRType`, which the closure made unnecessary. Evidence, eight exported sessions, 9,420 named
+theorems: `isa2fol surface data/zf_export` (`docs/SOURCE_SURFACE.md`) and `isa2fol closure
+data/zf_export` (`docs/CLOSURE.md`). Principle: read FAITHFULLY, then one pass per construct.
 
-| construct | statement files | today | proposed reading |
-|---|---|---|---|
-| a type variable `'a` | 578 — 484 in Pure/IFOL/FOL, 94 in ZF sessions | refused | **`IRType.variable(name, sort)`** — Isabelle's `TFree`: a FIXED, opaque type within one statement, equal only to itself. A citation instantiates it at its ground type arguments, by a type-substitution rule over the cited statement's nodes |
-| `OFCLASS(T, c)` | 4 | refused | as Isabelle defines it (`Logic.mk_of_class`): `isaConst(c ^ "_class", itself(T) ⇒ o, [isaConst("Pure.type", itself(T), [])])`, with **`IRType.itself(T)`**; both constants are declared in the export |
-| `Pure.conjunction` (`&&&`) | 89 | refused | `folAnd` — FOL covers it, downstream-first, as `⟹` is `folImplies` |
-| `Pure.term`, `Pure.type`, `Pure.sort_constraint`, `Pure.dummy_pattern` | 2 | refused | `isaConst`, generic |
-| `⋀` over a function type | 78, 65 in ZF-Constructible | refused (S5) | `ifolAll(T, body)` — `intern` already accepts any `T`; S5 is lowering's |
-| a β-redex | 0 in statements; proofs unmeasured | refused | read β-NORMAL: the canonical form becomes βη-long, for η-long's reason — ID equality must be Isabelle's equality up to αβη; β is a Pure primitive |
-| a schematic `Var` (tag 2) | 0 | refused | MALFORMED: `standard_vars` (`zterm.ML`) turns every `Var` into a free before export |
-| a digit-initial name segment | 0 | refused | not the reader's: a statement carries Isabelle's name unchanged; its spelling (`name.N`) and injectivity are `render`'s (§3) |
+**1. Proof primitives — what every proof rests on.** The closure follows every citation of every
+named theorem down to axioms: the set below is exhaustive, and there is no oracle.
 
-**What it costs:**
+| primitive | # | read as | lowered to |
+|---|---:|---|---|
+| Pure proof steps: ⋀-intro, ⋀-elim, ⟹-intro, ⟹-elim, hypothesis | 5 | `isaAllIntro`, `isaAllElim`, `folImpliesIntro`, `folImpliesElim`, `hyp` (§4.7) | `forall_intro`/`forall_elim` with the R3 guard, `implies_intro`/`implies_elim` |
+| IFOL natural deduction: `impI mp conjI conjunct1 conjunct2 disjI1 disjI2 disjE FalseE allI spec exI exE` | 13 | `use` of the axiom | the kernel rule, one to one |
+| IFOL equality: `refl`, `subst` | 2 | `use` | `base/` lemmas — `eq` is a defined predicate there |
+| IFOL bridges: `eq_reflection`, `iff_reflection` | 2 | `use` | trivial: `≡` already reads as `=` at `i` and `↔` at `o` |
+| `FOL.classical` | 1 | `use` | `classical_absurd` |
+| Pure equality: `reflexive symmetric transitive combination abstract_rule equal_intr equal_elim` | 7 | `use` | `↔`/`=` reasoning and congruence — S2's CONG; `abstract_rule` under a binder. The simplifier's rewriting: 81–94% of theorems reach these |
+| definitions: Pure `prop conjunction term`; IFOL `iff not True ex1 Let term_class`; FOL `induct_*`; ZF 984 | 997 | `use` of a `*_def` axiom | S2/S3 — conservative |
+| ZF axioms: ZF_Base's 6, `AC.AC`, 5 in the example theories `Language`, `Static`, `LList` | 12 | `use` | the target's axioms |
 
-- `IRType` gains two cases, so every exhaustive switch over it changes: `description`, the
-  reader's `irType`, `domains`, and `Table.apply`'s match on `fn`. No node kind is added.
-- A type-substitution rule over nodes — `isaConst`, `isaFree`, `isaBound`, `isaAbs`, `ifolAll`,
-  `ifolEx` and `isaAllIntro` carry types — used where a proof cites a polymorphic statement.
-- The reader loses `ReaderRefusal` and the `refused` outcome: a statement reads, or the export
-  is malformed and the run stops.
-- LOWERING inherits what it always owned: monomorphise or refuse a polymorphic statement,
-  S5, OFCLASS and sorts, S4's arity-0 propositions. Its refusals are named and counted there.
+**2. A derived rule is a theorem, not a primitive.** The 131 derived Pure/IFOL/FOL rules proofs cite
+— `swap`, `ccontr`, `conjE`, `allE`, `TrueI`, `IFOL_simps(n)`, `protectI`/`D`, `conjunctionI`/`D1`/`D2`,
+… — are READ from their own proofs like any theorem, at the types they are cited at. They use no
+construct beyond those below.
+
+**3. No type variable enters the dialect.** No citation carries a type variable its citer does not
+bind (`docs/CLOSURE.md`: 0), so every polymorphic theorem is read once per ground instance its
+citers use — monomorphised at the citation. `IRType` stays `i | o | fn`. The 23 polymorphic NAMED
+theorems are read at the instances their citers use; a generic statement is not a one-sorted claim.
+
+**4. The surface is ONE TO ONE with the isa dialect, after coverage.** A construct is COVERED when
+FOL has it natively; it then reads as FOL's, the SAME node — `↔` and `¬`, which IFOL defines, are
+covered, so their definitions become equivalences lowering proves. Pinned by
+`aCoveredConstructReadsAsItsCover`; the reader emits no node kind outside this table.
+
+| surface primitive | the Isabelle constructs it covers | isa dialect |
+|---|---|---|
+| implication | IFOL `⟶`, Pure `⟹` | `folImplies` |
+| conjunction · disjunction · falsum | IFOL `∧` · `∨` · `False` | `folAnd` · `folOr` · `folBottom` |
+| bi-implication | IFOL `↔`, Pure `≡` at `o`/`prop` | `folIff` |
+| negation | IFOL `¬` | `folNot` |
+| `∀` / `∃` at a type `T` | IFOL `∀`, Pure `⋀` / IFOL `∃` — at `i`, `o` or a function type | `ifolAll(T)` / `ifolEx(T)` |
+| a constant applied | every other constant: ZF's; `=` (IFOL `eq`, and Pure `≡` at `i`); Pure `≡` at a function type; the defined `True Ex1 Let Uniq induct_*`; Pure's `&&& TERM TYPE sort_constraint _` | `isaConst(name, T instantiated)` |
+| a free · a bound variable · a variable applied · `λ` | `ZVar` · `ZBound` · `ZApp` headed by a variable · `ZAbs` as a function argument | `isaFree` · `isaBound` · `isaVarApp` · `isaAbs` |
+| `⋀`-intro · `⋀`-elim | `ZAbst` · `ZAppt` | `isaAllIntro` · `isaAllElim` |
+| `⟹`-intro · `⟹`-elim | `ZAbsp` · `ZAppp` | `folImpliesIntro` · `folImpliesElim` |
+| a hypothesis | `ZBoundp` (a free `ZHyp`: 0 in the export) | `hyp` |
+| a citation | `ZConstp` — an axiom or a theorem, at its instance | `use(name, root)` |
+
+**Not surface primitives, so no construct:** `Trueprop` and `protect` (`Pure.prop`) — identity
+coercions, erased; `OFCLASS`, a class premise, its discharge, a hypothesis binding one — sort
+bookkeeping of the axiom-free class `term`, absorbed; a type variable — each polymorphic theorem is
+read per ground instance (3). A schematic `Var` is MALFORMED (`standard_vars` removes every one).
+
+**Reader work left:** absorb class bookkeeping; read a polymorphic theorem at each cited instance;
+read the axioms' statements (`theory/axioms`) that `use` needs; read proofs.
 
 ### 4.4 Binders are de Bruijn
 
