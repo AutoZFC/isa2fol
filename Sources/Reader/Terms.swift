@@ -3,7 +3,7 @@ import YXML
 
 enum Head {
     case constant(String, [IsaType])
-    case free(String)
+    case free(String, IsaType?)
     case schematic(String)
     case bound(Int)
     case abstraction(IsaType, Body)
@@ -29,12 +29,9 @@ extension Decode {
     private func term(_ body: Body) throws -> Term {
         try variant([
             { a, ts in .head(.constant(try one(a), try list(type, ts))) },
+            { a, ts in .head(.free(try one(a), try variableType(ts))) },
             { a, ts in
-                try emptyBody(ts)
-                return .head(.free(try one(a)))
-            },
-            { a, ts in
-                try emptyBody(ts)
+                _ = try variableType(ts)
                 return .head(.schematic(try indexname(a).0))
             },
             { a, ts in
@@ -57,15 +54,26 @@ extension Decode {
             },
         ], body)
     }
+
+    private func variableType(_ ts: Body) throws -> IsaType? {
+        ts.isEmpty ? nil : try type(ts)
+    }
 }
 
-struct Scope {
-    private var binders: [(type: IRType, level: Int)] = []
-    private var depth = 0
+struct Scope: Hashable {
+    private struct Binder: Hashable {
+        let type: IRType
+        let level: Int
+    }
+
+    private var binders: [Binder] = []
+    private(set) var depth: Int
+
+    init(frees: Int) { depth = frees }
 
     func source(_ T: IRType) -> Scope {
         var s = self
-        s.binders.append((T, depth))
+        s.binders.append(Binder(type: T, level: depth))
         s.depth += 1
         return s
     }
@@ -101,32 +109,83 @@ private let connectives: [String: Connective] = [
 ]
 
 struct Terms {
-    let decode: Decode
-    let constants: Constants
-    let frees: [String: IRType]
-
-    func proposition(_ body: Body, in t: inout Table) throws -> NodeID {
-        try argument(.source(body), .o, Scope(), &t)
+    private struct Memo: Hashable {
+        let body: Body
+        let type: IRType
+        let scope: Scope
     }
 
-    private func argument(_ a: Argument, _ U: IRType, _ s: Scope, _ t: inout Table) throws -> NodeID {
+    let decode: Decode
+    let constants: Constants
+    private let types: [String: IsaType]
+    private let frees: [String: (level: Int, type: IRType)]
+    private let freeTypes: [IRType]
+    private var memo: [Memo: NodeID] = [:]
+
+    init(decode: Decode, constants: Constants, file e: Envelope, at instance: [IsaType]) throws {
+        guard instance.count == e.tfrees.count else {
+            throw MalformedExport.instanceArity(expected: e.tfrees.count, found: instance.count)
+        }
+        let names = e.frees.map(\.0)
+        let occurring = try decode.frees(e.prop)
+        guard occurring == names else { throw MalformedExport.freesHeader(header: names, occurring: occurring) }
+        self.decode = decode
+        self.constants = constants
+        let types = Dictionary(uniqueKeysWithValues: zip(e.tfrees, instance))
+        let typed = try e.frees.map { ($0.0, try $0.1.substituting(types).irType()) }
+        self.types = types
+        freeTypes = typed.map(\.1)
+        frees = Dictionary(uniqueKeysWithValues: typed.enumerated().map { ($0.element.0, (level: $0.offset, type: $0.element.1)) })
+    }
+
+    var closure: Scope { Scope(frees: freeTypes.count) }
+
+    func close(_ n: NodeID, _ binder: (IRType, NodeID) -> Node, in t: inout Table) throws -> NodeID {
+        try freeTypes.reversed().reduce(n) { body, T in try t.intern(binder(T, body)) }
+    }
+
+    func instance(_ T: IsaType) throws -> IsaType {
+        let ground = T.substituting(types)
+        _ = try ground.irType()
+        return ground
+    }
+
+    func irType(_ T: IsaType) throws -> IRType { try T.substituting(types).irType() }
+
+    mutating func proposition(_ body: Body, _ s: Scope, in t: inout Table) throws -> NodeID {
+        try source(body, .o, s, &t)
+    }
+
+    mutating func term(_ body: Body, _ U: IRType, _ s: Scope, in t: inout Table) throws -> NodeID {
+        try source(body, U, s, &t)
+    }
+
+    private mutating func source(_ body: Body, _ U: IRType, _ s: Scope, _ t: inout Table) throws -> NodeID {
+        let key = Memo(body: body, type: U, scope: s)
+        if let n = memo[key] { return n }
+        let n = try applied(body, [], U, s, &t)
+        memo[key] = n
+        return n
+    }
+
+    private mutating func argument(_ a: Argument, _ U: IRType, _ s: Scope, _ t: inout Table) throws -> NodeID {
         switch a {
-        case let .source(body): return try applied(body, [], U, s, &t)
+        case let .source(body): return try source(body, U, s, &t)
         case let .decoded(n): return n
         }
     }
 
-    private func applied(_ body: Body, _ extra: [NodeID], _ U: IRType, _ s: Scope, _ t: inout Table) throws -> NodeID {
+    private mutating func applied(_ body: Body, _ extra: [NodeID], _ U: IRType, _ s: Scope, _ t: inout Table) throws -> NodeID {
         guard case let .fn(T, rest) = U else { return try spine(body, extra, U, s, &t) }
         return try t.intern(.isaAbs(T, body: try abstraction(body, extra, T, rest, s, &t)))
     }
 
-    private func abstraction(_ body: Body, _ extra: [NodeID], _ T: IRType, _ rest: IRType,
-                             _ s: Scope, _ t: inout Table) throws -> NodeID {
+    private mutating func abstraction(_ body: Body, _ extra: [NodeID], _ T: IRType, _ rest: IRType,
+                                      _ s: Scope, _ t: inout Table) throws -> NodeID {
         if extra.isEmpty, case let (domain, inner)? = try lambda(body) {
-            let D = try domain.irType()
+            let D = try irType(domain)
             guard D == T else { throw MalformedExport.typeMismatch(expected: T, found: D) }
-            return try argument(.source(inner), rest, s.source(T), &t)
+            return try source(inner, rest, s.source(T), &t)
         }
         let y = try etaLong(try t.intern(.isaBound(0, T)), [], T, &t)
         let shifted = try extra.map { try shift($0, by: 1, in: &t) }
@@ -146,16 +205,19 @@ struct Terms {
         return (domain, inner)
     }
 
-    private func spine(_ body: Body, _ extra: [NodeID], _ U: IRType, _ s: Scope, _ t: inout Table) throws -> NodeID {
+    private mutating func spine(_ body: Body, _ extra: [NodeID], _ U: IRType, _ s: Scope, _ t: inout Table) throws -> NodeID {
         let (head, sources) = try decode.spine(body)
         let arguments = sources.map(Argument.source) + extra.map(Argument.decoded)
         let n: NodeID
         switch head {
         case let .constant(name, types):
             n = try constant(name, types, arguments, s, &t)
-        case let .free(name):
-            guard let T = frees[name] else { throw MalformedExport.undeclaredFree(name) }
-            n = try variable(name, try t.intern(.isaFree(name, T)), T, arguments, s, &t)
+        case let .free(name, declared):
+            guard let f = frees[name] else { throw MalformedExport.undeclaredFree(name) }
+            if let declared, try irType(declared) != f.type {
+                throw MalformedExport.typeMismatch(expected: f.type, found: try irType(declared))
+            }
+            n = try variable(name, try t.intern(.isaBound(s.depth - 1 - f.level, f.type)), f.type, arguments, s, &t)
         case let .bound(k):
             let (index, T) = try s.bound(k)
             n = try variable("ZBound \(k)", try t.intern(.isaBound(index, T)), T, arguments, s, &t)
@@ -163,7 +225,7 @@ struct Terms {
             guard arguments.isEmpty else { throw ReaderRefusal.betaRedex }
             throw MalformedExport.unexpectedAbstraction(expected: U)
         case let .schematic(name):
-            throw ReaderRefusal.schematicVariable(name)
+            throw MalformedExport.schematicVariable(name)
         case let .ofclass(c):
             throw ReaderRefusal.ofclass(c)
         }
@@ -172,23 +234,23 @@ struct Terms {
         return n
     }
 
-    private func variable(_ name: String, _ head: NodeID, _ T: IRType, _ arguments: [Argument],
-                          _ s: Scope, _ t: inout Table) throws -> NodeID {
+    private mutating func variable(_ name: String, _ head: NodeID, _ T: IRType, _ arguments: [Argument],
+                                   _ s: Scope, _ t: inout Table) throws -> NodeID {
         if arguments.isEmpty { return head }
         return try t.intern(.isaVarApp(head: head, args: try operands(name, T.domains, arguments, s, &t)))
     }
 
-    private func operands(_ name: String, _ domains: [IRType], _ arguments: [Argument],
-                          _ s: Scope, _ t: inout Table) throws -> [NodeID] {
+    private mutating func operands(_ name: String, _ domains: [IRType], _ arguments: [Argument],
+                                   _ s: Scope, _ t: inout Table) throws -> [NodeID] {
         guard arguments.count == domains.count else {
             throw MalformedExport.applicationArity(name, expected: domains.count, found: arguments.count)
         }
         return try zip(arguments, domains).map { try argument($0, $1, s, &t) }
     }
 
-    private func constant(_ name: String, _ types: [IsaType], _ arguments: [Argument],
-                          _ s: Scope, _ t: inout Table) throws -> NodeID {
-        let scheme = try constants.instantiate(name, types)
+    private mutating func constant(_ name: String, _ types: [IsaType], _ arguments: [Argument],
+                                   _ s: Scope, _ t: inout Table) throws -> NodeID {
+        let scheme = try constants.instantiate(name, types.map { $0.substituting(self.types) })
         guard let c = connectives[name] else {
             let T = try scheme.irType()
             return try t.intern(.isaConst(name, T, args: try operands(name, T.domains, arguments, s, &t)))
@@ -214,8 +276,7 @@ struct Terms {
             let ab = try operands(name, [.o, .o], arguments, s, &t)
             return try t.intern(.folIff(ab[0], ab[1]))
         case .metaEquality:
-            let A = try typeArgument(name, types)
-            let T = try A.irType()
+            let T = try irType(try typeArgument(name, types))
             let ab = try operands(name, [T, T], arguments, s, &t)
             switch T {
             case .o: return try t.intern(.folIff(ab[0], ab[1]))
@@ -223,15 +284,15 @@ struct Terms {
             case .fn: return try t.intern(.isaConst("Pure.eq", .fn(T, .fn(T, .o)), args: ab))
             }
         case .all:
-            let T = try typeArgument(name, types).irType()
+            let T = try irType(try typeArgument(name, types))
             return try t.intern(.ifolAll(T, body: try binder(name, T, arguments, s, &t)))
         case .ex:
-            let T = try typeArgument(name, types).irType()
+            let T = try irType(try typeArgument(name, types))
             return try t.intern(.ifolEx(T, body: try binder(name, T, arguments, s, &t)))
         }
     }
 
-    private func binder(_ name: String, _ T: IRType, _ arguments: [Argument], _ s: Scope, _ t: inout Table) throws -> NodeID {
+    private mutating func binder(_ name: String, _ T: IRType, _ arguments: [Argument], _ s: Scope, _ t: inout Table) throws -> NodeID {
         guard arguments.count == 1 else { throw MalformedExport.applicationArity(name, expected: 1, found: arguments.count) }
         switch arguments[0] {
         case let .source(body):

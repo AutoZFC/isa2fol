@@ -7,23 +7,28 @@ private let iT = IRType.i
 private let oT = IRType.o
 private func fnT(_ a: IRType, _ b: IRType) -> IRType { .fn(a, b) }
 
+/// Reads a proposition under its frees' closure, so free `x` of `n` reads as bound `n − 1 − level(x)`
+/// at the top, one more under each binder (DESIGN §4.4). `free(x, T, under:)` names that node.
 private struct Reading {
     var t = Table()
     let constants: Constants
+    private var frees: [String] = []
 
     init() throws { constants = try testConstants() }
 
     mutating func proposition(_ prop: String, frees: [(String, String)] = []) throws -> NodeID {
         var f = Forest()
         let body = try f.parse(Array(prop.utf8))
-        let types = try frees.map { ($0.0, try decodeType($0.1).irType()) }
-        let terms = Terms(decode: Decode(forest: f), constants: constants,
-                          frees: Dictionary(uniqueKeysWithValues: types))
-        return try terms.proposition(body, in: &t)
+        let e = Envelope(tfrees: [], frees: try frees.map { ($0.0, try decodeType($0.1)) }, prop: body)
+        var terms = try Terms(decode: Decode(forest: f), constants: constants, file: e, at: [])
+        self.frees = frees.map(\.0)
+        return try terms.proposition(body, terms.closure, in: &t)
     }
 
     mutating func n(_ node: Node) throws -> NodeID { try t.intern(node) }
-    mutating func free(_ name: String, _ T: IRType) throws -> NodeID { try n(.isaFree(name, T)) }
+    mutating func free(_ name: String, _ T: IRType, under binders: Int = 0) throws -> NodeID {
+        try n(.isaBound(binders + frees.count - 1 - frees.firstIndex(of: name)!, T))
+    }
     mutating func bound(_ k: Int, _ T: IRType = .i) throws -> NodeID { try n(.isaBound(k, T)) }
     mutating func const(_ name: String, _ T: IRType, _ args: NodeID...) throws -> NodeID {
         try n(.isaConst(name, T, args: args))
@@ -95,7 +100,7 @@ private let pq = [("P", o), ("Q", o)]
     let got = try r.proposition(app(const("Pure.eq", fn(i, i)), free("F"), lam("x", i, app(const("Sum.Inl"), bound(0)))),
                                 frees: [("F", fn(i, i))])
     let ii = fnT(iT, iT)
-    let lhs = try r.abs(iT, try r.varApp(try r.free("F", ii), try r.bound(0)))
+    let lhs = try r.abs(iT, try r.varApp(try r.free("F", ii, under: 1), try r.bound(0)))
     let rhs = try r.abs(iT, try r.const("Sum.Inl", ii, try r.bound(0)))
     #expect(got == (try r.const("Pure.eq", fnT(ii, fnT(ii, oT)), lhs, rhs)))
 }
@@ -104,7 +109,7 @@ private let pq = [("P", o), ("Q", o)]
     var r = try Reading()
     let body = trueprop(app(const("ZF_Base.mem"), bound(0), free("A")))
     let meta = try r.proposition(app(const("Pure.all", i), lam("x", i, body)), frees: [("A", i)])
-    let mem = try r.const("ZF_Base.mem", memT, try r.bound(0), try r.free("A", iT))
+    let mem = try r.const("ZF_Base.mem", memT, try r.bound(0), try r.free("A", iT, under: 1))
     #expect(meta == (try r.n(.ifolAll(iT, body: mem))))
     let exists = try r.proposition(trueprop(app(const("IFOL.Ex", i), lam("x", i, app(const("ZF_Base.mem"), bound(0), free("A"))))),
                                    frees: [("A", i)])
@@ -134,7 +139,7 @@ private let pq = [("P", o), ("Q", o)]
     var r = try Reading()
     let got = try r.proposition(app(const("T.metaEx", i), lam("x", i, trueprop(app(const("ZF_Base.mem"), bound(0), free("A"))))),
                                 frees: [("A", i)])
-    let mem = try r.const("ZF_Base.mem", memT, try r.bound(0), try r.free("A", iT))
+    let mem = try r.const("ZF_Base.mem", memT, try r.bound(0), try r.free("A", iT, under: 1))
     #expect(got == (try r.const("T.metaEx", fnT(fnT(iT, oT), oT), try r.abs(iT, mem))))
 }
 
@@ -150,7 +155,7 @@ private let pq = [("P", o), ("Q", o)]
     let short = try r.proposition(trueprop(app(const("ZF_Base.Ball"), free("A"), free("P"))), frees: frees)
     let long = try r.proposition(trueprop(app(const("ZF_Base.Ball"), free("A"), lam("x", i, app(free("P"), bound(0))))), frees: frees)
     #expect(short == long)
-    let P = try r.abs(iT, try r.varApp(try r.free("P", fnT(iT, oT)), try r.bound(0)))
+    let P = try r.abs(iT, try r.varApp(try r.free("P", fnT(iT, oT), under: 1), try r.bound(0)))
     #expect(short == (try r.const("ZF_Base.Ball", fnT(iT, fnT(fnT(iT, oT), oT)), try r.free("A", iT), P)))
 }
 
@@ -167,7 +172,7 @@ private let pq = [("P", o), ("Q", o)]
     let got = try r.proposition(trueprop(app(const("EquivClass.congruent"), free("r"), app(const("ZF_Base.split", i), free("f")))),
                                 frees: [("r", i), ("f", fn(i, fn(i, i)))])
     let iii = fnT(iT, fnT(iT, iT))
-    let f = try r.abs(iT, try r.abs(iT, try r.varApp(try r.free("f", iii), try r.bound(1), try r.bound(0))))
+    let f = try r.abs(iT, try r.abs(iT, try r.varApp(try r.free("f", iii, under: 3), try r.bound(1), try r.bound(0))))
     let split = try r.abs(iT, try r.const("ZF_Base.split", fnT(iii, fnT(iT, iT)), f, try r.bound(0)))
     #expect(got == (try r.const("EquivClass.congruent", fnT(iT, fnT(fnT(iT, iT), oT)), try r.free("r", iT), split)))
 }
@@ -205,9 +210,10 @@ private let pq = [("P", o), ("Q", o)]
     #expect(short == long)
 }
 
-@Test func aSchematicVariableIsRefused() throws {
+/// `standard_vars` turns every schematic variable into a free one.
+@Test func aSchematicVariableIsMalformed() throws {
     var r = try Reading()
-    #expect(throws: ReaderRefusal.schematicVariable("P")) { try r.proposition(trueprop(schematic("P"))) }
+    #expect(throws: MalformedExport.schematicVariable("P")) { try r.proposition(trueprop(schematic("P"))) }
 }
 
 @Test func anOfclassIsRefused() throws {
@@ -231,9 +237,9 @@ private let pq = [("P", o), ("Q", o)]
     }
 }
 
-@Test func aTypeVariableInATypeArgumentIsRefused() throws {
+@Test func aTypeVariableTheHeaderDoesNotDeclareIsMalformed() throws {
     var r = try Reading()
-    #expect(throws: ReaderRefusal.typeVariable("'a")) {
+    #expect(throws: MalformedExport.undeclaredTypeVariable("'a")) {
         try r.proposition(trueprop(app(const("IFOL.eq", typeA), free("a"), free("a"))), frees: [("a", i)])
     }
 }
@@ -245,11 +251,28 @@ private let pq = [("P", o), ("Q", o)]
     }
 }
 
-@Test func aFreeMissingFromTheHeaderIsMalformed() throws {
+@Test func aFreeReadsAsItsClosureBinderTheFirstOutermost() throws {
     var r = try Reading()
-    #expect(throws: MalformedExport.undeclaredFree("x")) {
-        try r.proposition(trueprop(app(const("ZF_Base.mem"), free("x"), free("a"))), frees: [("a", i)])
-    }
+    let got = try r.proposition(trueprop(app(const("ZF_Base.mem"), free("a"), free("A"))), frees: [("a", i), ("A", i)])
+    #expect(got == (try r.const("ZF_Base.mem", memT, try r.bound(1), try r.bound(0))))
+}
+
+/// Axioms are encoded with typed variables (`typed_vars = true`); the type must be the header's.
+@Test func aVariableCarryingItsTypeMustAgreeWithTheHeader() throws {
+    var r = try Reading()
+    let typed = { (T: String) in trueprop(app(const("ZF_Base.mem"), tagged(1, ["a"], [T]), tagged(1, ["a"], [T]))) }
+    #expect(try r.proposition(typed(i), frees: [("a", i)]) == (try r.proposition(trueprop(app(const("ZF_Base.mem"), free("a"), free("a"))), frees: [("a", i)])))
+    #expect(throws: MalformedExport.typeMismatch(expected: iT, found: oT)) { try r.proposition(typed(o), frees: [("a", i)]) }
+}
+
+/// The same export subtree under binders of different types is two terms: the memo is keyed on the scope.
+@Test func aSharedSubtreeReadsByItsScope() throws {
+    var r = try Reading()
+    let got = try r.proposition(trueprop(app(const("IFOL.All", i), lam("x", i, app(const("IFOL.conj"),
+                                    app(const("IFOL.All", o), lam("P", o, bound(0))), app(const("ZF_Base.mem"), bound(0), bound(0)))))))
+    let inner = try r.n(.ifolAll(oT, body: try r.bound(0, oT)))
+    let mem = try r.const("ZF_Base.mem", memT, try r.bound(0), try r.bound(0))
+    #expect(got == (try r.n(.ifolAll(iT, body: try r.n(.folAnd(inner, mem))))))
 }
 
 @Test func aLambdaWhereAPropositionIsExpectedIsMalformed() throws {

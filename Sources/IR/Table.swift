@@ -28,6 +28,8 @@ public struct Table: Sendable {
 
     public init() {}
 
+    public var count: Int { nodes.count }
+
     public subscript(_ id: NodeID) -> Node { nodes[Int(id.raw)] }
 
     public func type(of id: NodeID) -> IRType? {

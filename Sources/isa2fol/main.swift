@@ -9,18 +9,23 @@ func fail(_ message: String, _ code: Int32) -> Never {
 
 func kind(_ r: ReaderRefusal) -> String {
     switch r {
-    case .typeVariable: return "typeVariable"
     case .typeConstructor: return "typeConstructor"
-    case .schematicVariable: return "schematicVariable"
     case .ofclass: return "ofclass"
     case .betaRedex: return "betaRedex"
     case .nameSegment: return "nameSegment"
+    case .omittedProof: return "omittedProof"
+    case .oracle: return "oracle"
     }
+}
+
+func describe(_ error: any Error) -> String {
+    guard let failure = error as? ReadFailure else { return "\(error)" }
+    return "\(failure.file): \(describe(failure.error))"
 }
 
 let arguments = Array(CommandLine.arguments.dropFirst())
 let usage = """
-    usage: isa2fol statements EXPORT_DIR [--show REFUSAL]
+    usage: isa2fol read EXPORT_DIR [--show OUTCOME]
            isa2fol surface EXPORT_DIR
            isa2fol closure EXPORT_DIR
     """
@@ -31,36 +36,53 @@ if arguments.count == 2, arguments[0] == "surface" || arguments[0] == "closure" 
         let command = "isa2fol \(arguments[0]) \(arguments[1])"
         print(arguments[0] == "surface" ? surfaceReport(try export.surface(), command: command)
                                         : closureReport(try export.closure(), command: command), terminator: "")
-    } catch let failure as ReadFailure {
-        fail("malformed export at \(failure.file): \(failure.error)", 1)
+    } catch {
+        fail("malformed export at \(describe(error))", 1)
     }
     exit(0)
 }
 
-guard arguments.count == 2 || (arguments.count == 4 && arguments[2] == "--show"), arguments[0] == "statements" else {
+guard arguments.count == 2 || (arguments.count == 4 && arguments[2] == "--show"), arguments[0] == "read" else {
     fail(usage, 2)
 }
 let show = arguments.count == 4 ? arguments[3] : nil
 
-var all: [String: Int] = [:], named: [String: [String: Int]] = [:]
-do {
-    var export = try Export(root: arguments[1])
-    for theory in export.theories {
-        var t = Table()
-        for read in try export.statements(theory, into: &t) {
-            let key: String
-            switch read.outcome {
-            case .translated: key = "translated"
-            case let .refused(r):
-                key = "refused: " + kind(r)
-                if kind(r) == show { print("\(theory)/proofs/\(read.serial)\t\(read.name ?? "-")\t\(r)") }
-            }
-            all[key, default: 0] += 1
-            if read.name != nil, let session = session(of: theory) { named[session, default: [:]][key, default: 0] += 1 }
-        }
+func label(_ outcome: Outcome) -> String {
+    switch outcome {
+    case .proved: return "proved"
+    case .classFact: return "class fact"
+    case .polymorphic: return "polymorphic: read at each cited instance"
+    case let .refused(r): return "refused: " + kind(r)
     }
-} catch let failure as ReadFailure {
-    fail("malformed export at \(failure.file): \(failure.error)", 1)
+}
+
+let start = Date()
+var named: [String: [String: Int]] = [:], cited: [String: Int] = [:], polymorphic: [Theorem] = []
+var reader: Reader
+do {
+    reader = try Reader(try Export(root: arguments[1]))
+    var read: Set<Theorem> = []
+    func outcome(_ theorem: Theorem) throws -> String {
+        read.insert(theorem)
+        let o = try reader.read(theorem)
+        if label(o) == show || (show == "refused" && label(o).hasPrefix("refused")) {
+            print("\(theorem)\t\(reader.name(of: theorem) ?? "-")\t\(o)")
+        }
+        return label(o)
+    }
+    for theorem in reader.population {
+        let o = try outcome(theorem)
+        if o == label(.polymorphic) { polymorphic.append(theorem) }
+        named[session(of: theorem.theory)!, default: [:]][o, default: 0] += 1
+    }
+    var next = 0
+    while next < reader.cited.count {
+        let theorem = reader.cited[next]
+        next += 1
+        if !read.contains(theorem) { cited[try outcome(theorem), default: 0] += 1 }
+    }
+} catch {
+    fail("malformed export at \(describe(error))", 1)
 }
 
 func report(_ title: String, _ counts: [String: Int]) {
@@ -70,4 +92,7 @@ func report(_ title: String, _ counts: [String: Int]) {
 
 report("named theorems, all ZF sessions", named.values.reduce(into: [:]) { $0.merge($1, uniquingKeysWith: +) })
 for s in named.keys.sorted() { report("  \(s)", named[s]!) }
-report("all proof files", all)
+report("instances of named theorems cited, not read above (any session)", cited)
+let instantiated = polymorphic.filter { p in reader.cited.contains { $0.theory == p.theory && $0.serial == p.serial } }
+print("polymorphic named ZF theorems cited at an instance: \(instantiated.count) of \(polymorphic.count)")
+print("table: \(reader.table.count) nodes; \(String(format: "%.1f", Date().timeIntervalSince(start))) s")

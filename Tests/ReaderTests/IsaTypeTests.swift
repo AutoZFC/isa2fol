@@ -52,17 +52,24 @@ import Testing
     #expect(try decodeType(fn(i, fn(i, o))).irType() == .fn(.i, .fn(.i, .o)))
 }
 
-@Test func aFreeTypeVariableIsRefusedByName() {
-    #expect(throws: ReaderRefusal.typeVariable("'a")) { try IsaType.tfree("'a", sort: []).irType() }
+/// Every type variable is instantiated before conversion (DESIGN §4.3a 3); one left over is not declared.
+@Test func aFreeTypeVariableIsMalformedAtConversion() {
+    #expect(throws: MalformedExport.undeclaredTypeVariable("'a")) { try IsaType.tfree("'a", sort: []).irType() }
 }
 
-@Test func aSchematicTypeVariableIsRefusedByName() {
-    #expect(throws: ReaderRefusal.typeVariable("'b")) { try IsaType.tvar("'b", index: 1, sort: []).irType() }
+@Test func aSchematicTypeVariableIsMalformed() {
+    #expect(throws: MalformedExport.schematicVariable("'b")) { try IsaType.tvar("'b", index: 1, sort: []).irType() }
 }
 
-@Test func aTypeVariableAnywhereInAFunctionTypeRefusesTheWholeType() {
+@Test func aTypeVariableAnywhereInAFunctionTypeFailsTheWholeType() {
     let T = IsaType.type("fun", [.type("ZF_Base.i", []), .type("fun", [.tfree("'a", sort: []), .type("IFOL.o", [])])])
-    #expect(throws: ReaderRefusal.typeVariable("'a")) { try T.irType() }
+    #expect(throws: MalformedExport.undeclaredTypeVariable("'a")) { try T.irType() }
+}
+
+/// `standard_hidden_types` writes a proof-only type variable of empty sort as `dummy`. The proof
+/// holds at every type, so any ground instance proves the same statement.
+@Test func theHiddenProofTypeReadsAsI() throws {
+    #expect(try IsaType.type("fun", [.type("dummy", []), .type("IFOL.o", [])]).irType() == .fn(.i, .o))
 }
 
 @Test func propConvertsToO() throws {

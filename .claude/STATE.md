@@ -1,5 +1,5 @@
 # STATE — isa2fol
-`HEAD` · `feature/exists-descent` · 2026-09-24.
+`HEAD` · `feature/exists-descent` · 2026-09-25.
 **RUN §0 BEFORE TRUSTING ANY LINE BELOW.**
 
 ## 0. Staleness checks
@@ -9,10 +9,10 @@
 | command (from the repo root) | expect |
 |---|---|
 | `swift --version \| head -1` | `Swift version 6.4 (swift-6.4-RELEASE)` |
-| `MEM=16G scripts/capped.sh swift test 2>&1 \| grep -cE '^✔ Test [a-zA-Z]+\(\) passed'` | **`149`** |
+| `MEM=16G scripts/capped.sh swift test 2>&1 \| grep -cE '^✔ Test [a-zA-Z]+\(\) passed'` | **`173`** |
 | `ls Sources` · `ls docs` | `FolDialect IR Reader isa2fol YXML` · `CLOSURE.md FOUNDATION.md phase2_probes SOURCE_SURFACE.md` |
-| `find Sources Tests -name '*.swift' \| wc -l` | `38` (4256 lines) |
-| comment density of `Sources` (CLAUDE.md rule 9's script) | `4/2100 = 0.19%` |
+| `find Sources Tests -name '*.swift' \| wc -l` | `41` (5014 lines) |
+| comment density of `Sources` (CLAUDE.md rule 9's script) | `4/2436 = 0.16%` |
 | `grep -rnE '^\s*default:' Sources` (a switch default — rule 11) | nothing |
 | `.build/release/isa2fol surface data/zf_export \| grep '^| \*\*all'` | `\| **all** \| **9420** \|` |
 | `readlink ~/repos/fol-zfc-comb/bazel-bin \| sed 's\|.*bazel-out/\|\|'` | `k8-opt/bin` — and `proof_checker` is executable there |
@@ -73,8 +73,9 @@ deleted work — §6. fol-zfc-comb sits on its own `comb-verifier` with an uncom
   of 3,955 named serials. Never write a serial into a test, fixture or doc — name the theorem.
 - **⚠ `data/zf_export` IS ONE BUILD OR NOTHING** — rebuilt whole by `scripts/03-export-zf.sh`,
   never patched. The merged pre-2026-09-25 export mismatched `List.upt_type`, dangled 402 citations.
-- **⚠ ONE PROOF FILE IS 3.1 GB** (a box inside `List.nth_upt`). A statement is the file's first
-  field; `YXML.parse` reads the whole file — the reader must not.
+- **⚠ ONE PROOF FILE IS 3.1 GB** (a box inside `List.nth_upt`): 312 M tree nodes, 11,604
+  distinct. It is read only through the hash-consed forest and the `(Ref, scope)` memos — a
+  reader that walks the tree, or a `transform` over an inlined proof DAG, is exponential.
 - **⚠ EVERY CORPUS FIGURE IN `FOUNDATION.md` IS UNEVIDENCED**; the Rust-era design docs are
   deleted — do not restore one.
 
@@ -88,10 +89,12 @@ deleted work — §6. fol-zfc-comb sits on its own `comb-verifier` with an uncom
 | The tests have teeth: 5 hand mutations (`instantiate`'s k−1, `isaAbs` binder, ∃-intro index, a hypothesis binder, a fixed-variable level) are each caught | re-run by hand after touching `Index.swift`/`Node.swift`/`Render.swift` |
 | In the named ZF statements every logical constant is fully applied and every binder argument is a λ | `isa-deps --logic --named` (`~/repos/isabelle-study/bin/isa-deps`, untracked there) |
 | No concrete pass exists | `ls Sources/IR` |
-| The statement reader reads ALL 38,923 proof files of the eight exported sessions, none malformed: 9,382 of 9,420 named theorems translate; refused 23 type variable · 14 `quantifierOverFunction` · 1 `ofclass` | `swift build -c release && .build/release/isa2fol statements data/zf_export` (36 s); `--show KIND` lists them |
+| The reader PROVES 9,396 of the 9,420 named theorems of the eight exported sessions — each proof's conclusion is its statement's node, by ID, every step typed by the table — plus all 221 instances of named theorems they cite; 1 class fact, 23 polymorphic (16 cited at an instance, 7 cited by nothing), 0 refused | `swift build -c release && .build/release/isa2fol read data/zf_export` (58 s, 3.5 GB peak, 6.79 M nodes); `--show OUTCOME` |
+| The proof-reader tests have teeth: dropping the hypothesis shift, the class absorption, box inlining, or the conclusion check is each caught | re-run by hand after touching `Reader.swift` |
+| `instantiate` reduces the redexes it makes, hereditarily; `isaAllElim` types its term and wants a λ at a function type | `IndexTests`, `ProofTests` |
 | Terms read η-long and type-directed; 3 mutations of the index arithmetic are each caught | `TermTests`; mutate `Scope.bound`, `abstraction`'s extras, `etaLong`'s head |
 | YXML refuses a missing, malformed or duplicate attribute by name; an optional one is read as `attributes[name]` | `aMissingAttributeIsAnErrorNotEmpty`, `anAttributeFieldWithoutEqualsIsAnError`, `aDuplicateAttributeIsAnError` |
-| The reader's three decisions — own type with `'a`/`prop`; frees left open for a closing pass; per-statement outcomes, only reader refusals caught — are decided; `IRType` has no `prop` | `DESIGN.md` §2 "Three decisions"; `Sources/IR/IRType.swift` |
+| The reader's three decisions — own type with `'a`/`prop`, read at a ground instance; frees CLOSED at reading; outcomes `proved`/`classFact`/`polymorphic`/`refused`, only reader refusals caught | `DESIGN.md` §2 "Three decisions" |
 | `YXML` parses in ONE hash-consing pass: the 3.1 GB file reads as < 20,000 nodes in 21 s (release) | `ISA2FOL_SCALE=1 swift test -c release -Xswiftc -enable-testing --filter theLargestProofFile` |
 | `data/zf_export` is one build: every named statement equals its proof file, every one of 2,986,521 citations resolves | `scratchpad/compare/compare.py`, NOT kept — the export check is unbuilt |
 | The export is not reproducible byte-for-byte: two builds differ in 7,258 paths, same statements | a second `scripts/03-export-zf.sh` run, `diff -rq` |
@@ -118,16 +121,18 @@ deleted work — §6. fol-zfc-comb sits on its own `comb-verifier` with an uncom
    hypothesis-namespace `shift` the index engine does not have (`Index.swift:34` filters to
    terms). `ProofTests.afterRewritesAStepOnceItsPremisesAreRewritten` sidesteps both with a
    loose `hyp(0, …)`.
-5. **A build-independent identity for unnamed proof boxes.** A serial names a box only within
-   one build (CLAUDE.md), yet emission needs claim names and an order that are a function of
-   content (`DESIGN.md` §4.6 R2). Named theorems have names; the 12,000+ unnamed boxes do not.
-   Options: name a box by a hash of its statement and proof, or inline boxes into their unique
-   citer where there is one. Decide before emission.
+5. **A build-independent identity for shared subproofs.** The reader inlines every unnamed box
+   (`DESIGN.md` §4.3a), so no box needs a name in the IR; but emission unfolds a shared subproof
+   once per use (§4.7), and one box is 312 M tree nodes. Emission must name shared subproofs by
+   content — a function of content, never a serial (§4.6 R2). Decide before emission.
+6. **`isaFree` and `abstract` have no producer.** The reader closes frees by reading (§2); the
+   node kind and the index operation survive only in IR tests. Delete, or keep for a pass?
+7. **One name, several instances.** A polymorphic theorem cited at `i` and at `o` is two `use`
+   roots under ONE claim name; emission needs a name per instance. And the 7 polymorphic named
+   theorems no one cites have no ground reading — no claim at all.
 
 ## 7. Next action
 
-**Read proofs.** Decode each proof file's zproof into proof steps (`DESIGN.md` §4.7), on the
-same `Terms`: census question 6 is settled (§4.8) — a term `ZBound` counts `ZAbst` binders only,
-so `Scope` serves unchanged. Decoding MUST be memoised on `(Ref, scope)`: one box is 312 M tree
-nodes over 11,604 distinct ones (`DESIGN.md` §2). **Done when** every proof file's proof reads
-or refuses by name, in bounded time and memory.
+**Statement lowering** (`DESIGN.md` §4a), after §6's decisions 6 and 7. The reader's output is
+`Reader.table` plus, per theorem, `proved(statement, proof)`; every `use` of a named theorem is
+the SAME node as that theorem's proved statement.

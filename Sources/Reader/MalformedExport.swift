@@ -23,4 +23,15 @@ import IR
     case notASerial(String)
     case duplicateSerial(Int)
     case unresolvedCitation(theory: String, serial: Int)
+    case tfreesHeader([String])
+    case instanceArity(expected: Int, found: Int)
+    case undeclaredTypeVariable(String)
+    case schematicVariable(String)
+    case duplicateClass(String)
+    case undeclaredClass(String)
+    case duplicateAxiom(String)
+    case undeclaredAxiom(String)
+    case freeHypothesis
+    case unboundHypothesis(Int)
+    case unproved(statement: NodeID, conclusion: NodeID?)
 }

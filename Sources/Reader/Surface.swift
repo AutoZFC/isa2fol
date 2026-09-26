@@ -44,13 +44,6 @@ public struct Closure: Sendable {
     public var unboundTypeVariables: [String] = []
 }
 
-struct TheoremKey: Hashable {
-    let theory: String
-    let serial: Int
-
-    var path: String { "\(theory)/proofs/\(serial)" }
-}
-
 extension Export {
     public mutating func surface() throws -> Surface {
         var census = try loadCensus()
@@ -80,20 +73,10 @@ extension Export {
     }
 
     private mutating func loadCensus() throws -> Census {
-        var names: [TheoremKey: String] = [:]
-        var files: [TheoremKey: Body] = [:]
-        for theory in theories {
-            for (serial, name) in try located("\(theory)/theory/thms", { try self.names(theory) }) {
-                names[TheoremKey(theory: theory, serial: serial)] = name
-            }
-            for serial in try proofSerials(theory) {
-                let key = TheoremKey(theory: theory, serial: serial)
-                files[key] = try located(key.path) { try forest.parse(contentsOf: "\(root)/\(key.path)") }
-            }
-        }
-        let population = names.keys.filter { session(of: $0.theory) != nil }
+        let corpus = try load()
+        let population = corpus.names.keys.filter { session(of: $0.theory) != nil }
             .sorted { ($0.theory, $0.serial) < ($1.theory, $1.serial) }
-        return Census(decode: Decode(forest: forest), names: names, files: files, population: population)
+        return Census(decode: Decode(forest: forest), corpus: corpus, population: population)
     }
 }
 
@@ -105,8 +88,7 @@ private struct Census {
     }
 
     let decode: Decode
-    let names: [TheoremKey: String]
-    let files: [TheoremKey: Body]
+    let corpus: Corpus
     let population: [TheoremKey]
     private(set) var absorbed = 0
     private(set) var unbound: Set<String> = []
@@ -115,16 +97,15 @@ private struct Census {
     private var leafClosures: [TheoremKey: Set<Item>] = [:]
     private var premises: [TheoremKey: Int] = [:]
 
-    init(decode: Decode, names: [TheoremKey: String], files: [TheoremKey: Body], population: [TheoremKey]) {
+    init(decode: Decode, corpus: Corpus, population: [TheoremKey]) {
         self.decode = decode
-        self.names = names
-        self.files = files
+        self.corpus = corpus
         self.population = population
     }
 
     mutating func survey(_ key: TheoremKey, into s: inout Surface, cited: inout Set<TheoremKey>) throws {
-        let e = try decode.envelope(try file(key))
-        var statement = try terms([try unconditional(e.prop).rest])
+        let (e, _) = try decode.proofFile(try corpus.file(key))
+        var statement = try terms([try decode.unconditional(e.prop).rest])
         e.frees.forEach { Self.types($0.1, &statement) }
         if !e.tfrees.isEmpty { statement.insert(Item(.typeVariable, "")) }
         for item in statement { s.statement[item, default: 0] += 1 }
@@ -141,7 +122,7 @@ private struct Census {
     }
 
     func polymorphic(_ key: TheoremKey) throws -> Bool {
-        !(try decode.envelope(try file(key)).tfrees.isEmpty)
+        !(try decode.proofFile(try corpus.file(key)).0.tfrees.isEmpty)
     }
 
     mutating func leaves(_ root: TheoremKey) throws -> Set<Item> {
@@ -162,15 +143,10 @@ private struct Census {
         return leafClosures[root]!
     }
 
-    private func file(_ key: TheoremKey) throws -> Body {
-        guard let body = files[key] else { throw MalformedExport.unresolvedCitation(theory: key.theory, serial: key.serial) }
-        return body
-    }
-
     private mutating func ownRegion(_ key: TheoremKey) throws -> Region {
         if let r = regions[key] { return r }
-        let e = try decode.envelope(try file(key))
-        let r = try located(key.path) { try region(e.proof, binding: Set(e.tfrees), label: key.path) }
+        let (e, proof) = try decode.proofFile(try corpus.file(key))
+        let r = try located(key.path) { try region(proof, binding: Set(e.tfrees), label: key.path) }
         regions[key] = r
         return r
     }
@@ -181,7 +157,7 @@ private struct Census {
             if boxClosures[key] != nil { continue }
             var own = try ownRegion(key)
             if expanded {
-                own.items.formUnion(try terms([try unconditional(try decode.envelope(try file(key)).prop).rest]))
+                own.items.formUnion(try terms([try decode.unconditional(try decode.proofFile(try corpus.file(key)).0.prop).rest]))
                 for child in own.boxes {
                     own.items.formUnion(Self.instantiated(boxClosures[child]!.items))
                     own.named.formUnion(boxClosures[child]!.named)
@@ -248,14 +224,14 @@ private struct Census {
             case let .theorem(c):
                 let key = TheoremKey(theory: c.theory, serial: c.serial)
                 absorb = try classPremises(key)
-                if let name = names[key] {
+                if let name = corpus.names[key] {
                     if logic.contains(c.theory) { r.items.insert(Item(.theorem, name)) }
                     r.named.insert(key)
                 } else {
                     r.boxes.insert(key)
                 }
                 c.types.forEach { Self.types($0, &r.items) }
-                check(c.types, names[key] ?? key.path)
+                check(c.types, corpus.names[key] ?? key.path)
             }
             var proofArguments = 0
             for argument in spine.arguments {
@@ -276,21 +252,9 @@ private struct Census {
 
     private mutating func classPremises(_ key: TheoremKey) throws -> Int {
         if let n = premises[key] { return n }
-        let n = try unconditional(try decode.envelope(try file(key)).prop).premises
+        let n = try decode.unconditional(try decode.proofFile(try corpus.file(key)).0.prop).classes.count
         premises[key] = n
         return n
-    }
-
-    private func unconditional(_ prop: Body) throws -> (premises: Int, rest: Body) {
-        var n = 0
-        var t = prop
-        while true {
-            let (head, arguments) = try decode.spine(t)
-            guard case .constant("Pure.imp", _) = head, arguments.count == 2 else { return (n, t) }
-            guard case .ofclass = try decode.spine(arguments[0]).head else { return (n, t) }
-            n += 1
-            t = arguments[1]
-        }
     }
 
     private static func instantiated(_ items: Set<Item>) -> Set<Item> {

@@ -25,16 +25,18 @@ indirect enum IsaType: Hashable, Sendable {
         case let .type("fun", args):
             try arity("fun", args, 2)
             return .fn(try args[0].irType(), try args[1].irType())
-        case let .type("ZF_Base.i", args):
-            try arity("ZF_Base.i", args, 0)
+        case let .type(name, args) where name == "ZF_Base.i" || name == "dummy":
+            try arity(name, args, 0)
             return .i
         case let .type(name, args) where name == "IFOL.o" || name == "prop":
             try arity(name, args, 0)
             return .o
         case let .type(name, _):
             throw ReaderRefusal.typeConstructor(name)
-        case let .tfree(name, _), let .tvar(name, _, _):
-            throw ReaderRefusal.typeVariable(name)
+        case let .tfree(name, _):
+            throw MalformedExport.undeclaredTypeVariable(name)
+        case let .tvar(name, _, _):
+            throw MalformedExport.schematicVariable(name)
         }
     }
 }

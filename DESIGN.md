@@ -38,14 +38,17 @@ either is silent.
 
 ---
 
-## 2. Reading the export  **[STATEMENTS BUILT; proofs NOT]**
+## 2. Reading the export  **[BUILT]**
 
-**Measured, one build** (`swift build -c release && .build/release/isa2fol statements data/zf_export`,
-36 s): every one of the 38,923 proof files reads or refuses by name, none is malformed. Of the
-3,616 named theorems of session ZF, **3,602 translate**; across the eight exported sessions,
-**9,382 of 9,420**. The 38 refusals are 23 type variables, 14 `Pure.all` over a function (S5),
-1 `OFCLASS`.
-`--show KIND` lists each refused statement.
+**Measured, one build** (`swift build -c release && .build/release/isa2fol read data/zf_export`,
+58 s, 3.5 GB peak — the parse of the 3.1 GB file): of the 9,420 named theorems of the eight exported
+sessions, **9,396 are PROVED** — statement and proof read, and the proof's conclusion is the
+statement's node, BY ID, with every step typed by the table (§4.7). 1 is a class fact
+(`ZF_Base.arity_term_i`, bookkeeping); 23 are polymorphic and are read at the instances cited (16 are
+cited; 7 are cited by nothing and have no ground reading). The 221 instances of named theorems they
+cite — Pure/IFOL/FOL derived rules, polymorphic ZF theorems — are all proved too. **0 refused.** A
+proof whose conclusion is not its statement stops the run as `MalformedExport.unproved`.
+`--show OUTCOME` lists the theorems with an outcome.
 
 **It produces isa nodes in the unit's formula table (§4.2), and it RECOGNISES —
 it never transcribes raw `ZApp`.** `ZApp(ZApp(ZConst "Pure.imp", a), b)` is read as
@@ -62,7 +65,7 @@ Every term is read in ONE canonical form: η-long (below; β-normal is proposed 
 Whether a construct TRANSLATES is lowering's question, decided against FOUNDATION and counted
 there. ⚠ An earlier version called the dialect "the ZF surface" and REFUSED what was rare in
 the 3,616 named theorems — a count justifying a specification — then reported those refusals
-as the corpus's limits (98.1% of statement files). Today's reader still refuses what §4.3a lists.
+as the corpus's limits (98.1% of statement files).
 
 **η: every function-typed argument is read η-LONG.** Isabelle stores a function argument as the
 source wrote it: `Ball(A, P)`, `Part(sum(A,B), Inl)`, `congruent(r, split(f))` (a partial
@@ -127,9 +130,9 @@ cap) is revisited only for a corpus larger than ZF.
 
 | | decided |
 |---|---|
-| **types** | The reader decodes `ztyp` into ITS OWN type, which has `'a` and `prop`. A `ZConst` carries only its type ARGUMENTS (`ZConst1 (a, b) => ([a], list ztyp [b])`, `zterm.ML`'s encoder), so `isaConst`'s instantiated type is the declared scheme from `theory/consts` (`IFOL.eq :: ['a, 'a] ⇒ o`) with those arguments substituted. Converting to `IRType` refuses a leftover type variable by name. `IRType` has no `prop`: **`prop` converts to `o` in EVERY type** — the coercion is the identity (§4.3). A variable of type `prop` (`elim_format`'s `W`) is a formula variable as `P :: o` is; a constant of type `prop` (`AC_Equiv.AC18`) or over `prop` (ZF-Constructible's `MetaExists.ex :: ('a ⇒ prop) ⇒ prop`) is a formula constant. ⚠ Refusing `prop` anywhere split one construct in two — 6 vs 194 theorems for variables, then 192 for constants. The Pure-internal constants (`Pure.term`, `Pure.conjunction`, …) are refused BY NAME before any type is converted; FOUNDATION S4's arity-0 question is lowering's |
-| **frees** | Left as `isaFree`, typed from the `frees` header; a closing pass abstracts them (§4.4). A statement and its proof share the same interned free nodes, so ONE closing applies to both. The order is Isabelle's closure order, read from `proofterm.ML` (§4.4); the data check is a citation instantiated by its `ZAppt`s concluding what the citing proof uses, by ID — once proofs are read |
-| **outcomes** | The READER owns them, never IR: in source order, `(serial, name?, translated(root) \| refused(reason))`. A refused statement never enters IR; IR's `Statement` is keyed `(serial, name?)` — unnamed proof boxes have no name — within its unit's theory. ONLY the reader's own refusal enum is caught and recorded; a `TableError` or `YXMLError` is a bug or a corrupt file and stops the run — catching it would count our bugs as refusals |
+| **types** | The reader decodes `ztyp` into ITS OWN type, which has `'a` and `prop`. A `ZConst` carries only its type ARGUMENTS (`ZConst1 (a, b) => ([a], list ztyp [b])`, `zterm.ML`'s encoder), so `isaConst`'s instantiated type is the declared scheme from `theory/consts` (`IFOL.eq :: ['a, 'a] ⇒ o`) with those arguments substituted. A file is read AT AN INSTANCE — its `tfrees` header's variables substituted by ground types (§4.3a 3) — so converting to `IRType` meets no type variable; one left over is undeclared, malformed. `IRType` has no `prop`: **`prop` converts to `o` in EVERY type** — the coercion is the identity (§4.3). ⚠ Refusing `prop` anywhere split one construct in two — 6 vs 194 theorems for variables, then 192 for constants. `dummy` — `standard_hidden_types` writing a proof-only type variable of empty sort — converts to `i`: such a proof holds at every type, so any ground instance proves the same statement |
+| **frees** | **Read CLOSED.** A statement is `∀x⃗. φ` over the `frees` header — Isabelle's closure (`forall_intr_variables_term`, and `prop_of_atom` for a cited axiom or theorem, `proofterm.ML`), the first free outermost — and its proof is `⋀`-intro over the same `x⃗`. A free `ZVar` reads as the bound variable of its closure binder: the frees are the outermost binders of the file's `Scope`. So a cited statement is the SAME node as the citer's `use`, and the citation's `ZAppt`s instantiate it — checked by ID across every proof. ⚠ Closing in a later pass was the plan; it walks the proof DAG with `transform`, which has no memo (§4.5), and an inlined box is shared exponentially |
+| **outcomes** | The READER owns them, never IR: `proved(statement, proof)` · `classFact` · `polymorphic` (read at an instance instead) · `refused(reason)`. ONLY the reader's own refusal enum is caught and recorded; a `TableError`, `MalformedExport` or `YXMLError` is a bug or a corrupt file and stops the run, located at the innermost file — catching it would count our bugs as refusals |
 
 ### What the reader rejects
 
@@ -294,13 +297,13 @@ The generic term language — ZF's own vocabulary, not logic at any level:
 | node | source | added | left out |
 |---|---|---|---|
 | `isaConst(name, T, args)` | any constant not read as logic above — the 249 ZF constants, `IFOL.eq`, `True`, `Ex1`, `Let`, `Uniq`, `Pure.eq` at a function type — fully applied | its INSTANTIATED type `T` — it determines the type arguments and back, so the identity is the same | the declared scheme: declarations stay polymorphic (`IFOL.eq :: 'a ⇒ 'a ⇒ o`) though every use is ground, so the READER instantiates once from `theory/consts` and no `'a` enters the table |
-| `isaFree(name, T)` | free `ZVar` | the type, from the `frees` header | |
-| `isaBound(k, T)` | `ZBound k` | **the type**, from the enclosing binder | |
+| `isaFree(name, T)` | nothing the reader emits — a free `ZVar` reads as its closure binder's `isaBound` (§2) | | |
+| `isaBound(k, T)` | `ZBound k`, and a free `ZVar` under its statement's closure | **the type**, from the enclosing binder or the `frees` header | |
 | `isaVarApp(head, args)` | a variable applied — a class variable `P(x)` | | the head is an `isaFree` or `isaBound`, never merged into the constant namespace (rule 3) |
 | `isaAbs(T, body)` | `ZAbs`, ONLY as a function-typed argument: `Collect(A, λx. …)` | | **`x`** |
 
-`IRType` has no `prop` case (§2). A type variable, a schematic `Var` and `OFCLASS` are refused
-today; §4.3a proposes how each is read.
+`IRType` has no `prop` case (§2). A type variable is instantiated before reading, a class premise
+absorbed, a schematic `Var` malformed (§4.3a).
 
 **The fol side mirrors fol-zfc** (`src/core/formula.h`): a term is a bound variable
 (de Bruijn) — fol-zfc's FIXED variables are emission's concern, not a node kind (§4.7);
@@ -311,8 +314,7 @@ both. It is the translator's bookkeeping, known where lowering builds the binder
 
 ### 4.3a The isa surface, from the verified primitives — ACCEPTED 2026-09-25
 
-**The dialect side is built; the reader's class bookkeeping and per-instance reading are not.** It
-replaced a proposal to add type variables and `itself` to `IRType`, which the closure made unnecessary. Evidence, eight exported sessions, 9,420 named
+**Built, statements and proofs.** It replaced a proposal to add type variables and `itself` to `IRType`, which the closure made unnecessary. Evidence, eight exported sessions, 9,420 named
 theorems: `isa2fol surface data/zf_export` (`docs/SOURCE_SURFACE.md`) and `isa2fol closure
 data/zf_export` (`docs/CLOSURE.md`). Principle: read FAITHFULLY, then one pass per construct.
 
@@ -353,19 +355,24 @@ covered, so their definitions become equivalences lowering proves. Pinned by
 | negation | IFOL `¬` | `folNot` |
 | `∀` / `∃` at a type `T` | IFOL `∀`, Pure `⋀` / IFOL `∃` — at `i`, `o` or a function type | `ifolAll(T)` / `ifolEx(T)` |
 | a constant applied | every other constant: ZF's; `=` (IFOL `eq`, and Pure `≡` at `i`); Pure `≡` at a function type; the defined `True Ex1 Let Uniq induct_*`; Pure's `&&& TERM TYPE sort_constraint _` | `isaConst(name, T instantiated)` |
-| a free · a bound variable · a variable applied · `λ` | `ZVar` · `ZBound` · `ZApp` headed by a variable · `ZAbs` as a function argument | `isaFree` · `isaBound` · `isaVarApp` · `isaAbs` |
+| a bound variable · a variable applied · `λ` | `ZBound`, and a free `ZVar` — its statement's `∀`-closure binds it (§2) · `ZApp` headed by a variable · `ZAbs` as a function argument | `isaBound` · `isaVarApp` · `isaAbs` |
 | `⋀`-intro · `⋀`-elim | `ZAbst` · `ZAppt` | `isaAllIntro` · `isaAllElim` |
 | `⟹`-intro · `⟹`-elim | `ZAbsp` · `ZAppp` | `folImpliesIntro` · `folImpliesElim` |
 | a hypothesis | `ZBoundp` (a free `ZHyp`: 0 in the export) | `hyp` |
-| a citation | `ZConstp` — an axiom or a theorem, at its instance | `use(name, root)` |
+| a citation | `ZConstp` — an axiom or a NAMED theorem, at its instance; `root` is its closed statement | `use(name, root)` |
+| an unnamed box | `ZConstp` of a theorem with no name — logically not a building block | INLINED: its closed proof, read at the instance cited |
 
 **Not surface primitives, so no construct:** `Trueprop` and `protect` (`Pure.prop`) — identity
 coercions, erased; `OFCLASS`, a class premise, its discharge, a hypothesis binding one — sort
-bookkeeping of the axiom-free class `term`, absorbed; a type variable — each polymorphic theorem is
-read per ground instance (3). A schematic `Var` is MALFORMED (`standard_vars` removes every one).
+bookkeeping, absorbed ONLY for a class `theory/classes` declares with no parameters and no axioms
+(`IFOL.term`, the one class in the export; any other is refused, since dropping its premise would
+drop its axioms); a type variable — each polymorphic theorem is read per ground instance (3). A
+schematic `Var` is MALFORMED (`standard_vars` removes every one).
 
-**Reader work left:** absorb class bookkeeping; read a polymorphic theorem at each cited instance;
-read the axioms' statements (`theory/axioms`) that `use` needs; read proofs.
+**Absorbed where it occurs:** a statement's leading class premises are stripped and counted; a
+citation skips that many leading proof arguments; a proof's class-hypothesis binder adds no step, and
+reading its hypothesis anywhere but a skipped argument is refused. A statement that is ONLY a class
+fact is the outcome `classFact`.
 
 ### 4.4 Binders are de Bruijn
 
@@ -398,10 +405,12 @@ The guard needs none: `∀. body` → `∀. (set(0) → body)` leaves the body a
   close x:      mem(x, A) → ∀. mem(0, x)     →  ∀. ( mem(0, A) → ∀. mem(0, 1) )     ONE node x: 0 here, 1 there
 ```
 
-Frees close in one pass, over the PROPOSITION's frees in first-occurrence order: free `i`
-of `n` at depth `d` ↦ `d + (n − 1 − i)`, the first outermost. That is Isabelle's own closure
+Frees close over the PROPOSITION's frees in first-occurrence order: free `i` of `n` at depth `d`
+↦ `d + (n − 1 − i)`, the first outermost. That is Isabelle's own closure
 (`forall_intr_variables_term`, `variables_of` in `proofterm.ML`), which fixes the order in
-which every citation's `ZAppt`s instantiate. The `frees` header lists the same frees first
+which every citation's `ZAppt`s instantiate — the proof reader's by-ID check confirms it over the
+whole export. The reader closes by reading (§2): the frees are the outermost binders of a file's
+scope, so no pass abstracts them and `abstract` has no caller. The `frees` header lists the same frees first
 (`standard_vars`, `zterm.ML`) and then any that occur ONLY in the proof — ⚠ closing over those
 too adds a `∀` no citation fills. The header EQUALS the proposition's frees — measured over all 16,798
 files of the pre-2026-09-25 export, which merged two builds, and forced by the encoder: `standard_hidden_terms` (`zterm.ML`) turns every proof-only variable into

@@ -6,9 +6,10 @@ The Rust tree (`rs/`, 12,781 lines) was **deleted 2026-09-22**. It is in git
 history and nothing depends on it. `docs/`, `base/` and `scripts/capped.sh`
 were hoisted out of it first and are live.
 
-**The statement reader is built.** `isa2fol statements data/zf_export` reads every
-statement of the export into the IR or refuses it by name; proofs, lowering and
-emission are not built. `DESIGN.md` is the plan.
+**The reader is built.** `isa2fol read data/zf_export` reads every named theorem of
+the ZF sessions, statement AND proof, into the IR: 9,396 of 9,420 are proved — the
+proof's conclusion is the statement's node, by ID — and 0 are refused (`DESIGN.md` §2).
+Lowering and emission are not built. `DESIGN.md` is the plan.
 
 ## Build
 
@@ -138,7 +139,7 @@ is gone. §5 says so. Treat every number there as a belief, never a premise.
    print(f'{c}/{t} = {100*c/t:.1f}%')"
    ```
 
-   ✓ **CURRENTLY 4/2100 = 0.19%, under the cap.** Keep it there: a breach is
+   ✓ **CURRENTLY 4/2436 = 0.16%, under the cap.** Keep it there: a breach is
    fixed by deleting prose, never by raising the cap.
 
    Does not apply to `base/**/*.fol.def` headers: those record provenance of
@@ -180,7 +181,7 @@ Sources/
   YXML/          Isabelle's transfer format → a hash-consed Forest (equal subtrees, one Ref).  Knows no dialect.
   IR/            Node · Table · transform · index engine · passes · legalize
   FolDialect/    Declaration · render (formulas and proofs) — the text boundary over IR
-  Reader/        the export → isa nodes: IsaType · Constants · Terms (η-long) · Statements · Export · Proofs (decoder) · Surface
+  Reader/        the export → isa nodes: Export (loading) · IsaType · Constants · Terms (η-long, closed) · Statements · Proofs (decoder) · Reader (proofs) · Surface
   isa2fol/       CLI
 Tests/           YXMLTests · FolDialectTests · IRTests · ReaderTests
 base/            the NBG foundation: axioms.fol.def + 9 tiers, kernel-checked
@@ -192,7 +193,7 @@ data/zf_export/  the Isabelle export — a LOCAL CACHE, never committed: scripts
   YXML        IR        FolDialect
 ```
 
-The reader (YXML → IR) reads statements (`Sources/Reader`); proofs, the lowering
+The reader (YXML → IR) reads statements and proofs (`Sources/Reader`); the lowering
 passes and the emitter (IR → FolDialect) are unbuilt.
 
 **There is ONE formula table per unit, holding isa and fol nodes together** —
@@ -280,7 +281,8 @@ proofs as trees; ZF-UNITY builds in 17 s with export off.
 |---|---|
 | `theory/thms` | theorem names and serials (YXML) |
 | `theory/consts` | constant type information (YXML) |
-| `theory/axioms` | axiom statements — only `Pure/` has one |
+| `theory/axioms` | axiom and definition statements, in every theory that has one — an XML TRIPLE, variables TYPED (`typed_vars = true`) |
+| `theory/classes` | type classes — only `IFOL.term`, with no parameters and no axioms |
 | `proofs/NNN` | one proof term per serial (YXML) |
 
 `find data/zf_export -path '*/proofs/*' -type f | wc -l` → 38,923 proof terms, 4.2 GB,

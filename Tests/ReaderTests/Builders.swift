@@ -80,9 +80,11 @@ private let declarations: [(String, [String], String)] = [
     ("T.metaEx", ["'a"], fn(fn(typeA, prop), prop)),
 ]
 
+let constsFile = declarations.map { constEntity($0.0, parameters: $0.1, scheme: $0.2) }.joined()
+
 func testConstants() throws -> Constants {
     var f = Forest()
-    let body = try f.parse(Array(declarations.map { constEntity($0.0, parameters: $0.1, scheme: $0.2) }.joined().utf8))
+    let body = try f.parse(Array(constsFile.utf8))
     var c = Constants()
     try c.load(body, in: f)
     return c
@@ -106,4 +108,30 @@ func pofclass(_ T: String, _ c: String) -> String { tagged(8, [c], [T]) }
 func poracle(_ name: String) -> String { tagged(9, [name], []) }
 func pcite(_ serial: Int, _ theory: String, _ name: String = "", _ types: String...) -> String {
     tagged(10, [String(serial), theory, name, "0"], types.map { node($0) })
+}
+
+func classEntity(_ name: String, axiomFree: Bool) -> String {
+    element("entity", [("name", name)], [node(), node(axiomFree ? "" : node())])
+}
+
+let classesFile = classEntity("IFOL.term", axiomFree: true) + classEntity("T.withAxioms", axiomFree: false)
+
+func testClasses() throws -> Classes {
+    var f = Forest()
+    let body = try f.parse(Array(classesFile.utf8))
+    var c = Classes()
+    try c.load(body, in: f)
+    return c
+}
+
+func axiomEntity(_ name: String, tfrees: [String] = [], frees: [(String, String)] = [], prop: String) -> String {
+    element("entity", [("name", name)], [
+        node(tfrees.map { node(node($0), node()) }.joined()),
+        node(frees.map { node(node($0.0), node($0.1)) }.joined()),
+        node(prop),
+    ])
+}
+
+func thmsFile(_ entries: [(String, Int)]) -> String {
+    entries.map { element("entity", [("name", $0.0), ("serial", String($0.1))], []) }.joined()
 }

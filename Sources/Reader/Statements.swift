@@ -1,62 +1,39 @@
-import Foundation
 import IR
 import YXML
 
-@frozen public enum Outcome: Equatable, Sendable {
-    case translated(root: NodeID, frees: [NodeID])
-    case refused(ReaderRefusal)
-}
-
-public struct ReadFailure: Error {
-    public let file: String
-    public let error: any Error
-}
-
-func located<T>(_ file: String, _ body: () throws -> T) throws -> T {
-    do { return try body() } catch { throw ReadFailure(file: file, error: error) }
-}
-
-public struct Read: Equatable, Sendable {
-    public let serial: Int
-    public let name: String?
-    public let outcome: Outcome
-}
-
-struct StatementReader {
-    let decode: Decode
-    let constants: Constants
-
-    func read(_ file: Body, into t: inout Table) throws -> Outcome {
-        let d = decode
-        let e = try d.envelope(file)
-        let names = e.frees.map(\.0)
-        let occurring = try d.frees(e.prop)
-        guard occurring == names else { throw MalformedExport.freesHeader(header: names, occurring: occurring) }
-        do {
-            if let a = e.tfrees.first { throw ReaderRefusal.typeVariable(a) }
-            let typed = try e.frees.map { ($0.0, try $0.1.irType()) }
-            let terms = Terms(decode: d, constants: constants, frees: Dictionary(uniqueKeysWithValues: typed))
-            let root = try terms.proposition(e.prop, in: &t)
-            return .translated(root: root, frees: try typed.map { try t.intern(.isaFree($0.0, $0.1)) })
-        } catch let r as ReaderRefusal {
-            return .refused(r)
-        }
-    }
+enum Proposition: Equatable {
+    case claim(NodeID, classPremises: Int)
+    case classFact(String)
 }
 
 struct Envelope {
     let tfrees: [String]
     let frees: [(String, IsaType)]
     let prop: Body
-    let proof: Body
 }
 
 extension Decode {
-    func envelope(_ file: Body) throws -> Envelope {
-        let (tfrees, rest) = try pair({ try list({ try pair(string, { try list(string, $0) }, $0).0 }, $0) }, { $0 }, file)
-        let (frees, statement) = try pair({ try list({ try pair(string, type, $0) }, $0) }, { $0 }, rest)
+    func proofFile(_ file: Body) throws -> (Envelope, proof: Body) {
+        let (tfrees, rest) = try pair(tfreesHeader, { $0 }, file)
+        let (frees, statement) = try pair(freesHeader, { $0 }, rest)
         let (prop, proof) = try pair({ $0 }, { $0 }, statement)
-        return Envelope(tfrees: tfrees, frees: frees, prop: prop, proof: proof)
+        return (Envelope(tfrees: tfrees, frees: frees, prop: prop), proof)
+    }
+
+    func axiom(_ body: Body) throws -> Envelope {
+        guard body.count == 3 else { throw MalformedExport.bodyLength(expected: 3, found: body.count) }
+        return Envelope(tfrees: try tfreesHeader(try node(body[0])), frees: try freesHeader(try node(body[1])),
+                        prop: try node(body[2]))
+    }
+
+    private func tfreesHeader(_ ts: Body) throws -> [String] {
+        let names = try list({ try pair(string, { try list(string, $0) }, $0).0 }, ts)
+        guard Set(names).count == names.count else { throw MalformedExport.tfreesHeader(names) }
+        return names
+    }
+
+    private func freesHeader(_ ts: Body) throws -> [(String, IsaType)] {
+        try list({ try pair(string, type, $0) }, ts)
     }
 
     func frees(_ body: Body) throws -> [String] {
@@ -69,7 +46,7 @@ extension Decode {
         let (head, arguments) = try spine(body)
         guard seen.insert(body[0]).inserted else { return }
         switch head {
-        case let .free(name):
+        case let .free(name, _):
             if known.insert(name).inserted { names.append(name) }
         case let .abstraction(_, inner):
             try collect(inner, &seen, &known, &names)
@@ -77,6 +54,54 @@ extension Decode {
             break
         }
         for a in arguments { try collect(a, &seen, &known, &names) }
+    }
+
+    func unconditional(_ prop: Body) throws -> (classes: [String], rest: Body) {
+        var classes: [String] = []
+        var t = prop
+        while true {
+            let (head, arguments) = try spine(t)
+            guard case .constant("Pure.imp", _) = head, arguments.count == 2,
+                  case let (.ofclass(c), []) = try spine(arguments[0]) else { return (classes, t) }
+            classes.append(c)
+            t = arguments[1]
+        }
+    }
+}
+
+struct Classes {
+    private var axiomFree: [String: Bool] = [:]
+
+    mutating func load(_ body: [Ref], in forest: Forest) throws {
+        let d = Decode(forest: forest)
+        for r in body {
+            guard case let .element(entity) = forest[r], entity.tag == "entity" else {
+                throw MalformedExport.notAnEntity(tag: d.tag(r))
+            }
+            let name = try entity.attribute("name")
+            let (parameters, axioms) = try d.pair({ $0 }, { $0 }, entity.children)
+            guard axiomFree.updateValue(parameters.isEmpty && axioms.isEmpty, forKey: name) == nil else {
+                throw MalformedExport.duplicateClass(name)
+            }
+        }
+    }
+
+    func absorb(_ c: String) throws {
+        guard let free = axiomFree[c] else { throw MalformedExport.undeclaredClass(c) }
+        guard free else { throw ReaderRefusal.ofclass(c) }
+    }
+}
+
+extension Terms {
+    mutating func statement(_ prop: Body, _ classes: Classes, in t: inout Table) throws -> Proposition {
+        let (premises, rest) = try decode.unconditional(prop)
+        try premises.forEach(classes.absorb)
+        if case let (.ofclass(c), []) = try decode.spine(rest) {
+            try classes.absorb(c)
+            return .classFact(c)
+        }
+        let root = try proposition(rest, closure, in: &t)
+        return .claim(try close(root, Node.ifolAll, in: &t), classPremises: premises.count)
     }
 }
 
@@ -95,67 +120,4 @@ func claimName(_ entity: String) throws -> String {
     }
     guard wellFormed else { throw ReaderRefusal.nameSegment(entity) }
     return base + index
-}
-
-public struct Export {
-    public let root: String
-    public let theories: [String]
-    var forest = Forest()
-    private var constants = Constants()
-
-    public init(root: String) throws {
-        self.root = root
-        theories = try FileManager.default.contentsOfDirectory(atPath: root).sorted()
-        for theory in theories where FileManager.default.fileExists(atPath: "\(root)/\(theory)/theory/consts") {
-            try located("\(theory)/theory/consts") {
-                let body = try forest.parse(contentsOf: "\(root)/\(theory)/theory/consts")
-                try constants.load(body, in: forest)
-            }
-        }
-    }
-
-    public mutating func statements(_ theory: String, into t: inout Table) throws -> [Read] {
-        let entities = try located("\(theory)/theory/thms") { try names(theory) }
-        var reads: [Read] = []
-        for serial in try proofSerials(theory) {
-            reads.append(try located("\(theory)/proofs/\(serial)") {
-                let body = try forest.parse(contentsOf: "\(root)/\(theory)/proofs/\(serial)")
-                let reader = StatementReader(decode: Decode(forest: forest), constants: constants)
-                var name: String?
-                let outcome: Outcome
-                do {
-                    name = try entities[serial].map(claimName)
-                    outcome = try reader.read(body, into: &t)
-                } catch let r as ReaderRefusal {
-                    outcome = .refused(r)
-                }
-                return Read(serial: serial, name: name, outcome: outcome)
-            })
-        }
-        return reads
-    }
-
-    func proofSerials(_ theory: String) throws -> [Int] {
-        let dir = "\(root)/\(theory)/proofs"
-        guard FileManager.default.fileExists(atPath: dir) else { return [] }
-        return try FileManager.default.contentsOfDirectory(atPath: dir).map { file in
-            guard let s = Int(file) else { throw MalformedExport.notASerial(file) }
-            return s
-        }.sorted()
-    }
-
-    mutating func names(_ theory: String) throws -> [Int: String] {
-        let path = "\(root)/\(theory)/theory/thms"
-        guard FileManager.default.fileExists(atPath: path) else { return [:] }
-        var names: [Int: String] = [:]
-        for r in try forest.parse(contentsOf: path) {
-            guard case let .element(e) = forest[r], e.tag == "entity" else {
-                throw MalformedExport.notAnEntity(tag: Decode(forest: forest).tag(r))
-            }
-            let serial = try e.attribute("serial")
-            guard let s = Int(serial) else { throw MalformedExport.notASerial(serial) }
-            guard names.updateValue(try e.attribute("name"), forKey: s) == nil else { throw MalformedExport.duplicateSerial(s) }
-        }
-        return names
-    }
 }
