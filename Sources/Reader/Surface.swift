@@ -36,13 +36,50 @@ public struct Surface: Sendable {
     public var absorbed = 0
 }
 
+public struct Closure: Sendable {
+    public var named: [String: Int] = [:]
+    public var leaves: [Item: Int] = [:]
+    public var polymorphic = 0
+    public var absorbed = 0
+    public var unboundTypeVariables: [String] = []
+}
+
 struct TheoremKey: Hashable {
     let theory: String
     let serial: Int
+
+    var path: String { "\(theory)/proofs/\(serial)" }
 }
 
 extension Export {
     public mutating func surface() throws -> Surface {
+        var census = try loadCensus()
+        var s = Surface()
+        var cited: Set<TheoremKey> = []
+        for key in census.population {
+            try located(key.path) { try census.survey(key, into: &s, cited: &cited) }
+        }
+        s.citedZF = cited.count
+        s.absorbed = census.absorbed
+        return s
+    }
+
+    public mutating func closure() throws -> Closure {
+        var census = try loadCensus()
+        var c = Closure()
+        for key in census.population {
+            try located(key.path) {
+                for leaf in try census.leaves(key) { c.leaves[leaf, default: 0] += 1 }
+                if try census.polymorphic(key) { c.polymorphic += 1 }
+            }
+            c.named[session(of: key.theory)!, default: 0] += 1
+        }
+        c.absorbed = census.absorbed
+        c.unboundTypeVariables = census.unbound.sorted()
+        return c
+    }
+
+    private mutating func loadCensus() throws -> Census {
         var names: [TheoremKey: String] = [:]
         var files: [TheoremKey: Body] = [:]
         for theory in theories {
@@ -50,18 +87,13 @@ extension Export {
                 names[TheoremKey(theory: theory, serial: serial)] = name
             }
             for serial in try proofSerials(theory) {
-                files[TheoremKey(theory: theory, serial: serial)] = try located("\(theory)/proofs/\(serial)") {
-                    try forest.parse(contentsOf: "\(root)/\(theory)/proofs/\(serial)")
-                }
+                let key = TheoremKey(theory: theory, serial: serial)
+                files[key] = try located(key.path) { try forest.parse(contentsOf: "\(root)/\(key.path)") }
             }
         }
-        var census = Census(decode: Decode(forest: forest), names: names, files: files)
         let population = names.keys.filter { session(of: $0.theory) != nil }
             .sorted { ($0.theory, $0.serial) < ($1.theory, $1.serial) }
-        for key in population {
-            try located("\(key.theory)/proofs/\(key.serial)") { try census.named(key) }
-        }
-        return census.finished()
+        return Census(decode: Decode(forest: forest), names: names, files: files, population: population)
     }
 }
 
@@ -69,45 +101,65 @@ private struct Census {
     struct Region {
         var items: Set<Item> = []
         var boxes: Set<TheoremKey> = []
-        var cited: Set<TheoremKey> = []
+        var named: Set<TheoremKey> = []
     }
 
     let decode: Decode
     let names: [TheoremKey: String]
     let files: [TheoremKey: Body]
-    private var surface = Surface()
-    private var cited: Set<TheoremKey> = []
-    private var closures: [TheoremKey: Region] = [:]
+    let population: [TheoremKey]
+    private(set) var absorbed = 0
+    private(set) var unbound: Set<String> = []
+    private var regions: [TheoremKey: Region] = [:]
+    private var boxClosures: [TheoremKey: Region] = [:]
+    private var leafClosures: [TheoremKey: Set<Item>] = [:]
     private var premises: [TheoremKey: Int] = [:]
 
-    init(decode: Decode, names: [TheoremKey: String], files: [TheoremKey: Body]) {
+    init(decode: Decode, names: [TheoremKey: String], files: [TheoremKey: Body], population: [TheoremKey]) {
         self.decode = decode
         self.names = names
         self.files = files
+        self.population = population
     }
 
-    func finished() -> Surface {
-        var s = surface
-        s.citedZF = cited.count
-        return s
-    }
-
-    mutating func named(_ key: TheoremKey) throws {
+    mutating func survey(_ key: TheoremKey, into s: inout Surface, cited: inout Set<TheoremKey>) throws {
         let e = try decode.envelope(try file(key))
         var statement = try terms([try unconditional(e.prop).rest])
         e.frees.forEach { Self.types($0.1, &statement) }
         if !e.tfrees.isEmpty { statement.insert(Item(.typeVariable, "")) }
-        for item in statement { surface.statement[item, default: 0] += 1 }
+        for item in statement { s.statement[item, default: 0] += 1 }
 
-        var proof = try region(e.proof)
+        var proof = try ownRegion(key)
         for box in proof.boxes {
-            let c = try closure(box)
+            let c = try boxClosure(box)
             proof.items.formUnion(Self.instantiated(c.items))
-            proof.cited.formUnion(c.cited)
+            proof.named.formUnion(c.named)
         }
-        for item in proof.items { surface.proof[item, default: 0] += 1 }
-        cited.formUnion(proof.cited)
-        surface.named[session(of: key.theory)!, default: 0] += 1
+        for item in proof.items { s.proof[item, default: 0] += 1 }
+        cited.formUnion(proof.named.filter { !logic.contains($0.theory) })
+        s.named[session(of: key.theory)!, default: 0] += 1
+    }
+
+    func polymorphic(_ key: TheoremKey) throws -> Bool {
+        !(try decode.envelope(try file(key)).tfrees.isEmpty)
+    }
+
+    mutating func leaves(_ root: TheoremKey) throws -> Set<Item> {
+        var work: [(TheoremKey, expanded: Bool)] = [(root, false)]
+        while let (key, expanded) = work.popLast() {
+            if leafClosures[key] != nil { continue }
+            let own = try ownRegion(key)
+            let children = own.boxes.union(own.named)
+            if expanded {
+                var leaves = own.items.filter { $0.kind == .axiom || $0.kind == .oracle }
+                for child in children { leaves.formUnion(leafClosures[child]!) }
+                leafClosures[key] = leaves
+                continue
+            }
+            work.append((key, true))
+            for child in children where leafClosures[child] == nil { work.append((child, false)) }
+        }
+        return leafClosures[root]!
     }
 
     private func file(_ key: TheoremKey) throws -> Body {
@@ -115,35 +167,51 @@ private struct Census {
         return body
     }
 
-    private mutating func closure(_ root: TheoremKey) throws -> Region {
-        var own: [TheoremKey: Region] = [:]
-        var work: [(TheoremKey, expanded: Bool)] = [(root, false)]
-        while let (key, expanded) = work.popLast() {
-            if closures[key] != nil { continue }
-            if expanded {
-                var c = own[key]!
-                for child in c.boxes {
-                    c.items.formUnion(Self.instantiated(closures[child]!.items))
-                    c.cited.formUnion(closures[child]!.cited)
-                }
-                closures[key] = c
-                continue
-            }
-            let e = try decode.envelope(try file(key))
-            var r = try located("\(key.theory)/proofs/\(key.serial)") { try region(e.proof) }
-            r.items.formUnion(try terms([try unconditional(e.prop).rest]))
-            own[key] = r
-            work.append((key, true))
-            for child in r.boxes where closures[child] == nil { work.append((child, false)) }
-        }
-        return closures[root]!
+    private mutating func ownRegion(_ key: TheoremKey) throws -> Region {
+        if let r = regions[key] { return r }
+        let e = try decode.envelope(try file(key))
+        let r = try located(key.path) { try region(e.proof, binding: Set(e.tfrees), label: key.path) }
+        regions[key] = r
+        return r
     }
 
-    private mutating func region(_ proof: Body) throws -> Region {
+    private mutating func boxClosure(_ root: TheoremKey) throws -> Region {
+        var work: [(TheoremKey, expanded: Bool)] = [(root, false)]
+        while let (key, expanded) = work.popLast() {
+            if boxClosures[key] != nil { continue }
+            var own = try ownRegion(key)
+            if expanded {
+                own.items.formUnion(try terms([try unconditional(try decode.envelope(try file(key)).prop).rest]))
+                for child in own.boxes {
+                    own.items.formUnion(Self.instantiated(boxClosures[child]!.items))
+                    own.named.formUnion(boxClosures[child]!.named)
+                }
+                boxClosures[key] = own
+                continue
+            }
+            work.append((key, true))
+            for child in own.boxes where boxClosures[child] == nil { work.append((child, false)) }
+        }
+        return boxClosures[root]!
+    }
+
+    private mutating func region(_ proof: Body, binding: Set<String>, label: String) throws -> Region {
         var r = Region()
         var seen: Set<Ref> = []
         var work = [proof]
         var props: [Body] = []
+        func check(_ types: [IsaType], _ cited: String) {
+            for v in types.reduce(into: Set<IsaType>(), { $0.formUnion($1.variables) }) {
+                switch v {
+                case let .tfree(name, _) where !binding.contains(name):
+                    unbound.insert("\(label) cites \(cited) at \(name)")
+                case let .tvar(name, _, _):
+                    unbound.insert("\(label) cites \(cited) at ?\(name)")
+                case .tfree, .type:
+                    break
+                }
+            }
+        }
         while let body = work.popLast() {
             let spine = try decode.proofSpine(body)
             guard seen.insert(body[0]).inserted else { continue }
@@ -171,6 +239,7 @@ private struct Census {
             case let .axiom(name, types):
                 r.items.insert(Item(.axiom, name))
                 types.forEach { Self.types($0, &r.items) }
+                check(types, name)
             case let .ofclass(T, c):
                 r.items.insert(Item(.ofclass, c))
                 Self.types(T, &r.items)
@@ -180,11 +249,13 @@ private struct Census {
                 let key = TheoremKey(theory: c.theory, serial: c.serial)
                 absorb = try classPremises(key)
                 if let name = names[key] {
-                    if logic.contains(c.theory) { r.items.insert(Item(.theorem, name)) } else { r.cited.insert(key) }
+                    if logic.contains(c.theory) { r.items.insert(Item(.theorem, name)) }
+                    r.named.insert(key)
                 } else {
                     r.boxes.insert(key)
                 }
                 c.types.forEach { Self.types($0, &r.items) }
+                check(c.types, names[key] ?? key.path)
             }
             var proofArguments = 0
             for argument in spine.arguments {
@@ -194,7 +265,7 @@ private struct Census {
                     props.append(t)
                 case let .proof(p):
                     r.items.insert(Item(.calculus, "⟹-elim"))
-                    if proofArguments < absorb { surface.absorbed += 1 } else { work.append(p) }
+                    if proofArguments < absorb { absorbed += 1 } else { work.append(p) }
                     proofArguments += 1
                 }
             }

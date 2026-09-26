@@ -24,12 +24,15 @@ let arguments = Array(CommandLine.arguments.dropFirst())
 let usage = """
     usage: isa2fol statements EXPORT_DIR [--show REFUSAL]
            isa2fol surface EXPORT_DIR
+           isa2fol closure EXPORT_DIR
     """
 
-if arguments.count == 2, arguments[0] == "surface" {
+if arguments.count == 2, arguments[0] == "surface" || arguments[0] == "closure" {
     do {
         var export = try Export(root: arguments[1])
-        print(surfaceReport(try export.surface(), command: "isa2fol surface \(arguments[1])"), terminator: "")
+        let command = "isa2fol \(arguments[0]) \(arguments[1])"
+        print(arguments[0] == "surface" ? surfaceReport(try export.surface(), command: command)
+                                        : closureReport(try export.closure(), command: command), terminator: "")
     } catch let failure as ReadFailure {
         fail("malformed export at \(failure.file): \(failure.error)", 1)
     }

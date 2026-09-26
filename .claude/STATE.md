@@ -9,10 +9,10 @@
 | command (from the repo root) | expect |
 |---|---|
 | `swift --version \| head -1` | `Swift version 6.4 (swift-6.4-RELEASE)` |
-| `MEM=16G scripts/capped.sh swift test 2>&1 \| grep -cE '^✔ Test [a-zA-Z]+\(\) passed'` | **`144`** |
-| `ls Sources` · `ls docs` | `FolDialect IR Reader isa2fol YXML` · `FOUNDATION.md phase2_probes SOURCE_SURFACE.md` |
-| `find Sources Tests -name '*.swift' \| wc -l` | `37` (4046 lines) |
-| comment density of `Sources` (CLAUDE.md rule 9's script) | `4/1972 = 0.20%` |
+| `MEM=16G scripts/capped.sh swift test 2>&1 \| grep -cE '^✔ Test [a-zA-Z]+\(\) passed'` | **`148`** |
+| `ls Sources` · `ls docs` | `FolDialect IR Reader isa2fol YXML` · `CLOSURE.md FOUNDATION.md phase2_probes SOURCE_SURFACE.md` |
+| `find Sources Tests -name '*.swift' \| wc -l` | `38` (4256 lines) |
+| comment density of `Sources` (CLAUDE.md rule 9's script) | `4/2100 = 0.19%` |
 | `grep -rnE '^\s*default:' Sources` (a switch default — rule 11) | nothing |
 | `.build/release/isa2fol surface data/zf_export \| grep '^| \*\*all'` | `\| **all** \| **9420** \|` |
 | `readlink ~/repos/fol-zfc-comb/bazel-bin \| sed 's\|.*bazel-out/\|\|'` | `k8-opt/bin` — and `proof_checker` is executable there |
@@ -95,6 +95,7 @@ deleted work — §6. fol-zfc-comb sits on its own `comb-verifier` with an uncom
 | `YXML` parses in ONE hash-consing pass: the 3.1 GB file reads as < 20,000 nodes in 21 s (release) | `ISA2FOL_SCALE=1 swift test -c release -Xswiftc -enable-testing --filter theLargestProofFile` |
 | `data/zf_export` is one build: every named statement equals its proof file, every one of 2,986,521 citations resolves | `scratchpad/compare/compare.py`, NOT kept — the export check is unbuilt |
 | The export is not reproducible byte-for-byte: two builds differ in 7,258 paths, same statements | a second `scripts/03-export-zf.sh` run, `diff -rq` |
+| Every proof of the 9,420 named theorems rests on: Pure 7 axioms + 3 defs, IFOL 17 axioms + 6 defs, FOL `classical` + 4 defs, ZF_Base's 6 axioms, `AC.AC`, 5 example-session axioms, 984 definitions; 0 oracles; 0 unbound type variables at citations | `.build/release/isa2fol closure data/zf_export` (`docs/CLOSURE.md`) |
 | The census has not started: no `census/isa-shapes` branch | `git branch -a \| grep census` |
 
 ## 5. Beliefs — NOT verified
