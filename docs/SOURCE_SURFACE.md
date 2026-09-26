@@ -1260,8 +1260,12 @@ Plus **997 distinct ZF constants**.
 
 | item | theorems | % |
 |---|---:|---:|
+| `ZF_Base.i` | 7599 | 80.7% |
 | `IFOL.Trueprop` | 7094 | 75.3% |
 | `Pure.imp` | 6857 | 72.8% |
+| `fun` | 6648 | 70.6% |
+| `prop` | 6635 | 70.4% |
+| `IFOL.o` | 6265 | 66.5% |
 | `IFOL.eq` | 6088 | 64.6% |
 | `Pure.prop` | 5902 | 62.7% |
 | `IFOL.conj` | 5542 | 58.8% |
@@ -1282,6 +1286,7 @@ Plus **997 distinct ZF constants**.
 | `FOL.induct_forall` | 26 | 0.3% |
 | `a type variable` | 23 | 0.2% |
 | `IFOL.Let` | 17 | 0.2% |
+| `dummy` | 3 | 0.0% |
 | `FOL.induct_conj` | 2 | 0.0% |
 | `FOL.induct_equal` | 2 | 0.0% |
 | `Pure.term` | 1 | 0.0% |

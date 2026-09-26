@@ -26,6 +26,7 @@ import IR
     case tfreesHeader([String])
     case instanceArity(expected: Int, found: Int)
     case undeclaredTypeVariable(String)
+    case sortedTypeVariable(String)
     case schematicVariable(String)
     case duplicateClass(String)
     case undeclaredClass(String)

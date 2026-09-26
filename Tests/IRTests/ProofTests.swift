@@ -70,7 +70,28 @@ private struct P {
     let bToA = try p.hyp(0, try p.t.intern(.folImplies(b, a)))
     #expect(p.concl(try p.t.intern(.folOrElim(try p.hyp(1, orAB), aa, bToA))) == a)
     let root = try p.t.intern(.folAnd(a, b))
-    #expect(p.concl(try p.t.intern(.use("thm", root))) == root)
+    #expect(p.concl(try p.t.intern(.use("thm", [], root))) == root)
+}
+
+/// A citation's types are part of what it is: one statement cited at two instances is two steps.
+@Test func aCitationCarriesItsTypes() throws {
+    var p = P()
+    let root = try p.pred("A")
+    let atI = try p.t.intern(.use("thm", [i], root)), atO = try p.t.intern(.use("thm", [o], root))
+    #expect(atI != atO)
+    #expect(p.concl(atI) == root)
+}
+
+@Test func aTypeVariableTypesNodesLikeAnyType() throws {
+    var p = P()
+    let a = IRType.variable("'a"), eqT = fn(a, fn(a, o))
+    let x = try p.t.intern(.isaBound(0, a)), y = try p.t.intern(.isaFree("y", a))
+    let xx = try p.t.intern(.isaConst("IFOL.eq", eqT, args: [x, x]))
+    let yy = try p.t.intern(.isaConst("IFOL.eq", eqT, args: [y, y]))
+    let all = try p.hyp(0, try p.t.intern(.ifolAll(a, body: xx)))
+    #expect(p.concl(try p.t.intern(.isaAllElim(all, y))) == yy)
+    let z = try p.t.intern(.isaFree("z", i))
+    #expect(throws: TableError.childType(expected: a, found: i)) { try p.t.intern(.isaAllElim(all, z)) }
 }
 
 /// A term binder's body proves φ with the bound variable loose at 0: no fixed variable exists.
@@ -150,7 +171,7 @@ private struct P {
 private struct LowerCitationThenElimination: Rule {
     let isaRoot: NodeID, folRoot: NodeID
     func after(_ n: Node, depth: Depth, in t: inout Table) throws -> NodeID? {
-        if case let .use(name, root) = n, root == isaRoot { return try t.intern(.use(name, folRoot)) }
+        if case let .use(name, types, root) = n, root == isaRoot { return try t.intern(.use(name, types, folRoot)) }
         guard case let .isaAllElim(p, x) = n, case let .folForall(body)? = t.conclusion(of: p).map({ t[$0] }),
               case let .folImplies(guardFormula, _) = t[body] else { return nil }
         let guardHere = try instantiate(guardFormula, with: x, in: &t)
@@ -166,7 +187,7 @@ private struct LowerCitationThenElimination: Rule {
     let isaRoot = try p.t.intern(.ifolAll(i, body: memBody))
     let folRoot = try p.t.intern(.folForall(body: try p.t.intern(.folImplies(try p.pred("set", try p.b(0)), try p.mem(try p.b(0), A)))))
     let x = try p.b(0)
-    let before = try p.t.intern(.isaAllElim(try p.t.intern(.use("thm", isaRoot)), x))
+    let before = try p.t.intern(.isaAllElim(try p.t.intern(.use("thm", [], isaRoot)), x))
     let concluded = p.concl(before)
     let after = try transform(before, LowerCitationThenElimination(isaRoot: isaRoot, folRoot: folRoot), in: &p.t)
     #expect(after != before)

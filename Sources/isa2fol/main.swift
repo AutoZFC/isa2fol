@@ -51,13 +51,12 @@ func label(_ outcome: Outcome) -> String {
     switch outcome {
     case .proved: return "proved"
     case .classFact: return "class fact"
-    case .polymorphic: return "polymorphic: read at each cited instance"
     case let .refused(r): return "refused: " + kind(r)
     }
 }
 
 let start = Date()
-var named: [String: [String: Int]] = [:], cited: [String: Int] = [:], polymorphic: [Theorem] = []
+var named: [String: [String: Int]] = [:], cited: [String: Int] = [:]
 var reader: Reader
 do {
     reader = try Reader(try Export(root: arguments[1]))
@@ -71,9 +70,7 @@ do {
         return label(o)
     }
     for theorem in reader.population {
-        let o = try outcome(theorem)
-        if o == label(.polymorphic) { polymorphic.append(theorem) }
-        named[session(of: theorem.theory)!, default: [:]][o, default: 0] += 1
+        named[session(of: theorem.theory)!, default: [:]][try outcome(theorem), default: 0] += 1
     }
     var next = 0
     while next < reader.cited.count {
@@ -92,7 +89,5 @@ func report(_ title: String, _ counts: [String: Int]) {
 
 report("named theorems, all ZF sessions", named.values.reduce(into: [:]) { $0.merge($1, uniquingKeysWith: +) })
 for s in named.keys.sorted() { report("  \(s)", named[s]!) }
-report("instances of named theorems cited, not read above (any session)", cited)
-let instantiated = polymorphic.filter { p in reader.cited.contains { $0.theory == p.theory && $0.serial == p.serial } }
-print("polymorphic named ZF theorems cited at an instance: \(instantiated.count) of \(polymorphic.count)")
+report("named theorems they cite outside the ZF sessions", cited)
 print("table: \(reader.table.count) nodes; \(String(format: "%.1f", Date().timeIntervalSince(start))) s")

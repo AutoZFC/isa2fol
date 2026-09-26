@@ -27,7 +27,11 @@ extension Decode {
     }
 
     private func tfreesHeader(_ ts: Body) throws -> [String] {
-        let names = try list({ try pair(string, { try list(string, $0) }, $0).0 }, ts)
+        let names = try list({ entry in
+            let (name, sort) = try pair(string, { try list(string, $0) }, entry)
+            guard sort.isEmpty else { throw MalformedExport.sortedTypeVariable(name) }
+            return name
+        }, ts)
         guard Set(names).count == names.count else { throw MalformedExport.tfreesHeader(names) }
         return names
     }

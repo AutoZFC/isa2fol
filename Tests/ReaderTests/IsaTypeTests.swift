@@ -52,24 +52,28 @@ import Testing
     #expect(try decodeType(fn(i, fn(i, o))).irType() == .fn(.i, .fn(.i, .o)))
 }
 
-/// Every type variable is instantiated before conversion (DESIGN §4.3a 3); one left over is not declared.
-@Test func aFreeTypeVariableIsMalformedAtConversion() {
-    #expect(throws: MalformedExport.undeclaredTypeVariable("'a")) { try IsaType.tfree("'a", sort: []).irType() }
+@Test func aFreeTypeVariableConvertsToATypeVariable() throws {
+    #expect(try IsaType.tfree("'a", sort: []).irType() == .variable("'a"))
+}
+
+/// `unconstrainT` turns every sort into an `OFCLASS` premise: the export writes none, and one would be lost.
+@Test func aSortedTypeVariableIsMalformed() {
+    #expect(throws: MalformedExport.sortedTypeVariable("'a")) { try IsaType.tfree("'a", sort: ["IFOL.term"]).irType() }
 }
 
 @Test func aSchematicTypeVariableIsMalformed() {
     #expect(throws: MalformedExport.schematicVariable("'b")) { try IsaType.tvar("'b", index: 1, sort: []).irType() }
 }
 
-@Test func aTypeVariableAnywhereInAFunctionTypeFailsTheWholeType() {
+@Test func aTypeVariableInsideAFunctionTypeConverts() throws {
     let T = IsaType.type("fun", [.type("ZF_Base.i", []), .type("fun", [.tfree("'a", sort: []), .type("IFOL.o", [])])])
-    #expect(throws: MalformedExport.undeclaredTypeVariable("'a")) { try T.irType() }
+    #expect(try T.irType() == .fn(.i, .fn(.variable("'a"), .o)))
 }
 
-/// `standard_hidden_types` writes a proof-only type variable of empty sort as `dummy`. The proof
-/// holds at every type, so any ground instance proves the same statement.
-@Test func theHiddenProofTypeReadsAsI() throws {
-    #expect(try IsaType.type("fun", [.type("dummy", []), .type("IFOL.o", [])]).irType() == .fn(.i, .o))
+/// `standard_hidden_types` writes every type variable only a proof uses as `dummy`: the export no
+/// longer tells them apart, so it is ONE type variable.
+@Test func theHiddenProofTypeIsATypeVariable() throws {
+    #expect(try IsaType.type("fun", [.type("dummy", []), .type("IFOL.o", [])]).irType() == .fn(.variable("dummy"), .o))
 }
 
 @Test func propConvertsToO() throws {

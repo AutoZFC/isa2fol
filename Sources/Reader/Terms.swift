@@ -117,12 +117,12 @@ struct Terms {
 
     let decode: Decode
     let constants: Constants
-    private let types: [String: IsaType]
+    private let types: [String: IRType]
     private let frees: [String: (level: Int, type: IRType)]
     private let freeTypes: [IRType]
     private var memo: [Memo: NodeID] = [:]
 
-    init(decode: Decode, constants: Constants, file e: Envelope, at instance: [IsaType]) throws {
+    init(decode: Decode, constants: Constants, file e: Envelope, at instance: [IRType]) throws {
         guard instance.count == e.tfrees.count else {
             throw MalformedExport.instanceArity(expected: e.tfrees.count, found: instance.count)
         }
@@ -131,8 +131,9 @@ struct Terms {
         guard occurring == names else { throw MalformedExport.freesHeader(header: names, occurring: occurring) }
         self.decode = decode
         self.constants = constants
-        let types = Dictionary(uniqueKeysWithValues: zip(e.tfrees, instance))
-        let typed = try e.frees.map { ($0.0, try $0.1.substituting(types).irType()) }
+        var types = Dictionary(uniqueKeysWithValues: zip(e.tfrees, instance))
+        guard types.updateValue(.variable("dummy"), forKey: "dummy") == nil else { throw MalformedExport.tfreesHeader(e.tfrees) }
+        let typed = try e.frees.map { ($0.0, try $0.1.irType().substituting(types)) }
         self.types = types
         freeTypes = typed.map(\.1)
         frees = Dictionary(uniqueKeysWithValues: typed.enumerated().map { ($0.element.0, (level: $0.offset, type: $0.element.1)) })
@@ -144,13 +145,7 @@ struct Terms {
         try freeTypes.reversed().reduce(n) { body, T in try t.intern(binder(T, body)) }
     }
 
-    func instance(_ T: IsaType) throws -> IsaType {
-        let ground = T.substituting(types)
-        _ = try ground.irType()
-        return ground
-    }
-
-    func irType(_ T: IsaType) throws -> IRType { try T.substituting(types).irType() }
+    func irType(_ T: IsaType) throws -> IRType { try T.irType().substituting(types) }
 
     mutating func proposition(_ body: Body, _ s: Scope, in t: inout Table) throws -> NodeID {
         try source(body, .o, s, &t)
@@ -250,9 +245,9 @@ struct Terms {
 
     private mutating func constant(_ name: String, _ types: [IsaType], _ arguments: [Argument],
                                    _ s: Scope, _ t: inout Table) throws -> NodeID {
-        let scheme = try constants.instantiate(name, types.map { $0.substituting(self.types) })
+        let scheme = try constants.instantiate(name, types)
         guard let c = connectives[name] else {
-            let T = try scheme.irType()
+            let T = try irType(scheme)
             return try t.intern(.isaConst(name, T, args: try operands(name, T.domains, arguments, s, &t)))
         }
         switch c {
@@ -281,7 +276,7 @@ struct Terms {
             switch T {
             case .o: return try t.intern(.folIff(ab[0], ab[1]))
             case .i: return try t.intern(.isaConst("IFOL.eq", .fn(.i, .fn(.i, .o)), args: ab))
-            case .fn: return try t.intern(.isaConst("Pure.eq", .fn(T, .fn(T, .o)), args: ab))
+            case .fn, .variable: return try t.intern(.isaConst("Pure.eq", .fn(T, .fn(T, .o)), args: ab))
             }
         case .all:
             let T = try irType(try typeArgument(name, types))
@@ -312,6 +307,16 @@ struct Terms {
 }
 
 extension IRType {
+    func substituting(_ s: [String: IRType]) throws -> IRType {
+        switch self {
+        case .i, .o: return self
+        case let .fn(a, b): return .fn(try a.substituting(s), try b.substituting(s))
+        case let .variable(v):
+            guard let T = s[v] else { throw MalformedExport.undeclaredTypeVariable(v) }
+            return T
+        }
+    }
+
     var domains: [IRType] {
         guard case let .fn(T, rest) = self else { return [] }
         return [T] + rest.domains

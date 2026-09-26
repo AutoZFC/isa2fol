@@ -4,3 +4,4 @@
 data/zf_export/
 data/.isabelle/
 data/.zf_export.*
+*.swp

@@ -7,8 +7,9 @@ history and nothing depends on it. `docs/`, `base/` and `scripts/capped.sh`
 were hoisted out of it first and are live.
 
 **The reader is built.** `isa2fol read data/zf_export` reads every named theorem of
-the ZF sessions, statement AND proof, into the IR: 9,396 of 9,420 are proved — the
-proof's conclusion is the statement's node, by ID — and 0 are refused (`DESIGN.md` §2).
+the ZF sessions, statement AND proof, into the IR: 9,419 of 9,420 are proved — the
+proof's conclusion is the statement's node, by ID; the other is a class fact — and 0 are
+refused (`DESIGN.md` §2). A type variable is read as Isabelle states it (`IRType.variable`).
 Lowering and emission are not built. `DESIGN.md` is the plan.
 
 ## Build
@@ -139,7 +140,7 @@ is gone. §5 says so. Treat every number there as a belief, never a premise.
    print(f'{c}/{t} = {100*c/t:.1f}%')"
    ```
 
-   ✓ **CURRENTLY 4/2436 = 0.16%, under the cap.** Keep it there: a breach is
+   ✓ **CURRENTLY 4/2449 = 0.16%, under the cap.** Keep it there: a breach is
    fixed by deleting prose, never by raising the cap.
 
    Does not apply to `base/**/*.fol.def` headers: those record provenance of
@@ -205,12 +206,10 @@ both vocabularies; a rewrite is partial, so that switch is what rule 11 rests on
 
 ⚠ **THE TREE IR IS GONE.** `IsaDialect`'s `Sort`/`Term`/`Prop`/`Proof`/
 `Statement<Stage>` were deleted 2026-09-23: the graph represents the same
-constructs as ops, and keeping both was rule 4's duplication. With them went
-`Statement<Poly>`/`<Ground>`, so **nothing now closes polymorphism at the type
-level** — `IRType` has no case for `'a` and the reader must refuse it by name.
-Measured, that is cheap: **12 of 3,616 named ZF theorems** carry a type
-variable (0.3%), half of them `split`/`qsplit`. The polymorphic layer is
-IFOL/FOL/Pure at 37-48%, and that layer is cited, never translated.
+constructs as ops, and keeping both was rule 4's duplication. A type variable is
+`IRType.variable`, and a citation `use(name, types, root)` carries its type arguments
+(`DESIGN.md` §4.3a 3): the table holds each theorem as Isabelle states it. What becomes
+of a generic theorem in a one-sorted target is translation's, and undecided.
 
 ### The dialects
 

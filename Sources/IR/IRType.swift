@@ -2,12 +2,14 @@
     case i
     case o
     indirect case fn(IRType, IRType)
+    case variable(String)
 
     public var description: String {
         switch self {
         case .i: return "i"
         case .o: return "o"
         case let .fn(a, b): return "(\(a) => \(b))"
+        case let .variable(name): return name
         }
     }
 }

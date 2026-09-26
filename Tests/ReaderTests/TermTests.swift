@@ -16,11 +16,11 @@ private struct Reading {
 
     init() throws { constants = try testConstants() }
 
-    mutating func proposition(_ prop: String, frees: [(String, String)] = []) throws -> NodeID {
+    mutating func proposition(_ prop: String, tfrees: [String] = [], frees: [(String, String)] = []) throws -> NodeID {
         var f = Forest()
         let body = try f.parse(Array(prop.utf8))
-        let e = Envelope(tfrees: [], frees: try frees.map { ($0.0, try decodeType($0.1)) }, prop: body)
-        var terms = try Terms(decode: Decode(forest: f), constants: constants, file: e, at: [])
+        let e = Envelope(tfrees: tfrees, frees: try frees.map { ($0.0, try decodeType($0.1)) }, prop: body)
+        var terms = try Terms(decode: Decode(forest: f), constants: constants, file: e, at: tfrees.map(IRType.variable))
         self.frees = frees.map(\.0)
         return try terms.proposition(body, terms.closure, in: &t)
     }
@@ -93,6 +93,14 @@ private let pq = [("P", o), ("Q", o)]
     let object = try r.proposition(trueprop(app(const("IFOL.eq", i), free("a"), free("b"))), frees: ab)
     #expect(meta == object)
     #expect(meta == (try r.const("IFOL.eq", memT, try r.free("a", iT), try r.free("b", iT))))
+}
+
+/// Nothing covers `≡` at a type variable — it is `↔` at `o`, `=` at `i` — so it stays Pure's constant.
+@Test func metaEqualityAtATypeVariableIsPureEq() throws {
+    var r = try Reading()
+    let a = IRType.variable("'a")
+    let got = try r.proposition(app(const("Pure.eq", typeA), free("x"), free("y")), tfrees: ["'a"], frees: [("x", typeA), ("y", typeA)])
+    #expect(got == (try r.const("Pure.eq", fnT(a, fnT(a, oT)), try r.bound(1, a), try r.bound(0, a))))
 }
 
 @Test func metaEqualityAtAFunctionTypeIsADefinitionNode() throws {

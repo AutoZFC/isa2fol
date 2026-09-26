@@ -4,7 +4,11 @@ import YXML
 public struct Theorem: Hashable, Sendable, CustomStringConvertible {
     public let theory: String
     public let serial: Int
-    let types: [IsaType]
+
+    init(_ key: TheoremKey) {
+        theory = key.theory
+        serial = key.serial
+    }
 
     var key: TheoremKey { TheoremKey(theory: theory, serial: serial) }
     public var description: String { key.path }
@@ -13,7 +17,6 @@ public struct Theorem: Hashable, Sendable, CustomStringConvertible {
 @frozen public enum Outcome: Equatable, Sendable {
     case proved(statement: NodeID, proof: NodeID)
     case classFact
-    case polymorphic
     case refused(ReaderRefusal)
 }
 
@@ -64,19 +67,19 @@ public struct Reader {
 
     private struct Instance: Hashable {
         let source: Source
-        let types: [IsaType]
+        let types: [IRType]
     }
 
     public private(set) var table = Table()
     public let population: [Theorem]
     public private(set) var cited: [Theorem] = []
-    private var citedOnce: Set<Theorem> = []
+    private var citedOnce: Set<TheoremKey> = []
     private let decode: Decode
     private let constants: Constants
     private let classes: Classes
     private let corpus: Corpus
     private var statements: [Instance: Proposition] = [:]
-    private var boxes: [Theorem: (NodeID, absorb: Int)] = [:]
+    private var boxes: [Instance: (NodeID, absorb: Int)] = [:]
 
     public init(_ export: Export) throws {
         var export = export
@@ -86,7 +89,7 @@ public struct Reader {
         classes = export.classes
         population = corpus.names.keys.filter { session(of: $0.theory) != nil }
             .sorted { ($0.theory, $0.serial) < ($1.theory, $1.serial) }
-            .map { Theorem(theory: $0.theory, serial: $0.serial, types: []) }
+            .map(Theorem.init)
     }
 
     public func name(of theorem: Theorem) -> String? { corpus.names[theorem.key] }
@@ -94,8 +97,7 @@ public struct Reader {
     public mutating func read(_ theorem: Theorem) throws -> Outcome {
         do {
             let (e, _) = try located(theorem.key.path) { try decode.proofFile(try corpus.file(theorem.key)) }
-            if theorem.types.isEmpty, !e.tfrees.isEmpty { return .polymorphic }
-            switch try prove(theorem) {
+            switch try prove(theorem.key, at: e.tfrees.map(IRType.variable)) {
             case let .claim(root, _, proof): return .proved(statement: root, proof: proof)
             case .classFact: return .classFact
             }
@@ -104,10 +106,10 @@ public struct Reader {
         }
     }
 
-    private mutating func prove(_ theorem: Theorem) throws -> Proved {
-        try located(theorem.key.path) {
-            let (e, proof) = try decode.proofFile(try corpus.file(theorem.key))
-            var f = FileProof(terms: try Terms(decode: decode, constants: constants, file: e, at: theorem.types))
+    private mutating func prove(_ key: TheoremKey, at types: [IRType]) throws -> Proved {
+        try located(key.path) {
+            let (e, proof) = try decode.proofFile(try corpus.file(key))
+            var f = FileProof(terms: try Terms(decode: decode, constants: constants, file: e, at: types))
             switch try f.terms.statement(e.prop, classes, in: &table) {
             case let .classFact(c):
                 return .classFact(c)
@@ -169,32 +171,33 @@ public struct Reader {
         case .hypothesis:
             throw MalformedExport.freeHypothesis
         case let .axiom(name, types):
-            let instance = Instance(source: .axiom(name), types: try types.map(f.terms.instance))
-            return try use(name, try statement(instance))
+            let instance = Instance(source: .axiom(name), types: try types.map(f.terms.irType))
+            return try use(name, instance)
         case let .ofclass(_, c):
             throw ReaderRefusal.ofclass(c)
         case let .oracle(name, _):
             throw ReaderRefusal.oracle(name)
         case let .theorem(c):
-            let target = Theorem(theory: c.theory, serial: c.serial, types: try c.types.map(f.terms.instance))
-            guard let name = corpus.names[target.key] else { return try box(target) }
-            if citedOnce.insert(target).inserted { cited.append(target) }
-            return try use(try claimName(name), try statement(Instance(source: .theorem(target.key), types: target.types)))
+            let key = TheoremKey(theory: c.theory, serial: c.serial)
+            let instance = Instance(source: .theorem(key), types: try c.types.map(f.terms.irType))
+            guard let name = corpus.names[key] else { return try box(key, instance) }
+            if citedOnce.insert(key).inserted { cited.append(Theorem(key)) }
+            return try use(try claimName(name), instance)
         }
     }
 
-    private mutating func use(_ name: String, _ statement: Proposition) throws -> (NodeID, absorb: Int) {
-        switch statement {
-        case let .claim(root, n): return (try table.intern(.use(name, root)), n)
+    private mutating func use(_ name: String, _ instance: Instance) throws -> (NodeID, absorb: Int) {
+        switch try statement(instance) {
+        case let .claim(root, n): return (try table.intern(.use(name, instance.types, root)), n)
         case let .classFact(c): throw ReaderRefusal.ofclass(c)
         }
     }
 
-    private mutating func box(_ theorem: Theorem) throws -> (NodeID, absorb: Int) {
-        if let b = boxes[theorem] { return b }
-        switch try prove(theorem) {
+    private mutating func box(_ key: TheoremKey, _ instance: Instance) throws -> (NodeID, absorb: Int) {
+        if let b = boxes[instance] { return b }
+        switch try prove(key, at: instance.types) {
         case let .claim(_, n, proof):
-            boxes[theorem] = (proof, n)
+            boxes[instance] = (proof, n)
             return (proof, n)
         case let .classFact(c):
             throw ReaderRefusal.ofclass(c)

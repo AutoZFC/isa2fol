@@ -9,10 +9,10 @@
 | command (from the repo root) | expect |
 |---|---|
 | `swift --version \| head -1` | `Swift version 6.4 (swift-6.4-RELEASE)` |
-| `MEM=16G scripts/capped.sh swift test 2>&1 \| grep -cE '^✔ Test [a-zA-Z]+\(\) passed'` | **`173`** |
+| `MEM=16G scripts/capped.sh swift test 2>&1 \| grep -cE '^✔ Test [a-zA-Z]+\(\) passed'` | **`183`** |
 | `ls Sources` · `ls docs` | `FolDialect IR Reader isa2fol YXML` · `CLOSURE.md FOUNDATION.md phase2_probes SOURCE_SURFACE.md` |
-| `find Sources Tests -name '*.swift' \| wc -l` | `41` (5014 lines) |
-| comment density of `Sources` (CLAUDE.md rule 9's script) | `4/2436 = 0.16%` |
+| `find Sources Tests -name '*.swift' \| wc -l` | `41` (5131 lines) |
+| comment density of `Sources` (CLAUDE.md rule 9's script) | `4/2449 = 0.16%` |
 | `grep -rnE '^\s*default:' Sources` (a switch default — rule 11) | nothing |
 | `.build/release/isa2fol surface data/zf_export \| grep '^| \*\*all'` | `\| **all** \| **9420** \|` |
 | `readlink ~/repos/fol-zfc-comb/bazel-bin \| sed 's\|.*bazel-out/\|\|'` | `k8-opt/bin` — and `proof_checker` is executable there |
@@ -89,12 +89,13 @@ deleted work — §6. fol-zfc-comb sits on its own `comb-verifier` with an uncom
 | The tests have teeth: 5 hand mutations (`instantiate`'s k−1, `isaAbs` binder, ∃-intro index, a hypothesis binder, a fixed-variable level) are each caught | re-run by hand after touching `Index.swift`/`Node.swift`/`Render.swift` |
 | In the named ZF statements every logical constant is fully applied and every binder argument is a λ | `isa-deps --logic --named` (`~/repos/isabelle-study/bin/isa-deps`, untracked there) |
 | No concrete pass exists | `ls Sources/IR` |
-| The reader PROVES 9,396 of the 9,420 named theorems of the eight exported sessions — each proof's conclusion is its statement's node, by ID, every step typed by the table — plus all 221 instances of named theorems they cite; 1 class fact, 23 polymorphic (16 cited at an instance, 7 cited by nothing), 0 refused | `swift build -c release && .build/release/isa2fol read data/zf_export` (58 s, 3.5 GB peak, 6.79 M nodes); `--show OUTCOME` |
+| The reader PROVES 9,419 of the 9,420 named theorems of the eight exported sessions, AS ISABELLE STATES THEM — type variables included — each proof's conclusion its statement's node, by ID, every step typed by the table — plus the 198 named Pure/IFOL/FOL theorems their proofs reach; 1 class fact, 0 refused | `swift build -c release && .build/release/isa2fol read data/zf_export` (59 s, 3.5 GB peak, 6.79 M nodes); `--show OUTCOME` |
+| A type variable is `IRType.variable` — a header variable, and `dummy`; a citation carries its type arguments, `use(name, types, root)`; render refuses a typed `use` | `aCitationCarriesItsTypes`, `aHiddenProofTypeIsATypeVariable`, `aCitationOfAnInstanceIsNotRendered`; dropping the types or reading `dummy` as `i` is each caught |
 | The proof-reader tests have teeth: dropping the hypothesis shift, the class absorption, box inlining, or the conclusion check is each caught | re-run by hand after touching `Reader.swift` |
 | `instantiate` reduces the redexes it makes, hereditarily; `isaAllElim` types its term and wants a λ at a function type | `IndexTests`, `ProofTests` |
 | Terms read η-long and type-directed; 3 mutations of the index arithmetic are each caught | `TermTests`; mutate `Scope.bound`, `abstraction`'s extras, `etaLong`'s head |
 | YXML refuses a missing, malformed or duplicate attribute by name; an optional one is read as `attributes[name]` | `aMissingAttributeIsAnErrorNotEmpty`, `anAttributeFieldWithoutEqualsIsAnError`, `aDuplicateAttributeIsAnError` |
-| The reader's three decisions — own type with `'a`/`prop`, read at a ground instance; frees CLOSED at reading; outcomes `proved`/`classFact`/`polymorphic`/`refused`, only reader refusals caught | `DESIGN.md` §2 "Three decisions" |
+| The reader's three decisions — own type with `'a`/`prop`, a file read at its header's instance (a named theorem as stated, a box at its citation's types); frees CLOSED at reading; outcomes `proved`/`classFact`/`refused`, only reader refusals caught | `DESIGN.md` §2 "Three decisions" |
 | `YXML` parses in ONE hash-consing pass: the 3.1 GB file reads as < 20,000 nodes in 21 s (release) | `ISA2FOL_SCALE=1 swift test -c release -Xswiftc -enable-testing --filter theLargestProofFile` |
 | `data/zf_export` is one build: every named statement equals its proof file, every one of 2,986,521 citations resolves | `scratchpad/compare/compare.py`, NOT kept — the export check is unbuilt |
 | The export is not reproducible byte-for-byte: two builds differ in 7,258 paths, same statements | a second `scripts/03-export-zf.sh` run, `diff -rq` |
@@ -127,12 +128,21 @@ deleted work — §6. fol-zfc-comb sits on its own `comb-verifier` with an uncom
    content — a function of content, never a serial (§4.6 R2). Decide before emission.
 6. **`isaFree` and `abstract` have no producer.** The reader closes frees by reading (§2); the
    node kind and the index operation survive only in IR tests. Delete, or keep for a pass?
-7. **One name, several instances.** A polymorphic theorem cited at `i` and at `o` is two `use`
-   roots under ONE claim name; emission needs a name per instance. And the 7 polymorphic named
-   theorems no one cites have no ground reading — no claim at all.
+7. **Generic theorems in a one-sorted target — translation's, undecided (user, 2026-09-25).** The
+   table holds each theorem as stated and each citation with its types (`DESIGN.md` §4.3a 3). Open:
+   which ground copies, and at which types for a theorem nothing cites; how a copy is made — a
+   substituted type can make an argument need λ-expansion, so it is not a bare substitution; an
+   instance's claim name (render refuses a typed `use` until then); which unit emits an instance —
+   the owner's, knowing every downstream citation, or the citer's, merging duplicates at link.
+8. **`OFCLASS` is absorbed** (`DESIGN.md` §4.3a) — so `ZF_Base.arity_term_i` (`OFCLASS(i, term)`) is
+   the one named theorem not read, and its 6,599 uses (discharges via one box) are skipped. At a
+   ground use it says nothing: ZF's only `term` instance is `i`. On a GENERIC theorem it is the only
+   record that `'a` may be only `i` — 8 of the 23 carry it, 15 are `'a::{}` — and absorbing erases
+   that. (A) read `OFCLASS` faithfully everywhere, 100%; (B) put the class back on the type
+   variable, `'a::term`, as Isabelle prints it, `arity_term_i` still unread. User to decide.
 
 ## 7. Next action
 
 **Statement lowering** (`DESIGN.md` §4a), after §6's decisions 6 and 7. The reader's output is
-`Reader.table` plus, per theorem, `proved(statement, proof)`; every `use` of a named theorem is
-the SAME node as that theorem's proved statement.
+`Reader.table` plus, per theorem, `proved(statement, proof)`; a `use` at the cited theorem's own
+type variables is the SAME node as its proved statement, at other types that statement read at them.

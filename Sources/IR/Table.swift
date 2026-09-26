@@ -102,7 +102,7 @@ public struct Table: Sendable {
         case let .isaAbs(T, b):
             return .value(.fn(T, try value(b)))
 
-        case let .use(_, a), let .hyp(_, a):
+        case let .use(_, _, a), let .hyp(_, a):
             try expect(.o, a)
             return .step(concluding: a)
         case let .folAndIntro(p, q):

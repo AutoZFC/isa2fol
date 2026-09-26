@@ -41,12 +41,11 @@ either is silent.
 ## 2. Reading the export  **[BUILT]**
 
 **Measured, one build** (`swift build -c release && .build/release/isa2fol read data/zf_export`,
-58 s, 3.5 GB peak — the parse of the 3.1 GB file): of the 9,420 named theorems of the eight exported
-sessions, **9,396 are PROVED** — statement and proof read, and the proof's conclusion is the
-statement's node, BY ID, with every step typed by the table (§4.7). 1 is a class fact
-(`ZF_Base.arity_term_i`, bookkeeping); 23 are polymorphic and are read at the instances cited (16 are
-cited; 7 are cited by nothing and have no ground reading). The 221 instances of named theorems they
-cite — Pure/IFOL/FOL derived rules, polymorphic ZF theorems — are all proved too. **0 refused.** A
+59 s, 3.5 GB peak — the parse of the 3.1 GB file): of the 9,420 named theorems of the eight exported
+sessions, **9,419 are PROVED** — statement and proof read AS ISABELLE STATES THEM, type variables
+included (§4.3a 3), and the proof's conclusion is the statement's node, BY ID, with every step typed
+by the table (§4.7). 1 is a class fact (`ZF_Base.arity_term_i`, bookkeeping). The 198 named
+Pure/IFOL/FOL theorems their proofs reach are all proved too. **0 refused.** A
 proof whose conclusion is not its statement stops the run as `MalformedExport.unproved`.
 `--show OUTCOME` lists the theorems with an outcome.
 
@@ -105,6 +104,11 @@ discharge its leading `OFCLASS` premises; a cited box enters as the instance use
 Python script it replaces walked through class-premise discharges, saw no `OFCLASS`, and
 counted named theorems only — its "0 occurrences" became refusals.
 
+⚠ **ITS "INSIDE PROOFS" TABLE DROPPED EVERY TYPE** until 2026-09-25, though its heading listed
+types, so `dummy` — a type variable in 3 theorems' proofs — never showed and first surfaced as
+reader refusals. It shows them now. Its cut also stops at Pure/IFOL/FOL citations, whose proofs the reader DOES read: the surface
+does not describe them, and only the reader's 0 refusals vouch for them.
+
 ### Reading scales with the DAG, never the tree
 
 Isabelle holds a proof as a DAG and its exporter writes the tree: every shared sub-proof is
@@ -130,9 +134,9 @@ cap) is revisited only for a corpus larger than ZF.
 
 | | decided |
 |---|---|
-| **types** | The reader decodes `ztyp` into ITS OWN type, which has `'a` and `prop`. A `ZConst` carries only its type ARGUMENTS (`ZConst1 (a, b) => ([a], list ztyp [b])`, `zterm.ML`'s encoder), so `isaConst`'s instantiated type is the declared scheme from `theory/consts` (`IFOL.eq :: ['a, 'a] ⇒ o`) with those arguments substituted. A file is read AT AN INSTANCE — its `tfrees` header's variables substituted by ground types (§4.3a 3) — so converting to `IRType` meets no type variable; one left over is undeclared, malformed. `IRType` has no `prop`: **`prop` converts to `o` in EVERY type** — the coercion is the identity (§4.3). ⚠ Refusing `prop` anywhere split one construct in two — 6 vs 194 theorems for variables, then 192 for constants. `dummy` — `standard_hidden_types` writing a proof-only type variable of empty sort — converts to `i`: such a proof holds at every type, so any ground instance proves the same statement |
+| **types** | The reader decodes `ztyp` into ITS OWN type, which has `'a` and `prop`. A `ZConst` carries only its type ARGUMENTS (`ZConst1 (a, b) => ([a], list ztyp [b])`, `zterm.ML`'s encoder), so `isaConst`'s instantiated type is the declared scheme from `theory/consts` (`IFOL.eq :: ['a, 'a] ⇒ o`) with those arguments substituted. A file is read AT AN INSTANCE of its `tfrees` header: a named theorem at its own variables — AS STATED, `'a` is `IRType.variable` — an unnamed box at the types its citation gives (§4.3a 3). A type variable the header does not declare is malformed; so is a sorted one — `unconstrainT` made every sort an `OFCLASS` premise. `IRType` has no `prop`: **`prop` converts to `o` in EVERY type** — the coercion is the identity (§4.3). ⚠ Refusing `prop` anywhere split one construct in two — 6 vs 194 theorems for variables, then 192 for constants. `dummy` — `standard_hidden_types` writing every type variable only a proof uses — is ONE type variable, `IRType.variable("dummy")`: the export no longer tells them apart. ⚠ Reading it as `i` chose a type in the reader, which is translation's (§4.3a 3) |
 | **frees** | **Read CLOSED.** A statement is `∀x⃗. φ` over the `frees` header — Isabelle's closure (`forall_intr_variables_term`, and `prop_of_atom` for a cited axiom or theorem, `proofterm.ML`), the first free outermost — and its proof is `⋀`-intro over the same `x⃗`. A free `ZVar` reads as the bound variable of its closure binder: the frees are the outermost binders of the file's `Scope`. So a cited statement is the SAME node as the citer's `use`, and the citation's `ZAppt`s instantiate it — checked by ID across every proof. ⚠ Closing in a later pass was the plan; it walks the proof DAG with `transform`, which has no memo (§4.5), and an inlined box is shared exponentially |
-| **outcomes** | The READER owns them, never IR: `proved(statement, proof)` · `classFact` · `polymorphic` (read at an instance instead) · `refused(reason)`. ONLY the reader's own refusal enum is caught and recorded; a `TableError`, `MalformedExport` or `YXMLError` is a bug or a corrupt file and stops the run, located at the innermost file — catching it would count our bugs as refusals |
+| **outcomes** | The READER owns them, never IR: `proved(statement, proof)` · `classFact` · `refused(reason)`. ONLY the reader's own refusal enum is caught and recorded; a `TableError`, `MalformedExport` or `YXMLError` is a bug or a corrupt file and stops the run, located at the innermost file — catching it would count our bugs as refusals |
 
 ### What the reader rejects
 
@@ -283,7 +287,7 @@ lands:
 | IFOL `∀x:T` / `∃x:T`, Pure `⋀x:T` | **no** — a set quantifier owes the R3 guard, a class one does not | **`ifolAll(T, body)`, `ifolEx(T, body)`** — the only dedicated imports |
 | IFOL `eq[i]`, Pure `≡` at `i` | no — `folPred` takes variables, these take terms until S1 | `isaConst("IFOL.eq", …)` |
 | `True`, `Ex1`, `Let`, `Uniq` | no — defined constants | `isaConst` |
-| Pure `≡` at a function type — definitions `f ≡ λx. t` | not by FOL or IFOL | `isaConst("Pure.eq", …)`, consumed by S2 |
+| Pure `≡` at a function type — definitions `f ≡ λx. t` — or at a type variable | not by FOL or IFOL | `isaConst("Pure.eq", …)`; a definition is consumed by S2 |
 | Pure `⋀` at a function type | not by FOL or IFOL; S5 | `ifolAll(T, body)` at the function type — S5 is a pass |
 | Pure's internal constants `&&&` `TERM` `TYPE` `sort_constraint` `_` | not by FOL or IFOL | `isaConst`, generic — a pass lowers each (§4.3a) |
 
@@ -296,13 +300,13 @@ The generic term language — ZF's own vocabulary, not logic at any level:
 
 | node | source | added | left out |
 |---|---|---|---|
-| `isaConst(name, T, args)` | any constant not read as logic above — the 249 ZF constants, `IFOL.eq`, `True`, `Ex1`, `Let`, `Uniq`, `Pure.eq` at a function type — fully applied | its INSTANTIATED type `T` — it determines the type arguments and back, so the identity is the same | the declared scheme: declarations stay polymorphic (`IFOL.eq :: 'a ⇒ 'a ⇒ o`) though every use is ground, so the READER instantiates once from `theory/consts` and no `'a` enters the table |
+| `isaConst(name, T, args)` | any constant not read as logic above — the 249 ZF constants, `IFOL.eq`, `True`, `Ex1`, `Let`, `Uniq`, `Pure.eq` at a function type or a type variable — fully applied | its INSTANTIATED type `T` — it determines the type arguments and back, so the identity is the same | the declared scheme (`IFOL.eq :: 'a ⇒ 'a ⇒ o`): the READER instantiates it from `theory/consts` at the use's type arguments — the file's own variables where it is generic |
 | `isaFree(name, T)` | nothing the reader emits — a free `ZVar` reads as its closure binder's `isaBound` (§2) | | |
 | `isaBound(k, T)` | `ZBound k`, and a free `ZVar` under its statement's closure | **the type**, from the enclosing binder or the `frees` header | |
 | `isaVarApp(head, args)` | a variable applied — a class variable `P(x)` | | the head is an `isaFree` or `isaBound`, never merged into the constant namespace (rule 3) |
 | `isaAbs(T, body)` | `ZAbs`, ONLY as a function-typed argument: `Collect(A, λx. …)` | | **`x`** |
 
-`IRType` has no `prop` case (§2). A type variable is instantiated before reading, a class premise
+`IRType` has no `prop` case (§2). A type variable is `IRType.variable` (§4.3a 3), a class premise
 absorbed, a schematic `Var` malformed (§4.3a).
 
 **The fol side mirrors fol-zfc** (`src/core/formula.h`): a term is a bound variable
@@ -314,7 +318,8 @@ both. It is the translator's bookkeeping, known where lowering builds the binder
 
 ### 4.3a The isa surface, from the verified primitives — ACCEPTED 2026-09-25
 
-**Built, statements and proofs.** It replaced a proposal to add type variables and `itself` to `IRType`, which the closure made unnecessary. Evidence, eight exported sessions, 9,420 named
+**Built, statements and proofs.** Point 3 was reopened and rebuilt 2026-09-25: the closure showed
+every CITATION has a ground type, not every theorem. Evidence, eight exported sessions, 9,420 named
 theorems: `isa2fol surface data/zf_export` (`docs/SOURCE_SURFACE.md`) and `isa2fol closure
 data/zf_export` (`docs/CLOSURE.md`). Principle: read FAITHFULLY, then one pass per construct.
 
@@ -334,13 +339,47 @@ named theorem down to axioms: the set below is exhaustive, and there is no oracl
 
 **2. A derived rule is a theorem, not a primitive.** The 131 derived Pure/IFOL/FOL rules proofs cite
 — `swap`, `ccontr`, `conjE`, `allE`, `TrueI`, `IFOL_simps(n)`, `protectI`/`D`, `conjunctionI`/`D1`/`D2`,
-… — are READ from their own proofs like any theorem, at the types they are cited at. They use no
+… — are READ from their own proofs like any theorem, as stated. They use no
 construct beyond those below.
 
-**3. No type variable enters the dialect.** No citation carries a type variable its citer does not
-bind (`docs/CLOSURE.md`: 0), so every polymorphic theorem is read once per ground instance its
-citers use — monomorphised at the citation. `IRType` stays `i | o | fn`. The 23 polymorphic NAMED
-theorems are read at the instances their citers use; a generic statement is not a one-sorted claim.
+**3. A type variable is a surface primitive — BUILT 2026-09-25.**
+
+⚠ **THE FIRST BUILD READ EVERY FILE AT A GROUND INSTANCE** — a theorem's type variables
+substituted before reading, `dummy` read as `i` — on the argument that no citation leaves a type
+variable open (`docs/CLOSURE.md`: 0). THAT COVERS CITATIONS, NOT THEOREMS: a theorem nobody cites
+had no instance and was in no table — 7 of the 23 named ZF theorems that state a type variable
+(`AC_Equiv.ex1_two_eq`, `Arith.eq_cong2`, `Ntree.maptree_induct`, `Ntree.maptree2_induct`,
+`QPair.expand_qsplit`, `ZF_Base.strip(2)`, `pair.expand_split`; names by a probe, not kept). And
+choosing a type is a TRANSLATION decision — it exists because FOL-ZFC is one-sorted — which this
+section's principle keeps out of the reader.
+
+Isabelle's side:
+- A theorem with `'a` holds at every type. `split :: [[i,i] ⇒ 'a, i] ⇒ 'a` applies a two-argument
+  `c` to a pair's parts; one `split_def` serves `c` returning a set, a formula or a function.
+- A citation is a theorem and ONE TYPE PER TYPE VARIABLE of it — `ZConstp`'s type arguments. It
+  proves the statement at those types (`prop_of_atom prop Ts`, `proofterm.ML`); ⋀-elim then
+  supplies the terms: `split_def [o] · R`.
+- In a generic proof the types are the proof's own variables — `pair.split` cites `split_def` at
+  `'a` — so a concrete type is decided by a ground theorem at the top and flows down:
+  `pair.split_type` cites the box holding `pair.split`'s proof at `i`.
+- Every type variable is written with the EMPTY sort — all 38,923 proof-file headers, 578 with a
+  type variable, 0 with a sort (a throwaway scan, not kept): `unconstrainT` made each sort the
+  `OFCLASS` premise absorbed below.
+- A type variable only a proof uses is written as the type `dummy` (`standard_hidden_types`,
+  `zterm.ML`) — in 3 named ZF theorems' proofs: `DPow'_reflection`, `satisfies_MH_reflection`,
+  `formula_rec_lambda_replacement_Reflects`.
+
+| | built |
+|---|---|
+| **3a. `IRType.variable(name)`** | a `tfrees` header variable, and `dummy` — ONE variable: the export no longer tells hidden variables apart, and identifying them is a type instance of the proof. No sort: the export has none, and a sorted one is malformed, as is an undeclared one or a header declaring `dummy`. A named theorem is read AS ISABELLE STATES IT, and its proof checked by ID; there is no `polymorphic` outcome. `≡` at a type variable stays `Pure.eq` — nothing covers it |
+| **3b. A citation carries its types** | `use(name, types, root)` — `types` the citation's type arguments, possibly the citer's own variables; `root` the cited statement READ AT `types`, which is what Isabelle's citation concludes. At the cited theorem's own variables `root` IS its statement, the same node. An unnamed box is inlined as now, read at its citation's types |
+
+Unchanged: class bookkeeping (absorbed below; `classFact`); `prop` reads as `o` in every type;
+`itself` stays out — it occurs only inside an absorbed `OFCLASS`; the 7, read for the first
+time, refuse nothing.
+
+3a and 3b lose nothing: the table holds each theorem as stated and each citation with its types.
+What translation makes of a generic theorem — FOL-ZFC is one-sorted — is translation's to decide.
 
 **4. The surface is ONE TO ONE with the isa dialect, after coverage.** A construct is COVERED when
 FOL has it natively; it then reads as FOL's, the SAME node — `↔` and `¬`, which IFOL defines, are
@@ -354,20 +393,20 @@ covered, so their definitions become equivalences lowering proves. Pinned by
 | bi-implication | IFOL `↔`, Pure `≡` at `o`/`prop` | `folIff` |
 | negation | IFOL `¬` | `folNot` |
 | `∀` / `∃` at a type `T` | IFOL `∀`, Pure `⋀` / IFOL `∃` — at `i`, `o` or a function type | `ifolAll(T)` / `ifolEx(T)` |
-| a constant applied | every other constant: ZF's; `=` (IFOL `eq`, and Pure `≡` at `i`); Pure `≡` at a function type; the defined `True Ex1 Let Uniq induct_*`; Pure's `&&& TERM TYPE sort_constraint _` | `isaConst(name, T instantiated)` |
+| a constant applied | every other constant: ZF's; `=` (IFOL `eq`, and Pure `≡` at `i`); Pure `≡` at a function type or a type variable; the defined `True Ex1 Let Uniq induct_*`; Pure's `&&& TERM TYPE sort_constraint _` | `isaConst(name, T instantiated)` |
 | a bound variable · a variable applied · `λ` | `ZBound`, and a free `ZVar` — its statement's `∀`-closure binds it (§2) · `ZApp` headed by a variable · `ZAbs` as a function argument | `isaBound` · `isaVarApp` · `isaAbs` |
 | `⋀`-intro · `⋀`-elim | `ZAbst` · `ZAppt` | `isaAllIntro` · `isaAllElim` |
 | `⟹`-intro · `⟹`-elim | `ZAbsp` · `ZAppp` | `folImpliesIntro` · `folImpliesElim` |
 | a hypothesis | `ZBoundp` (a free `ZHyp`: 0 in the export) | `hyp` |
-| a citation | `ZConstp` — an axiom or a NAMED theorem, at its instance; `root` is its closed statement | `use(name, root)` |
-| an unnamed box | `ZConstp` of a theorem with no name — logically not a building block | INLINED: its closed proof, read at the instance cited |
+| a citation | `ZConstp` — an axiom or a NAMED theorem, with its type arguments; `root` is its closed statement read at them | `use(name, types, root)` |
+| an unnamed box | `ZConstp` of a theorem with no name — logically not a building block | INLINED: its closed proof, read at its citation's types |
+| a type variable | a `tfrees` header variable; the type `dummy` | `IRType.variable(name)` |
 
 **Not surface primitives, so no construct:** `Trueprop` and `protect` (`Pure.prop`) — identity
 coercions, erased; `OFCLASS`, a class premise, its discharge, a hypothesis binding one — sort
 bookkeeping, absorbed ONLY for a class `theory/classes` declares with no parameters and no axioms
 (`IFOL.term`, the one class in the export; any other is refused, since dropping its premise would
-drop its axioms); a type variable — each polymorphic theorem is read per ground instance (3). A
-schematic `Var` is MALFORMED (`standard_vars` removes every one).
+drop its axioms). A schematic `Var` is MALFORMED (`standard_vars` removes every one).
 
 **Absorbed where it occurs:** a statement's leading class premises are stripped and counted; a
 citation skips that many leading proof arguments; a proof's class-hypothesis binder adds no step, and
@@ -632,7 +671,7 @@ detail.
 
 | | kinds |
 |---|---|
-| neutral — concludes what it carries, any dialect | `use(name, root)` (`PThm`/`PAxm`; `root` imported into the table) · `hyp(k, A)` (`PBound`; carries `A`, D1) |
+| neutral — concludes what it carries, any dialect | `use(name, types, root)` (`PThm`/`PAxm` with its type arguments; `root` imported into the table) · `hyp(k, A)` (`PBound`; carries `A`, D1) |
 | fol intro | `andIntro(p, q)` · `orIntroL(p, B)` · `orIntroR(A, q)` · `impliesIntro(A, body)` ◆ · `notIntro(A, body)` ◆ · `iffIntro(p, q)` · `forallIntro(body)` ● · `existsIntro(p, v)` |
 | fol elim | `andElimL(p)` · `andElimR(p)` · `orElim(p, q, r)` · `impliesElim(p, q)` — `q` concludes the antecedent BY ID · `notElim(p, q)` · `iffElimL(p, q)` · `iffElimR(p, q)` · `forallElim(p, v)` — `v` a fol variable (S1) · `existsElim(p, body)` ●◆ · `bottomElim(p, C)` |
 | fol classical | `classicalAbsurd(A, body)` ◆ — with `notElim` it covers FOL's one axiom, `(¬P ⟹ P) ⟹ P` |

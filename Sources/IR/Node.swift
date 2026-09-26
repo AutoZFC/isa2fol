@@ -38,7 +38,7 @@ public struct Binds: Hashable, Sendable {
     case isaVarApp(head: NodeID, args: [NodeID])
     case isaAbs(IRType, body: NodeID)
 
-    case use(String, NodeID)
+    case use(String, [IRType], NodeID)
     case hyp(Int, NodeID)
 
     case folAndIntro(NodeID, NodeID)
@@ -84,7 +84,7 @@ public struct Binds: Hashable, Sendable {
         case let .isaVarApp(h, xs):
             return .isaVarApp(head: try f(h, .none), args: try xs.map { try f($0, .none) })
         case let .isaAbs(T, b): return .isaAbs(T, body: try f(b, .term))
-        case let .use(n, root): return .use(n, try f(root, .none))
+        case let .use(n, types, root): return .use(n, types, try f(root, .none))
         case let .hyp(k, a): return .hyp(k, try f(a, .none))
         case let .folAndIntro(p, q): return .folAndIntro(try f(p, .none), try f(q, .none))
         case let .folAndElimL(p): return .folAndElimL(try f(p, .none))

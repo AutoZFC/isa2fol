@@ -7,6 +7,7 @@ import IR
     case notAFormula(NodeID)
     case notAProof(NodeID)
     case proofConcludes(expected: NodeID, found: NodeID)
+    case instanceCitation(NodeID)
 }
 
 public func render(_ d: Declaration, in t: Table) throws -> String {
@@ -95,7 +96,8 @@ private struct Writer {
         case let .folForall(b): return try quantifier("forall", b, operand)
         case let .folExists(b): return try quantifier("exists", b, operand)
 
-        case let .use(name, _):
+        case let .use(name, types, _):
+            guard types.isEmpty else { throw RenderError.instanceCitation(id) }
             try checkName(name)
             return emit("use \(name)")
         case let .hyp(k, _):

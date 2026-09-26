@@ -81,8 +81,8 @@ func surfaceReport(_ s: Surface, command: String) -> String {
     table(s.proof, "item", where: { item in
         switch item.kind {
         case .constant: return logic.contains(layer(item.name))
-        case .typeVariable, .schematic, .ofclass, .oracle: return true
-        case .type, .axiom, .theorem, .calculus: return false
+        case .type, .typeVariable, .schematic, .ofclass, .oracle: return true
+        case .axiom, .theorem, .calculus: return false
         }
     }, name: { item in
         switch item.kind {
