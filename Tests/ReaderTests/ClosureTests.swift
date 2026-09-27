@@ -58,8 +58,8 @@ private func closure() throws -> Closure {
     #expect(c.leaves[Item(.axiom, "ZF_Base.extension")] == 2, "M, and N through the named M")
 }
 
-@Test func theClosureKeepsClassPremiseDischargesAbsorbed() throws {
-    #expect(try closure().leaves[Item(.axiom, "T.classMachinery")] == nil)
+@Test func theClosureFollowsClassDischargesToo() throws {
+    #expect(try closure().leaves[Item(.axiom, "T.classMachinery")] == 1, "N, through box 40")
 }
 
 @Test func theClosureReportsOracles() throws {

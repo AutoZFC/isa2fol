@@ -1,11 +1,6 @@
 import IR
 import YXML
 
-enum Proposition: Equatable {
-    case claim(NodeID, classPremises: Int)
-    case classFact(String)
-}
-
 struct Envelope {
     let tfrees: [String]
     let frees: [(String, IsaType)]
@@ -59,22 +54,10 @@ extension Decode {
         }
         for a in arguments { try collect(a, &seen, &known, &names) }
     }
-
-    func unconditional(_ prop: Body) throws -> (classes: [String], rest: Body) {
-        var classes: [String] = []
-        var t = prop
-        while true {
-            let (head, arguments) = try spine(t)
-            guard case .constant("Pure.imp", _) = head, arguments.count == 2,
-                  case let (.ofclass(c), []) = try spine(arguments[0]) else { return (classes, t) }
-            classes.append(c)
-            t = arguments[1]
-        }
-    }
 }
 
 struct Classes {
-    private var axiomFree: [String: Bool] = [:]
+    private var declared: Set<String> = []
 
     mutating func load(_ body: [Ref], in forest: Forest) throws {
         let d = Decode(forest: forest)
@@ -83,29 +66,19 @@ struct Classes {
                 throw MalformedExport.notAnEntity(tag: d.tag(r))
             }
             let name = try entity.attribute("name")
-            let (parameters, axioms) = try d.pair({ $0 }, { $0 }, entity.children)
-            guard axiomFree.updateValue(parameters.isEmpty && axioms.isEmpty, forKey: name) == nil else {
-                throw MalformedExport.duplicateClass(name)
-            }
+            _ = try d.pair({ $0 }, { $0 }, entity.children)
+            guard declared.insert(name).inserted else { throw MalformedExport.duplicateClass(name) }
         }
     }
 
-    func absorb(_ c: String) throws {
-        guard let free = axiomFree[c] else { throw MalformedExport.undeclaredClass(c) }
-        guard free else { throw ReaderRefusal.ofclass(c) }
+    func check(_ c: String) throws {
+        guard declared.contains(c) else { throw MalformedExport.undeclaredClass(c) }
     }
 }
 
 extension Terms {
-    mutating func statement(_ prop: Body, _ classes: Classes, in t: inout Table) throws -> Proposition {
-        let (premises, rest) = try decode.unconditional(prop)
-        try premises.forEach(classes.absorb)
-        if case let (.ofclass(c), []) = try decode.spine(rest) {
-            try classes.absorb(c)
-            return .classFact(c)
-        }
-        let root = try proposition(rest, closure, in: &t)
-        return .claim(try close(root, Node.ifolAll, in: &t), classPremises: premises.count)
+    mutating func statement(_ prop: Body, in t: inout Table) throws -> NodeID {
+        try close(try proposition(prop, closure, in: &t), Node.ifolAll, in: &t)
     }
 }
 

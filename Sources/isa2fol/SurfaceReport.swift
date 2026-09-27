@@ -28,8 +28,8 @@ func surfaceReport(_ s: Surface, command: String) -> String {
     line()
     line("**The cut.** The population is the NAMED theorems of the ZF sessions — unnamed boxes are pieces of")
     line("the proofs that reach them. A proof includes every unnamed box it reaches and stops at every named")
-    line("theorem. A citation of a Pure/IFOL/FOL rule is a frontier leaf and takes with it the arguments that")
-    line("discharge the rule's leading `OFCLASS` premises. A box's statement is a proposition inside its citer's")
+    line("theorem. A citation of a Pure/IFOL/FOL rule is a frontier leaf; its arguments, class discharges")
+    line("included, are part of the citer's proof. A box's statement is a proposition inside its citer's")
     line("proof. Counts are theorems whose statement, or proof, contains the item.")
     line()
     line("## Population")
@@ -95,7 +95,6 @@ func surfaceReport(_ s: Surface, command: String) -> String {
     })
     line()
     line("**\(s.citedZF) distinct named ZF theorems are cited** by ZF proofs — ZF content, not the frontier.")
-    line("**\(s.absorbed) class-premise discharges** were absorbed into the rule citations they belong to.")
     return out.joined(separator: "\n") + "\n"
 }
 
@@ -123,8 +122,8 @@ func closureReport(_ c: Closure, command: String) -> String {
     line()
     line("**Generated.** `\(command)`. Each named theorem of the ZF sessions is followed through EVERY")
     line("citation — named theorems, derived Pure/IFOL/FOL rules, unnamed boxes — down to axioms and")
-    line("oracles. Class-premise discharges stay absorbed, as in `docs/SOURCE_SURFACE.md`. A definition is")
-    line("an axiom named `*_def` or `*_def_raw` (by name). Counts are named theorems whose closure contains it.")
+    line("oracles, class discharges included. A definition is an axiom named `*_def` or `*_def_raw` (by")
+    line("name). Counts are named theorems whose closure contains it.")
     line()
     line("| session | named theorems |")
     line("|---|---:|")
@@ -157,7 +156,5 @@ func closureReport(_ c: Closure, command: String) -> String {
          + (c.unboundTypeVariables.isEmpty ? " — every instance is determined by its citer." : ":"))
     for u in c.unboundTypeVariables.prefix(20) { line("- `\(u)`") }
     if c.unboundTypeVariables.count > 20 { line("- … \(c.unboundTypeVariables.count - 20) more") }
-    line()
-    line("**\(c.absorbed) class-premise discharges** stayed absorbed.")
     return out.joined(separator: "\n") + "\n"
 }

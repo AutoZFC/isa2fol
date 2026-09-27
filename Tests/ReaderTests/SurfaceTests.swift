@@ -62,12 +62,12 @@ private func survey() throws -> Surface {
     #expect(s.citedZF == 1, "M, reached through box 30")
 }
 
-@Test func aCitationAbsorbsItsClassPremiseArguments() throws {
+/// A class discharge is a proof argument like any other (DESIGN §4.3a 5c).
+@Test func aClassDischargeIsWalkedLikeAnyArgument() throws {
     let s = try survey()
     #expect(s.proof[Item(.theorem, "IFOL.refl")] == 2, "N directly, Q through box 70")
-    #expect(s.proof[Item(.axiom, "T.classMachinery")] == nil, "box 40 only ever discharges a class premise")
-    #expect(s.proof[Item(.ofclass, "IFOL.term")] == nil, "so box 40's OFCLASS statement is in no proof")
-    #expect(s.absorbed == 3, "N's refl, Q's box 70, and refl inside box 70")
+    #expect(s.proof[Item(.axiom, "T.classMachinery")] == 2, "box 40 discharges a class premise in N and in Q")
+    #expect(s.proof[Item(.ofclass, "IFOL.term")] == 2, "box 40's statement in N and Q, box 70's hypothesis in Q")
 }
 
 @Test func aBoxStatementIsPartOfItsCitersProof() throws {
@@ -87,5 +87,5 @@ private func survey() throws -> Surface {
     let s = try survey()
     #expect(s.proof[Item(.typeVariable, "")] == nil, "box 70 is cited at i")
     #expect(s.proof[Item(.constant, "IFOL.eq")] == 1, "box 70's statement, in Q's proof")
-    #expect(s.proof[Item(.calculus, "⟹-intro")] == nil, "binding a class hypothesis is bookkeeping")
+    #expect(s.proof[Item(.calculus, "⟹-intro")] == 1, "Q, through box 70 binding its class hypothesis")
 }

@@ -7,9 +7,9 @@ history and nothing depends on it. `docs/`, `base/` and `scripts/capped.sh`
 were hoisted out of it first and are live.
 
 **The reader is built.** `isa2fol read data/zf_export` reads every named theorem of
-the ZF sessions, statement AND proof, into the IR: 9,419 of 9,420 are proved — the
-proof's conclusion is the statement's node, by ID; the other is a class fact — and 0 are
-refused (`DESIGN.md` §2). A type variable is read as Isabelle states it (`IRType.variable`).
+the ZF sessions, statement AND proof, into the IR: ALL 9,420 are proved — the proof's
+conclusion is the statement's node, by ID — and 0 are refused (`DESIGN.md` §2). Nothing is
+absorbed: a type variable is `IRType.variable`, a class membership `isaOfClass`.
 Lowering and emission are not built. `DESIGN.md` is the plan.
 
 ## Build
@@ -140,7 +140,7 @@ is gone. §5 says so. Treat every number there as a belief, never a premise.
    print(f'{c}/{t} = {100*c/t:.1f}%')"
    ```
 
-   ✓ **CURRENTLY 9/2462 = 0.37%, under the cap.** Keep it there: a breach is
+   ✓ **CURRENTLY 9/2386 = 0.38%, under the cap.** Keep it there: a breach is
    fixed by deleting prose, never by raising the cap.
 
    Does not apply to `base/**/*.fol.def` headers: those record provenance of

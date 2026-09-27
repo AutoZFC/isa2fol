@@ -4,13 +4,13 @@ import Testing
 import YXML
 @testable import Reader
 
-private func read(_ file: String, at types: [IRType] = [], into t: inout Table) throws -> Proposition {
+private func read(_ file: String, at types: [IRType] = [], into t: inout Table) throws -> NodeID {
     var f = Forest()
     let body = try f.parse(Array(file.utf8))
     let d = Decode(forest: f)
     let (e, _) = try d.proofFile(body)
-    var terms = try Terms(decode: d, constants: try testConstants(), file: e, at: types)
-    return try terms.statement(e.prop, try testClasses(), in: &t)
+    var terms = try Terms(decode: d, constants: try testConstants(), classes: try testClasses(), file: e, at: types)
+    return try terms.statement(e.prop, in: &t)
 }
 
 private let memT = IRType.fn(.i, .fn(.i, .o))
@@ -23,7 +23,7 @@ private let refl = trueprop(app(const("IFOL.eq", typeA), free("a"), free("a")))
     let got = try read(proofFile(frees: [("a", i), ("A", i)], prop: memAa), into: &t)
     let mem = try t.intern(.isaConst("ZF_Base.mem", memT, args: [try t.intern(.isaBound(1, .i)), try t.intern(.isaBound(0, .i))]))
     let closed = try t.intern(.ifolAll(.i, body: try t.intern(.ifolAll(.i, body: mem))))
-    #expect(got == .claim(closed, classPremises: 0))
+    #expect(got == closed)
 }
 
 @Test func theFreesHeaderMustBeThePropositionsFreesInFirstOccurrenceOrder() throws {
@@ -42,7 +42,7 @@ private let refl = trueprop(app(const("IFOL.eq", typeA), free("a"), free("a")))
     for T in [IRType.i, .o] {
         let a = try t.intern(.isaBound(0, T))
         let eq = try t.intern(.isaConst("IFOL.eq", .fn(T, .fn(T, .o)), args: [a, a]))
-        #expect(try read(file, at: [T], into: &t) == .claim(try t.intern(.ifolAll(T, body: eq)), classPremises: 0))
+        #expect(try read(file, at: [T], into: &t) == (try t.intern(.ifolAll(T, body: eq))))
     }
     #expect(throws: MalformedExport.instanceArity(expected: 1, found: 0)) { try read(file, into: &t) }
 }
@@ -53,7 +53,7 @@ private let refl = trueprop(app(const("IFOL.eq", typeA), free("a"), free("a")))
     let x = try t.intern(.isaBound(0, a))
     let eq = try t.intern(.isaConst("IFOL.eq", .fn(a, .fn(a, .o)), args: [x, x]))
     let got = try read(proofFile(tfrees: ["'a"], frees: [("a", typeA)], prop: refl), at: [a], into: &t)
-    #expect(got == .claim(try t.intern(.ifolAll(a, body: eq)), classPremises: 0))
+    #expect(got == (try t.intern(.ifolAll(a, body: eq))))
 }
 
 @Test func aSortedTypeVariableInTheHeaderIsMalformed() {
@@ -70,28 +70,33 @@ private let refl = trueprop(app(const("IFOL.eq", typeA), free("a"), free("a")))
     }
 }
 
-/// The class `term` has no axioms, so `OFCLASS(T, term)` holds of every `T` it is asked of: a
-/// premise stating it is bookkeeping, and the count says how many discharges a citation absorbs.
-@Test func leadingClassPremisesAreStrippedAndCounted() throws {
+/// `unconstrainT` states `refl`'s class as a premise: an ordinary one (DESIGN §4.3a 5).
+@Test func aClassPremiseIsAnOrdinaryPremise() throws {
     var t = Table()
     let got = try read(proofFile(tfrees: ["'a"], frees: [("a", typeA)],
                                  prop: app(const("Pure.imp"), ofclass(typeA, "IFOL.term"), refl)), at: [.i], into: &t)
     let a = try t.intern(.isaBound(0, .i))
     let eq = try t.intern(.isaConst("IFOL.eq", memT, args: [a, a]))
-    #expect(got == .claim(try t.intern(.ifolAll(.i, body: eq)), classPremises: 1))
+    let member = try t.intern(.isaOfClass(.i, "IFOL.term"))
+    #expect(got == (try t.intern(.ifolAll(.i, body: try t.intern(.folImplies(member, eq))))))
 }
 
-@Test func aStatementThatIsOnlyAClassFactIsBookkeeping() throws {
+@Test func aClassFactIsAFormula() throws {
     var t = Table()
-    #expect(try read(proofFile(frees: [], prop: ofclass(i, "IFOL.term")), into: &t) == .classFact("IFOL.term"))
+    let got = try read(proofFile(frees: [], prop: ofclass(i, "IFOL.term")), into: &t)
+    #expect(got == (try t.intern(.isaOfClass(.i, "IFOL.term"))))
 }
 
-@Test func aClassWithAxiomsIsNotAbsorbed() {
+/// Nothing is dropped, so a class with axioms reads like any other.
+@Test func aClassWithAxiomsReadsLikeAnyClass() throws {
     var t = Table()
-    #expect(throws: ReaderRefusal.ofclass("T.withAxioms")) {
-        try read(proofFile(tfrees: ["'a"], frees: [("a", typeA)],
-                           prop: app(const("Pure.imp"), ofclass(typeA, "T.withAxioms"), refl)), at: [.i], into: &t)
+    let got = try read(proofFile(tfrees: ["'a"], frees: [("a", typeA)],
+                                 prop: app(const("Pure.imp"), ofclass(typeA, "T.withAxioms"), refl)), at: [.i], into: &t)
+    guard case let .ifolAll(.i, body) = t[got], case let .folImplies(member, _) = t[body] else {
+        Issue.record("\(t[got])")
+        return
     }
+    #expect(t[member] == .isaOfClass(.i, "T.withAxioms"))
     #expect(throws: MalformedExport.undeclaredClass("T.nowhere")) {
         try read(proofFile(frees: [], prop: ofclass(i, "T.nowhere")), into: &t)
     }
@@ -104,7 +109,7 @@ private let refl = trueprop(app(const("IFOL.eq", typeA), free("a"), free("a")))
     let mem = try t.intern(.isaConst("ZF_Base.mem", memT, args: [try t.intern(.isaBound(2, .i)), try t.intern(.isaBound(1, .i))]))
     let body = try t.intern(.folImplies(mem, try t.intern(.isaBound(0, .o))))
     let closed = try [IRType.o, .i, .i].reduce(body) { b, T in try t.intern(.ifolAll(T, body: b)) }
-    #expect(got == .claim(closed, classPremises: 0))
+    #expect(got == closed)
 }
 
 @Test func aFactIndexIsSpelledAsAFinalSegment() throws {
@@ -118,7 +123,7 @@ private let refl = trueprop(app(const("IFOL.eq", typeA), free("a"), free("a")))
     #expect(throws: ReaderRefusal.nameSegment("T..foo")) { try claimName("T..foo") }
 }
 
-private func zfBase(_ name: String, at types: [IRType] = []) throws -> (Table, Proposition)? {
+private func zfBase(_ name: String, at types: [IRType] = []) throws -> (Table, NodeID)? {
     let root = "data/zf_export"
     guard FileManager.default.fileExists(atPath: "\(root)/ZF.ZF_Base/proofs") else {
         Issue.record("export missing at \(root) — run scripts/03-export-zf.sh from the repo root")
@@ -129,9 +134,9 @@ private func zfBase(_ name: String, at types: [IRType] = []) throws -> (Table, P
     let body = try export.forest.parse(contentsOf: "\(root)/ZF.ZF_Base/proofs/\(serial)")
     let d = Decode(forest: export.forest)
     let (e, _) = try d.proofFile(body)
-    var terms = try Terms(decode: d, constants: export.constants, file: e, at: types)
+    var terms = try Terms(decode: d, constants: export.constants, classes: export.classes, file: e, at: types)
     var t = Table()
-    let statement = try terms.statement(e.prop, export.classes, in: &t)
+    let statement = try terms.statement(e.prop, in: &t)
     return (t, statement)
 }
 
@@ -144,11 +149,11 @@ private func zfBase(_ name: String, at types: [IRType] = []) throws -> (Table, P
     let mem = try t.intern(.isaConst("ZF_Base.mem", memT, args: [x, AunderX]))
     let all = try t.intern(.ifolAll(.i, body: try t.intern(.folImplies(mem, Px))))
     let closed = try t.intern(.ifolAll(.i, body: try t.intern(.ifolAll(P, body: try t.intern(.folIff(ball, all))))))
-    #expect(got == .claim(closed, classPremises: 0))
+    #expect(got == closed)
 }
 
 @Test func splitDefReadsAtAnInstance() throws {
-    guard case (_, .claim(_, 0))? = try zfBase("ZF_Base.split_def", at: [.i]) else {
+    guard try zfBase("ZF_Base.split_def", at: [.i]) != nil else {
         Issue.record("split_def does not read at i")
         return
     }
@@ -156,7 +161,7 @@ private func zfBase(_ name: String, at types: [IRType] = []) throws -> (Table, P
 
 @Test func splitDefReadsAsStated() throws {
     let a = IRType.variable("'a")
-    guard case let (t, .claim(root, 0))? = try zfBase("ZF_Base.split_def", at: [a]) else {
+    guard case let (t, root)? = try zfBase("ZF_Base.split_def", at: [a]) else {
         Issue.record("split_def does not read as stated")
         return
     }

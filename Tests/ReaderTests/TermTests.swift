@@ -20,7 +20,8 @@ private struct Reading {
         var f = Forest()
         let body = try f.parse(Array(prop.utf8))
         let e = Envelope(tfrees: tfrees, frees: try frees.map { ($0.0, try decodeType($0.1)) }, prop: body)
-        var terms = try Terms(decode: Decode(forest: f), constants: constants, file: e, at: tfrees.map(IRType.variable))
+        var terms = try Terms(decode: Decode(forest: f), constants: constants, classes: try testClasses(), file: e,
+                              at: tfrees.map(IRType.variable))
         self.frees = frees.map(\.0)
         return try terms.proposition(body, terms.closure, in: &t)
     }
@@ -224,9 +225,10 @@ private let pq = [("P", o), ("Q", o)]
     #expect(throws: MalformedExport.schematicVariable("P")) { try r.proposition(trueprop(schematic("P"))) }
 }
 
-@Test func anOfclassIsRefused() throws {
+@Test func anOfclassReadsAsAClassMembership() throws {
     var r = try Reading()
-    #expect(throws: ReaderRefusal.ofclass("IFOL.term")) { try r.proposition(ofclass(i, "IFOL.term")) }
+    #expect(try r.proposition(ofclass(i, "IFOL.term")) == (try r.n(.isaOfClass(iT, "IFOL.term"))))
+    #expect(throws: MalformedExport.undeclaredClass("T.nowhere")) { try r.proposition(ofclass(i, "T.nowhere")) }
 }
 
 @Test func aPureInternalConstantReadsAsAConstant() throws {

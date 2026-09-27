@@ -5,8 +5,8 @@
 
 **The cut.** The population is the NAMED theorems of the ZF sessions — unnamed boxes are pieces of
 the proofs that reach them. A proof includes every unnamed box it reaches and stops at every named
-theorem. A citation of a Pure/IFOL/FOL rule is a frontier leaf and takes with it the arguments that
-discharge the rule's leading `OFCLASS` premises. A box's statement is a proposition inside its citer's
+theorem. A citation of a Pure/IFOL/FOL rule is a frontier leaf; its arguments, class discharges
+included, are part of the citer's proof. A box's statement is a proposition inside its citer's
 proof. Counts are theorems whose statement, or proof, contains the item.
 
 ## Population
@@ -31,7 +31,7 @@ proof. Counts are theorems whose statement, or proof, contains the item.
 | constant | theorems | % |
 |---|---:|---:|
 | `IFOL.Trueprop` | 8010 | 85.0% |
-| `Pure.imp` | 5483 | 58.2% |
+| `Pure.imp` | 5484 | 58.2% |
 | `IFOL.eq` | 4139 | 43.9% |
 | `IFOL.iff` | 1297 | 13.8% |
 | `Pure.eq` | 1249 | 13.3% |
@@ -53,7 +53,7 @@ Plus **997 distinct ZF constants**.
 
 | type | theorems | % |
 |---|---:|---:|
-| `ZF_Base.i` | 9040 | 96.0% |
+| `ZF_Base.i` | 9041 | 96.0% |
 | `fun` | 2361 | 25.1% |
 | `IFOL.o` | 1671 | 17.7% |
 | `prop` | 137 | 1.5% |
@@ -63,7 +63,7 @@ Plus **997 distinct ZF constants**.
 
 | construct | theorems | % |
 |---|---:|---:|
-| `OFCLASS(_, IFOL.term)` | 1 | 0.0% |
+| `OFCLASS(_, IFOL.term)` | 9 | 0.1% |
 
 ## Proofs
 
@@ -1262,11 +1262,12 @@ Plus **997 distinct ZF constants**.
 |---|---:|---:|
 | `ZF_Base.i` | 7599 | 80.7% |
 | `IFOL.Trueprop` | 7094 | 75.3% |
-| `Pure.imp` | 6857 | 72.8% |
+| `Pure.imp` | 6858 | 72.8% |
 | `fun` | 6648 | 70.6% |
 | `prop` | 6635 | 70.4% |
 | `IFOL.o` | 6265 | 66.5% |
 | `IFOL.eq` | 6088 | 64.6% |
+| `OFCLASS(_, IFOL.term)` | 6045 | 64.2% |
 | `Pure.prop` | 5902 | 62.7% |
 | `IFOL.conj` | 5542 | 58.8% |
 | `Pure.eq` | 5425 | 57.6% |
@@ -1290,7 +1291,5 @@ Plus **997 distinct ZF constants**.
 | `FOL.induct_conj` | 2 | 0.0% |
 | `FOL.induct_equal` | 2 | 0.0% |
 | `Pure.term` | 1 | 0.0% |
-| `OFCLASS(_, IFOL.term)` | 1 | 0.0% |
 
-**5523 distinct named ZF theorems are cited** by ZF proofs — ZF content, not the frontier.
-**47386 class-premise discharges** were absorbed into the rule citations they belong to.
+**5524 distinct named ZF theorems are cited** by ZF proofs — ZF content, not the frontier.

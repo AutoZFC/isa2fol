@@ -31,6 +31,7 @@ public struct Binds: Hashable, Sendable {
     case isaBound(Int, IRType)
     case isaVarApp(head: NodeID, args: [NodeID])
     case isaAbs(IRType, body: NodeID)
+    case isaOfClass(IRType, String)
     case isaAllIntro(IRType, body: NodeID)
     case isaAllElim(NodeID, NodeID)
 
@@ -76,7 +77,7 @@ public struct Binds: Hashable, Sendable {
         switch self {
         case .isaFree:
             return []
-        case .ifolAll, .ifolEx, .isaConst, .isaBound, .isaVarApp, .isaAbs, .isaAllIntro, .isaAllElim:
+        case .ifolAll, .ifolEx, .isaConst, .isaBound, .isaVarApp, .isaAbs, .isaOfClass, .isaAllIntro, .isaAllElim:
             return [.isa]
         case .folImplies, .folAnd, .folOr, .folIff, .folNot, .folBottom, .folImpliesIntro, .folImpliesElim,
              .use, .hyp:
@@ -93,7 +94,7 @@ public struct Binds: Hashable, Sendable {
     /// and `looseBound` all read it here; a second list would let them disagree.
     public func mapChildren(_ f: (NodeID, Binds) throws -> NodeID) rethrows -> Node {
         switch self {
-        case .isaFree, .isaBound, .folBottom, .folBound:
+        case .isaFree, .isaBound, .isaOfClass, .folBottom, .folBound:
             return self
         case let .ifolAll(T, b): return .ifolAll(T, body: try f(b, .term))
         case let .ifolEx(T, b): return .ifolEx(T, body: try f(b, .term))
@@ -146,7 +147,7 @@ public struct Binds: Hashable, Sendable {
         case let .isaBound(k, T): return (.term, k, { .isaBound($0, T) })
         case let .hyp(k, a): return (.hyp, k, { .hyp($0, a) })
         case let .folBound(k): return (.term, k, { .folBound($0) })
-        case .ifolAll, .ifolEx, .isaConst, .isaFree, .isaVarApp, .isaAbs, .isaAllIntro, .isaAllElim,
+        case .ifolAll, .ifolEx, .isaConst, .isaFree, .isaVarApp, .isaAbs, .isaOfClass, .isaAllIntro, .isaAllElim,
              .folImplies, .folAnd, .folOr, .folIff, .folNot, .folBottom, .folImpliesIntro, .folImpliesElim,
              .use, .folPred, .folForall, .folExists, .folAndIntro, .folAndElimL, .folAndElimR,
              .folOrIntroL, .folOrIntroR, .folOrElim, .folNotIntro, .folNotElim, .folIffIntro, .folIffElimL,

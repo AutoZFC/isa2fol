@@ -2,8 +2,8 @@
 
 **Generated.** `isa2fol closure data/zf_export`. Each named theorem of the ZF sessions is followed through EVERY
 citation — named theorems, derived Pure/IFOL/FOL rules, unnamed boxes — down to axioms and
-oracles. Class-premise discharges stay absorbed, as in `docs/SOURCE_SURFACE.md`. A definition is
-an axiom named `*_def` or `*_def_raw` (by name). Counts are named theorems whose closure contains it.
+oracles, class discharges included. A definition is an axiom named `*_def` or `*_def_raw` (by
+name). Counts are named theorems whose closure contains it.
 
 | session | named theorems |
 |---|---:|
@@ -43,6 +43,7 @@ an axiom named `*_def` or `*_def_raw` (by name). Counts are named theorems whose
 |---|---:|---:|
 | `IFOL.impI` | 8047 | 85.4% |
 | `IFOL.conjI` | 8042 | 85.4% |
+| `IFOL.term_class_def` | 7965 | 84.6% |
 | `IFOL.mp` | 7960 | 84.5% |
 | `IFOL.conjunct1` | 7893 | 83.8% |
 | `IFOL.iff_def_raw` | 7841 | 83.2% |
@@ -63,7 +64,6 @@ an axiom named `*_def` or `*_def_raw` (by name). Counts are named theorems whose
 | `IFOL.exE` | 7495 | 79.6% |
 | `IFOL.ex1_def_raw` | 7316 | 77.7% |
 | `IFOL.Let_def_raw` | 439 | 4.7% |
-| `IFOL.term_class_def` | 1 | 0.0% |
 
 ## FOL — every axiom and definition reached
 
@@ -98,5 +98,3 @@ Plus **984 definitions** from the ZF sessions; the most-reached is reached by 74
 
 **23 named theorems are polymorphic.** Every other named theorem is ground.
 **0 citations use a type variable their citing proof does not bind** — every instance is determined by its citer.
-
-**47621 class-premise discharges** stayed absorbed.

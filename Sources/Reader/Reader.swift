@@ -16,14 +16,13 @@ public struct Theorem: Hashable, Sendable, CustomStringConvertible {
 
 @frozen public enum Outcome: Equatable, Sendable {
     case proved(statement: NodeID, proof: NodeID)
-    case classFact
     case refused(ReaderRefusal)
 }
 
 struct ProofScope: Hashable {
-    enum Hypothesis: Hashable {
-        case formula(NodeID, depth: Int)
-        case classPremise(String)
+    struct Hypothesis: Hashable {
+        let formula: NodeID
+        let depth: Int
     }
 
     private(set) var terms: Scope
@@ -37,9 +36,9 @@ struct ProofScope: Hashable {
         return s
     }
 
-    func assuming(_ h: Hypothesis) -> ProofScope {
+    func assuming(_ A: NodeID) -> ProofScope {
         var s = self
-        s.hypotheses.append(h)
+        s.hypotheses.append(Hypothesis(formula: A, depth: terms.depth))
         return s
     }
 }
@@ -52,11 +51,6 @@ private struct FileProof {
 
     var terms: Terms
     var steps: [Key: NodeID] = [:]
-}
-
-private enum Proved {
-    case claim(NodeID, classPremises: Int, proof: NodeID)
-    case classFact(String)
 }
 
 public struct Reader {
@@ -78,8 +72,8 @@ public struct Reader {
     private let constants: Constants
     private let classes: Classes
     private let corpus: Corpus
-    private var statements: [Instance: Proposition] = [:]
-    private var boxes: [Instance: (NodeID, absorb: Int)] = [:]
+    private var statements: [Instance: NodeID] = [:]
+    private var boxes: [Instance: NodeID] = [:]
 
     public init(_ export: Export) throws {
         var export = export
@@ -97,30 +91,24 @@ public struct Reader {
     public mutating func read(_ theorem: Theorem) throws -> Outcome {
         do {
             let (e, _) = try located(theorem.key.path) { try decode.proofFile(try corpus.file(theorem.key)) }
-            switch try prove(theorem.key, at: e.tfrees.map(IRType.variable)) {
-            case let .claim(root, _, proof): return .proved(statement: root, proof: proof)
-            case .classFact: return .classFact
-            }
+            let (statement, proof) = try prove(theorem.key, at: e.tfrees.map(IRType.variable))
+            return .proved(statement: statement, proof: proof)
         } catch let refusal as ReaderRefusal {
             return .refused(refusal)
         }
     }
 
-    private mutating func prove(_ key: TheoremKey, at types: [IRType]) throws -> Proved {
+    private mutating func prove(_ key: TheoremKey, at types: [IRType]) throws -> (statement: NodeID, proof: NodeID) {
         try located(key.path) {
             let (e, proof) = try decode.proofFile(try corpus.file(key))
-            var f = FileProof(terms: try Terms(decode: decode, constants: constants, file: e, at: types))
-            switch try f.terms.statement(e.prop, classes, in: &table) {
-            case let .classFact(c):
-                return .classFact(c)
-            case let .claim(root, n):
-                let body = try step(proof, ProofScope(f.terms.closure), &f)
-                let p = try f.terms.close(body, Node.isaAllIntro, in: &table)
-                guard table.conclusion(of: p) == root else {
-                    throw MalformedExport.unproved(statement: root, conclusion: table.conclusion(of: p))
-                }
-                return .claim(root, classPremises: n, proof: p)
+            var f = FileProof(terms: try Terms(decode: decode, constants: constants, classes: classes, file: e, at: types))
+            let root = try f.terms.statement(e.prop, in: &table)
+            let body = try step(proof, ProofScope(f.terms.closure), &f)
+            let p = try f.terms.close(body, Node.isaAllIntro, in: &table)
+            guard table.conclusion(of: p) == root else {
+                throw MalformedExport.unproved(statement: root, conclusion: table.conclusion(of: p))
             }
+            return (root, p)
         }
     }
 
@@ -128,7 +116,7 @@ public struct Reader {
         let key = FileProof.Key(body: body, scope: s)
         if let p = f.steps[key] { return p }
         let spine = try decode.proofSpine(body)
-        var (p, absorb) = try head(spine.node, s, &f)
+        var p = try head(spine.node, s, &f)
         for argument in spine.arguments {
             switch argument {
             case let .term(x):
@@ -138,36 +126,27 @@ public struct Reader {
                 let term = try f.terms.term(x, T, s.terms, in: &table)
                 p = try table.intern(.isaAllElim(p, term))
             case let .proof(q):
-                if absorb > 0 {
-                    absorb -= 1
-                    continue
-                }
-                let premise = try step(q, s, &f)
-                p = try table.intern(.folImpliesElim(p, premise))
+                p = try table.intern(.folImpliesElim(p, try step(q, s, &f)))
             }
         }
         f.steps[key] = p
         return p
     }
 
-    private mutating func head(_ h: ProofHead, _ s: ProofScope, _ f: inout FileProof) throws -> (NodeID, absorb: Int) {
+    private mutating func head(_ h: ProofHead, _ s: ProofScope, _ f: inout FileProof) throws -> NodeID {
         switch h {
         case .nop:
             throw ReaderRefusal.omittedProof
         case let .bound(k):
-            return (try hypothesis(k, s), 0)
+            return try hypothesis(k, s)
         case let .termAbstraction(T, p):
             let U = try f.terms.irType(T)
             let body = try step(p, s.fixing(U), &f)
-            return (try table.intern(.isaAllIntro(U, body: body)), 0)
+            return try table.intern(.isaAllIntro(U, body: body))
         case let .hypothesisAbstraction(x, p):
-            if case let (.ofclass(c), []) = try decode.spine(x) {
-                try classes.absorb(c)
-                return (try step(p, s.assuming(.classPremise(c)), &f), 0)
-            }
             let A = try f.terms.proposition(x, s.terms, in: &table)
-            let body = try step(p, s.assuming(.formula(A, depth: s.terms.depth)), &f)
-            return (try table.intern(.folImpliesIntro(A, body: body)), 0)
+            let body = try step(p, s.assuming(A), &f)
+            return try table.intern(.folImpliesIntro(A, body: body))
         case .hypothesis:
             throw MalformedExport.freeHypothesis
         case let .axiom(name, types):
@@ -186,39 +165,25 @@ public struct Reader {
         }
     }
 
-    private mutating func use(_ name: String, _ instance: Instance) throws -> (NodeID, absorb: Int) {
-        switch try statement(instance) {
-        case let .claim(root, n): return (try table.intern(.use(name, instance.types, root)), n)
-        case let .classFact(c): throw ReaderRefusal.ofclass(c)
-        }
+    private mutating func use(_ name: String, _ instance: Instance) throws -> NodeID {
+        try table.intern(.use(name, instance.types, try statement(instance)))
     }
 
-    private mutating func box(_ key: TheoremKey, _ instance: Instance) throws -> (NodeID, absorb: Int) {
+    private mutating func box(_ key: TheoremKey, _ instance: Instance) throws -> NodeID {
         if let b = boxes[instance] { return b }
-        switch try prove(key, at: instance.types) {
-        case let .claim(_, n, proof):
-            boxes[instance] = (proof, n)
-            return (proof, n)
-        case let .classFact(c):
-            throw ReaderRefusal.ofclass(c)
-        }
+        let proof = try prove(key, at: instance.types).proof
+        boxes[instance] = proof
+        return proof
     }
 
     private mutating func hypothesis(_ k: Int, _ s: ProofScope) throws -> NodeID {
         let hs = s.hypotheses
         guard k >= 0, k < hs.count else { throw MalformedExport.unboundHypothesis(k) }
-        let position = hs.count - 1 - k
-        switch hs[position] {
-        case let .classPremise(c):
-            throw ReaderRefusal.ofclass(c)
-        case let .formula(A, depth):
-            let index = hs[(position + 1)...].filter { if case .formula = $0 { true } else { false } }.count
-            let here = try shift(A, by: s.terms.depth - depth, in: &table)
-            return try table.intern(.hyp(index, here))
-        }
+        let h = hs[hs.count - 1 - k]
+        return try table.intern(.hyp(k, try shift(h.formula, by: s.terms.depth - h.depth, in: &table)))
     }
 
-    private mutating func statement(_ instance: Instance) throws -> Proposition {
+    private mutating func statement(_ instance: Instance) throws -> NodeID {
         if let p = statements[instance] { return p }
         let (path, e): (String, Envelope)
         switch instance.source {
@@ -231,8 +196,8 @@ public struct Reader {
             e = try located(path) { try decode.axiom(axiom.body) }
         }
         let p = try located(path) {
-            var terms = try Terms(decode: decode, constants: constants, file: e, at: instance.types)
-            return try terms.statement(e.prop, classes, in: &table)
+            var terms = try Terms(decode: decode, constants: constants, classes: classes, file: e, at: instance.types)
+            return try terms.statement(e.prop, in: &table)
         }
         statements[instance] = p
         return p

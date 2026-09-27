@@ -9,10 +9,10 @@
 | command (from the repo root) | expect |
 |---|---|
 | `swift --version \| head -1` | `Swift version 6.4 (swift-6.4-RELEASE)` |
-| `MEM=16G scripts/capped.sh swift test 2>&1 \| grep -cE '^✔ Test [a-zA-Z]+\(\) passed'` | **`185`** |
+| `MEM=16G scripts/capped.sh swift test 2>&1 \| grep -cE '^✔ Test [a-zA-Z]+\(\) passed'` | **`186`** |
 | `ls Sources` · `ls docs` | `FolDialect IR Reader isa2fol YXML` · `CLOSURE.md FOUNDATION.md phase2_probes SOURCE_SURFACE.md` |
-| `find Sources Tests -name '*.swift' \| wc -l` | `41` (5176 lines) |
-| comment density of `Sources` (CLAUDE.md rule 9's script) | `9/2462 = 0.37%` |
+| `find Sources Tests -name '*.swift' \| wc -l` | `41` (5121 lines) |
+| comment density of `Sources` (CLAUDE.md rule 9's script) | `9/2386 = 0.38%` |
 | `grep -rnE '^\s*default:' Sources` (a switch default — rule 11) | nothing |
 | `.build/release/isa2fol surface data/zf_export \| grep '^| \*\*all'` | `\| **all** \| **9420** \|` |
 | `readlink ~/repos/fol-zfc-comb/bazel-bin \| sed 's\|.*bazel-out/\|\|'` | `k8-opt/bin` — and `proof_checker` is executable there |
@@ -92,7 +92,8 @@ deleted work — §6. fol-zfc-comb sits on its own `comb-verifier` with an uncom
 | The tests have teeth: 5 hand mutations (`instantiate`'s k−1, `isaAbs` binder, ∃-intro index, a hypothesis binder, a fixed-variable level) are each caught | re-run by hand after touching `Index.swift`/`Node.swift`/`Render.swift` |
 | In the named ZF statements every logical constant is fully applied and every binder argument is a λ | `isa-deps --logic --named` (`~/repos/isabelle-study/bin/isa-deps`, untracked there) |
 | No concrete pass exists | `ls Sources/IR` |
-| The reader PROVES 9,419 of the 9,420 named theorems of the eight exported sessions, AS ISABELLE STATES THEM — type variables included — each proof's conclusion its statement's node, by ID, every step typed by the table — plus the 198 named Pure/IFOL/FOL theorems their proofs reach; 1 class fact, 0 refused | `swift build -c release && .build/release/isa2fol read data/zf_export` (59 s, 3.5 GB peak, 6.79 M nodes); `--show OUTCOME` |
+| The reader PROVES ALL 9,420 named theorems of the eight exported sessions, AS ISABELLE STATES THEM — type variables and class premises included, nothing absorbed — each proof's conclusion its statement's node, by ID, every step typed by the table — plus the 200 named Pure/IFOL/FOL theorems their proofs reach; 0 refused | `swift build -c release && .build/release/isa2fol read data/zf_export` (58 s, 3.5 GB peak, 6.87 M nodes); `--show OUTCOME` |
+| `OFCLASS(T, c)` is `isaOfClass(T, c)`, a formula; a class premise is an ordinary premise, its discharge an ordinary ⟹-elim; `arity_term_i` is proved from `term_class_def`; the census walks the discharges | `aClassPremiseIsAnOrdinaryPremise`, `aClassDischargeIsAnOrdinaryPremise`, `aClassFactIsProved`, `aClassDischargeIsWalkedLikeAnyArgument`; dropping `OFCLASS`'s type is caught |
 | A type variable is `IRType.variable` — a header variable, and `dummy`; a citation carries its type arguments, `use(name, types, root)`; render refuses a typed `use` | `aCitationCarriesItsTypes`, `aHiddenProofTypeIsATypeVariable`, `aCitationOfAnInstanceIsNotRendered`; dropping the types or reading `dummy` as `i` is each caught |
 | The proof-reader tests have teeth: dropping the hypothesis shift, the class absorption, box inlining, or the conclusion check is each caught | re-run by hand after touching `Reader.swift` |
 | `instantiate` reduces the redexes it makes, hereditarily; `isaAllElim` types its term and wants a λ at a function type | `IndexTests`, `ProofTests` |
@@ -138,12 +139,8 @@ deleted work — §6. fol-zfc-comb sits on its own `comb-verifier` with an uncom
    substituted type can make an argument need λ-expansion, so it is not a bare substitution; an
    instance's claim name (render refuses a typed `use` until then); which unit emits an instance —
    the owner's, knowing every downstream citation, or the citer's, merging duplicates at link.
-8. **`OFCLASS` is absorbed** (`DESIGN.md` §4.3a) — so `ZF_Base.arity_term_i` (`OFCLASS(i, term)`) is
-   the one named theorem not read, and its 6,599 uses (discharges via one box) are skipped. At a
-   ground use it says nothing: ZF's only `term` instance is `i`. On a GENERIC theorem it is the only
-   record that `'a` may be only `i` — 8 of the 23 carry it, 15 are `'a::{}` — and absorbing erases
-   that. (A) read `OFCLASS` faithfully everywhere, 100%; (B) put the class back on the type
-   variable, `'a::term`, as Isabelle prints it, `arity_term_i` still unread. User to decide.
+8. **What lowering makes of `OFCLASS`** (`DESIGN.md` §4.3a 5, built 2026-09-26): ⊤ at `i`, and
+   `term_class_def`'s `∀P:o. P → P` is not first-order. Lowering's, undecided (user).
 
 ## 7. Next action
 

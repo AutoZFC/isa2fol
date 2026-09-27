@@ -115,6 +115,15 @@ private func memOf(_ a: NodeID, _ b: NodeID, _ t: inout Table) throws -> NodeID 
     #expect(t[a].dialects == [])
 }
 
+/// `OFCLASS(T, c)`, "T is in class c": a formula of the isa dialect, the export's own term form.
+@Test func aClassMembershipIsAnIsaFormula() throws {
+    var t = Table()
+    let member = try t.intern(.isaOfClass(.variable("'a"), "IFOL.term"))
+    #expect(t.type(of: member) == .o)
+    #expect(t[member].dialects == [.isa])
+    #expect(throws: IRRefusal.sourceKindSurvived(member)) { try legalize(member, in: t) }
+}
+
 @Test func legalizeAcceptsATargetOnlyRoot() throws {
     var t = Table()
     let b0 = try t.intern(.folBound(0))

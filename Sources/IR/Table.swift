@@ -101,6 +101,8 @@ public struct Table: Sendable {
             throw TableError.varAppHeadNotVariable(h)
         case let .isaAbs(T, b):
             return .value(.fn(T, try value(b)))
+        case .isaOfClass:
+            return .value(.o)
 
         case let .use(_, _, a), let .hyp(_, a):
             try expect(.o, a)

@@ -142,7 +142,7 @@ private struct Writer {
         case let .folClassicalAbsurd(a, body):
             return try discharging("assume ~\(try formula(a, operand: true))", body, "classical_absurd")
 
-        case .ifolAll, .ifolEx, .isaConst, .isaFree, .isaBound, .isaVarApp, .isaAbs,
+        case .ifolAll, .ifolEx, .isaConst, .isaFree, .isaBound, .isaVarApp, .isaAbs, .isaOfClass,
              .isaAllIntro, .isaAllElim:
             throw RenderError.sourceKind(id)
         }

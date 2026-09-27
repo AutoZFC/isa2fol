@@ -7,7 +7,7 @@ enum Head {
     case schematic(String)
     case bound(Int)
     case abstraction(IsaType, Body)
-    case ofclass(String)
+    case ofclass(String, IsaType)
 }
 
 private enum Term {
@@ -48,10 +48,7 @@ extension Decode {
                 let (f, x) = try pair({ $0 }, { $0 }, ts)
                 return .application(f, x)
             },
-            { a, ts in
-                _ = try type(ts)
-                return .head(.ofclass(try one(a)))
-            },
+            { a, ts in .head(.ofclass(try one(a), try type(ts))) },
         ], body)
     }
 
@@ -117,12 +114,13 @@ struct Terms {
 
     let decode: Decode
     let constants: Constants
+    let classes: Classes
     private let types: [String: IRType]
     private let frees: [String: (level: Int, type: IRType)]
     private let freeTypes: [IRType]
     private var memo: [Memo: NodeID] = [:]
 
-    init(decode: Decode, constants: Constants, file e: Envelope, at instance: [IRType]) throws {
+    init(decode: Decode, constants: Constants, classes: Classes, file e: Envelope, at instance: [IRType]) throws {
         guard instance.count == e.tfrees.count else {
             throw MalformedExport.instanceArity(expected: e.tfrees.count, found: instance.count)
         }
@@ -131,6 +129,7 @@ struct Terms {
         guard occurring == names else { throw MalformedExport.freesHeader(header: names, occurring: occurring) }
         self.decode = decode
         self.constants = constants
+        self.classes = classes
         var types = Dictionary(uniqueKeysWithValues: zip(e.tfrees, instance))
         guard types.updateValue(.variable("dummy"), forKey: "dummy") == nil else { throw MalformedExport.tfreesHeader(e.tfrees) }
         let typed = try e.frees.map { ($0.0, try $0.1.irType().substituting(types)) }
@@ -221,8 +220,12 @@ struct Terms {
             throw MalformedExport.unexpectedAbstraction(expected: U)
         case let .schematic(name):
             throw MalformedExport.schematicVariable(name)
-        case let .ofclass(c):
-            throw ReaderRefusal.ofclass(c)
+        case let .ofclass(c, T):
+            guard arguments.isEmpty else {
+                throw MalformedExport.applicationArity("OFCLASS", expected: 0, found: arguments.count)
+            }
+            try classes.check(c)
+            n = try t.intern(.isaOfClass(try irType(T), c))
         }
         let found = t.type(of: n)
         guard found == U else { throw MalformedExport.typeMismatch(expected: U, found: found) }

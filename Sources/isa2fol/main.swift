@@ -50,7 +50,6 @@ let show = arguments.count == 4 ? arguments[3] : nil
 func label(_ outcome: Outcome) -> String {
     switch outcome {
     case .proved: return "proved"
-    case .classFact: return "class fact"
     case let .refused(r): return "refused: " + kind(r)
     }
 }

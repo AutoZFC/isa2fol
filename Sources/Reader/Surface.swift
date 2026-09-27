@@ -33,14 +33,12 @@ public struct Surface: Sendable {
     public var statement: [Item: Int] = [:]
     public var proof: [Item: Int] = [:]
     public var citedZF = 0
-    public var absorbed = 0
 }
 
 public struct Closure: Sendable {
     public var named: [String: Int] = [:]
     public var leaves: [Item: Int] = [:]
     public var polymorphic = 0
-    public var absorbed = 0
     public var unboundTypeVariables: [String] = []
 }
 
@@ -53,7 +51,6 @@ extension Export {
             try located(key.path) { try census.survey(key, into: &s, cited: &cited) }
         }
         s.citedZF = cited.count
-        s.absorbed = census.absorbed
         return s
     }
 
@@ -67,7 +64,6 @@ extension Export {
             }
             c.named[session(of: key.theory)!, default: 0] += 1
         }
-        c.absorbed = census.absorbed
         c.unboundTypeVariables = census.unbound.sorted()
         return c
     }
@@ -90,12 +86,10 @@ private struct Census {
     let decode: Decode
     let corpus: Corpus
     let population: [TheoremKey]
-    private(set) var absorbed = 0
     private(set) var unbound: Set<String> = []
     private var regions: [TheoremKey: Region] = [:]
     private var boxClosures: [TheoremKey: Region] = [:]
     private var leafClosures: [TheoremKey: Set<Item>] = [:]
-    private var premises: [TheoremKey: Int] = [:]
 
     init(decode: Decode, corpus: Corpus, population: [TheoremKey]) {
         self.decode = decode
@@ -105,7 +99,7 @@ private struct Census {
 
     mutating func survey(_ key: TheoremKey, into s: inout Surface, cited: inout Set<TheoremKey>) throws {
         let (e, _) = try decode.proofFile(try corpus.file(key))
-        var statement = try terms([try decode.unconditional(e.prop).rest])
+        var statement = try terms([e.prop])
         e.frees.forEach { Self.types($0.1, &statement) }
         if !e.tfrees.isEmpty { statement.insert(Item(.typeVariable, "")) }
         for item in statement { s.statement[item, default: 0] += 1 }
@@ -157,7 +151,7 @@ private struct Census {
             if boxClosures[key] != nil { continue }
             var own = try ownRegion(key)
             if expanded {
-                own.items.formUnion(try terms([try decode.unconditional(try decode.proofFile(try corpus.file(key)).0.prop).rest]))
+                own.items.formUnion(try terms([try decode.proofFile(try corpus.file(key)).0.prop]))
                 for child in own.boxes {
                     own.items.formUnion(Self.instantiated(boxClosures[child]!.items))
                     own.named.formUnion(boxClosures[child]!.named)
@@ -191,7 +185,6 @@ private struct Census {
         while let body = work.popLast() {
             let spine = try decode.proofSpine(body)
             guard seen.insert(body[0]).inserted else { continue }
-            var absorb = 0
             switch spine.node {
             case .nop:
                 r.items.insert(Item(.calculus, "empty proof"))
@@ -202,13 +195,9 @@ private struct Census {
                 Self.types(T, &r.items)
                 work.append(p)
             case let .hypothesisAbstraction(t, p):
-                if case .ofclass = try decode.spine(t).head {
-                    work.append(p)
-                } else {
-                    r.items.insert(Item(.calculus, "⟹-intro"))
-                    props.append(t)
-                    work.append(p)
-                }
+                r.items.insert(Item(.calculus, "⟹-intro"))
+                props.append(t)
+                work.append(p)
             case let .hypothesis(t):
                 r.items.insert(Item(.calculus, "hypothesis"))
                 props.append(t)
@@ -223,7 +212,6 @@ private struct Census {
                 r.items.insert(Item(.oracle, name))
             case let .theorem(c):
                 let key = TheoremKey(theory: c.theory, serial: c.serial)
-                absorb = try classPremises(key)
                 if let name = corpus.names[key] {
                     if logic.contains(c.theory) { r.items.insert(Item(.theorem, name)) }
                     r.named.insert(key)
@@ -233,7 +221,6 @@ private struct Census {
                 c.types.forEach { Self.types($0, &r.items) }
                 check(c.types, corpus.names[key] ?? key.path)
             }
-            var proofArguments = 0
             for argument in spine.arguments {
                 switch argument {
                 case let .term(t):
@@ -241,20 +228,12 @@ private struct Census {
                     props.append(t)
                 case let .proof(p):
                     r.items.insert(Item(.calculus, "⟹-elim"))
-                    if proofArguments < absorb { absorbed += 1 } else { work.append(p) }
-                    proofArguments += 1
+                    work.append(p)
                 }
             }
         }
         r.items.formUnion(try terms(props))
         return r
-    }
-
-    private mutating func classPremises(_ key: TheoremKey) throws -> Int {
-        if let n = premises[key] { return n }
-        let n = try decode.unconditional(try decode.proofFile(try corpus.file(key)).0.prop).classes.count
-        premises[key] = n
-        return n
     }
 
     private static func instantiated(_ items: Set<Item>) -> Set<Item> {
@@ -279,8 +258,9 @@ private struct Census {
             case let .abstraction(T, inner):
                 Self.types(T, &items)
                 work.append(inner)
-            case let .ofclass(c):
+            case let .ofclass(c, T):
                 items.insert(Item(.ofclass, c))
+                Self.types(T, &items)
             }
             work.append(contentsOf: arguments)
         }

@@ -21,15 +21,17 @@ private let dummy = typeT("dummy")
 ///   box 50       x ∈ B ⟹ x ∈ B             λH. H
 ///   T.inline     a ∈ A ⟹ a ∈ A             box50 % a % A     an unnamed box is inlined
 ///   IFOL.refl    axiom OFCLASS('a, term) ⟹ ⋀a. a = a
-///   T.axiom      b = b                     refl[i] %% class %% b    the discharge is absorbed
-///   box 80       OFCLASS('a, term) ⟹ x = x   λH:class. refl['a] %% H % x
-///   box 95       OFCLASS(i, term)
-///   T.poly       c = c                     box80[i] %% box95 % c
+///   T.termI      axiom OFCLASS(i, term)
+///   T.arity      OFCLASS(i, term)          T.termI           as arity_term_i
+///   box 95       OFCLASS(i, term)          T.arity           as box 1792: how a proof discharges at i
+///   T.axiom      b = b                     refl[i] %% box95 % b
+///   box 80       OFCLASS('a, term) ⟹ x = x   λH. refl['a] %% H % x
+///   T.poly       c = c                     box80[i] % c %% box95     terms first: the ∀-closure is outermost
 ///   T.polyNamed  OFCLASS('a, term) ⟹ y = y   as box 80, read as stated; cited by T.usesPoly at i
-///   T.arity      OFCLASS(i, term)
 ///   T.defax      axiom with a typed free: A ∈ A;   T.useDef  a ∈ a   T.defax % a
 ///   T.vacAx      axiom (⋀h::'a. Q) ⟹ Q;          T.hidden  Q ⟹ Q   λH. vacAx[dummy] % Q %% (⋀h::dummy. H)
-///   T.nop, T.oracle, T.wrong, T.freeHyp, T.classHypUsed, T.unbound, T.notAll, T.undeclared, T.header
+///   T.sortAlgebra  OFCLASS(i, term) by ZClassp — 0 in the export, refused
+///   T.nop, T.oracle, T.wrong, T.freeHyp, T.unbound, T.notAll, T.undeclared, T.header
 private func miniReader() throws -> Reader {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent("isa2fol-proofs-\(UUID())").path
     defer { try? FileManager.default.removeItem(atPath: root) }
@@ -44,7 +46,8 @@ private func miniReader() throws -> Reader {
                                                 prop: imp(termClass(typeA), all("a", typeA, eq(typeA, bound(0))))))
     try write("ZF.T/theory/axioms", axiomEntity("T.defax", frees: [("A", i)],
                                                 prop: mem(tagged(1, ["A"], [i]), tagged(1, ["A"], [i])))
-              + axiomEntity("T.vacAx", tfrees: ["'a"], frees: [("Q", o)], prop: imp(all("h", typeA, Q), Q)))
+              + axiomEntity("T.vacAx", tfrees: ["'a"], frees: [("Q", o)], prop: imp(all("h", typeA, Q), Q))
+              + axiomEntity("T.termI", prop: termClass(i)))
     let files: [(String?, Int, String)] = [
         ("T.imp", 10, proofFile(frees: [("P", o)], prop: imp(P, P), proof: pabsp("H", P, pbound(0)))),
         ("T.fix", 20, proofFile(frees: [("A", i)], prop: all("x", i, imp(mem(bound(0), free("A")), mem(bound(0), free("A")))),
@@ -57,17 +60,17 @@ private func miniReader() throws -> Reader {
         ("T.inline", 60, proofFile(frees: [("a", i), ("A", i)], prop: imp(mem(free("a"), free("A")), mem(free("a"), free("A"))),
                                    proof: pappt(pappt(pcite(50, "ZF.T"), free("a")), free("A")))),
         ("T.axiom", 70, proofFile(frees: [("b", i)], prop: eq(i, free("b")),
-                                  proof: pappt(pappp(paxiom("IFOL.refl", i), pofclass(i, "IFOL.term")), free("b")))),
+                                  proof: pappt(pappp(paxiom("IFOL.refl", i), pcite(95, "ZF.T")), free("b")))),
         (nil, 80, proofFile(tfrees: ["'a"], frees: [("x", typeA)], prop: imp(termClass(typeA), eq(typeA, free("x"))),
                             proof: pabsp("H", termClass(typeA), pappt(pappp(paxiom("IFOL.refl", typeA), pbound(0)), free("x"))))),
-        (nil, 95, proofFile(frees: [], prop: termClass(i), proof: pofclass(i, "IFOL.term"))),
+        (nil, 95, proofFile(frees: [], prop: termClass(i), proof: pcite(120, "ZF.T", "T.arity"))),
         ("T.poly", 90, proofFile(frees: [("c", i)], prop: eq(i, free("c")),
-                                 proof: pappt(pappp(pcite(80, "ZF.T", "", i), pcite(95, "ZF.T")), free("c")))),
+                                 proof: pappp(pappt(pcite(80, "ZF.T", "", i), free("c")), pcite(95, "ZF.T")))),
         ("T.polyNamed", 100, proofFile(tfrees: ["'a"], frees: [("y", typeA)], prop: imp(termClass(typeA), eq(typeA, free("y"))),
                                        proof: pabsp("H", termClass(typeA), pappt(pappp(paxiom("IFOL.refl", typeA), pbound(0)), free("y"))))),
         ("T.usesPoly", 110, proofFile(frees: [("d", i)], prop: eq(i, free("d")),
-                                      proof: pappt(pappp(pcite(100, "ZF.T", "T.polyNamed", i), pcite(95, "ZF.T")), free("d")))),
-        ("T.arity", 120, proofFile(frees: [], prop: termClass(i), proof: pofclass(i, "IFOL.term"))),
+                                      proof: pappp(pappt(pcite(100, "ZF.T", "T.polyNamed", i), free("d")), pcite(95, "ZF.T")))),
+        ("T.arity", 120, proofFile(frees: [], prop: termClass(i), proof: paxiom("T.termI"))),
         ("T.useDef", 125, proofFile(frees: [("a", i)], prop: mem(free("a"), free("a")), proof: pappt(paxiom("T.defax"), free("a")))),
         ("T.hidden", 127, proofFile(frees: [("Q", o)], prop: imp(Q, Q), proof: pabsp("H", Q,
             pappp(pappt(paxiom("T.vacAx", dummy), free("Q")), pabst("h", dummy, pbound(0)))))),
@@ -75,7 +78,7 @@ private func miniReader() throws -> Reader {
         ("T.oracle", 140, proofFile(frees: [], prop: falsum, proof: poracle("skip_proof"))),
         ("T.wrong", 150, proofFile(frees: [("Q", o), ("P", o)], prop: imp(Q, P), proof: pabsp("H", Q, pbound(0)))),
         ("T.freeHyp", 160, proofFile(frees: [], prop: falsum, proof: phyp(falsum))),
-        ("T.classHypUsed", 170, proofFile(frees: [], prop: imp(termClass(i), falsum), proof: pabsp("H", termClass(i), pbound(0)))),
+        ("T.sortAlgebra", 170, proofFile(frees: [], prop: termClass(i), proof: pofclass(i, "IFOL.term"))),
         ("T.unbound", 180, proofFile(frees: [("P", o)], prop: imp(P, P), proof: pabsp("H", P, pbound(3)))),
         ("T.notAll", 190, proofFile(frees: [("P", o)], prop: imp(P, P), proof: pappt(pabsp("H", P, pbound(0)), free("P")))),
         ("T.undeclared", 200, proofFile(frees: [("P", o)], prop: imp(P, P),
@@ -176,10 +179,11 @@ private func failure(_ r: inout Reader, _ name: String) throws -> ReadFailure? {
     #expect(r.cited.isEmpty)
 }
 
-@Test func anAxiomCitationAbsorbsItsClassDischarge() throws {
+/// `refl`'s class premise is discharged by an ordinary ⟹-elim, with box 95's inlined proof.
+@Test func aClassDischargeIsAnOrdinaryPremise() throws {
     var r = try miniReader()
     guard let (_, proof) = try proved(&r, "T.axiom") else { return }
-    #expect(uses(proof, r.table) == ["IFOL.refl"])
+    #expect(citations(proof, r.table) == [Citation(name: "IFOL.refl", types: [.i]), Citation(name: "T.arity", types: [])])
 }
 
 @Test func anAxiomsFreesCloseLikeATheoremsAndItsTypedVariablesAgree() throws {
@@ -192,7 +196,7 @@ private func failure(_ r: inout Reader, _ name: String) throws -> ReadFailure? {
 @Test func aPolymorphicBoxIsInlinedAtTheInstanceItIsCitedAt() throws {
     var r = try miniReader()
     guard let (_, proof) = try proved(&r, "T.poly") else { return }
-    #expect(citations(proof, r.table) == [Citation(name: "IFOL.refl", types: [.i])])
+    #expect(citations(proof, r.table) == [Citation(name: "IFOL.refl", types: [.i]), Citation(name: "T.arity", types: [])])
 }
 
 @Test func aPolymorphicNamedTheoremIsReadAsStated() throws {
@@ -201,7 +205,9 @@ private func failure(_ r: inout Reader, _ name: String) throws -> ReadFailure? {
     var t = r.table
     let a = IRType.variable("'a")
     let y = try t.intern(.isaBound(0, a))
-    #expect(statement == (try t.intern(.ifolAll(a, body: try t.intern(.isaConst("IFOL.eq", .fn(a, .fn(a, .o)), args: [y, y]))))))
+    let member = try t.intern(.isaOfClass(a, "IFOL.term"))
+    let eq = try t.intern(.isaConst("IFOL.eq", .fn(a, .fn(a, .o)), args: [y, y]))
+    #expect(statement == (try t.intern(.ifolAll(a, body: try t.intern(.folImplies(member, eq))))))
 }
 
 /// Isabelle's citation carries one type per type variable of what it cites (`ZConstp`); so does `use`.
@@ -209,7 +215,7 @@ private func failure(_ r: inout Reader, _ name: String) throws -> ReadFailure? {
     var r = try miniReader()
     guard let (_, generic) = try proved(&r, "T.polyNamed"), let (_, ground) = try proved(&r, "T.usesPoly") else { return }
     #expect(citations(generic, r.table) == [Citation(name: "IFOL.refl", types: [.variable("'a")])])
-    #expect(citations(ground, r.table) == [Citation(name: "T.polyNamed", types: [.i])])
+    #expect(citations(ground, r.table) == [Citation(name: "T.polyNamed", types: [.i]), Citation(name: "T.arity", types: [])])
 }
 
 /// A ground theorem whose proof uses a type only inside: Isabelle writes it `dummy`.
@@ -226,7 +232,7 @@ private func failure(_ r: inout Reader, _ name: String) throws -> ReadFailure? {
     for theorem in r.population {
         if case let .proved(statement, proof)? = try? r.read(theorem) { roots += [statement, proof] }
     }
-    #expect(roots.count == 22)
+    #expect(roots.count == 24)
     var seen: Set<NodeID> = [], work = roots
     while let n = work.popLast() {
         guard seen.insert(n).inserted else { continue }
@@ -235,9 +241,12 @@ private func failure(_ r: inout Reader, _ name: String) throws -> ReadFailure? {
     }
 }
 
-@Test func aClassFactIsBookkeeping() throws {
+@Test func aClassFactIsProved() throws {
     var r = try miniReader()
-    #expect(try r.read(try theorem(r, "T.arity")) == .classFact)
+    guard let (statement, proof) = try proved(&r, "T.arity") else { return }
+    var t = r.table
+    #expect(statement == (try t.intern(.isaOfClass(.i, "IFOL.term"))))
+    #expect(citations(proof, r.table) == [Citation(name: "T.termI", types: [])])
 }
 
 @Test func anOmittedProofAndAnOracleAreRefused() throws {
@@ -246,9 +255,9 @@ private func failure(_ r: inout Reader, _ name: String) throws -> ReadFailure? {
     #expect(try r.read(try theorem(r, "T.oracle")) == .refused(.oracle("skip_proof")))
 }
 
-@Test func aClassHypothesisUsedAsAProofIsRefused() throws {
+@Test func aClassProvedByTheSortAlgebraIsRefused() throws {
     var r = try miniReader()
-    #expect(try r.read(try theorem(r, "T.classHypUsed")) == .refused(.ofclass("IFOL.term")))
+    #expect(try r.read(try theorem(r, "T.sortAlgebra")) == .refused(.ofclass("IFOL.term")))
 }
 
 @Test func aProofConcludingSomethingElseIsMalformed() throws {
