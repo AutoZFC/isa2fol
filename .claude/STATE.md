@@ -9,10 +9,10 @@
 | command (from the repo root) | expect |
 |---|---|
 | `swift --version \| head -1` | `Swift version 6.4 (swift-6.4-RELEASE)` |
-| `MEM=16G scripts/capped.sh swift test 2>&1 \| grep -cE '^✔ Test [a-zA-Z]+\(\) passed'` | **`183`** |
+| `MEM=16G scripts/capped.sh swift test 2>&1 \| grep -cE '^✔ Test [a-zA-Z]+\(\) passed'` | **`185`** |
 | `ls Sources` · `ls docs` | `FolDialect IR Reader isa2fol YXML` · `CLOSURE.md FOUNDATION.md phase2_probes SOURCE_SURFACE.md` |
-| `find Sources Tests -name '*.swift' \| wc -l` | `41` (5131 lines) |
-| comment density of `Sources` (CLAUDE.md rule 9's script) | `4/2449 = 0.16%` |
+| `find Sources Tests -name '*.swift' \| wc -l` | `41` (5176 lines) |
+| comment density of `Sources` (CLAUDE.md rule 9's script) | `9/2462 = 0.37%` |
 | `grep -rnE '^\s*default:' Sources` (a switch default — rule 11) | nothing |
 | `.build/release/isa2fol surface data/zf_export \| grep '^| \*\*all'` | `\| **all** \| **9420** \|` |
 | `readlink ~/repos/fol-zfc-comb/bazel-bin \| sed 's\|.*bazel-out/\|\|'` | `k8-opt/bin` — and `proof_checker` is executable there |
@@ -63,7 +63,10 @@ deleted work — §6. fol-zfc-comb sits on its own `comb-verifier` with an uncom
 - **⚠ AN ID IS NEVER AN ORDER OR A NAME; NEVER ITERATE A `Dictionary`/`Set` TOWARD OUTPUT** —
   Swift seeds `Hasher` per process (`DESIGN.md` §4.6).
 - **⚠ `t.type(of: try t.intern(…))` READS THE TABLE BEFORE THE INTERN** — receiver evaluated
-  first. Intern into a `let`, then query. Crashes, never lies.
+  first. Intern into a `let`, then query. Crashes, never lies. `t[try t.intern(…)]` too.
+- **⚠ REORDERING `Node`'s CASES LEAVES DEPENDENT MODULES ON THE OLD LAYOUT** in an incremental
+  build — `unknownNode(%0)` for a leaf, or a segfault, that looks like a code bug. Rebuild clean:
+  `rm -rf .build/out/Products .build/out/Intermediates.noindex`.
 - **⚠ BUILDING fol-zfc-comb IN DEFAULT CONFIG REPOINTS `bazel-bin` TO `k8-fastbuild`** and the
   real-checker tests lose the checker. Restore: `ln -sfn <execroot>/bazel-out/k8-opt/bin bazel-bin`.
 - **⚠ fol-zfc-comb's `//src/library` DOES NOT BUILD AS CONFIGURED** (GCC 11 `-O3`
@@ -83,7 +86,7 @@ deleted work — §6. fol-zfc-comb sits on its own `comb-verifier` with an uncom
 
 | claim | verified by |
 |---|---|
-| The framework is built: table, one traversal, index engine, passes, `legalize`, 23 proof step kinds (`use`, `hyp`, 19 fol, 2 isa — `Node.swift`), two binder namespaces, `Rule.before/after` | `Tests/IRTests` |
+| The framework is built: table, one traversal, index engine, passes, `Node.dialects` (isa only, fol-zfc only, both) and `legalize` from it, 23 proof step kinds (`use`, `hyp`, 19 fol, 2 isa — `Node.swift`), two binder namespaces, `Rule.before/after` | `Tests/IRTests` |
 | `render` emits formulas and proofs the REAL checker accepts and PROVES — every rule family | `theRealCheckerProvesWhatEmissionWrites`, `theRealCheckerAcceptsWhatRenderEmits` |
 | D2's five laws hold over 300 seeded formulas each | `IndexTests` |
 | The tests have teeth: 5 hand mutations (`instantiate`'s k−1, `isaAbs` binder, ∃-intro index, a hypothesis binder, a fixed-variable level) are each caught | re-run by hand after touching `Index.swift`/`Node.swift`/`Render.swift` |
@@ -127,7 +130,8 @@ deleted work — §6. fol-zfc-comb sits on its own `comb-verifier` with an uncom
    once per use (§4.7), and one box is 312 M tree nodes. Emission must name shared subproofs by
    content — a function of content, never a serial (§4.6 R2). Decide before emission.
 6. **`isaFree` and `abstract` have no producer.** The reader closes frees by reading (§2); the
-   node kind and the index operation survive only in IR tests. Delete, or keep for a pass?
+   node kind and the index operation survive only in IR tests — `Node.dialects` puts `isaFree` in
+   no dialect. Delete, or keep for a pass?
 7. **Generic theorems in a one-sorted target — translation's, undecided (user, 2026-09-25).** The
    table holds each theorem as stated and each citation with its types (`DESIGN.md` §4.3a 3). Open:
    which ground copies, and at which types for a theorem nothing cites; how a copy is made — a

@@ -101,6 +101,20 @@ private func memOf(_ a: NodeID, _ b: NodeID, _ t: inout Table) throws -> NodeID 
     #expect(unit.statements[1].root == (try unit.table.intern(.folNot(try memOf(c, c, &unit.table)))))
 }
 
+/// A covered construct is ONE node in both dialects: the reader reads `⟹` as the fol-zfc implication.
+/// `isaFree` is in neither: nothing produces it.
+@Test func eachKindBelongsToTheIsaDialectTheFolDialectOrBoth() throws {
+    var t = Table()
+    let b0 = try t.intern(.folBound(0)), bottom = try t.intern(.folBottom)
+    let a = try t.intern(.isaFree("a", i))
+    let implies = try t.intern(.folImplies(bottom, bottom)), set = try t.intern(.folPred("set", args: [b0]))
+    let mem = try memOf(a, a, &t)
+    #expect(t[implies].dialects == [.isa, .fol])
+    #expect(t[set].dialects == [.fol])
+    #expect(t[mem].dialects == [.isa])
+    #expect(t[a].dialects == [])
+}
+
 @Test func legalizeAcceptsATargetOnlyRoot() throws {
     var t = Table()
     let b0 = try t.intern(.folBound(0))

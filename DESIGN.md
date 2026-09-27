@@ -384,7 +384,8 @@ What translation makes of a generic theorem — FOL-ZFC is one-sorted — is tra
 **4. The surface is ONE TO ONE with the isa dialect, after coverage.** A construct is COVERED when
 FOL has it natively; it then reads as FOL's, the SAME node — `↔` and `¬`, which IFOL defines, are
 covered, so their definitions become equivalences lowering proves. Pinned by
-`aCoveredConstructReadsAsItsCover`; the reader emits no node kind outside this table.
+`aCoveredConstructReadsAsItsCover`; the reader emits no node kind outside this table
+(`theReaderEmitsOnlyTheIsaDialect`: every node it emits has `.isa` in `Node.dialects`).
 
 | surface primitive | the Isabelle constructs it covers | isa dialect |
 |---|---|---|
@@ -547,7 +548,7 @@ public protocol Pass { var name: String { get }
 | **structure** — `mapChildren(node, f(child, underBinder))` | children, and which sit under a binder | children (`f` records), rebuild (`f` returns new), binder body, `looseBound` = max over children of `looseBound(child) − (underBinder ? 1 : 0)` |
 | **bound variable** | is this a bound variable, at which index | the `k + 1` leaf of `looseBound`; the index engine's leaves |
 | **type** | the node's type, and whether its children are well-typed | `intern`'s validation |
-| **legalize** | source or target | the seal |
+| **dialects** — `Node.dialects` | isa only, fol-zfc only, or both (a construct FOL covers, §4.3a 4); `isaFree` neither — nothing produces it | `legalize` — the seal; the reader's output is the isa dialect, pinned by `theReaderEmitsOnlyTheIsaDialect` |
 
 ⚠ **WHICH KINDS BIND EXISTS IN EXACTLY ONE PLACE — THE STRUCTURE SWITCH.** The traversal,
 the index engine and `looseBound` all derive from it, so they cannot disagree. Separate
@@ -560,7 +561,8 @@ text, so it cannot be derived; its source-kind cases throw. Adding a kind that c
 the text costs five switches.
 
 ⚠ **`legalize` STAYS THE SEAL.** A rule is partial, so a new kind breaks no pass; the
-legalize switch is where a kind nothing lowers is caught.
+dialects switch is where a kind nothing lowers is caught — `legalize` refuses what fol-zfc lacks.
+`Node` declares its kinds in the same groups, commented: the first two are the reader's output.
 
 ### 4.6 Determinism
 

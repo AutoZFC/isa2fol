@@ -219,6 +219,22 @@ private func failure(_ r: inout Reader, _ name: String) throws -> ReadFailure? {
     #expect(citations(proof, r.table) == [Citation(name: "T.vacAx", types: [.variable("dummy")])])
 }
 
+/// The reader's output is the isa dialect (DESIGN §4.3a 4): no kind only fol-zfc has.
+@Test func theReaderEmitsOnlyTheIsaDialect() throws {
+    var r = try miniReader()
+    var roots: [NodeID] = []
+    for theorem in r.population {
+        if case let .proved(statement, proof)? = try? r.read(theorem) { roots += [statement, proof] }
+    }
+    #expect(roots.count == 22)
+    var seen: Set<NodeID> = [], work = roots
+    while let n = work.popLast() {
+        guard seen.insert(n).inserted else { continue }
+        #expect(r.table[n].dialects.contains(.isa), "\(r.table[n])")
+        r.table[n].forEachChild { c, _ in work.append(c) }
+    }
+}
+
 @Test func aClassFactIsBookkeeping() throws {
     var r = try miniReader()
     #expect(try r.read(try theorem(r, "T.arity")) == .classFact)

@@ -140,7 +140,7 @@ is gone. §5 says so. Treat every number there as a belief, never a premise.
    print(f'{c}/{t} = {100*c/t:.1f}%')"
    ```
 
-   ✓ **CURRENTLY 4/2449 = 0.16%, under the cap.** Keep it there: a breach is
+   ✓ **CURRENTLY 9/2462 = 0.37%, under the cap.** Keep it there: a breach is
    fixed by deleting prose, never by raising the cap.
 
    Does not apply to `base/**/*.fol.def` headers: those record provenance of
@@ -201,8 +201,11 @@ passes and the emitter (IR → FolDialect) are unbuilt.
 interned, immutable, de Bruijn; proof steps live in scope regions and point into
 it. That is `DESIGN.md` §4; the framework — formulas AND proof steps — is built in
 `Sources/IR`, rendering and proof emission in `Sources/FolDialect`. No pass, no reader.
-`legalize` — one exhaustive switch over node kinds — stays the only place naming
-both vocabularies; a rewrite is partial, so that switch is what rule 11 rests on.
+`Node.dialects` — one exhaustive switch — is the only place naming both vocabularies:
+each kind is isa only, fol-zfc only, or both (a construct FOL covers) — `isaFree` neither, nothing
+produces it — and `Node` declares its kinds in those groups, commented: the first two are exactly
+the reader's output. `legalize` derives from it; a rewrite is partial, so that switch is
+what rule 11 rests on.
 
 ⚠ **THE TREE IR IS GONE.** `IsaDialect`'s `Sort`/`Term`/`Prop`/`Proof`/
 `Statement<Stage>` were deleted 2026-09-23: the graph represents the same
