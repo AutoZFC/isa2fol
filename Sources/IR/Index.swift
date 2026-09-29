@@ -38,7 +38,7 @@ private func termVariable(_ id: NodeID, _ t: Table) -> (index: Int, reindexed: (
 
 private struct Shift: Rule {
     let delta: Int
-    func before(_ id: NodeID, depth: Depth, in t: inout Table) throws -> NodeID? {
+    func before(_ id: NodeID, context depth: Depth, in t: inout Table) throws -> NodeID? {
         if t.looseBound(of: id) <= depth.terms { return id }
         guard let v = termVariable(id, t) else { return nil }
         return try t.intern(v.reindexed(v.index + delta))
@@ -48,7 +48,7 @@ private struct Shift: Rule {
 private struct Instantiate: Rule {
     let replacement: NodeID
     let type: IRType
-    func before(_ id: NodeID, depth: Depth, in t: inout Table) throws -> NodeID? {
+    func before(_ id: NodeID, context depth: Depth, in t: inout Table) throws -> NodeID? {
         if t.looseBound(of: id) <= depth.terms { return id }
         guard let v = termVariable(id, t) else { return nil }
         if v.index > depth.terms { return try t.intern(v.reindexed(v.index - 1)) }
@@ -57,7 +57,7 @@ private struct Instantiate: Rule {
         return try shift(replacement, by: depth.terms, in: &t)
     }
 
-    func after(_ n: Node, depth: Depth, in t: inout Table) throws -> NodeID? {
+    func after(_ n: Node, context depth: Depth, in t: inout Table) throws -> NodeID? {
         guard case let .isaVarApp(head, args) = n, case .isaAbs = t[head] else { return nil }
         var reduced = head
         for a in args {
@@ -71,7 +71,7 @@ private struct Instantiate: Rule {
 private struct Abstract: Rule {
     let position: [NodeID: Int]
     let count: Int
-    func before(_ id: NodeID, depth: Depth, in t: inout Table) throws -> NodeID? {
+    func before(_ id: NodeID, context depth: Depth, in t: inout Table) throws -> NodeID? {
         if let p = position[id], let T = t.type(of: id) {
             return try t.intern(.isaBound(depth.terms + count - 1 - p, T))
         }
@@ -82,7 +82,7 @@ private struct Abstract: Rule {
 
 private struct AbstractIndex: Rule {
     let k: Int
-    func before(_ id: NodeID, depth: Depth, in t: inout Table) throws -> NodeID? {
+    func before(_ id: NodeID, context depth: Depth, in t: inout Table) throws -> NodeID? {
         if t.looseBound(of: id) <= depth.terms { return id }
         guard let v = termVariable(id, t) else { return nil }
         if v.index == k + depth.terms { return try t.intern(v.reindexed(depth.terms)) }
@@ -91,7 +91,7 @@ private struct AbstractIndex: Rule {
 }
 
 private struct Unshift: Rule {
-    func before(_ id: NodeID, depth: Depth, in t: inout Table) throws -> NodeID? {
+    func before(_ id: NodeID, context depth: Depth, in t: inout Table) throws -> NodeID? {
         if t.looseBound(of: id) <= depth.terms { return id }
         guard let v = termVariable(id, t) else { return nil }
         if v.index == depth.terms { throw IRRefusal.indexOccurs(id) }

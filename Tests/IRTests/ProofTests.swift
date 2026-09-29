@@ -170,7 +170,7 @@ private struct P {
 /// invalid, so `after` must rewrite it before `intern` sees it. Its conclusion is unchanged.
 private struct LowerCitationThenElimination: Rule {
     let isaRoot: NodeID, folRoot: NodeID
-    func after(_ n: Node, depth: Depth, in t: inout Table) throws -> NodeID? {
+    func after(_ n: Node, context depth: Depth, in t: inout Table) throws -> NodeID? {
         if case let .use(name, types, root) = n, root == isaRoot { return try t.intern(.use(name, types, folRoot)) }
         guard case let .isaAllElim(p, x) = n, case let .folForall(body)? = t.conclusion(of: p).map({ t[$0] }),
               case let .folImplies(guardFormula, _) = t[body] else { return nil }

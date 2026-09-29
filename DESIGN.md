@@ -135,7 +135,7 @@ cap) is revisited only for a corpus larger than ZF.
 | | decided |
 |---|---|
 | **types** | The reader decodes `ztyp` into ITS OWN type, which has `'a` and `prop`. A `ZConst` carries only its type ARGUMENTS (`ZConst1 (a, b) => ([a], list ztyp [b])`, `zterm.ML`'s encoder), so `isaConst`'s instantiated type is the declared scheme from `theory/consts` (`IFOL.eq :: ['a, 'a] ⇒ o`) with those arguments substituted. A file is read AT AN INSTANCE of its `tfrees` header: a named theorem at its own variables — AS STATED, `'a` is `IRType.variable` — an unnamed box at the types its citation gives (§4.3a 3). A type variable the header does not declare is malformed; so is a sorted one — `unconstrainT` made every sort an `OFCLASS` premise. `IRType` has no `prop`: **`prop` converts to `o` in EVERY type** — the coercion is the identity (§4.3). ⚠ Refusing `prop` anywhere split one construct in two — 6 vs 194 theorems for variables, then 192 for constants. `dummy` — `standard_hidden_types` writing every type variable only a proof uses — is ONE type variable, `IRType.variable("dummy")`: the export no longer tells them apart. ⚠ Reading it as `i` chose a type in the reader, which is translation's (§4.3a 3) |
-| **frees** | **Read CLOSED.** A statement is `∀x⃗. φ` over the `frees` header — Isabelle's closure (`forall_intr_variables_term`, and `prop_of_atom` for a cited axiom or theorem, `proofterm.ML`), the first free outermost — and its proof is `⋀`-intro over the same `x⃗`. A free `ZVar` reads as the bound variable of its closure binder: the frees are the outermost binders of the file's `Scope`. So a cited statement is the SAME node as the citer's `use`, and the citation's `ZAppt`s instantiate it — checked by ID across every proof. ⚠ Closing in a later pass was the plan; it walks the proof DAG with `transform`, which has no memo (§4.5), and an inlined box is shared exponentially |
+| **frees** | **Read CLOSED.** A statement is `∀x⃗. φ` over the `frees` header — Isabelle's closure (`forall_intr_variables_term`, and `prop_of_atom` for a cited axiom or theorem, `proofterm.ML`), the first free outermost — and its proof is `⋀`-intro over the same `x⃗`. A free `ZVar` reads as the bound variable of its closure binder: the frees are the outermost binders of the file's `Scope`. So a cited statement is the SAME node as the citer's `use`, and the citation's `ZAppt`s instantiate it — checked by ID across every proof. ⚠ Closing in a later pass was the plan; it rewrites the whole proof DAG once per binder depth, where reading closed costs nothing |
 | **outcomes** | The READER owns them, never IR: `proved(statement, proof)` · `refused(reason)`. ONLY the reader's own refusal enum is caught and recorded; a `TableError`, `MalformedExport` or `YXMLError` is a bug or a corrupt file and stops the run, located at the innermost file — catching it would count our bugs as refusals |
 
 ### What the reader rejects
@@ -528,7 +528,7 @@ so each tests the arithmetic AND deterministic building:
   transform   THE traversal: descend, count binders, apply a Rule, rebuild through the table
      ├── index engine   shift · instantiate · abstract — Rules on variable leaves  §4.4
      └── passes         Rules on the kinds a pass lowers
-  Unit        the table + statements [(name, root)] in source order
+  Unit        the table + statements [(name, root, proof)] in source order
   legalize    no source kind reachable from a lowered root
 ```
 
@@ -543,32 +543,53 @@ leaves, a pass is a rule that fires on the kinds it lowers.
 
 ```swift
 public protocol Rule {   // nil = no match: rebuild the node from its rewritten children
-    func apply(_ id: NodeID, depth: Int, in t: inout Table) throws -> NodeID?
+    associatedtype Context: Hashable = Depth
+    var start: Context { get }
+    func enter(_ c: Context, _ binder: Node, _ binds: Binds) -> Context
+    func narrow(_ c: Context, _ id: NodeID, in t: Table) -> Context          // default: c
+    func before(_ id: NodeID, context: Context, in t: inout Table) throws -> NodeID?
+    func after(_ n: Node, context: Context, in t: inout Table) throws -> NodeID?
 }
-public func transform(_ root: NodeID, _ rule: Rule, in t: inout Table) throws -> NodeID
+public func transform<R: Rule>(_ roots: [NodeID], _ rule: R, in t: inout Table) throws -> [NodeID]
 public protocol Pass { var name: String { get }
-                       func run(_ root: NodeID, in t: inout Table) throws -> NodeID }
+                       func run(_ roots: [NodeID], in t: inout Table) throws -> [NodeID] }
 ```
 
 - **A pass never writes its own recursion.** It supplies a rule for the kinds it handles;
   every other kind is rebuilt from its rewritten children.
 - **A fixpoint is a pass that returns the same root ID.** No round cap: a pass that does
   not approach its fixpoint is a bug in its rules.
-- **A pass may take arguments beyond the node** — binder depth from the traversal, and
+- **The traversal hands a rule its CONTEXT — what the binders above a node made of it.**
+  A variable is a position, not a pointer, and a shared node has no parent, so the path
+  exists only in the walk. `visit` calls `enter(c, binder, binds)` once per bound child —
+  the child `mapChildren` marks, never `A` in `folImpliesIntro(A, body)` — on the way
+  down; the context is a value passed down, so nothing pops it. The rule chooses the
+  type and what an entry records; the framework records nothing. `Depth` is the default:
+  `enter` adds the counts. Coq's kernel does the same with `push_rel`.
+- **A pass may take arguments beyond the node** — its context from the traversal, and
   whole-statement parameters it computes from the root before transforming (the ordered
   frees that closing needs: one interned free-variable node becomes `bvar 0` at one
   site and `bvar 1` under an inner binder).
-- **A pipeline** runs its passes in order over every statement root. `legalize` is a
+- **A pipeline** runs its passes in order, each over every statement's root AND its proof
+  in ONE walk — one cache for the unit — and after each pass every proof must still
+  conclude its root, BY ID — else
+  `PipelineError.unproved` names the statement and the pass. `legalize` is a
   separate call, made where lowering is meant to be complete — a pipeline may end at a
   mixed stage.
 - **A rule sees a node BEFORE its children, and a non-nil result replaces that subtree
   without descending into it.** Returning the node itself means "unchanged, do not
   descend" — how the index engine prunes a closed subtree (§4.4).
-- **No cache.** A shared node reached twice is rewritten twice, and interning makes the
-  result identical — time, never correctness. It goes exponential only on nested
-  sharing; the export is a tree, so a statement's paths are bounded by its export size
-  unless a pass DUPLICATES subformulas. Add a memo when a measurement asks — keyed on
-  every argument of the function, or it is silently wrong.
+- **One cache per walk, keyed on `(node, narrowed context)`.** `narrow` is the rule's: the
+  part of the context its rewrite of THIS node depends on — for a de Bruijn context, the
+  binders from the nearest back to the farthest the node reaches (`looseBound`,
+  `looseHyps`), so a closed node narrows to nothing and is rewritten once wherever it is
+  shared. The node then sees ONLY the narrowed context — `before`, `after`, `enter` — so a
+  rule cannot depend on what its key dropped. Measured over the 9,420 named proofs with a
+  guard-shaped context (a throwaway probe, not kept): no cache, 2.4 × 10¹⁵ visits; keyed
+  on the FULL context, one proof alone exceeds 150 M; narrowed, 93.6 M with a cache per
+  statement and **4.1 M** with one per unit, against 2.6 M distinct nodes.
+  ⚠ **A RULE MUST BE A FUNCTION OF (node, context, table)** — one with state sees each key
+  once.
 - **One unit per run**; imports arrive as text or a compiled library, as `proof_checker`
   loads them. So one table per process, and an out-of-range ID is the only foreign ID.
 
@@ -690,7 +711,7 @@ What the framework gained (BUILT — `Sources/IR`, emission in `Sources/FolDiale
 
 | | |
 |---|---|
-| `Rule.after(node, depth)` | the node with its REWRITTEN children, before `intern` — a step can only be rewritten once its premises have been, and `intern` would reject `isaAllElim(p′, a)`. `before` stays for pruning |
+| `Rule.after(node, context)` | the node with its REWRITTEN children, before `intern` — a step can only be rewritten once its premises have been, and `intern` would reject `isaAllElim(p′, a)`. `before` stays for pruning |
 | conclusion at `intern` | the type switch computes it; a step whose principal connective is wrong cannot exist |
 | D1 for steps | a hypothesis reference carries its formula, as `isaBound` carries its type; a citation carries its statement's root, imported into the table |
 | two binder namespaces | term binders (`∀`, `λ`, ⋀-intro) and hypothesis binders (⟹-intro) number separately: the structure switch says which, `looseBound` is per namespace, and discharging a hypothesis is a proof-level `instantiate`. Isabelle counts the same way (§4.8) |
@@ -740,7 +761,7 @@ becomes `assume A`; `hyp(k, …)` renders as that `assume` step's name.
 - a `hyp(k, A)` carries the formula its binder introduced (for `folExistsElim`, the ∃'s
   body) — contextual, like `isaBound`'s type;
 - `isaAllIntro(T, …)`'s body uses its bound variable at type `T`;
-- emission unfolds a shared subproof once per use — no memo, as for rewrites (§4.5).
+- emission unfolds a shared subproof once per use — no memo; rewrites have one (§4.5).
 
 **It links like a compiled language.** A claim is a signature, a proof a body, `use` a
 call, an `UNPROVED` stub an `extern` — and **the R3 guard is the calling convention**:
