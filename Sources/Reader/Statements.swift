@@ -82,7 +82,7 @@ extension Terms {
     }
 }
 
-func claimName(_ entity: String) throws -> String {
+public func claimName(_ entity: String) throws -> String {
     var base = Substring(entity), index = ""
     if entity.hasSuffix(")"), let open = entity.lastIndex(of: "(") {
         let digits = entity[entity.index(after: open)..<entity.index(before: entity.endIndex)]

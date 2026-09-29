@@ -1,6 +1,6 @@
 public protocol Pass {
     var name: String { get }
-    func run(_ roots: [NodeID], in t: inout Table) throws -> [NodeID]
+    func run(_ roots: [NodeID], in t: inout Table) throws -> [Rewrite]
 }
 
 public struct RulePass: Pass {
@@ -12,12 +12,20 @@ public struct RulePass: Pass {
         self.rule = rule
     }
 
-    public func run(_ roots: [NodeID], in t: inout Table) throws -> [NodeID] {
-        var current = roots
+    public func run(_ roots: [NodeID], in t: inout Table) throws -> [Rewrite] {
+        var current = roots.map(Rewrite.rewritten)
         while true {
-            let next = try transform(current, rule, in: &t)
-            if next == current { return current }
-            current = next
+            let live = current.indices.compactMap { k -> (Int, NodeID)? in
+                guard case let .rewritten(id) = current[k] else { return nil }
+                return (k, id)
+            }
+            var changed = false
+            for ((k, id), next) in zip(live, try transform(live.map(\.1), rule, in: &t)) {
+                if case .rewritten(id) = next { continue }
+                current[k] = next
+                changed = true
+            }
+            if !changed { return current }
         }
     }
 }
@@ -38,13 +46,24 @@ public struct Statement: Sendable {
     }
 }
 
+public struct Refused: Sendable {
+    public let name: String
+    public let pass: String
+    public let refusal: any Refusal
+}
+
 public struct Unit: Sendable {
     public var table: Table
     public var statements: [Statement]
+    public private(set) var refused: [Refused] = []
 
     public init(table: Table, statements: [Statement]) {
         self.table = table
         self.statements = statements
+    }
+
+    mutating func refuse(_ s: Statement, _ pass: String, _ refusal: any Refusal) {
+        refused.append(Refused(name: s.name, pass: pass, refusal: refusal))
     }
 }
 
@@ -56,15 +75,20 @@ public struct Pipeline {
     public func run(_ unit: inout Unit) throws {
         for pass in passes {
             let lowered = try pass.run(unit.statements.flatMap { [$0.root, $0.proof] }, in: &unit.table)
-            for k in unit.statements.indices {
-                unit.statements[k].root = lowered[2 * k]
-                unit.statements[k].proof = lowered[2 * k + 1]
-                let s = unit.statements[k]
-                let concluded = unit.table.conclusion(of: s.proof)
-                guard concluded == s.root else {
-                    throw PipelineError.unproved(name: s.name, pass: pass.name, statement: s.root, conclusion: concluded)
+            var kept: [Statement] = []
+            for (k, s) in unit.statements.enumerated() {
+                switch (lowered[2 * k], lowered[2 * k + 1]) {
+                case let (.rewritten(root), .rewritten(proof)):
+                    let concluded = unit.table.conclusion(of: proof)
+                    guard concluded == root else {
+                        throw PipelineError.unproved(name: s.name, pass: pass.name, statement: root, conclusion: concluded)
+                    }
+                    kept.append(Statement(name: s.name, root: root, proof: proof))
+                case let (.refused(refusal), _), let (_, .refused(refusal)):
+                    unit.refuse(s, pass.name, refusal)
                 }
             }
+            unit.statements = kept
         }
     }
 }

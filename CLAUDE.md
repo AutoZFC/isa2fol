@@ -10,7 +10,9 @@ were hoisted out of it first and are live.
 the ZF sessions, statement AND proof, into the IR: ALL 9,420 are proved — the proof's
 conclusion is the statement's node, by ID — and 0 are refused (`DESIGN.md` §2). Nothing is
 absorbed: a type variable is `IRType.variable`, a class membership `isaOfClass`.
-Lowering and emission are not built. `DESIGN.md` is the plan.
+**Lowering has one pass, the guard (R3)**: `isa2fol lower data/zf_export` lowers 2,685 of the 9,420,
+each proof concluding its guarded statement BY ID, and refuses the 6,735 that instantiate at a
+compound term (`DESIGN.md` §4a). Emission is not built. `DESIGN.md` is the plan.
 
 ## Build
 
@@ -140,7 +142,7 @@ is gone. §5 says so. Treat every number there as a belief, never a premise.
    print(f'{c}/{t} = {100*c/t:.1f}%')"
    ```
 
-   ✓ **CURRENTLY 9/2425 = 0.4%, under the cap.** Keep it there: a breach is
+   ✓ **CURRENTLY 9/2618 = 0.3%, under the cap.** Keep it there: a breach is
    fixed by deleting prose, never by raising the cap.
 
    Does not apply to `base/**/*.fol.def` headers: those record provenance of
@@ -183,8 +185,9 @@ Sources/
   IR/            Node · Table · transform · index engine · passes · legalize
   FolDialect/    Declaration · render (formulas and proofs) — the text boundary over IR
   Reader/        the export → isa nodes: Export (loading) · IsaType · Constants · Terms (η-long, closed) · Statements · Proofs (decoder) · Reader (proofs) · Surface
+  Lowering/      passes over the table, never seen by the framework: Guard (R3)
   isa2fol/       CLI
-Tests/           YXMLTests · FolDialectTests · IRTests · ReaderTests
+Tests/           YXMLTests · FolDialectTests · IRTests · ReaderTests · LoweringTests
 base/            the NBG foundation: axioms.fol.def + 9 tiers, kernel-checked
 docs/            FOUNDATION.md · SOURCE_SURFACE.md · CLOSURE.md (both generated) · phase2_probes
 data/zf_export/  the Isabelle export — a LOCAL CACHE, never committed: scripts/03-export-zf.sh
@@ -194,8 +197,8 @@ data/zf_export/  the Isabelle export — a LOCAL CACHE, never committed: scripts
   YXML        IR        FolDialect
 ```
 
-The reader (YXML → IR) reads statements and proofs (`Sources/Reader`); the lowering
-passes and the emitter (IR → FolDialect) are unbuilt.
+The reader (YXML → IR) reads statements and proofs (`Sources/Reader`); `Sources/Lowering` holds
+pass 1 (guard); the other passes and the emitter (IR → FolDialect) are unbuilt.
 
 **There is ONE formula table per unit, holding isa and fol nodes together** —
 interned, immutable, de Bruijn; proof steps live in scope regions and point into

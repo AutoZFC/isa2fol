@@ -550,9 +550,10 @@ public protocol Rule {   // nil = no match: rebuild the node from its rewritten 
     func before(_ id: NodeID, context: Context, in t: inout Table) throws -> NodeID?
     func after(_ n: Node, context: Context, in t: inout Table) throws -> NodeID?
 }
-public func transform<R: Rule>(_ roots: [NodeID], _ rule: R, in t: inout Table) throws -> [NodeID]
+public func transform<R: Rule>(_ roots: [NodeID], _ rule: R, in t: inout Table) throws -> [Rewrite]
 public protocol Pass { var name: String { get }
-                       func run(_ roots: [NodeID], in t: inout Table) throws -> [NodeID] }
+                       func run(_ roots: [NodeID], in t: inout Table) throws -> [Rewrite] }
+public protocol Refusal: Error, Sendable {}          // Rewrite: .rewritten(NodeID) | .refused(any Refusal)
 ```
 
 - **A pass never writes its own recursion.** It supplies a rule for the kinds it handles;
@@ -777,7 +778,7 @@ terms inside proofs, 1,791,509 are closed, 928,929 have loose indices all covere
 the statement reader's `Scope` serves proofs unchanged: `ZAbst` is a source binder, `ZAbsp` is
 not a term binder at all.
 
-## 4a. Statement lowering  **[NOT BUILT]**
+## 4a. Lowering passes  **[PASS 1 BUILT]**
 
 **The statement is TRANSLATED, not passed through.** A declaration is not an
 interface the proof reads unchanged — lowering changes the proposition's shape,
@@ -787,16 +788,101 @@ and the proof must be built against the changed one.
 ⋀x. (mem(x,y) ⟹ mem(x,y))     →     ∀x. (set(x) → (mem(x,y) → mem(x,y)))
 ```
 
-Three passes, and the order is forced:
+**The passes, in order — only the first is planned.** ⚠ The list this replaces (`lower-pure`,
+`lower-ifol`, `guard-binders`) was written for the deleted tree IR: the reader already erases
+Pure's coercion and reads `⟹` as `folImplies`; `isaAtom` and `folVar` do not exist and nothing
+produces `isaFree`; and "a non-`i` sort refuses" contradicts S4 — a quantifier over `i ⇒ o` is an
+unguarded class quantifier.
 
-| pass | does |
+| # | pass | FOUNDATION | status |
+|---|---|---|---|
+| 1 | **guard** — the quantified variables of type `i` | R3, S6's enforceable form | BUILT, below |
+| — | `set(t)` for a compound `t`, inferred from each constant's closure lemma — which is its EX | S1, S2 | later ("we will see it later", user 2026-09-27) |
+| — | S1 graphs, S4/S5 classes, `OFCLASS`, the relabel to fol kinds | §2 | not planned |
+
+### Pass 1 — guard  **[BUILT 2026-09-28 — `Sources/Lowering/Guard.swift`]**
+
+**Quantified variables of type `i` only, isa → isa.** The pass inserts `set(·)` and lowers no
+kind to fol. `set` is `isaConst("set", i ⇒ o, [t])` — the isa dialect's form of a predicate, a
+constant whose result is `o`, so its argument may be any term of type `i`. ⚠ It is the first
+`isaConst` that is not an Isabelle constant: spelled plain `set`, as `base/` spells it, which no
+qualified Isabelle name can collide with. `folPred` stays variables-only — S1 as a type.
+
+| before | after |
 |---|---|
-| `lower-pure` | erase Pure's `o ⇒ prop` coercion; `⟹` → `→` |
-| `lower-ifol` | `isaFree` → `folVar`, `isaAtom` → `folPred` — a pure relabel, node types unchanged |
-| `guard-binders` | **R3**: `⋀x:i. φ` → `∀x. (set(x) → φ)`; a non-`i` sort refuses |
+| `ifolAll(i, φ)` | `ifolAll(i, folImplies(set(0), φ′))` |
+| `ifolEx(i, φ)` | `ifolEx(i, folAnd(set(0), φ′))` |
+| `isaAllIntro(i, body)` | `isaAllIntro(i, folImpliesIntro(set(0), body′))` — the guard is a hypothesis the fixed variable brings |
+| `isaAllElim(p, x)`, `x` a bound variable | `folImpliesElim(isaAllElim(p′, x), hyp(j, set(x)))` — discharged by `x`'s own guard |
+| `isaAllElim(p, t)`, `t` a constant or a variable applied | REFUSED by name until `set(t)` is inferred |
+| `hyp(k, A)` | `hyp(k + g, A′)` — `g` the guards inserted between it and its binder |
+| a quantifier, `⋀`-intro or `⋀`-elim at `o`, a function type or a type variable; `λ` at `i` | unchanged: a class quantifier is unguarded (S4), `⋀P::o` is classified out, a type variable is translation's, a `λ` binds no quantified variable |
 
-Under §4 each is a recursive rewrite building interned nodes; the guard is
-construction: `∀(set(bvar 0) → body′)`.
+The walk rewrites every `use`'s root too, so a cited statement and the theorem's own lowered
+statement are one node.
+
+**Its context is a stack of binder entries**, nearest last:
+
+```swift
+enum Entry: Hashable { case fix(guarded: Bool), assume }
+```
+
+`enter` pushes one `.fix` per term the binder binds — `guarded` exactly when the binder is
+`isaAllIntro`, `ifolAll` or `ifolEx` at `i`, decided by an exhaustive switch — and one `.assume`
+per hypothesis. `narrow` keeps the top of the stack down to the deepest binder the node reaches
+(`looseBound`, `looseHyps`); a closed node keeps nothing. Reading it, "above" meaning nearer the
+top:
+
+- **the guard of `x = isaBound(k)`**: its entry is the `(k+1)`-th `.fix` from the top, and `j` =
+  the `.assume`s above it + the guarded `.fix`es above it. An unguarded entry there —
+  `isaAllIntro(T, …)` binding a variable of another type — is MALFORMED and throws; it is not a
+  refusal.
+- **`hyp(k, A)`**: its binder is the `(k+1)`-th `.assume` from the top, and `g` = the guarded
+  `.fix`es above it.
+
+```
+fix x, assume P(x), lem at x              stack [x✓, h]      above x: 1 assume     → hyp(1, set(x))
+assume C, fix x, assume P(x), hyp(1, C)   stack [c, x✓, h]   above c: 1 guard      → hyp(2, C)
+```
+
+**One walk, not a fixpoint.** `RulePass` reruns until nothing changes, and a guard rule guards its
+own output forever; pass 1 conforms to `Pass` with a single `transform`.
+
+**Measured** (`isa2fol lower data/zf_export`: the reader, then the pipeline): of the 9,420 named
+theorems, **2,685 are lowered, each lowered proof concluding its lowered statement BY ID** — the
+pipeline's check, which throws on the first that does not — and **6,735 are refused**, every one
+`compoundInstantiation`. The guard walk takes 1.8 s after a 60 s read and adds 523,397 nodes.
+⚠ The check is the TABLE's: the lowered proofs are still isa, so `legalize` refuses them and no
+kernel has seen one.
+
+**Where it lives:** a module `Lowering`, depending on `IR` — the framework never sees a pass.
+
+**Tests** (`LoweringTests`), the five planned and two that mutations showed missing:
+
+1. `∀`/`∃` at `i` is guarded; at `o`, `i ⇒ o` and a type variable it is unchanged; `λ` at `i` is unchanged.
+2. fix x, assume P(x), lem at x: the lowered proof concludes the lowered statement by ID; the discharge is `hyp(1, set(x))`.
+3. assume C, fix x, assume P(x), `hyp(1, C)`: it becomes `hyp(2, C)`, and the proof concludes.
+4. an elimination at `Pow(C)` is refused by name.
+5. a cited statement and the cited theorem's own lowered statement are one node.
+6. `⋀x y`: an elimination at `x` skips `y`'s guard — `hyp(2, set(x))`.
+7. `C ⟹ ⋀P::o. P ⟹ C`: a binder at `o` inserts nothing and renumbers nothing.
+
+### Needed before pass 1: a refusal must not stop the walk  **[BUILT 2026-09-28]**
+
+The pipeline lowers every statement and proof in ONE walk (§4.5), so a refusal thrown inside one
+proof unwinds the walk — one compound instantiation would stop all 9,420. Proposed, as the reader
+does it (§2, outcomes):
+
+- IR declares `protocol Refusal: Error`; a pass's refusal enum conforms.
+- `transform(roots)` catches a `Refusal` per ROOT and returns it as that root's outcome. The cache
+  holds only completed rewrites, and a completed rewrite is valid whatever else fails, so it stays.
+  Anything else — a `TableError`, a malformed state — is a bug and still stops the run.
+- The pipeline records a statement whose root or proof was refused — `(name, pass, refusal)` in
+  `Unit.refused` — and drops it from later passes. `RulePass`'s fixpoint runs on the roots still
+  alive.
+
+Also needed: `Reader` exposes a theorem's claim name (`name(4)` → `name.4`, CLAUDE.md rule 5) for
+the unit's statements.
 
 ### Pass-level questions — for the passes, not the framework
 

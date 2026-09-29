@@ -8,11 +8,12 @@
 | command | expect |
 |---|---|
 | `swift --version \| head -1` | `Swift version 6.4 (swift-6.4-RELEASE)` |
-| `MEM=16G scripts/capped.sh swift test 2>&1 \| grep -cE '^✔ Test [a-zA-Z]+\(\) passed'` | `191` |
-| `find Sources Tests -name '*.swift' \| wc -l` · total lines | `41` · `5297` |
-| comment density of `Sources` (CLAUDE.md rule 9's script) | `9/2425 = 0.4%` |
+| `MEM=16G scripts/capped.sh swift test 2>&1 \| grep -cE '^✔ Test [a-zA-Z]+\(\) passed'` | `202` |
+| `find Sources Tests -name '*.swift' \| wc -l` · total lines | `44` · `5733` |
+| comment density of `Sources` (CLAUDE.md rule 9's script) | `9/2618 = 0.3%` |
 | `grep -rnE '^\s*default:' Sources \| wc -l` | `0` |
 | `.build/release/isa2fol read data/zf_export \| grep -A1 -E '^named'` | `proved: 9420` · `…outside the ZF sessions: 200` / `proved: 200` |
+| `.build/release/isa2fol lower data/zf_export \| grep -E '^(lowered\|refused\|  guard)'` | `lowered through guard: 2685 — …` · `refused: 6735` · `  guard: compoundInstantiation: 6735` |
 | `.build/release/isa2fol surface data/zf_export \| grep '^\| \*\*all'` | `\| **all** \| **9420** \|` |
 | `find data/zf_export -path '*/proofs/*' -type f \| wc -l` | `38923` — else `bash scripts/03-export-zf.sh` |
 | `readlink ~/repos/fol-zfc-comb/bazel-bin \| sed 's\|.*bazel-out/\|\|'` | `k8-opt/bin`, `proof_checker` executable there |
@@ -87,7 +88,8 @@ If a row disagrees, **this file is stale**: trust the code, fix this file.
 | Proofs rest on: Pure 7 axioms + 3 defs, IFOL 17 axioms + 6 defs (`term_class_def` among them), FOL `classical` + 4 defs, ZF_Base's 6 axioms, `AC.AC`, 984 ZF definitions, and 5 example-session axioms with no proof anywhere (`Language.constNEE`, `Language.c_appI`, `Static.isof_app`, `LList.flip_LNil`, `LList.flip_LCons` — their theorems can only be `Conditional`); 0 oracles | `.build/release/isa2fol closure data/zf_export` (`docs/CLOSURE.md`) |
 | The census counts what the reader reads, class discharges included, except the proofs of Pure/IFOL/FOL theorems | `isa2fol surface` (`docs/SOURCE_SURFACE.md`); `SurfaceTests` |
 | `YXML` parses the 3.1 GB file in one hash-consing pass, < 20,000 nodes, 21 s | `ISA2FOL_SCALE=1 swift test -c release -Xswiftc -enable-testing --filter theLargestProofFile` |
-| No concrete pass exists; `DESIGN.md` §4a's pass list is stale — it names `isaAtom` (no such kind) and `isaFree → folVar` (never produced) | `ls Sources/IR`; `grep -n isaAtom DESIGN.md` |
+| A pass's `Refusal` ends only its own root: `transform` returns `.refused` for it, the cache survives, the pipeline records `(name, pass, refusal)` in `Unit.refused` and drops the statement; any other error still stops the run | `aRefusalStopsOnlyItsOwnRootAndKeepsTheCache`, `anErrorThatIsNotARefusalStopsTheWalk`, `aPipelineRecordsARefusedStatementAndLaterPassesNeverSeeIt` |
+| Pass 1, the guard (R3), is built (`Sources/Lowering/Guard.swift`): 2,685 of the 9,420 lowered, each proof concluding its guarded statement BY ID; 6,735 refused, all `compoundInstantiation`. The check is the table's — the output is still isa, no kernel has seen it | §0's `lower` row; `LoweringTests` (7) | `ls Sources`; `grep -n 'PLANNED\|PROPOSED' DESIGN.md` |
 | `transform` takes many roots and caches each `(node, rule.narrow(context))` for the walk; the node sees only the narrowed context; the pipeline runs each pass over all roots and proofs in one walk | `aSharedNodeIsRewrittenOncePerContext`, `aNodeSeesOnlyTheContextItsRuleNarrowedTo`, `oneWalkOverSeveralRootsRewritesASharedNodeOnce` |
 | `Rule` has a pass-chosen `Context` (default `Depth`); `visit` calls `enter(c, binder, binds)` for each BOUND child only, on the way down | `aRuleSeesTheContextItsBindersMade`; `aRuleSeesTheBinderDepthOfEachNode` |
 | `IR.Statement` is `(name, root, proof)`; `Pipeline` lowers root and proof and throws `PipelineError.unproved` when a pass leaves the proof not concluding the root. Nothing builds a `Unit` from the reader's outcomes yet | `aPipelineRunsItsPassesInOrderOverEveryStatementAndItsProof`, `aPassThatBreaksAProofStopsThePipelineNamingThePassAndTheStatement`; `grep -rn 'Unit(' Sources` |
@@ -113,11 +115,8 @@ If a row disagrees, **this file is stale**: trust the code, fix this file.
 
 ## 7. Next action
 
-The framework pieces the first pass needs are built (record, `enter`, cache). The first pass is
-AGREED with the user: guard QUANTIFIED variables of type `i` only, isa → isa — `ifolAll(i, set(0) → φ)`,
-`ifolEx(i, set(0) ∧ φ)`, `isaAllIntro(i, folImpliesIntro(set(0), body))`; an elimination AT A
-VARIABLE is discharged by that variable's guard hypothesis; `set` is `isaConst("set", i ⇒ o, [t])`,
-not `folPred`, which stays variables-only; one walk, not a fixpoint. `set(t)` for a compound `t` is
-inferred LATER (closure lemmas, "we will see it later") — until then refused by name. Write it into
-`DESIGN.md` §4a, replacing the stale list, with its failing test; build only after approval. Also
-needed: the CLI glue building a `Unit` from the reader's outcomes.
+The 6,735 refused by pass 1 wait on inferring `set(t)` for a compound `t` — the user's "we will see
+it later". Its design comes before any code, with the user: each constant's closure lemma
+`∀x⃗. set(x⃗) → set(f(x⃗))` — which S1 later proves from its EX — and the two exceptions already seen,
+`PrimReplace` (a set only where `P` is single-valued) and a function variable applied (a hypothesis
+on the class S5 makes of it). Done when the user settles it in `DESIGN.md` §4a.

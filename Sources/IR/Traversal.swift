@@ -30,18 +30,34 @@ extension Rule where Context == Depth {
     }
 }
 
+public protocol Refusal: Error, Sendable {}
+
+@frozen public enum Rewrite: Sendable {
+    case rewritten(NodeID)
+    case refused(any Refusal)
+}
+
 private struct Visit<Context: Hashable>: Hashable {
     let id: NodeID
     let context: Context
 }
 
-public func transform<R: Rule>(_ roots: [NodeID], _ rule: R, in t: inout Table) throws -> [NodeID] {
+public func transform<R: Rule>(_ roots: [NodeID], _ rule: R, in t: inout Table) throws -> [Rewrite] {
     var cache: [Visit<R.Context>: NodeID] = [:]
-    return try roots.map { try visit($0, rule.start, rule, &cache, &t) }
+    return try roots.map { root in
+        do {
+            return .rewritten(try visit(root, rule.start, rule, &cache, &t))
+        } catch let refusal as any Refusal {
+            return .refused(refusal)
+        }
+    }
 }
 
 public func transform<R: Rule>(_ root: NodeID, _ rule: R, in t: inout Table) throws -> NodeID {
-    try transform([root], rule, in: &t)[0]
+    switch try transform([root], rule, in: &t)[0] {
+    case let .rewritten(id): return id
+    case let .refused(refusal): throw refusal
+    }
 }
 
 private func visit<R: Rule>(_ id: NodeID, _ outer: R.Context, _ rule: R,

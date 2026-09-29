@@ -53,6 +53,25 @@ private final class VisitCount: Rule {
     }
 }
 
+private enum Found: Refusal, Equatable { case bottom }
+private struct Broken: Error {}
+
+private final class RefuseBottom: Rule {
+    var visits: [NodeID: Int] = [:]
+    func before(_ id: NodeID, context depth: Depth, in t: inout Table) throws -> NodeID? {
+        visits[id, default: 0] += 1
+        if case .folBottom = t[id] { throw Found.bottom }
+        return nil
+    }
+}
+
+private struct BreakAtBottom: Rule {
+    func before(_ id: NodeID, context depth: Depth, in t: inout Table) throws -> NodeID? {
+        if case .folBottom = t[id] { throw Broken() }
+        return nil
+    }
+}
+
 private struct Rename: Rule {
     let from: String, to: String
     func before(_ id: NodeID, context depth: Depth, in t: inout Table) throws -> NodeID? {
@@ -171,7 +190,9 @@ private func contexts(_ seen: [(NodeID, [Node])], _ id: NodeID) -> [[Node]] {
     let r1 = try t.intern(.folNot(shared))
     let r2 = try t.intern(.folAnd(shared, shared))
     let count = VisitCount()
-    #expect(try transform([r1, r2], count, in: &t) == [r1, r2])
+    let out = try transform([r1, r2], count, in: &t)
+    guard case let .rewritten(x1) = out[0], case let .rewritten(x2) = out[1] else { Issue.record("\(out)"); return }
+    #expect([x1, x2] == [r1, r2])
     #expect(count.visits[shared] == 1)
 }
 
@@ -200,7 +221,8 @@ private func contexts(_ seen: [(NodeID, [Node])], _ id: NodeID) -> [[Node]] {
     var root = p
     for _ in 0..<6 { root = try t.intern(.folNot(root)) }
     let pass = RulePass(name: "drop-double-negation", rule: DropDoubleNegation())
-    #expect(try pass.run([root], in: &t) == [p])
+    guard case let .rewritten(lowered)? = try pass.run([root], in: &t).first else { Issue.record("refused"); return }
+    #expect(lowered == p)
 }
 
 @Test func aPipelineRunsItsPassesInOrderOverEveryStatementAndItsProof() throws {
@@ -231,6 +253,49 @@ private func contexts(_ seen: [(NodeID, [Node])], _ id: NodeID) -> [[Node]] {
     #expect(throws: PipelineError.unproved(name: "s", pass: "forget-the-proof", statement: s.root, conclusion: bottom)) {
         try pipeline.run(&unit)
     }
+}
+
+/// A refusal ends its own root only. What was rewritten before it stays cached: a completed
+/// rewrite is valid whatever else fails.
+@Test func aRefusalStopsOnlyItsOwnRootAndKeepsTheCache() throws {
+    var t = Table()
+    let a = try t.intern(.isaFree("a", i))
+    let shared = try memOf(a, a, &t)
+    let refused = try t.intern(.folAnd(shared, try t.intern(.folBottom)))
+    let kept = try t.intern(.folNot(shared))
+    let rule = RefuseBottom()
+    let out = try transform([refused, kept], rule, in: &t)
+    guard case let .refused(r) = out[0], case let .rewritten(k) = out[1] else {
+        Issue.record("\(out)")
+        return
+    }
+    #expect(r as? Found == .bottom)
+    #expect(k == kept)
+    #expect(rule.visits[shared] == 1)
+}
+
+@Test func anErrorThatIsNotARefusalStopsTheWalk() throws {
+    var t = Table()
+    let root = try t.intern(.folNot(try t.intern(.folBottom)))
+    let other = try t.intern(.isaFree("a", i))
+    #expect(throws: Broken.self) { try transform([root, other], BreakAtBottom(), in: &t) }
+}
+
+@Test func aPipelineRecordsARefusedStatementAndLaterPassesNeverSeeIt() throws {
+    var t = Table()
+    let a = try t.intern(.isaFree("a", i))
+    let bottom = try t.intern(.folBottom)
+    let bad = try identity("bad", bottom, &t)
+    let good = try identity("good", try memOf(a, a, &t), &t)
+    var unit = Unit(table: t, statements: [bad, good])
+    let second = VisitCount()
+    let pipeline = Pipeline(passes: [RulePass(name: "refuse-bottom", rule: RefuseBottom()),
+                                     RulePass(name: "count", rule: second)])
+    try pipeline.run(&unit)
+    #expect(unit.statements.map(\.name) == ["good"])
+    #expect(unit.refused.map { [$0.name, $0.pass] } == [["bad", "refuse-bottom"]])
+    #expect(unit.refused.first?.refusal as? Found == .bottom)
+    #expect(second.visits[bottom] == nil)
 }
 
 /// A covered construct is ONE node in both dialects: the reader reads `⟹` as the fol-zfc implication.

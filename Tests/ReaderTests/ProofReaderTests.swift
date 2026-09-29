@@ -84,6 +84,7 @@ private func miniReader() throws -> Reader {
         ("T.undeclared", 200, proofFile(frees: [("P", o)], prop: imp(P, P),
                                         proof: pappt(pabst("x", o, pabsp("H", trueprop(bound(0)), pbound(0))), free("Z")))),
         ("T.header", 210, proofFile(frees: [("A", i), ("a", i)], prop: mem(free("a"), free("A")), proof: pnop)),
+        ("T.simps(2)", 220, proofFile(frees: [("P", o)], prop: imp(P, P), proof: pabsp("H", P, pbound(0)))),
     ]
     try write("ZF.T/theory/thms", thmsFile(files.compactMap { f in f.0.map { ($0, f.1) } }))
     for (_, serial, text) in files { try write("ZF.T/proofs/\(serial)", text) }
@@ -172,6 +173,16 @@ private func failure(_ r: inout Reader, _ name: String) throws -> ReadFailure? {
     #expect(r.cited.map { r.name(of: $0) } == ["T.fix"])
 }
 
+/// A statement enters the pipeline under the name its citations use: an index `(2)` is spelled
+/// `.2` (CLAUDE.md rule 5).
+@Test func aTheoremsClaimNameIsTheNameItsCitationsUse() throws {
+    var r = try miniReader()
+    #expect(try claimName(try #require(r.name(of: try theorem(r, "T.simps(2)")))) == "T.simps.2")
+    let fix = try claimName(try #require(r.name(of: try theorem(r, "T.fix"))))
+    guard let (_, proof) = try proved(&r, "T.cite") else { return }
+    #expect(uses(proof, r.table) == [fix])
+}
+
 @Test func anUnnamedBoxIsInlined() throws {
     var r = try miniReader()
     guard let (_, proof) = try proved(&r, "T.inline") else { return }
@@ -232,7 +243,7 @@ private func failure(_ r: inout Reader, _ name: String) throws -> ReadFailure? {
     for theorem in r.population {
         if case let .proved(statement, proof)? = try? r.read(theorem) { roots += [statement, proof] }
     }
-    #expect(roots.count == 24)
+    #expect(roots.count == 26)
     var seen: Set<NodeID> = [], work = roots
     while let n = work.popLast() {
         guard seen.insert(n).inserted else { continue }

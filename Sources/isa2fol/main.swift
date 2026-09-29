@@ -26,6 +26,7 @@ func describe(_ error: any Error) -> String {
 let arguments = Array(CommandLine.arguments.dropFirst())
 let usage = """
     usage: isa2fol read EXPORT_DIR [--show OUTCOME]
+           isa2fol lower EXPORT_DIR
            isa2fol surface EXPORT_DIR
            isa2fol closure EXPORT_DIR
     """
@@ -39,6 +40,11 @@ if arguments.count == 2, arguments[0] == "surface" || arguments[0] == "closure" 
     } catch {
         fail("malformed export at \(describe(error))", 1)
     }
+    exit(0)
+}
+
+if arguments.count == 2, arguments[0] == "lower" {
+    lower(arguments[1])
     exit(0)
 }
 
