@@ -89,7 +89,7 @@ If a row disagrees, **this file is stale**: trust the code, fix this file.
 | The census counts what the reader reads, class discharges included, except the proofs of Pure/IFOL/FOL theorems | `isa2fol surface` (`docs/SOURCE_SURFACE.md`); `SurfaceTests` |
 | `YXML` parses the 3.1 GB file in one hash-consing pass, < 20,000 nodes, 21 s | `ISA2FOL_SCALE=1 swift test -c release -Xswiftc -enable-testing --filter theLargestProofFile` |
 | A pass's `Refusal` ends only its own root: `transform` returns `.refused` for it, the cache survives, the pipeline records `(name, pass, refusal)` in `Unit.refused` and drops the statement; any other error still stops the run | `aRefusalStopsOnlyItsOwnRootAndKeepsTheCache`, `anErrorThatIsNotARefusalStopsTheWalk`, `aPipelineRecordsARefusedStatementAndLaterPassesNeverSeeIt` |
-| Pass 1, the guard (R3), is built (`Sources/Lowering/Guard.swift`): 2,685 of the 9,420 lowered, each proof concluding its guarded statement BY ID; 6,735 refused, all `compoundInstantiation`. The check is the table's — the output is still isa, no kernel has seen it | §0's `lower` row; `LoweringTests` (7) | `ls Sources`; `grep -n 'PLANNED\|PROPOSED' DESIGN.md` |
+| Pass 1, the guard (R3), is built (`Sources/Lowering/Guard.swift`): every `i`-variable becomes `folBound`, `set` is `folPred`; 2,685 of the 9,420 lowered, each proof concluding its guarded statement BY ID; 6,735 refused, all `compoundInstantiation`. The check is the table's — the output is still isa, no kernel has seen it | §0's `lower` row; `LoweringTests` (7) | `ls Sources`; `grep -n 'PLANNED\|PROPOSED' DESIGN.md` |
 | `transform` takes many roots and caches each `(node, rule.narrow(context))` for the walk; the node sees only the narrowed context; the pipeline runs each pass over all roots and proofs in one walk | `aSharedNodeIsRewrittenOncePerContext`, `aNodeSeesOnlyTheContextItsRuleNarrowedTo`, `oneWalkOverSeveralRootsRewritesASharedNodeOnce` |
 | `Rule` has a pass-chosen `Context` (default `Depth`); `visit` calls `enter(c, binder, binds)` for each BOUND child only, on the way down | `aRuleSeesTheContextItsBindersMade`; `aRuleSeesTheBinderDepthOfEachNode` |
 | `IR.Statement` is `(name, root, proof)`; `Pipeline` lowers root and proof and throws `PipelineError.unproved` when a pass leaves the proof not concluding the root. Nothing builds a `Unit` from the reader's outcomes yet | `aPipelineRunsItsPassesInOrderOverEveryStatementAndItsProof`, `aPassThatBreaksAProofStopsThePipelineNamingThePassAndTheStatement`; `grep -rn 'Unit(' Sources` |
@@ -115,8 +115,9 @@ If a row disagrees, **this file is stale**: trust the code, fix this file.
 
 ## 7. Next action
 
-The 6,735 refused by pass 1 wait on inferring `set(t)` for a compound `t` — the user's "we will see
-it later". Its design comes before any code, with the user: each constant's closure lemma
-`∀x⃗. set(x⃗) → set(f(x⃗))` — which S1 later proves from its EX — and the two exceptions already seen,
-`PrimReplace` (a set only where `P` is single-valued) and a function variable applied (a hypothesis
-on the class S5 makes of it). Done when the user settles it in `DESIGN.md` §4a.
+The 6,735 refused by pass 1 instantiate at a compound term — the user's "we will see it later".
+`set(t)` cannot be written for a compound `t` (`folPred` takes only variables), so the route is
+S1's: the term becomes a variable by opening its constant's EX, which delivers `set(r)`. Its
+design comes before any code, with the user — including `PrimReplace` (a set only where `P` is
+single-valued) and a function variable applied (a hypothesis on the class S5 makes of it). Done
+when the user settles it in `DESIGN.md` §4a.

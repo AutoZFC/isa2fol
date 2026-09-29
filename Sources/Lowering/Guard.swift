@@ -46,6 +46,9 @@ private struct GuardRule: Rule {
     }
 
     func after(_ n: Node, context c: [Entry], in t: inout Table) throws -> NodeID? {
+        if case let .isaBound(k, .i) = n {
+            return try t.intern(.folBound(k))
+        }
         if case let .ifolAll(.i, body) = n {
             return try t.intern(.ifolAll(.i, body: try t.intern(.folImplies(try guardOfBound0(&t), body))))
         }
@@ -56,7 +59,7 @@ private struct GuardRule: Rule {
             return try t.intern(.isaAllIntro(.i, body: try t.intern(.folImpliesIntro(try guardOfBound0(&t), body: body))))
         }
         if case let .isaAllElim(p, x) = n, case .ifolAll(.i, _)? = t.conclusion(of: p).map({ t[$0] }) {
-            guard case let .isaBound(k, _) = t[x] else { throw GuardRefusal.compoundInstantiation(x) }
+            guard case let .folBound(k) = t[x] else { throw GuardRefusal.compoundInstantiation(x) }
             let elim = try t.intern(n)
             let discharge = try t.intern(.hyp(try guardDistance(ofVariable: k, x, in: c), try set(x, &t)))
             return try t.intern(.folImpliesElim(elim, discharge))
@@ -70,11 +73,11 @@ private struct GuardRule: Rule {
 }
 
 private func set(_ x: NodeID, _ t: inout Table) throws -> NodeID {
-    try t.intern(.isaConst("set", .fn(.i, .o), args: [x]))
+    try t.intern(.folPred("set", args: [x]))
 }
 
 private func guardOfBound0(_ t: inout Table) throws -> NodeID {
-    try set(try t.intern(.isaBound(0, .i)), &t)
+    try set(try t.intern(.folBound(0)), &t)
 }
 
 private func guardDistance(ofVariable k: Int, _ x: NodeID, in c: [Entry]) throws -> Int {

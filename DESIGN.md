@@ -797,26 +797,33 @@ unguarded class quantifier.
 | # | pass | FOUNDATION | status |
 |---|---|---|---|
 | 1 | **guard** — the quantified variables of type `i` | R3, S6's enforceable form | BUILT, below |
-| — | `set(t)` for a compound `t`, inferred from each constant's closure lemma — which is its EX | S1, S2 | later ("we will see it later", user 2026-09-27) |
+| — | a compound instantiation: `set(t)` cannot be written for a compound `t`, so the term becomes a variable first — open the constant's EX, `∃r. set(r) ∧ F(x⃗, r)`, and instantiate at `r` | S1, S2 | later ("we will see it later", user 2026-09-27) |
 | — | S1 graphs, S4/S5 classes, `OFCLASS`, the relabel to fol kinds | §2 | not planned |
 
 ### Pass 1 — guard  **[BUILT 2026-09-28 — `Sources/Lowering/Guard.swift`]**
 
-**Quantified variables of type `i` only, isa → isa.** The pass inserts `set(·)` and lowers no
-kind to fol. `set` is `isaConst("set", i ⇒ o, [t])` — the isa dialect's form of a predicate, a
-constant whose result is `o`, so its argument may be any term of type `i`. ⚠ It is the first
-`isaConst` that is not an Isabelle constant: spelled plain `set`, as `base/` spells it, which no
-qualified Isabelle name can collide with. `folPred` stays variables-only — S1 as a type.
+**The variables of type `i`: guard the quantified ones, relabel them all.** Every
+`isaBound(k, i)` — under a quantifier, a `⋀`-intro or a `λ` — becomes `folBound(k)`: the same
+variable, its type implicit, so nothing is lost and the index engine treats both alike. That makes
+`set(x)` fol-zfc's own predicate, `folPred("set", [folBound k])` — and it is why the relabel is in
+this pass: the guard is what writes `set(x)`. Every other node stays isa; `isaConst` and
+`isaAllElim` take a `folBound` argument as any term of type `i`.
+
+⚠ **`set(t)` CANNOT BE WRITTEN FOR A COMPOUND `t`** — `folPred` takes only variables, S1 as a
+type. So a compound instantiation is not discharged by a closure lemma over terms
+(`set(C) → set(Pow(C))`); the term must first become a variable, FOUNDATION §2's S1 route, whose
+EX delivers `set(r)` with it.
 
 | before | after |
 |---|---|
+| `isaBound(k, i)`, wherever bound | `folBound(k)` |
 | `ifolAll(i, φ)` | `ifolAll(i, folImplies(set(0), φ′))` |
 | `ifolEx(i, φ)` | `ifolEx(i, folAnd(set(0), φ′))` |
 | `isaAllIntro(i, body)` | `isaAllIntro(i, folImpliesIntro(set(0), body′))` — the guard is a hypothesis the fixed variable brings |
-| `isaAllElim(p, x)`, `x` a bound variable | `folImpliesElim(isaAllElim(p′, x), hyp(j, set(x)))` — discharged by `x`'s own guard |
-| `isaAllElim(p, t)`, `t` a constant or a variable applied | REFUSED by name until `set(t)` is inferred |
+| `isaAllElim(p, x)`, `x` a bound variable | `folImpliesElim(isaAllElim(p′, x′), hyp(j, set(x′)))` — discharged by `x`'s own guard |
+| `isaAllElim(p, t)`, `t` a constant or a variable applied | REFUSED by name, before its step is built |
 | `hyp(k, A)` | `hyp(k + g, A′)` — `g` the guards inserted between it and its binder |
-| a quantifier, `⋀`-intro or `⋀`-elim at `o`, a function type or a type variable; `λ` at `i` | unchanged: a class quantifier is unguarded (S4), `⋀P::o` is classified out, a type variable is translation's, a `λ` binds no quantified variable |
+| a quantifier, `⋀`-intro or `⋀`-elim at `o`, a function type or a type variable; a `λ` | no guard: a class quantifier is unguarded (S4), `⋀P::o` is classified out, a type variable is translation's, a `λ` binds no quantified variable |
 
 The walk rewrites every `use`'s root too, so a cited statement and the theorem's own lowered
 statement are one node.
@@ -851,7 +858,7 @@ own output forever; pass 1 conforms to `Pass` with a single `transform`.
 **Measured** (`isa2fol lower data/zf_export`: the reader, then the pipeline): of the 9,420 named
 theorems, **2,685 are lowered, each lowered proof concluding its lowered statement BY ID** — the
 pipeline's check, which throws on the first that does not — and **6,735 are refused**, every one
-`compoundInstantiation`. The guard walk takes 1.8 s after a 60 s read and adds 523,397 nodes.
+`compoundInstantiation`. The guard walk takes 2.6 s after a 60 s read and adds 1,228,087 nodes.
 ⚠ The check is the TABLE's: the lowered proofs are still isa, so `legalize` refuses them and no
 kernel has seen one.
 
