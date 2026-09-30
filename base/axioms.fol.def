@@ -32,9 +32,9 @@
 # because it is the one place in this file where a reader could mistake a
 # usability check for a correctness proof.
 #
-# ONE DISCREPANCY RESOLVED: tuple_lemma declares `empty: exists e. set(e)`, a
-# weakening it needs only for T4. Base carries the real axiom (constants_s2s3's
-# form); the weak one is derivable from it.
+# ONE DISCREPANCY RESOLVED: the deleted tuple_lemma probe declared `empty:
+# exists e. set(e)`, a weakening it needed only for T4. Base carries the real
+# axiom (constants_s2s3's form); the weak one is derivable from it.
 
 # --- Encoding hygiene (axioms 1-2): free in two-sorted textbooks, explicit here.
 axiom members_are_sets: forall x. forall y. (elem(x,y) -> set(x))

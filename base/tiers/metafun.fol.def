@@ -1,0 +1,32 @@
+# base/tiers/metafun -- FOUNDATION §1a's last layer: a meta function is a CLASS function.
+#
+# Isabelle's `f :: [i,...,i] => i` is, in class form, a class F of pairs <t, r>, total and
+# single-valued on its domain D -- the tuples on n (R7), or every set. A lambda is built by
+# class existence (base/tiers/classes) from its body, read at a fixed scope layout:
+#
+#     context c (a tuple on p)  |  argument at index p  |  result at index p1 = succ(p)
+#
+#   lam_class   the lambda's graph {<t,r> : body}     beta, in class form
+#   lam_pred    a predicate lambda's class {t : body}   S4's P, at every arity
+#   lam_eta     extracting the atom <a(p), a(p1)> : F gives back F      eta
+#   mfun_ext    pointwise-equal class functions agree on D      fun_extension
+#   mfun_comb   f == g and t = t2 give f(t) == g(t2)     Pure's combination
+#
+# Depends on base/axioms, pairs, witness, logic, cong, s2s3, tuples, classes. Admits
+# nothing: one definitional introduction, content zero.
+
+@def(mfun) axiom mfun_def: forall F. forall D. (mfun(F,D) <-> (forall t. (set(t) -> (elem(t,D) -> ((exists r. (set(r) & pmem(t,r,F))) & (forall r. (set(r) -> (forall s. (set(s) -> (pmem(t,r,F) -> (pmem(t,s,F) -> eq(r,s))))))))))))
+
+claim lam_class: (forall p. (set(p) -> (forall p1. (set(p1) -> (forall A. (forall c. (set(c) -> (exists G. (forall t. (set(t) -> (forall r. (set(r) -> (pmem(t,r,G) <-> (exists a1. (set(a1) & (snoc(c,p,t,a1) & (exists a2. (set(a2) & (snoc(a1,p1,r,a2) & elem(a2,A))))))))))))))))))))
+claim lam_pred: (forall p. (set(p) -> (forall A. (forall c. (set(c) -> (exists P. (forall t. (set(t) -> (elem(t,P) <-> (exists a1. (set(a1) & (snoc(c,p,t,a1) & elem(a1,A)))))))))))))
+claim lam_eta: (forall p. (set(p) -> (forall p1. (set(p1) -> (nsucc(p,p1) -> (forall c. (set(c) -> (tuple(c,p) -> (forall F. (forall A. ((forall a. (set(a) -> (elem(a,A) <-> (exists u. (set(u) & (pmem(p,u,a) & (exists v. (set(v) & (pmem(p1,v,a) & pmem(u,v,F)))))))))) -> (forall t. (set(t) -> (forall r. (set(r) -> ((exists a1. (set(a1) & (snoc(c,p,t,a1) & (exists a2. (set(a2) & (snoc(a1,p1,r,a2) & elem(a2,A))))))) <-> pmem(t,r,F)))))))))))))))))
+claim mfun_ext: (forall F. (forall G. (forall D. (mfun(F,D) -> (mfun(G,D) -> ((forall t. (set(t) -> (elem(t,D) -> (exists r. (set(r) & (pmem(t,r,F) & pmem(t,r,G))))))) -> (forall t. (set(t) -> (elem(t,D) -> (forall r. (set(r) -> (pmem(t,r,F) <-> pmem(t,r,G)))))))))))))
+claim mfun_comb: (forall F. (forall G. ((forall t. (set(t) -> (forall r. (set(r) -> (pmem(t,r,F) <-> pmem(t,r,G)))))) -> (forall t. (set(t) -> (forall t2. (set(t2) -> (eq(t,t2) -> (forall r. (set(r) -> (pmem(t,r,F) <-> pmem(t2,r,G))))))))))))
+
+# Helpers, proved in this tier.
+claim g6_snocsec: (forall k. (set(k) -> (forall c. (set(c) -> (exists C. (forall t. (set(t) -> (forall b. (set(b) -> (pmem(t,b,C) <-> snoc(c,k,t,b)))))))))))
+claim g6_dsnoc: (forall k. (set(k) -> (forall A. (exists D. (forall a. (set(a) -> (forall v. (set(v) -> (pmem(a,v,D) <-> (exists b. (set(b) & (snoc(a,k,v,b) & elem(b,A)))))))))))))
+claim g6_comp: (forall R. (forall S. (exists G. (forall t. (set(t) -> (forall r. (set(r) -> (pmem(t,r,G) <-> (exists a. (set(a) & (pmem(t,a,R) & pmem(a,r,S))))))))))))
+claim g7_fresh: forall p. (set(p) -> (forall p1. (set(p1) -> (index(p) -> (elem(p,p1) -> ((~ eq(p,p1)) & ((~ eq(p1,p)) & (~ elem(p1,p)))))))))
+claim g7_at_p: forall p. (set(p) -> (forall p1. (set(p1) -> (forall c. (set(c) -> (tuple(c,p) -> (elem(p,p1) -> (forall t. (set(t) -> (forall r. (set(r) -> (forall a1. (set(a1) -> (forall a2. (set(a2) -> (snoc(c,p,t,a1) -> (snoc(a1,p1,r,a2) -> (forall u. (set(u) -> (pmem(p,u,a2) -> eq(u,t)))))))))))))))))))))
+claim g7_at_p1: forall p. (set(p) -> (forall p1. (set(p1) -> (forall c. (set(c) -> (tuple(c,p) -> (elem(p,p1) -> (forall t. (set(t) -> (forall r. (set(r) -> (forall a1. (set(a1) -> (forall a2. (set(a2) -> (snoc(c,p,t,a1) -> (snoc(a1,p1,r,a2) -> (forall v. (set(v) -> (pmem(p1,v,a2) -> eq(v,r)))))))))))))))))))))

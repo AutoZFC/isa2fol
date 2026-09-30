@@ -508,42 +508,6 @@ proof pair_set:
     _g3 = forall_intro _g2
     qed _g3
 
-proof tuple_chain:
-    _ps = use pair_set
-    fix a
-    fix b
-    fix c
-    fix p
-    fix q
-    _sa = assume set(a)
-    _sb = assume set(b)
-    _sc = assume set(c)
-    _k1 = assume kpair(a,b,p)
-    _k2 = assume kpair(p,c,q)
-    _x1 = forall_elim _ps, a
-    _x2 = forall_elim _x1, b
-    _x3 = forall_elim _x2, p
-    _x4 = implies_elim _x3, _sa
-    _x5 = implies_elim _x4, _sb
-    _sp = implies_elim _x5, _k1
-    _y1 = forall_elim _ps, p
-    _y2 = forall_elim _y1, c
-    _y3 = forall_elim _y2, q
-    _y4 = implies_elim _y3, _sp
-    _y5 = implies_elim _y4, _sc
-    _sq = implies_elim _y5, _k2
-    _i1 = implies_intro _sq
-    _i2 = implies_intro _i1
-    _i3 = implies_intro _i2
-    _i4 = implies_intro _i3
-    _i5 = implies_intro _i4
-    _g1 = forall_intro _i5
-    _g2 = forall_intro _g1
-    _g3 = forall_intro _g2
-    _g4 = forall_intro _g3
-    _g5 = forall_intro _g4
-    qed _g5
-
 proof pair_fst:
     _kd = use kpair_def
     _m1 = use upair_mem1

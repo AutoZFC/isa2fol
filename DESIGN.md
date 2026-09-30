@@ -1,7 +1,6 @@
 # isa2fol — package layout and dialect types
 
-**A SKETCH TO REACT TO.** Nothing built. Decisions I made rather than asked about
-are marked **[choice]** — push back on any of them.
+**The structure, section by section.** Each heading's status says what is built.
 
 ---
 
@@ -10,20 +9,21 @@ are marked **[choice]** — push back on any of them.
 ```
 Package.swift
 Sources/
-  YXML/          Isabelle's transfer format → node tree.   Knows no dialect.
-  IR/            §4's framework: Node · Table · transform · index engine · passes · legalize.  BUILT
-  FolDialect/    render · parse · Declaration — the text boundary over IR (§3)
+  YXML/          Isabelle's transfer format → a hash-consed forest.  Knows no dialect.
+  IR/            §4's framework: Node · Table · transform · index engine · passes · legalize
+  FolDialect/    Declaration · render (formulas and proofs) — the text boundary over IR (§3)
+  Reader/        the export → isa nodes, statements and proofs (§2)
+  Lowering/      passes over the table (§4a): the guard
   isa2fol/       CLI
 Tests/
-  YXMLTests/  FolDialectTests/  IRTests/
+  YXMLTests/  FolDialectTests/  IRTests/  ReaderTests/  LoweringTests/
 ```
 
 ```
-  YXML        IR        FolDialect
+  YXML  ─►  Reader  ─►  IR  ─►  Lowering  ─►  FolDialect
 ```
 
-**Nothing connects them yet.** The reader (YXML → IR) and the emitter
-(IR → FolDialect) are unbuilt, and where each lives is undecided.
+**The reader and the guard are built**; the other passes (§4a) and the emission of a unit are not.
 
 ### Two rules that make the guarantee real
 
@@ -215,10 +215,10 @@ a schema variable becomes a table node kind then: one more case in the four swit
 
 ---
 
-## 4. IR  **[FRAMEWORK BUILT; renderer and proof layer NOT]**
+## 4. IR  **[FRAMEWORK BUILT]**
 
 **§4.2–§4.7's framework is built** (`Sources/IR`, `Sources/FolDialect`, pinned by
-`Tests/`). No concrete pass and no reader are. The previous region graph — formulas edited in place through `replaceAllUses`/`insert`/
+`Tests/`); the reader (§2) and the guard (§4a) are built on it. The previous region graph — formulas edited in place through `replaceAllUses`/`insert`/
 `erase`, measured O(n²) per pass — is deleted; do not restore it from history.
 
 ### 4.1 Two layers, mirroring the checker
@@ -260,7 +260,8 @@ This is fol-zfc's own split: `GlobalContext`'s `FormulaRegistry` and the
 - ⚠ **A REFUSAL IS PER STATEMENT, NEVER PER UNIT.** The unit records each statement's
   outcome — translated, or refused with its reason. A refused theorem is absent from
   the header, so whatever cites it fails to find it — loudly, never as `Conditional`.
-  **NOT BUILT:** `Unit` holds statements, not yet their outcomes.
+  Built: `Unit.refused` records `(name, pass, refusal)`, and a refused statement leaves
+  `Unit.statements` (§4a).
 - **isa and fol kinds share it.** A partly lowered statement is an ordinary root
   whose DAG mixes both vocabularies.
 - **Memory is not the constraint** — an ESTIMATE, from a throwaway decode that was not
@@ -442,8 +443,9 @@ Isabelle's side:
 because the statement's `∀`-closure is outermost. Absorption skipped proof arguments wherever they
 sat, which hid two test fixtures written the other way round; the export has none.
 
-A `ZClassp` — 0 in the export — stays refused by name. What lowering makes of `OFCLASS` — ⊤ at
-`i`, and `∀P:o. P → P` is not first-order — is lowering's to decide (user, 2026-09-26).
+A `ZClassp` — 0 in the export — stays refused by name. Lowering reads `OFCLASS` as METADATA —
+Isabelle's type check, which the exporter made a premise: it checks the class and drops the premise,
+its discharge and the proof behind it (§4a, decision 4).
 
 ### 4.4 Binders are de Bruijn
 
@@ -788,39 +790,34 @@ and the proof must be built against the changed one.
 ⋀x. (mem(x,y) ⟹ mem(x,y))     →     ∀x. (set(x) → (mem(x,y) → mem(x,y)))
 ```
 
-**The passes, in order — only the first is planned.** ⚠ The list this replaces (`lower-pure`,
-`lower-ifol`, `guard-binders`) was written for the deleted tree IR: the reader already erases
-Pure's coercion and reads `⟹` as `folImplies`; `isaAtom` and `folVar` do not exist and nothing
-produces `isaFree`; and "a non-`i` sort refuses" contradicts S4 — a quantifier over `i ⇒ o` is an
-unguarded class quantifier.
+**The passes.** The guard is built; the rest are decided in "the pass plan" below.
 
 | # | pass | FOUNDATION | status |
 |---|---|---|---|
-| 1 | **guard** — the quantified variables of type `i` | R3, S6's enforceable form | BUILT, below |
-| — | a compound instantiation: `set(t)` cannot be written for a compound `t`, so the term becomes a variable first — open the constant's EX, `∃r. set(r) ∧ F(x⃗, r)`, and instantiate at `r` | S1, S2 | later ("we will see it later", user 2026-09-27) |
-| — | S1 graphs, S4/S5 classes, `OFCLASS`, the relabel to fol kinds | §2 | not planned |
+| — | **guard** — the quantified variables of type `i` | R3, S6's enforceable form | BUILT, below, as the only pass |
+| — | **logic**, **reify**, the guard, **fol** — the meta level lowered onto FOUNDATION §1a; reify builds each constant's definition and lemmas as it goes | S1, S3, S4, S5, R3 | DECIDED, below; not built |
 
 ### Pass 1 — guard  **[BUILT 2026-09-28 — `Sources/Lowering/Guard.swift`]**
 
-**The variables of type `i`: guard the quantified ones, relabel them all.** Every
-`isaBound(k, i)` — under a quantifier, a `⋀`-intro or a `λ` — becomes `folBound(k)`: the same
-variable, its type implicit, so nothing is lost and the index engine treats both alike. That makes
-`set(x)` fol-zfc's own predicate, `folPred("set", [folBound k])` — and it is why the relabel is in
-this pass: the guard is what writes `set(x)`. Every other node stays isa; `isaConst` and
-`isaAllElim` take a `folBound` argument as any term of type `i`.
+**The quantified variables of type `i` get a guard; no variable changes.** A variable keeps
+`isaBound(k, T)`, its type, until fol: that type is how the guard tells a set binder from a class
+binder, and `set(x)` is `folPred("set", [isaBound(k, i)])` — a fol predicate over an isa variable
+(prerequisite 1 of the pass plan, below).
+
+⚠ **THE GUARD RELABELLED `isaBound(k, i)` TO `folBound(k)` UNTIL 2026-09-29.** A `folBound` is typed
+`i`, so a class variable relabelled for reify's `t ∈ P` would look like a set, open to `set(P)`.
 
 ⚠ **`set(t)` CANNOT BE WRITTEN FOR A COMPOUND `t`** — `folPred` takes only variables, S1 as a
-type. So a compound instantiation is not discharged by a closure lemma over terms
+check. So a compound instantiation is not discharged by a closure lemma over terms
 (`set(C) → set(Pow(C))`); the term must first become a variable, FOUNDATION §2's S1 route, whose
 EX delivers `set(r)` with it.
 
 | before | after |
 |---|---|
-| `isaBound(k, i)`, wherever bound | `folBound(k)` |
 | `ifolAll(i, φ)` | `ifolAll(i, folImplies(set(0), φ′))` |
 | `ifolEx(i, φ)` | `ifolEx(i, folAnd(set(0), φ′))` |
 | `isaAllIntro(i, body)` | `isaAllIntro(i, folImpliesIntro(set(0), body′))` — the guard is a hypothesis the fixed variable brings |
-| `isaAllElim(p, x)`, `x` a bound variable | `folImpliesElim(isaAllElim(p′, x′), hyp(j, set(x′)))` — discharged by `x`'s own guard |
+| `isaAllElim(p, x)`, `x` a bound variable | `folImpliesElim(isaAllElim(p′, x), hyp(j, set(x)))` — discharged by `x`'s own guard |
 | `isaAllElim(p, t)`, `t` a constant or a variable applied | REFUSED by name, before its step is built |
 | `hyp(k, A)` | `hyp(k + g, A′)` — `g` the guards inserted between it and its binder |
 | a quantifier, `⋀`-intro or `⋀`-elim at `o`, a function type or a type variable; a `λ` | no guard: a class quantifier is unguarded (S4), `⋀P::o` is classified out, a type variable is translation's, a `λ` binds no quantified variable |
@@ -858,7 +855,7 @@ own output forever; pass 1 conforms to `Pass` with a single `transform`.
 **Measured** (`isa2fol lower data/zf_export`: the reader, then the pipeline): of the 9,420 named
 theorems, **2,685 are lowered, each lowered proof concluding its lowered statement BY ID** — the
 pipeline's check, which throws on the first that does not — and **6,735 are refused**, every one
-`compoundInstantiation`. The guard walk takes 2.6 s after a 60 s read and adds 1,228,087 nodes.
+`compoundInstantiation`. The guard walk takes 1.4 s after a 60 s read.
 ⚠ The check is the TABLE's: the lowered proofs are still isa, so `legalize` refuses them and no
 kernel has seen one.
 
@@ -891,12 +888,125 @@ does it (§2, outcomes):
 Also needed: `Reader` exposes a theorem's claim name (`name(4)` → `name.4`, CLAUDE.md rule 5) for
 the unit's statements.
 
+### The meta level, lowered — the pass plan  **[DECIDED 2026-09-29 — decision 4 deferred; nothing built]**
+
+**Every meta-level object is a set or a class** (FOUNDATION §1a). `base/` proves what replaces Pure's
+λ-calculus: tuples (`tuples`), class existence over them (`classes`), class functions with β, η,
+extensionality and combination (`metafun`). **Every function is a class** — a constant, a λ and a function
+variable alike — applied by membership.
+
+Notation: `t` is the tuple of the arguments, a 1-tuple at arity 1 (decision 1), and `fn_apply(F, t, r)` is
+`⟨t, r⟩ ∈ F`, base's `pmem(t, r, F)`. **β** is Isabelle's free reduction of `(λx. b)(a)` to `b[a/x]`; here
+the λ is a class `C`, and unfolding `a`'s membership in `C` to the body by `C`'s defining property is a
+proof step — "β as proof".
+
+**Passes, in order.**
+
+| # | pass | removes |
+|---|---|---|
+| 1 | **logic** — IFOL's ND rules and `FOL.classical` to the kernel's own steps; an inlined box instantiated at once, reduced at the proof level (`instantiate`) | every `⋀P::o`; those rules' and boxes' class instantiations |
+| 2 | **reify** — every compound term becomes a variable with its defining atom; every function becomes a class | `isaConst` at `i` or a function type, `isaVarApp`, `isaAbs`, `Pure.eq` at a function type, `isaAllElim` at a function type |
+| 3 | **guard** — `set(x)` on every set binder, Isabelle's and reify's; a class binder stays bare | unguarded set binders |
+| 4 | **fol** — `ifolAll`/`ifolEx` to `folForall`/`folExists`, every variable to `folBound`; then `legalize` | the rest of the isa dialect |
+
+- **logic before reify**: an IFOL rule at a λ becomes the kernel's step and no class is built. `spec` at
+  `λx. x∈A ⟶ x∈B`, then at `c`, is `isaAllElim` at `c`: `∀` and `⋀` are one node.
+- **reify before guard**: reify's variables are set binders too, and R3 guards "the ones S1 invents".
+- **guard before fol**: the guard reads the binder's IR type — `i` guarded, a class bare — and `folForall`
+  carries none.
+
+⚠ **`subst` IS NOT AN ND RULE.** Logic does not remove its class instantiations: at the λ's class it is
+membership's congruence (`g3_pmem_cong1`), then β as proof — reify's.
+
+**Prerequisites, in the framework — not built:**
+
+1. **A fol node accepts a variable whose IR type matches** — **BUILT 2026-09-29.** `folPred` takes any
+   variable, `folBound` or `isaBound` at a type other than `o` (a proposition is never a term, S4:
+   `propositionAsTerm`); `exists_intro` at `isaBound(k, T)` concludes `ifolEx(T, …)`, and `exists_elim`
+   opens `ifolEx` as well as `folExists`. Variables keep `isaBound(k, T)` until fol, and `legalize`
+   enforces fol-only at the end. ⚠ **NO RELABEL PASS**: relabelling early makes a class variable a
+   `folBound`, typed `i` — indistinguishable from a set, and open to `set(·)`. The guard no longer
+   relabels. Its rules for `∃`-intro and `∃`-elim at `i` — the witness's guard into the `∧`, the
+   hypothesis becoming `set ∧ φ` — come with logic, their first producer.
+2. **A pass may add statements.** Reify builds helpers as it goes — each constant's definition and lemmas
+   (decision 5) — so a pass that returns one rewrite per root is not enough.
+
+**What each construct becomes.**
+
+| isa | becomes |
+|---|---|
+| a bound variable at `i` | a set variable, guarded (R3) |
+| … at `i^n ⇒ i` | a class variable `F`, bare, owing `mfun(F, D)` (S5) |
+| … at `i^n ⇒ o` | a class variable `P`, bare (S4) |
+| … at `o` | classified out: `⋀P::o` is the kernel's own rules (S4) |
+| a constant — a function or a predicate | a class, cited globally (decision 5) |
+| `c(x⃗) : i`, `f(x⃗) : i` | `∃r. fn_apply(F, t, r) ∧ φ(r)`, at the atom where it appears (decision 3) |
+| `P(x⃗) : o`, a predicate constant or variable | `t ∈ P` |
+| `ZF_Base.mem`; `IFOL.eq`, and Pure `≡` at `i`, which the reader reads as it | `elem`; `eq` — the target's own, not classes |
+| Pure `≡` at `o` | `↔` — the reader reads it so |
+| `f ≡ g` at a function type | `∀t r. fn_apply(F,t,r) ↔ fn_apply(G,t,r)` (FOUNDATION §3b) |
+| `λx⃗. b : i^n ⇒ i` / `λx⃗. φ : i^n ⇒ o` | a class `C`: `∀t r. fn_apply(C,t,r) ↔ ⟦r = b(t)⟧` (`lam_class`) / `∀t. t ∈ C ↔ ⟦φ(t)⟧` (`lam_pred`) — LOCAL, never a global claim |
+| a class argument, `c(A, λx. φ)` | outside the tuple, a parameter of `c`'s defining property (R4) |
+| `If(φ, a, b)`, an `o` argument | read where it appears: `(φ ∧ r = a) ∨ (¬φ ∧ r = b)` (FOUNDATION R6's note) |
+| `c ≡ λx⃗. b`, a definition | `c`'s defining property |
+| `OFCLASS(T, c)` | not a formula: checked, then dropped (decision 4) |
+
+**Where Isabelle's computation becomes proof.**
+
+| Isabelle step | becomes |
+|---|---|
+| `⋀`-elim at a variable | `forall_elim`, and the guard's discharge |
+| `⋀`-elim at a compound `i`-term | `forall_elim` at the term's variable, opened where the term appears; EX and UNIQ where two forms meet |
+| `⋀`-elim at a λ | `forall_elim` at the λ's class, then β as proof |
+| Pure `combination` at a function type | `mfun_comb` — membership respects `eq` — then β as proof at both ends |
+| Pure `abstract_rule` | `∀`-intro, and a lemma relating `f ≡ g` to `⋀x. f x ≡ g x` under `mfun` — not in `metafun` yet |
+| Pure `reflexive`, `symmetric`, `transitive` at a function type | `↔` reasoning under `∀t r` |
+| an inlined box instantiated at once | reduced at the proof level: the box read at its instance, no class |
+| IFOL's thirteen ND rules, `FOL.classical` | the kernel's rules: `spec` is `forall_elim`, `exE` is `exists_elim`, … |
+
+**Decisions (2026-09-29).**
+
+1. **Arity 1 is a 1-tuple**, as R7 reads every arity. The value itself would save a tuple per unary
+   application — a later size optimisation.
+2. **Order: logic → reify → guard → fol**, on prerequisite 1.
+3. **A compound term's variable is bound where the term appears, never wider**, written with S1's `∃`:
+   `P(f(x))` is `∃r. fn_apply(F, t, r) ∧ P(r)` in place. Isabelle's local variables stay local: a λ or a
+   compound term is never lifted into a global claim, which would close it over its locals and need a fresh
+   name (rule 5). Where two forms of one term meet — β as proof's and a statement's, a hypothesis's and a
+   conclusion's — EX and UNIQ convert, and every function has both.
+4. **Deferred** until it blocks. `OFCLASS` is Isabelle's type check, made a premise by the exporter —
+   metadata: lowering checks it (`term`'s only type is `i`; `arity_term_i` is the export's only class
+   instance) and drops the premise, its discharge and the proof behind it; the reader keeps it as the
+   export writes it. A `term`-restricted type variable is read at `i`, exactly. An UNRESTRICTED one is
+   open, and reify's first cut refuses a node whose type is a variable, by name. Outside Pure's equality
+   rules, which lower per type anyway, only `ZF_Base.split_def`, `pair.split`, `QPair.qsplit_def`,
+   `FOL.meta_simps(1)` and `MetaExists.meta_exI`/`meta_exE` are cited at a type other than `i` (a scratch
+   probe, not kept). Candidates when it blocks: unfold a notation-only definition (`split`) where it is
+   used, and put a generic proof in place at the type of its use — no new name; `MetaExists`, defined over
+   all propositions, separately.
+5. **A constant is a class, cited globally by Isabelle's name.** The checker's one global naming form is
+   `@def`, so what is named is the constant's defining property, and a claim using the constant binds its
+   class with that property as a hypothesis. Of the relation form's four per-constant lemmas (FOUNDATION §2
+   S2, R5), two go and two merge:
+
+   | relation form | class form |
+   |---|---|
+   | GRAPH | the constant is its class |
+   | CONG | membership respects `=` for every class — `g1_pmem_cong`, proved once |
+   | EX, UNIQ | `mfun(C, D)` |
+   | — | the class exists: class existence from the definition's body, the classes of the constants it uses as parameters (R5) |
+
+   **The translator builds this definition/lemma graph** — during reify, as helpers, in definitional order
+   (S3) — not as a phase before or after the passes. Not built: the per-formula class existence proof
+   (FOUNDATION §3, "per-formula generation stays"). `base/` states the five primitives as relations
+   (`primitives`, `skolem`: `Pow(A, r)`); their classes are built from those.
+
 ### Pass-level questions — for the passes, not the framework
 
 | | |
 |---|---|
-| S1 placement | where the fresh `r` for a term is bound. FOUNDATION §2 requires the proof's interior to correspond step for step, which needs ONE `r` per distinct term — so hoisted, not per atom. The framework already gives what the pass needs: statement-level parameters and `shift` |
-| meta functions | a meta-level function (a λ of type `i ⇒ i`, e.g. `RepFun(A, λx. f(x))`) is encoded as a FUNCTION CLASS — its graph — not refused |
+| S1 placement | where the term appears, never wider (the pass plan, decision 3) |
+| meta functions | every function — a constant, a λ such as `RepFun(A, λx. f(x))`'s, a function variable — is a CLASS, its graph (decision 5) |
 
 ### The guard is half of a contract
 

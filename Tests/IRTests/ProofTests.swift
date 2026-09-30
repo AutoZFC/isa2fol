@@ -125,6 +125,22 @@ private struct P {
     }
 }
 
+/// Before fol, `∃` is typed: a witness `isaBound(k, T)` concludes `ifolEx(T, …)`, which `∃ elim` opens.
+@Test func existentialStepsTakeTheTypedExistsBeforeFol() throws {
+    var p = P()
+    let x0 = try p.t.intern(.isaBound(0, i)), x1 = try p.t.intern(.isaBound(1, i)), x2 = try p.t.intern(.isaBound(2, i))
+    let elem01 = try p.pred("elem", x0, x1)
+    let intro = try p.t.intern(.folExistsIntro(try p.hyp(0, elem01), x0))
+    #expect(p.concl(intro) == (try p.t.intern(.ifolEx(i, body: try p.pred("elem", x0, x2)))))
+    let hypothesis = try p.t.intern(.ifolEx(i, body: elem01))
+    let elim = try p.t.intern(.folExistsElim(try p.hyp(0, hypothesis), body: intro))
+    #expect(p.concl(elim) == hypothesis)
+    let a = try p.t.intern(.isaFree("a", i))
+    #expect(throws: TableError.notATermVariable(a)) {
+        try p.t.intern(.folExistsIntro(try p.hyp(0, elem01), a))
+    }
+}
+
 @Test func theIsaQuantifierStepsTypeTheirTerm() throws {
     var p = P()
     let a = try p.t.intern(.isaFree("a", i))

@@ -5,7 +5,8 @@
 # which is what makes gate G1 pass here on content rather than on origin.
 #
 # Every claim and every proof below is copied VERBATIM from a probe the checker
-# already accepts (pair_flattening, pair_injective) -- never retyped. §0 is the
+# already accepts (pair_injective, and pair_flattening -- since deleted as
+# nested-tuple material) -- never retyped. §0 is the
 # standing evidence that a plausible-looking variant of a base statement can be
 # wrong, so transcription risk is avoided rather than managed.
 
@@ -21,7 +22,6 @@ claim pair_eq_sing: forall x. forall y. forall u. forall b. forall c. (upair(x,y
 claim upair_cong: forall a. forall b. forall a2. forall b2. forall p. forall q. (upair(a,b,p) -> (upair(a2,b2,q) -> (eq(a,a2) -> (eq(b,b2) -> eq(p,q)))))
 claim pair_ex:    forall x. forall y. (set(x) -> (set(y) -> (exists p. (set(p) & kpair(x,y,p)))))
 claim pair_set:   forall x. forall y. forall p. (set(x) -> (set(y) -> (kpair(x,y,p) -> set(p))))
-claim tuple_chain: forall a. forall b. forall c. forall p. forall q. (set(a) -> (set(b) -> (set(c) -> (kpair(a,b,p) -> (kpair(p,c,q) -> set(q))))))
 claim pair_fst: forall x. forall y. forall u. forall v. forall p. (kpair(x,y,p) -> (kpair(u,v,p) -> eq(x,u)))
 claim pair_snd: forall x. forall y. forall u. forall v. forall p. (kpair(x,y,p) -> (kpair(u,v,p) -> eq(y,v)))
 claim pair_inj: forall x. forall y. forall u. forall v. forall p. (kpair(x,y,p) -> (kpair(u,v,p) -> (eq(x,u) & eq(y,v))))

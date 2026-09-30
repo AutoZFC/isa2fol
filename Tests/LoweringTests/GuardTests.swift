@@ -9,13 +9,12 @@ private func fn(_ a: IRType, _ b: IRType) -> IRType { .fn(a, b) }
 private struct F {
     var t = Table()
     mutating func b(_ k: Int) throws -> NodeID { try t.intern(.isaBound(k, i)) }
-    mutating func v(_ k: Int) throws -> NodeID { try t.intern(.folBound(k)) }
     mutating func const(_ n: String, _ T: IRType, _ xs: NodeID...) throws -> NodeID { try t.intern(.isaConst(n, T, args: xs)) }
     mutating func pred(_ n: String, _ x: NodeID) throws -> NodeID { try const(n, fn(i, o), x) }
     mutating func set(_ x: NodeID) throws -> NodeID { try t.intern(.folPred("set", args: [x])) }
     mutating func imp(_ a: NodeID, _ b: NodeID) throws -> NodeID { try t.intern(.folImplies(a, b)) }
     mutating func all(_ body: NodeID) throws -> NodeID { try t.intern(.ifolAll(i, body: body)) }
-    mutating func guardedAll(_ body: NodeID) throws -> NodeID { try all(try imp(try set(try v(0)), body)) }
+    mutating func guardedAll(_ body: NodeID) throws -> NodeID { try all(try imp(try set(try b(0)), body)) }
     mutating func hyp(_ k: Int, _ a: NodeID) throws -> NodeID { try t.intern(.hyp(k, a)) }
     mutating func use(_ n: String, _ root: NodeID) throws -> NodeID { try t.intern(.use(n, [], root)) }
     mutating func fix(_ body: NodeID) throws -> NodeID { try t.intern(.isaAllIntro(i, body: body)) }
@@ -40,9 +39,9 @@ private func statement(_ unit: Unit, _ name: String) throws -> Statement {
     try #require(unit.statements.first { $0.name == name })
 }
 
-/// A variable of type `i` becomes a fol variable wherever it is bound, a `λ` included; only a
-/// quantifier at `i` gains a guard.
-@Test func aQuantifierAtIIsGuardedAndEveryVariableAtIIsAFolVariable() throws {
+/// Only a quantifier at `i` gains a guard; every variable keeps its IR type, which is how the guard
+/// tells a set from a class, and a `λ` is unchanged.
+@Test func aQuantifierAtIIsGuardedAndEveryVariableKeepsItsType() throws {
     var f = F()
     let px = try f.pred("P", try f.b(0))
     let a = try f.const("a", i)
@@ -58,10 +57,8 @@ private func statement(_ unit: Unit, _ name: String) throws -> Statement {
         if case let .rewritten(id) = r { return id }
         return nil
     }
-    let pv = try f.pred("P", try f.v(0))
-    let guardedEx = try f.t.intern(.ifolEx(i, body: try f.t.intern(.folAnd(try f.set(try f.v(0)), pv))))
-    let lambdaOverV = try f.const("F", fn(fn(i, o), o), try f.t.intern(.isaAbs(i, body: pv)))
-    #expect(out == [try f.guardedAll(pv), guardedEx, atO, atPredicate, atVariable, lambdaOverV])
+    let guardedEx = try f.t.intern(.ifolEx(i, body: try f.t.intern(.folAnd(try f.set(try f.b(0)), px))))
+    #expect(out == [try f.guardedAll(px), guardedEx, atO, atPredicate, atVariable, lambda])
 }
 
 /// `λx h. lem x h`: the elimination at `x` owes `set(x)`, and `x`'s guard is one assumption
@@ -73,7 +70,7 @@ private func statement(_ unit: Unit, _ name: String) throws -> Statement {
     let proof = try f.fix(try f.assume(px, try f.mp(try f.elim(try f.use("lem", lem.root), x), try f.hyp(0, px))))
     let unit = try lowered(f, [lem, Statement(name: "thm", root: lem.root, proof: proof)])
     var g = F(t: unit.table)
-    let v = try g.v(0), pv = try g.pred("P", v)
+    let v = try g.b(0), pv = try g.pred("P", v)
     let lemRoot = try g.guardedAll(try g.imp(pv, try g.pred("Q", v)))
     let discharged = try g.mp(try g.elim(try g.use("lem", lemRoot), v), try g.hyp(1, try g.set(v)))
     let expected = try g.fix(try g.assume(try g.set(v), try g.assume(pv, try g.mp(discharged, try g.hyp(0, pv)))))
@@ -90,11 +87,11 @@ private func statement(_ unit: Unit, _ name: String) throws -> Statement {
     let proof = try f.fix(try f.fix(try f.assume(px, try f.mp(try f.elim(try f.use("lem", lem.root), x), try f.hyp(0, px)))))
     let unit = try lowered(f, [lem, Statement(name: "thm", root: root, proof: proof)])
     var g = F(t: unit.table)
-    let v1 = try g.v(1), pv1 = try g.pred("P", v1)
-    let lemRoot = try g.guardedAll(try g.imp(try g.pred("P", try g.v(0)), try g.pred("Q", try g.v(0))))
+    let v1 = try g.b(1), pv1 = try g.pred("P", v1)
+    let lemRoot = try g.guardedAll(try g.imp(try g.pred("P", try g.b(0)), try g.pred("Q", try g.b(0))))
     let discharged = try g.mp(try g.elim(try g.use("lem", lemRoot), v1), try g.hyp(2, try g.set(v1)))
     let body = try g.assume(pv1, try g.mp(discharged, try g.hyp(0, pv1)))
-    let expected = try g.fix(try g.assume(try g.set(try g.v(0)), try g.fix(try g.assume(try g.set(try g.v(0)), body))))
+    let expected = try g.fix(try g.assume(try g.set(try g.b(0)), try g.fix(try g.assume(try g.set(try g.b(0)), body))))
     #expect(try statement(unit, "thm").proof == expected)
 }
 
@@ -107,8 +104,8 @@ private func statement(_ unit: Unit, _ name: String) throws -> Statement {
     let proof = try f.assume(c, try f.fix(try f.assume(px, try f.hyp(1, c))))
     let unit = try lowered(f, [Statement(name: "thm", root: root, proof: proof)])
     var g = F(t: unit.table)
-    let pv = try g.pred("P", try g.v(0))
-    let expected = try g.assume(c, try g.fix(try g.assume(try g.set(try g.v(0)), try g.assume(pv, try g.hyp(2, c)))))
+    let pv = try g.pred("P", try g.b(0))
+    let expected = try g.assume(c, try g.fix(try g.assume(try g.set(try g.b(0)), try g.assume(pv, try g.hyp(2, c)))))
     #expect(try statement(unit, "thm").proof == expected)
 }
 

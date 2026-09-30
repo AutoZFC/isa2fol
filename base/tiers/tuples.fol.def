@@ -1,0 +1,44 @@
+# base/tiers/tuples -- FOUNDATION §1a: a tuple is a FUNCTION with domain n.
+#
+# The class form of Isabelle/ZF's own `n -> A` (func: `Pi(A,B) == {f : Pow(Sigma(A,B)).
+# A <= domain(f) & function(f)}`) with A = n, B = V, and of `fun_extend`:
+#     f : A->B,  c ~: A  ==>  cons(<c,b>, f) : cons(c,A) -> cons(b,B)
+# at c = n, where cons(n,n) = succ(n). A tuple grows by ONE entry at the top index;
+# there is no nesting, no position, and no arity family.
+#
+# NO REGULARITY. Isabelle discharges `c ~: A` by `mem_irrefl`, which rests on
+# Foundation; base does not state axiom 18. `index(n)` -- n transitive and n ~: n --
+# is instead an INVARIANT: it holds of the empty set and `nsucc` preserves it, so
+# every index a tuple is built at carries it without induction or omega.
+#
+# Depends on base/axioms, base/tiers/pairs and base/tiers/witness (kpair_arg_cong).
+# Admits nothing: four definitional introductions, content zero.
+
+@def(nsucc) axiom nsucc_def: forall n. forall m. (nsucc(n,m) <-> (forall x. (set(x) -> (elem(x,m) <-> (elem(x,n) | eq(x,n))))))
+@def(index) axiom index_def: forall n. (index(n) <-> ((forall x. (set(x) -> (elem(x,n) -> (forall y. (set(y) -> (elem(y,x) -> elem(y,n))))))) & (~ elem(n,n))))
+@def(snoc) axiom snoc_def: forall t. forall n. forall v. forall s. (snoc(t,n,v,s) <-> (forall x. (set(x) -> (elem(x,s) <-> (elem(x,t) | kpair(n,v,x))))))
+@def(tuple) axiom tuple_def: forall t. forall n. (tuple(t,n) <-> (index(n) & ((forall x. (set(x) -> (elem(x,t) -> (exists i. (set(i) & (elem(i,n) & (exists y. (set(y) & kpair(i,y,x))))))))) & ((forall i. (set(i) -> (elem(i,n) -> (exists y. (set(y) & pmem(i,y,t)))))) & (forall i. (set(i) -> (forall y. (set(y) -> (forall z. (set(z) -> (pmem(i,y,t) -> (pmem(i,z,t) -> eq(y,z)))))))))))))
+
+# Binary union, from pairing and union. Every EX below is one of these.
+claim union2_ex: forall a. (set(a) -> (forall b. (set(b) -> (exists u. (set(u) & (forall x. (set(x) -> (elem(x,u) <-> (elem(x,a) | elem(x,b))))))))))
+
+claim nsucc_EX: forall n. (set(n) -> (exists m. (set(m) & nsucc(n,m))))
+claim snoc_EX: forall t. (set(t) -> (forall n. (set(n) -> (forall v. (set(v) -> (exists s. (set(s) & snoc(t,n,v,s))))))))
+claim snoc_UNIQ: forall t. forall n. forall v. forall s. forall s2. (snoc(t,n,v,s) -> (snoc(t,n,v,s2) -> eq(s,s2)))
+
+# The invariant that stands in for Foundation.
+claim index_zero: forall e. ((forall u. (set(u) -> (~ elem(u,e)))) -> index(e))
+claim index_succ: forall n. (set(n) -> (forall m. (set(m) -> (index(n) -> (nsucc(n,m) -> index(m))))))
+
+# What a tuple's pairs say, and what a snoc adds -- the working lemmas below.
+claim tuple_dom: forall t. forall n. (tuple(t,n) -> (forall i. (set(i) -> (forall y. (set(y) -> (pmem(i,y,t) -> elem(i,n)))))))
+claim tuple_fresh: forall t. forall n. (tuple(t,n) -> (forall x. (set(x) -> (elem(x,t) -> (forall w. (~ kpair(n,w,x)))))))
+claim snoc_pmem: forall t. forall n. forall v. forall s. (snoc(t,n,v,s) -> (forall i. (set(i) -> (forall y. (set(y) -> (pmem(i,y,s) <-> (pmem(i,y,t) | (eq(i,n) & eq(y,v)))))))))
+
+# The class form of `fun_extend` / `fun_extend_apply`, and injectivity.
+claim tuple_zero: forall e. ((forall u. (set(u) -> (~ elem(u,e)))) -> tuple(e,e))
+claim snoc_new: forall t. forall n. forall v. forall s. (snoc(t,n,v,s) -> (set(n) -> (set(v) -> pmem(n,v,s))))
+claim snoc_old: forall t. forall n. forall v. forall s. (snoc(t,n,v,s) -> ((~ elem(n,n)) -> (forall i. (set(i) -> (elem(i,n) -> (forall y. (set(y) -> (pmem(i,y,s) <-> pmem(i,y,t)))))))))
+claim tuple_snoc: forall t. forall s. forall n. (set(n) -> (forall v. (set(v) -> (forall m. (set(m) -> (tuple(t,n) -> (nsucc(n,m) -> (snoc(t,n,v,s) -> tuple(s,m)))))))))
+claim snoc_inj: forall t. forall t2. forall n. (set(n) -> (forall v. (set(v) -> (forall v2. (set(v2) -> (forall s. (tuple(t,n) -> (tuple(t2,n) -> (snoc(t,n,v,s) -> (snoc(t2,n,v2,s) -> (eq(t,t2) & eq(v,v2))))))))))))
+claim snoc_CONG: forall t. forall t2. forall n. forall n2. forall v. forall v2. forall s. (eq(t,t2) -> (eq(n,n2) -> (eq(v,v2) -> (snoc(t,n,v,s) -> snoc(t2,n2,v2,s)))))

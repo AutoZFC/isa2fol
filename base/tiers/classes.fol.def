@@ -1,0 +1,64 @@
+# base/tiers/classes -- FOUNDATION §3: class existence over tuples, PROVED from B1-B7.
+#
+# A formula phi with k variables in scope denotes the class of assignments -- tuples on
+# k, base/tiers/tuples -- that satisfy it. Its class is built by these rows, one per
+# construct, and every row is a THEOREM of standard NBG: its right side quantifies over
+# sets only, so it is an instance of Goedel's class existence theorem, derived here once.
+#
+#   x in y      row_mem      a(i) in a(j)
+#   x = y       row_eq       a(i) = a(j)
+#   x in Y      row_class    a class parameter: S4's P(x)
+#   G(x.., y)   row_class2   <a(i), a(j)> in G, a(i) the ARGUMENT TUPLE -- a variable the
+#                            formula binds by its own snoc chain, so one row serves every arity
+#   phi & psi   B2           intersection, as admitted
+#   ~ phi       B3           complement, as admitted
+#   exists y    row_ex       y came into scope last, index k: a u {<k,v>}
+#   the domain  tuples_class intersected ONCE, at the top: the rows are exact over EVERY set
+#
+# The cls_* are Goedel's operations on classes of pairs and triples, the toolkit the rows
+# are proved with. Triples appear in them and in their proofs -- B6/B7 speak of triples --
+# and NOWHERE above this tier. They are stated with an explicit pair witness q, never
+# `tmem`, which stays the notation of B6/B7 alone.
+#
+# Depends on base/axioms, pairs, witness, logic, s2s3, tuples. Admits nothing.
+
+claim cls_conv: (forall A. (exists C. (forall u. (set(u) -> (forall v. (set(v) -> (pmem(u,v,C) <-> pmem(v,u,A))))))))
+claim cls_place2: (forall A. (exists C. (forall u. (set(u) -> (forall v. (set(v) -> (pmem(u,v,C) <-> elem(v,A))))))))
+claim cls_place12: (forall A. (exists C. (forall u. (set(u) -> (forall v. (set(v) -> (forall w. (set(w) -> (forall q. (set(q) -> (kpair(u,v,q) -> (pmem(q,w,C) <-> pmem(u,v,A)))))))))))))
+claim cls_place13: (forall A. (exists C. (forall u. (set(u) -> (forall v. (set(v) -> (forall w. (set(w) -> (forall q. (set(q) -> (kpair(u,v,q) -> (pmem(q,w,C) <-> pmem(u,w,A)))))))))))))
+claim cls_place23: (forall A. (exists C. (forall u. (set(u) -> (forall v. (set(v) -> (forall w. (set(w) -> (forall q. (set(q) -> (kpair(u,v,q) -> (pmem(q,w,C) <-> pmem(v,w,A)))))))))))))
+claim cls_dom3: (forall A. (exists C. (forall u. (set(u) -> (forall v. (set(v) -> (forall q. (set(q) -> (kpair(u,v,q) -> (pmem(u,v,C) <-> (exists w. (set(w) & pmem(q,w,A)))))))))))))
+claim cls_section: (forall A. (forall i. (set(i) -> (exists C. (forall u. (set(u) -> (forall w. (set(w) -> (forall q. (set(q) -> (kpair(i,u,q) -> (pmem(u,w,C) <-> pmem(q,w,A)))))))))))))
+claim cls_diag: (exists C. (forall x. (set(x) -> (forall y. (set(y) -> (pmem(x,y,C) <-> eq(x,y)))))))
+claim cls_app3: (exists C. (forall a. (set(a) -> (forall i. (set(i) -> (forall y. (set(y) -> (forall q. (set(q) -> (kpair(a,i,q) -> (pmem(q,y,C) <-> pmem(i,y,a))))))))))))
+claim cls_snoc: (forall k. (set(k) -> (exists C. (forall a. (set(a) -> (forall v. (set(v) -> (forall b. (set(b) -> (forall q. (set(q) -> (kpair(a,v,q) -> (pmem(q,b,C) <-> snoc(a,k,v,b))))))))))))))
+claim row_app: (forall i. (set(i) -> (exists C. (forall a. (set(a) -> (forall u. (set(u) -> (pmem(a,u,C) <-> pmem(i,u,a)))))))))
+claim row_mem: (forall i. (set(i) -> (forall j. (set(j) -> (exists C. (forall a. (set(a) -> (elem(a,C) <-> (exists u. (set(u) & (pmem(i,u,a) & (exists v. (set(v) & (pmem(j,v,a) & elem(u,v)))))))))))))))
+claim row_eq: (forall i. (set(i) -> (forall j. (set(j) -> (exists C. (forall a. (set(a) -> (elem(a,C) <-> (exists u. (set(u) & (pmem(i,u,a) & (exists v. (set(v) & (pmem(j,v,a) & eq(u,v)))))))))))))))
+claim row_class: (forall i. (set(i) -> (forall Y. (exists C. (forall a. (set(a) -> (elem(a,C) <-> (exists u. (set(u) & (pmem(i,u,a) & elem(u,Y)))))))))))
+claim row_class2: (forall i. (set(i) -> (forall j. (set(j) -> (forall G. (exists C. (forall a. (set(a) -> (elem(a,C) <-> (exists u. (set(u) & (pmem(i,u,a) & (exists v. (set(v) & (pmem(j,v,a) & pmem(u,v,G))))))))))))))))
+claim row_ex: (forall k. (set(k) -> (forall A. (exists C. (forall a. (set(a) -> (elem(a,C) <-> (exists v. (set(v) & (exists b. (set(b) & (snoc(a,k,v,b) & elem(b,A)))))))))))))
+claim tuples_class: (forall k. (set(k) -> (exists C. (forall a. (set(a) -> (elem(a,C) <-> tuple(a,k)))))))
+
+# Helpers, proved in this tier.
+claim g1_pmem_cong: (forall X. (forall a. (set(a) -> (forall b. (set(b) -> (forall c. (set(c) -> (forall d. (set(d) -> (eq(a,b) -> (eq(c,d) -> (pmem(a,c,X) -> pmem(b,d,X)))))))))))))
+claim g1_tmem_at: (forall X. (forall u. (set(u) -> (forall v. (set(v) -> (forall w. (set(w) -> (forall p. (set(p) -> (kpair(u,v,p) -> (tmem(u,v,w,X) <-> pmem(p,w,X))))))))))))
+claim g1_inter2: (forall A. (forall B. (exists C. (forall u. (set(u) -> (forall v. (set(v) -> (pmem(u,v,C) <-> (pmem(u,v,A) & pmem(u,v,B))))))))))
+claim g3_pmem_cong1: (forall p. (set(p) -> (forall q. (set(q) -> (forall y. (set(y) -> (forall C. (eq(p,q) -> (pmem(p,y,C) -> pmem(q,y,C))))))))))
+claim g3_tmem_at: (forall u. (set(u) -> (forall v. (set(v) -> (forall w. (set(w) -> (forall q. (set(q) -> (forall C. (kpair(u,v,q) -> (tmem(u,v,w,C) <-> pmem(q,w,C))))))))))))
+claim g3_app_E: (exists E. (forall i. (set(i) -> (forall y. (set(y) -> (forall a. (set(a) -> (tmem(i,y,a,E) <-> pmem(i,y,a)))))))))
+claim g2_pcompl: forall A. (exists C. (forall u. (set(u) -> (forall v. (set(v) -> (pmem(u,v,C) <-> (~ pmem(u,v,A))))))))
+claim g2_piff: forall A. forall B. (exists C. (forall u. (set(u) -> (forall v. (set(v) -> (pmem(u,v,C) <-> (pmem(u,v,A) <-> pmem(u,v,B))))))))
+claim g2_pmem_cong: forall j. forall u. forall v. forall a. (eq(u,v) -> (pmem(j,v,a) -> pmem(j,u,a)))
+claim g2_ex_eq: forall a. forall j. forall u. (set(u) -> (pmem(j,u,a) -> (exists v. (set(v) & (pmem(j,v,a) & eq(u,v))))))
+claim g4_ni: (exists C. (forall u. (set(u) -> (forall v. (set(v) -> (pmem(u,v,C) <-> elem(v,u)))))))
+claim g4_kcls: (forall k. (set(k) -> (exists C. (forall v. (set(v) -> (forall x. (set(x) -> (pmem(v,x,C) <-> kpair(k,v,x)))))))))
+claim g4_pcomb: (forall A1. (forall A2. (forall A3. (exists C. (forall u. (set(u) -> (forall v. (set(v) -> (pmem(u,v,C) <-> (~ (pmem(u,v,A1) <-> (pmem(u,v,A2) | pmem(u,v,A3)))))))))))))
+claim g4_body: (forall k. (set(k) -> (exists C. (forall a. (set(a) -> (forall v. (set(v) -> (forall b. (set(b) -> (forall x. (set(x) -> (forall q. (set(q) -> (forall r. (set(r) -> (kpair(a,v,q) -> (kpair(q,b,r) -> (pmem(r,x,C) <-> (~ (elem(x,b) <-> (elem(x,a) | kpair(k,v,x))))))))))))))))))))))
+claim g5_tm: forall u. (set(u) -> (forall v. (set(v) -> (forall w. (set(w) -> (forall X. (forall q. (set(q) -> (kpair(u,v,q) -> (tmem(u,v,w,X) <-> pmem(q,w,X)))))))))))
+claim g5_all: forall A. (exists C. (forall a. (set(a) -> (elem(a,C) <-> (forall x. (set(x) -> (~ pmem(a,x,A))))))))
+claim g5_rot: exists H. (forall x. (set(x) -> (forall i. (set(i) -> (pmem(x,i,H) <-> (exists y. (set(y) & kpair(i,y,x))))))))
+claim g5_pfk: forall K. (exists D. (forall x. (set(x) -> (elem(x,D) <-> (exists i. (set(i) & (elem(i,K) & (exists y. (set(y) & kpair(i,y,x))))))))))
+claim g5_P1: forall K. (exists C. (forall a. (set(a) -> (elem(a,C) <-> (forall x. (set(x) -> (elem(x,a) -> (exists i. (set(i) & (elem(i,K) & (exists y. (set(y) & kpair(i,y,x)))))))))))))
+claim g5_P2: forall K. (exists C. (forall a. (set(a) -> (elem(a,C) <-> (forall i. (set(i) -> (elem(i,K) -> (exists y. (set(y) & pmem(i,y,a))))))))))
+claim g5_P3: exists C. (forall a. (set(a) -> (elem(a,C) <-> (forall i. (set(i) -> (forall y. (set(y) -> (forall z. (set(z) -> (pmem(i,y,a) -> (pmem(i,z,a) -> eq(y,z))))))))))))

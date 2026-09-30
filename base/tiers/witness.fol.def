@@ -1,50 +1,26 @@
-# base/tiers/witness -- collapsing tuple membership onto a MATERIALISED witness.
+# base/tiers/witness -- pair-class membership at a MATERIALISED witness.
 #
-# §8's design note for Compiler B, in one lemma. `pmem(x,y,C)` unfolds to
-# `exists p. (kpair(x,y,p) & p in C)`, so every step that COMBINES two pmem
-# facts receives two different witnesses and has to identify them (pair_uniq,
-# then elem_first_subst). base/tiers/steps pays that cost once per lemma; a
-# compiler that reasons through pmem directly pays it once per NODE.
+# `pmem(x,y,C)` unfolds to `exists p. (kpair(x,y,p) & p in C)`, so every step
+# that COMBINES two pmem facts receives two different witnesses and has to
+# identify them (pair_uniq, then elem_first_subst). Materialising ONE witness q
+# up front and threading it avoids that; `pmem_at` is what makes it legal --
+# membership at a KNOWN witness is just `elem(q,C)`, so B2/B3 apply unchanged.
 #
-# The alternative §8 prescribes: materialise ONE canonical witness q for the
-# tuple, up front, and thread it. `pmem_at` is what makes that legal -- it says
-# tuple membership at a KNOWN witness is just `elem(q,C)`.
-#
-# WHY THIS IS THE ARITY-INDEPENDENCE LEMMA, not merely an optimisation.
-# B2 and B3 are stated over a single `elem(u,C)`. Reasoning in pmem/tmem/qmem
-# form therefore needs a separate AND-step and NOT-step AT EVERY ARITY
-# (step_and, step_and3, step_and4, ...), which is exactly the per-arity table
-# §8 says Expansion must avoid, since n is not first-order-indexable. Rewriting
-# to `elem(q,C)` first makes B2/B3 apply unchanged at every arity: the tuple
-# structure lives entirely in q, and the connective steps never see it.
-#
-# So the atom case still needs the Tuple Lemma (the T-chain is genuinely about
-# positions), but the AND/NOT/EXISTS cases become arity-free.
+# FOUNDATION §1a: a function is a class of pairs and a tuple is a function, so
+# `pmem` is the one lookup at every arity. `tmem_at` -- membership in a nested
+# triple -- WAS HERE AND IS DELETED; do not reinstate it.
 claim pmem_at: forall x. forall y. forall q. forall C. (kpair(x,y,q) -> (pmem(x,y,C) <-> elem(q,C)))
 
 # Lifted VERBATIM from the `zf_fst_conv_e2e` probe, which the checker accepts.
-# `tmem_at` needs substitution of the pair's FIRST argument, and these are the
-# only substitution-form congruences in the tree -- everything else in tier 2 is
-# uniqueness-form (`... -> ... -> eq(p,q)`), which cannot transport a fact.
+# These are the only substitution-form congruences in the tree -- everything
+# else in tier 2 is uniqueness-form (`... -> ... -> eq(p,q)`), which cannot
+# transport a fact.
 claim upair_arg_cong: forall x. forall y. forall x2. forall y2. forall w. (upair(x,y,w) -> (eq(x,x2) -> (eq(y,y2) -> upair(x2,y2,w))))
 claim kpair_arg_cong: forall a. forall b. forall c. forall d. forall p. (kpair(a,b,p) -> (eq(a,c) -> (eq(b,d) -> kpair(c,d,p))))
 
-# The arity-3 collapse. Same role as `pmem_at` one level up: given the two pair
-# witnesses that BUILD the left-nested triple <<x,y>,z> = q, triple membership
-# is just `elem(q,C)`.
-#
-# This is the step that generalises: an n-tuple is n-1 nested pairs, so the
-# collapse for arity n is `tmem_at` applied along the witness chain. Nothing new
-# is needed per arity -- which is what FOUNDATION §3 means by Expansion being a
-# straight line rather than a search.
-claim tmem_at: forall x. forall y. forall z. forall p. forall q. forall C. (set(p) -> (set(q) -> (kpair(x,y,p) -> (kpair(p,z,q) -> (tmem(x,y,z,C) <-> elem(q,C))))))
-
-# `kpair` AS AN ORDINARY STEP (FOUNDATION R7).
-#
-# R7 makes every CONSTANT unary, so a body applying one goes through the pair:
-# `C(a,b,r)` is emitted as `exists q. (set(q) & kpair(a,b,q) & C(q,r))`. That
-# puts `kpair` in bodies as a step like any other, and the generator cites a
-# step's obligations as `{rel}_EX` / `_UNIQ` / `_CONG`.
+# `kpair` AS AN ORDINARY STEP -- the graph of Isabelle's `Pair`, and what every
+# function, hence every tuple, is made of (FOUNDATION §1a). A step's obligations
+# are cited as `{rel}_EX` / `_UNIQ` / `_CONG`.
 #
 # These three are `pair_ex` / `pair_uniq` / `kpair_arg_cong` restated in the
 # generator's shape: INTERLEAVED guards (R3), and the argument order per-step
@@ -53,9 +29,8 @@ claim tmem_at: forall x. forall y. forall z. forall p. forall q. forall C. (set(
 # in `tiers/pairs`, because `kpair_arg_cong` is declared in THIS tier.
 #
 # `kpair_EX` is TOTAL -- no domain hypothesis, unlike a tupled constant's EX.
-# That is not an inconsistency: `kpair` is THE ONE BINARY PRIMITIVE (it cannot be
-# tupled without its input becoming the pair it builds), so it has no tuple
-# domain to be partial on.
+# `kpair` is the one primitive: a tuple is made of pairs, so the pair cannot
+# itself take a tuple, and has no tuple domain to be partial on.
 claim kpair_EX: (forall a. (set(a) -> (forall b. (set(b) -> (exists p. (set(p) & kpair(a,b,p)))))))
 claim kpair_UNIQ: (forall a. (set(a) -> (forall b. (set(b) -> (forall p. (set(p) -> (forall q. (set(q) -> (kpair(a,b,p) -> (kpair(a,b,q) -> eq(p,q)))))))))))
 claim kpair_CONG: (forall a. (set(a) -> (forall b. (set(b) -> (forall a2. (set(a2) -> (forall b2. (set(b2) -> (forall p. (set(p) -> (eq(a,a2) -> (eq(b,b2) -> (kpair(a,b,p) -> kpair(a2,b2,p))))))))))))))

@@ -3,6 +3,7 @@
     case negativeIndex(Int)
     case childType(expected: IRType, found: IRType)
     case predicateArgumentNotVariable(NodeID)
+    case propositionAsTerm(NodeID)
     case functionArgumentNotAbstraction(NodeID)
     case arityMismatch(expected: Int, found: Int)
     case varAppHeadNotVariable(NodeID)
@@ -77,9 +78,7 @@ public struct Table: Sendable {
         case .folBound:
             return .value(.i)
         case let .folPred(_, xs):
-            for x in xs {
-                guard case .folBound = self[x] else { throw TableError.predicateArgumentNotVariable(x) }
-            }
+            for x in xs { try expectTermVariable(x) }
             return .value(.o)
         case let .folAnd(a, b), let .folOr(a, b), let .folImplies(a, b), let .folIff(a, b):
             try expect(.o, a)
@@ -160,11 +159,13 @@ public struct Table: Sendable {
             guard case .folBound = self[v] else { throw TableError.notATermVariable(v) }
             return .step(concluding: try instantiate(body, with: v, in: &self))
         case let .folExistsIntro(p, v):
-            guard case let .folBound(k) = self[v] else { throw TableError.notATermVariable(v) }
-            let body = try abstractIndex(try premise(p), k, in: &self)
-            return .step(concluding: try intern(.folExists(body: body)))
+            if case let .folBound(k) = self[v] {
+                return .step(concluding: try intern(.folExists(body: try abstractIndex(try premise(p), k, in: &self))))
+            }
+            guard case let .isaBound(k, T) = self[v] else { throw TableError.notATermVariable(v) }
+            return .step(concluding: try intern(.ifolEx(T, body: try abstractIndex(try premise(p), k, in: &self))))
         case let .folExistsElim(p, body):
-            guard case .folExists = self[try premise(p)] else { throw TableError.principalConnective(p) }
+            guard isExistential(self[try premise(p)]) else { throw TableError.principalConnective(p) }
             do {
                 return .step(concluding: try unshift(try premise(body), in: &self))
             } catch IRRefusal.indexOccurs {
@@ -186,6 +187,18 @@ public struct Table: Sendable {
             if case .fn = T, !isAbstraction(x) { throw TableError.functionArgumentNotAbstraction(x) }
             return .step(concluding: try instantiate(body, with: x, in: &self))
         }
+    }
+
+    private func expectTermVariable(_ x: NodeID) throws {
+        if case .folBound = self[x] { return }
+        guard case let .isaBound(_, T) = self[x] else { throw TableError.predicateArgumentNotVariable(x) }
+        guard T != .o else { throw TableError.propositionAsTerm(x) }
+    }
+
+    private func isExistential(_ n: Node) -> Bool {
+        if case .folExists = n { return true }
+        if case .ifolEx = n { return true }
+        return false
     }
 
     private func value(_ c: NodeID) throws -> IRType {

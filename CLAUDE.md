@@ -142,7 +142,7 @@ is gone. §5 says so. Treat every number there as a belief, never a premise.
    print(f'{c}/{t} = {100*c/t:.1f}%')"
    ```
 
-   ✓ **CURRENTLY 9/2618 = 0.3%, under the cap.** Keep it there: a breach is
+   ✓ **CURRENTLY 9/2629 = 0.3%, under the cap.** Keep it there: a breach is
    fixed by deleting prose, never by raising the cap.
 
    Does not apply to `base/**/*.fol.def` headers: those record provenance of
@@ -188,7 +188,7 @@ Sources/
   Lowering/      passes over the table, never seen by the framework: Guard (R3)
   isa2fol/       CLI
 Tests/           YXMLTests · FolDialectTests · IRTests · ReaderTests · LoweringTests
-base/            the NBG foundation: axioms.fol.def + 9 tiers, kernel-checked
+base/            the NBG foundation: axioms.fol.def + 10 tiers, kernel-checked
 docs/            FOUNDATION.md · SOURCE_SURFACE.md · CLOSURE.md (both generated) · phase2_probes
 data/zf_export/  the Isabelle export — a LOCAL CACHE, never committed: scripts/03-export-zf.sh
 ```
@@ -215,22 +215,25 @@ what rule 11 rests on.
 constructs as ops, and keeping both was rule 4's duplication. A type variable is
 `IRType.variable`, and a citation `use(name, types, root)` carries its type arguments
 (`DESIGN.md` §4.3a 3): the table holds each theorem as Isabelle states it. What becomes
-of a generic theorem in a one-sorted target is translation's, and undecided.
+of a generic theorem is `DESIGN.md` §4a decision 4: restricted to class `term`, it is read
+at `i`; unrestricted, deferred.
 
 ### The dialects
 
-**FolDialect** — `Term` is a struct with one field: *a variable, and there is no
-other term.* That is S1 expressed as a type, and it is what makes a description
-former unrepresentable. A `Binder` carries `.setVar` / `.classVar` so the guard
-rule is two-sided: every set binder guarded, **every class binder unguarded** —
-guarding a class makes the claim false, not redundant.
+**FolDialect** renders formulas and proofs from the table. A predicate's
+arguments are *variables, and there is no other term*: the table refuses anything
+else (`predicateArgumentNotVariable`), and a variable at `o` (`propositionAsTerm`). That is S1 as a check, and it is what makes
+a description former unrepresentable. Whether a binder is a set or a class is its
+IR TYPE, which the guard reads: every set binder guarded, **every class binder
+unguarded** — guarding a class makes the claim false, not redundant.
 
 ### Translation
 
 `docs/FOUNDATION.md` §2 is the specification (S1-S6). In short: the target
-signature has **no function symbols**, so a k-ary Isabelle term constant becomes
-a relation on k+1 slots — its graph — with `C_EX`, `C_UNIQ`, `C_CONG` derived
-from the `@def` body, never admitted.
+signature has **no function symbols**, so an Isabelle constant becomes a CLASS —
+its graph on argument tuples — applied by membership, `⟨t, r⟩ ∈ F` (§1a). That its
+class exists and is a function (`mfun`) is derived from its definition, never
+admitted; congruence is membership's, proved once. `DESIGN.md` §4a is the pass plan.
 
 `~/isabelle-pure-metalogic.md` and `~/isabelle-object-constants.md` are reading
 notes on the source side: the 7 Pure rules, and the 197 term constants in

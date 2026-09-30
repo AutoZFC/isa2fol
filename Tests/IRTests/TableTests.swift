@@ -111,6 +111,29 @@ private let collect = "ZF_Base.Collect"
     }
 }
 
+/// A variable keeps its IR type until fol, so a predicate takes isa's variables too — a set, a
+/// predicate class, a function class — and `legalize`, not the predicate, refuses them at the end.
+@Test func aPredicateTakesAVariableOfEveryTermType() throws {
+    var t = Table()
+    let x = try t.intern(.isaBound(0, i))
+    let P = try t.intern(.isaBound(1, fn(i, o)))
+    let F = try t.intern(.isaBound(2, fn(i, i)))
+    let set = try t.intern(.folPred("set", args: [x]))
+    _ = try t.intern(.folPred("elem", args: [x, P]))
+    _ = try t.intern(.folPred("pmem", args: [x, x, F]))
+    _ = try t.intern(.folPred("set", args: [try t.intern(.folBound(0))]))
+    #expect(throws: IRRefusal.sourceKindSurvived(x)) { try legalize(set, in: t) }
+}
+
+/// S4: a proposition is never reified, so a variable at `o` is no predicate's argument.
+@Test func aVariableAtOIsNotAPredicateArgument() throws {
+    var t = Table()
+    let p = try t.intern(.isaBound(0, o))
+    #expect(throws: TableError.propositionAsTerm(p)) {
+        try t.intern(.folPred("set", args: [p]))
+    }
+}
+
 /// The ZF surface: `Collect(A, P)` with `P` η-short is not surface-shaped.
 @Test func aFunctionArgumentThatIsNotAnAbstractionIsRefused() throws {
     var t = Table()

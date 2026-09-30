@@ -12,13 +12,22 @@ Two commitments, never traded:
   statement labelled "we proved T" is a false claim about what was proved.
   **Nothing checks N2 but us.**
 
-> **⚠ §3 CHANGED, AND THE CODE HAS NOT.** The class context is now an
-> ASSIGNMENT — a function from an index set to V — because the source owns the
-> coordinate order and position-indexing cannot survive that. §3 states the
-> foundation; **§3a states what the implementation still realises.** Anything in
-> this document that speaks of "tuple slots", T1–T4, or Expansion is prose against
-> §3a. Cite §3 for what must be true and §3a for what is built, and never §3 as
-> evidence about present behaviour.
+> **⚠ TUPLES ARE FUNCTIONS (§1a), AND EVERY NESTED-TUPLE VOCABULARY IN THIS
+> DOCUMENT IS WRONG — NOT SUPERSEDED, WRONG.** An n-tuple is a function with
+> domain `n`, as Isabelle/ZF's own `n → A` is; a meta function of arity `n` is a
+> class function on n-tuples. R7's left-nested form, S5's `tmem`, §2's
+> factorisation through Kuratowski pairs, R5's Tuple-Lemma paragraphs and all of
+> §3a reason in nested pairs, and each carries a warning where it stands. **The base
+> stays standard NBG** — Gödel's group B as Mendelson states it — and everything
+> we use of it is PROVED from it, never admitted (§1a).
+>
+> **⚠ A CONSTANT IS A CLASS (§1a), APPLIED BY MEMBERSHIP: `f(x⃗) = r` IS
+> `⟨t, r⟩ ∈ F`, `t` THE TUPLE OF `x⃗`.** Wherever §1 and §2 write a relation
+> `F(x⃗, r)`, read that atom. Of the four obligations the relation form owed per
+> constant, GRAPH is the class itself, CONG is membership's congruence — one
+> theorem for every class (`base/tiers/classes`) — and EX with UNIQ is the class
+> being a function (`base/tiers/metafun`). What each constant owes is that its
+> class exists and is a function (decided 2026-09-29).
 
 ---
 
@@ -96,11 +105,12 @@ complement of `∅` is the class of all objects → collapse.
 > **R6 — The ceiling is 195 of 197.** Two constants violate S5 in their own
 > definition and are permanent refusals, not gaps.
 >
-> **R7 — Every emitted constant is UNARY.** A constant of `n` set arguments is
-> emitted as the 2-place relation `C(p, r)` with `p` the left-nested tuple; class
-> arguments stay outside it (R4). **Exactly one primitive stays binary, and it is
-> the pairing** — `kpair(a,b,p)` cannot be tupled without its input becoming the
-> pair it constructs.
+> **R7 — Every emitted constant is UNARY on ONE tuple, and a tuple is a
+> function (§1a).** A constant of `n` set arguments is emitted as a CLASS of
+> pairs `⟨t, r⟩`, applied by membership, with `t` the n-tuple
+> `{⟨0,a₁⟩,…,⟨n−1,aₙ⟩}` — at every arity, 1 included; class arguments stay
+> outside it (R4). **The one primitive is the Kuratowski pair** — a function
+> is a set of pairs, so the pair cannot itself be a tuple.
 
 R2 is a mathematical criterion, not housekeeping. A legitimate schema is proved
 **parametrically**, with `P` uninterpreted — so it is legitimate exactly when its
@@ -110,27 +120,31 @@ uninterpreted predicate: Morse–Kelley. Delete it and instantiate its uses at
 concrete formulas.
 
 R7 costs nothing in faithfulness and buys one pattern instead of an
-arity-indexed family. The emitted biconditional
+arity-indexed family. Writing `tup(a₁,…,aₙ, t)` for "`t` is the function with
+domain `n` and `t(k−1) = a_k`", the emitted biconditional
 
 ```
-  C(p,r)  ⟺  ∃a b. (set(a) ∧ set(b) ∧ kpair(a,b,p) ∧ φ_C(a,b,r))
+  C(t,r)  ⟺  ∃a⃗. (set(a⃗) ∧ tup(a⃗, t) ∧ φ_C(a⃗, r))
 ```
 
 is a **definition**, so the n-ary statement is recoverable from the unary one:
-given `a`, `b` sets, `pair_ex` supplies `p` with `kpair(a,b,p)` and `pair_uniq`
-makes it the only one, so `C(p,r) ⟺ φ_C(a,b,r)`. Isabelle's constants stay
-n-ary; what we emit is the *proof*, and there the unary reading is the one S3's
-induction runs on. **R7 admits no subset.** A class parameter, a
-definition-internal class and `n ≥ 3` are all in scope; scoping it to whichever
-constants happen to emit today is the corpus deciding the specification, which
-§5's method rule forbids.
+given sets `a⃗`, the tuple exists and is unique (§1a), so `C(t,r) ⟺ φ_C(a⃗,r)`.
+Isabelle's constants stay n-ary; what we emit is the *proof*, and there the unary
+reading is the one S3's induction runs on. **R7 admits no subset.** A class
+parameter, a definition-internal class and `n ≥ 3` are all in scope; scoping it to
+whichever constants happen to emit today is the corpus deciding the
+specification, which §5's method rule forbids.
 
 R7 has a consequence that is not optional: tupling `C` changes its arity, so
-**every body applying `C` must be rewritten** `C(a,b,r) ⟿ ∃q. (set(q) ∧
-kpair(a,b,q) ∧ C(q,r))`. That rewrite is definitional by the same two lemmas,
-and it is a prerequisite of R7, not a follow-on. After it, the only atom that
-can consume two intermediates is `kpair` itself — which is what
-`pair_fn_{ex,uniq,cong}` are for.
+**every body applying `C` must be rewritten** `C(a⃗,r) ⟿ ∃t. (set(t) ∧ tup(a⃗,t)
+∧ C(t,r))`. That rewrite is definitional by the tuple's EX and UNIQ, and it is a
+prerequisite of R7, not a follow-on.
+
+> **⚠ R7 SAID "THE LEFT-NESTED TUPLE", `C(p,r)` WITH `kpair(a,b,p)`, AND CITED
+> `pair_fn_{ex,uniq,cong}` AS WHAT CONSUMES TWO INTERMEDIATES.** That made an
+> n-tuple a Kuratowski pair of pairs — positions again, and at arity 3 the triple
+> `tmem` put into S5. The tuple is a function; the pair is only what functions are
+> made of.
 
 R3 is §2 S6 stated as an enforceable rule. It is not hygiene. Conservativity is
 `NBG ⊢ σ^set ⟺ ZFC ⊢ σ`, stated for the **relativized** sentence, so an
@@ -276,6 +290,10 @@ asserts, which is §3 at φ. Nothing new is admitted.
 *Consequence.* GRAPH is a fourth obligation discharged in definitional order,
 alongside EX/UNIQ/CONG, and it inherits G3's ordering constraint.
 
+> **⚠ FROM HERE TO R6, THIS SECTION REASONS IN NESTED PAIRS** — seeds, blocks,
+> coordinate 1, T1–T4 — and is wrong under §1a. What survives is R5 above: a graph
+> is a parameter, never an inlined body.
+
 *How the atom enters, and why not a wider Tuple Lemma.* **The Class Existence
 Theorem's fragment has no atom `⟨x⃗⟩ ∈ Y`** — its atoms are `xᵢ ∈ xⱼ`, `xᵢ ∈ Yⱼ`,
 `Yᵢ ∈ xⱼ`, `Yᵢ ∈ Yⱼ` and nothing else, which is why both sources state the Tuple
@@ -346,6 +364,70 @@ be translating a *different* constant, which is §4's failure mode.
 
 ---
 
+## 1a. Functions and tuples — Isabelle's own, in class form
+
+**Isabelle/ZF builds functions from pairs; the meta level is built the same way.**
+Only the domain changes: a set there, every set here — so a class, not a set.
+From `ZF_Base` and `func`:
+
+| Isabelle/ZF, over a set `A` | its definition | class form, for the meta level |
+|---|---|---|
+| `Pair(a,b)` | `{{a,a},{a,b}}` | `kpair` — the one primitive, unchanged |
+| `function(r)` | `∀x y. ⟨x,y⟩ ∈ r ⟶ (∀y'. ⟨x,y'⟩ ∈ r ⟶ y = y')` | the same, of a class |
+| `f`a` | `⋃(f``{a})` — for a function, the `b` with `⟨a,b⟩ ∈ f` | `⟨a, r⟩ ∈ F`: application is membership |
+| `Lambda(A,b)` | `{⟨x, b(x)⟩. x ∈ A}` | a λ over every set: the class `{⟨x,r⟩ : φ_b(x,r)}`, by §3 |
+| `beta`, `eta`, `fun_extension` | theorems of `func` | Pure's β, η, `abstract_rule` — theorems about such classes |
+| `n → A`, i.e. `Pi(n, λ_. A)` | the n-tuples over `A` | **an n-tuple is a function with domain `n`** — a set, so it can stand in a pair |
+
+**So: pairs → functions → tuples → meta functions of arity `n`.**
+
+- **A meta function of arity `n`**, `[i,…,i] ⇒ i`, is a class function on
+  n-tuples: `f(x⃗) = r` iff `⟨t, r⟩ ∈ F`, `t` the tuple `{⟨0,x₁⟩,…,⟨n−1,xₙ⟩}`.
+  Isabelle's currying, `i ⇒ (i ⇒ i)`, is not available — its value would be a
+  class, and a class is no member — so arity `n` is always ONE tuple.
+- **One atom at every arity**, `pmem` on a tuple. No arity-indexed predicate, no
+  position, nothing to permute.
+- **A constant is a closed meta function** (R7), its graph a class function on
+  tuples; a λ is one built at its use site by §3; a meta-function variable is a
+  class parameter that owes being a function (S5).
+- **Isabelle's own `⟨x,y,z⟩ = ⟨x,⟨y,z⟩⟩` is the OBJECT language's pair** — a value,
+  translated like any constant — never the meta level's tuple (§3).
+
+**The base is standard NBG, and what we use of it is PROVED.** §1's axioms are
+Gödel's group B as Mendelson states it (*Introduction to Mathematical Logic*,
+ch. 4); B6/B7 speak of Gödel's ordered triples, and those triples appear in those
+two statements and inside the base proofs that consume them — NOWHERE above.
+`function`, application, the tuple's EX, UNIQ, congruence and injectivity, the
+table's lemmas, and §3's class existence over tuples are all THEOREMS of that
+base. Nothing is admitted, so NBG's conservativity over ZFC (Novák 1950,
+Shoenfield 1954) carries every one of them, and S6 needs no argument of ours.
+
+**The tuple is PROVED** (`base/tiers/tuples`): a tuple grows by one entry at its
+top index, `s = t ∪ {⟨n,v⟩}` — Isabelle's `cons(⟨c,b⟩, f)` at `c = n` — and
+`fun_extend` holds in class form: a tuple on `n` so extended is a tuple on
+`succ(n)`, with the new value at `n` and the old ones unchanged; the extension
+exists, is unique, respects `eq`, and determines its prefix and its last value.
+Isabelle discharges `c ∉ A` by Foundation; the base does not state Regularity, so
+`n ∉ n` is carried instead as an INVARIANT of every index — `n` transitive and
+`n ∉ n` — which the empty set has and `succ` preserves. No induction, no `ω`.
+
+**The meta function is PROVED** (`base/tiers/metafun`), and with it the table's last
+two rows. A class function on a domain `D` — the tuples on `n`, or every set — is
+total and single-valued there. A λ is read at one scope layout, context `c` on
+`p`, argument at `p`, result at `succ(p)`, and its class is class existence at
+that layout (β); extracting the application atom gives back the function (η);
+pointwise-equal class functions agree on `D` (`fun_extension`); and `f ≡ g` with
+`t = t′` gives `f(t) ≡ g(t′)` (`combination`).
+
+**Deleted from `base/` (2026-09-29)**, because each built or used the nested
+tuple: `witness`'s `tmem_at`; `s2s3`'s `tuple_*` and `pair_fn_*`; `pairs`'
+`tuple_chain`; the tiers `steps` and `diagonal` (§3a's construction — `diagonal`
+cited T1/T2/T4); the probes `tuple_lemma`, `expansion`, `compiler_b`,
+`pair_flattening`. `tmem` itself survives only as the notation of B6/B7's own
+statement.
+
+---
+
 ## 2. The specification
 
 Forced by §1. Not a preference.
@@ -356,14 +438,23 @@ symbols, so the only terms are variables. `φ(f(x))` renders as
 term-former; that extension is conservative only where the described object
 provably exists and is unique — i.e. only where S2 is discharged.
 
-**S1 IS PAID AT THE STATEMENT, NOT AT EVERY STEP.** `F` compiles once per
-constant (R5), and `θ(f(x))` is STATED as `∀x r. F(x,r) → θ*(r)` with the
-variable `r` where the term stood. Isabelle's proof treats `f(x)` as opaque and
-this one treats `r` as opaque, so the interiors correspond step for step; the
-surface `∃r.(F(x,r) ∧ θ*(r))` returns by EX. Where Isabelle instantiates at a
-COMPOUND term — `ZAppt` at `⟨a,b⟩`, which the signature cannot name — the recipe
-is `pair_ex`, `exists_elim` to a variable, instantiate at that. It also
-DELIVERS the R3 guard, the existential carrying `set(·)`.
+**S1 IS PAID WHERE THE TERM STANDS, NEVER WIDER.** `θ(f(x))` is stated with
+`∃r.(F(x,r) ∧ …)` AT THE ATOM where `f(x)` stood. A variable Isabelle binds
+locally stays local, and a compound term or a λ is never lifted into a global
+claim, which would close it over its locals and need a fresh name. Isabelle's
+proof treats `f(x)` as opaque and this one treats `r` as opaque, so the
+interiors correspond step for step. Where two forms of one term meet — a
+hypothesis's and a conclusion's, a λ's body unfolded at its argument — EX and
+UNIQ convert between them, and every function has both (S2). Where Isabelle
+instantiates at a COMPOUND term — `ZAppt` at `⟨a,b⟩`, which the signature cannot
+name — the recipe is `pair_ex`, `exists_elim` to a variable, instantiate at
+that. It also DELIVERS the R3 guard, the existential carrying `set(·)`.
+
+> **⚠ THIS PARAGRAPH SAID S1 IS PAID AT THE STATEMENT: `θ(f(x))` STATED AS
+> `∀x r. F(x,r) → θ*(r)`, WITH `r` BOUND UP AT `x`'S BINDER.** That moves a
+> variable out of the scope Isabelle gave it, and a λ's body unfolded at its
+> argument puts `r` back at the atom — two formulas for one statement, to be
+> reconciled at every such site.
 
 **⚠ THE GRAPH IS PER CONSTANT; THE VARIABLE INTRODUCTION IS PER SITE, AND AN
 EARLIER WORDING HERE SAID "PER CONSTANT, NOT PER PROOF STEP" OF BOTH.**
@@ -426,32 +517,35 @@ stated at a single `t` and cannot fire until CONG(H) transports `H(t',r')` to
 entailment** — CONG does not by itself yield UNIQ, and an earlier wording here
 ("CONG implies UNIQ") read as though it did.
 
-**Multi-argument application factors through PAIRING, so the induction never needs
-an n-ary composition.** A function is **unary**: `h(a,b)` denotes `h(⟨a,b⟩)`, and
-the relation `H(a,b,r)` that S1 emits is its *uncurried presentation*, not a
-ternary primitive. So a body `f(x) = h(g₁(x), g₂(x))` — which reads as a **tree**
-over two independent intermediates, and which no single-intermediate fold reaches
-— is **linear** the moment the pairing step is written down:
+**Multi-argument application factors through ONE TUPLE, so the induction never
+needs an n-ary composition.** A function is **unary**: `h(a,b)` denotes `h(t)` with
+`t` the tuple of `a`, `b` (R7), and the relation S1 emits is that unary one. So a
+body `f(x) = h(g₁(x), g₂(x))` — which reads as a **tree** over two independent
+intermediates, and which no single-intermediate fold reaches — is **linear** the
+moment the tupling step is written down:
 
 ```
-  P(x,p)    ↔  ∃t₁ t₂. (G₁(x,t₁) ∧ G₂(x,t₂) ∧ kpair(t₁,t₂,p))
-  H_t(p,r)  ↔  ∃t₁ t₂. (kpair(t₁,t₂,p) ∧ H(t₁,t₂,r))
-  F(x,r)    =  ∃p. (P(x,p) ∧ H_t(p,r))
+  P(x,t)    ↔  ∃t₁ t₂. (G₁(x,t₁) ∧ G₂(x,t₂) ∧ tup(t₁,t₂,t))
+  F(x,r)    =  ∃t. (P(x,t) ∧ H(t,r))
 ```
 
-and that last line is exactly `compose_*`'s shape at `[F(2), H(2)]`. Both
-introductions are **definitional**, so §10's G1 admits them always with content
-zero, and every obligation lands on lemmas `base/tiers/pairs` already proves:
+and that last line is exactly `compose_*`'s shape at `[F(2), H(2)]`. The
+introduction is **definitional**, so §10's G1 admits it always with content zero,
+and every obligation lands on the TUPLE's lemmas — proved from the base (§1a):
 
 | | |
 |---|---|
-| EX(P) | EX(G₁), EX(G₂), `pair_ex` |
-| UNIQ(P) | UNIQ(G₁), UNIQ(G₂), `pair_uniq` |
-| CONG(P) | CONG(G₁), CONG(G₂), `kpair`'s argument congruence, from `upair_cong` |
-| EX(H_t) | EX(H) at the components the pair determines |
-| UNIQ(H_t) | `pair_inj` + UNIQ(H) — injectivity is what makes `p` determine `(t₁,t₂)` |
-| CONG(H_t) | `pair_inj` + CONG(H) |
-| arity > 2 | **iterated pairing**; `tuple_chain` keeps a left-nested tuple a set |
+| EX(P) | EX(G₁), EX(G₂), the tuple's EX |
+| UNIQ(P) | UNIQ(G₁), UNIQ(G₂), the tuple's UNIQ |
+| CONG(P) | CONG(G₁), CONG(G₂), the tuple's congruence in its entries |
+| `H` | already unary on the tuple (R7); reading `H(t,r)` back as `φ_H(a⃗,r)` is the tuple's injectivity — a function determines its values |
+| arity `n` | the same step with one tuple of `n` entries — no iteration, no nesting |
+
+> **⚠ THIS PARAGRAPH FACTORED THROUGH KURATOWSKI PAIRS** — `kpair(t₁,t₂,p)`, a
+> helper `H_t` to take the pair apart again, and "iterated pairing" with
+> `tuple_chain` beyond arity 2. That is the nested tuple §1a rules out. The
+> pairs lemmas of `base/tiers/pairs` are what the tuple's lemmas are proved FROM,
+> not the tuple's lemmas themselves.
 
 > **⚠ AN EARLIER READING OF THIS ASKED FOR A COMPOSITION FAMILY INDEXED BY
 > ARITY** — `compose_{ex,uniq,cong}₂` at `[G₁(2), G₂(2), H(3)]`, with wider
@@ -474,7 +568,7 @@ emits a class argument `C` even when `b` does not depend on `x`. But then
 so `F(A, C, r)` is a function of the two **sets** `A` and `b`, not of a class.
 Building its graph at that use site is R4's own prescription — the class argument
 is concrete — and by the paragraph above a binary set operation is unary on
-`⟨A,b⟩`. `Sigma(A, λ_. b)` is `A × b`, and nothing about it needs a class.
+the tuple of `A` and `b`. `Sigma(A, λ_. b)` is `A × b`, and nothing about it needs a class.
 
 The test is an **occurrence check, not a name**: the domain slot of the tuple does
 not occur free in φ. Isabelle happens to name such a binder `uu_`, and that is
@@ -490,9 +584,9 @@ constants, not eight — `Sum.sum` and `QPair.qsum` — and both block at
 **`cons(_v0,_v1,_v2)`**, not at `Un(_v4,_v10,_v11)`, which this section named
 until the refusal was printed and read. Fifteen constant-function classes sit
 across ten constants, and **`Sum.sum` and `QPair.qsum` carry NOTHING ELSE.** Collapsing those classes to their values makes
-each blocking step a binary set operation, which pairing makes unary, which the
+each blocking step a binary set operation, which one tuple makes unary, which the
 existing `compose_*` at `[F(2), H(2)]` composes. So the eight are **one**
-treatment: recognise the degenerate class, collapse it, pair, compose. No new
+treatment: recognise the degenerate class, collapse it, tuple, compose. No new
 schema, no new admission, and no arity index anywhere.
 
 > **⚠ THIS PARAGRAPH HAS BEEN WRONG FOUR TIMES AND EACH ERROR HAD ONE CAUSE:
@@ -539,7 +633,9 @@ mathematics does not have.
 
 **⚠ THIS SECTION IS ABOUT ARITY ZERO, AND USED TO SAY `?P` STAYS A SCHEMA AT
 EVERY ARITY.** At arity ≥ 1 a schematic `?P` is a CLASS VARIABLE: `P x` renders
-`elem(x,A)`, and `⋀P. θ(P)` renders `∀A. θ*(A)`. The class is allocated
+`t ∈ A`, `t` the tuple of its arguments — a 1-tuple at arity 1, as R7 reads every
+arity (decided 2026-09-29; `elem(x,A)`, the value itself, is a later size
+optimisation) — and `⋀P. θ(P)` renders `∀A. θ*(A)`. The class is allocated
 lazily at the first application, so the body renders BEFORE the binder is
 written, and the binder is **UNGUARDED** — guarding a class would make the claim
 false, not redundant — a quantifier the target
@@ -558,11 +654,16 @@ translated.
 
 **S5 — Set-valued meta-function arguments compile to classes**, then to sets by
 Replacement where the domain is a set. No graph is ever passed as an argument.
-`f(x⃗) = r` becomes a lookup in a class
-parameter, `pmem(x,r,C)` at arity 1 and `tmem(a,b,r,C)` at arity 2, with a
-function-graph obligation carrying the arity. **⚠ `elem`/`pmem`/`tmem` ARE THE
-WHOLE VOCABULARY** — a wider `mem_n` is §3's placement family, so arity ≥ 3
-REFUSES rather than generating one.
+`f(x⃗) = r` becomes a lookup in a class parameter — `⟨t, r⟩ ∈ C`, `pmem(t,r,C)`,
+with `t` the n-tuple of `x⃗` (R7) — and `C` owes being a function on n-tuples
+(§1a). **One atom at every arity**: there is no arity family, and no arity
+refuses.
+
+> **⚠ THIS SAID `pmem(x,r,C)` AT ARITY 1, `tmem(a,b,r,C)` AT ARITY 2, "`elem`/
+> `pmem`/`tmem` ARE THE WHOLE VOCABULARY" AND "ARITY ≥ 3 REFUSES".** `tmem` put the
+> arguments in a nested triple, so each arity needed its own membership predicate
+> and the list had to stop somewhere. With the arguments in one tuple, `pmem` is
+> the only lookup there is.
 *Side condition:* class parameters may never occur to the **left** of `∈`. A
 reified graph used as a **value** is a member, hence outside the theorem — those
 sites must be eliminated, not derived.
@@ -695,24 +796,68 @@ some evidence it is the right point in the space rather than a compromise.
 
 ### The construction
 
-For `φ` whose free variables are indexed by `I`, derive
+**A subformula's assignments range over the variables IN SCOPE at it**, numbered
+`0, 1, …` in the order they come into scope — the free variables first, then each
+bound variable where its quantifier is reached. The domain is then always
+`{0,…,k−1}`, the natural number `k`. For `φ` with `k` variables in scope, derive
 
-    ∃C. ∀a. ( a ∈ C  ↔  function(a) ∧ dom(a) = I ∧ φ*(a) )
+    ∃C. ∀a. ( a ∈ C  ↔  tuple(a, k) ∧ φ*(a) )
 
-where `φ*` is `φ` with every variable `x` replaced by `a(x)`, relationally. The
-map `φ ↦ φ*` is META-level and is specified in §2.
+where `φ*` is `φ` with the variable of index `i` replaced by `a(i)`, relationally.
+The map `φ ↦ φ*` is META-level and is specified in §2. Each row below is a claim
+of `base/tiers/classes`, and each is EXACT OVER EVERY SET — the domain is imposed
+once, at the top, by intersecting with the class of tuples on `k`.
 
 | φ | operation |
 |---|---|
-| `x ∈ y` | `{a : a(x) ∈ a(y)}` — B1 under two applications |
-| `x = y` | likewise |
-| `φ ∧ ψ` | intersection — B2; **no alignment needed, the index sets are named** |
-| `¬φ` | complement within the assignments on `I` — B3 |
-| `∃y. φ` | restriction — drop index `y` |
-| widen `I ⊆ J` | `{a : dom(a) = J ∧ a↾I ∈ A}` — ONE law, all `I`, `J` |
+| `x ∈ y` | `{a : a(i) ∈ a(j)}` — `i`, `j` the indices of `x`, `y` |
+| `x = y` | `{a : a(i) = a(j)}` |
+| `x ∈ Y`, `Y` a class parameter | `{a : a(i) ∈ Y}` — S4's `P(x)`, with `a(i)` the argument tuple |
+| a graph atom `G(x⃗, y)` | `{a : ⟨a(i), a(j)⟩ ∈ G}`, `a(i)` the ARGUMENT TUPLE — a variable the formula binds by its own tuple formation, `∃t. t = ⟨x⃗⟩ ∧ ⟨t,y⟩ ∈ G` (R7, §1a); ONE row at every arity |
+| `φ ∧ ψ` | intersection — B2 |
+| `¬φ` | complement — B3 |
+| `∃y. φ` | `y` came into scope last, so its index is `k`: `{a : ∃v. a ∪ {⟨k,v⟩} ∈ C_φ}`. It removes the LARGEST index, always — one fact, `(k+1) ∖ {k} = k`, covers every removal |
+| the domain | `{a : tuple(a,k)}`, intersected once |
 
-The last row replaces T1/T2/T3/T4, B5/B6/B7-as-composed, and every arity-indexed
-placement law. It is one statement, quantified over the index sets.
+> **⚠ THIS TABLE PUT `dom(a) = k` IN EVERY ROW AND BUILT THE GRAPH ATOM AS
+> `⟨a∘ι, a(j)⟩ ∈ G`**, the assignment composed with an index map. A row exact over
+> every set is simpler and loses nothing — the invariant is claimed only for tuples
+> on `k` — and composition needs its own class; binding the argument tuple as a
+> variable makes the graph atom a class atom on two indices.
+
+No row aligns, widens or permutes. That is what replaces T1/T2/T3/T4,
+B5/B6/B7-as-composed, and every arity-indexed placement law.
+
+> **⚠ THIS TABLE HAD A WIDENING ROW, `{a : dom(a) = J ∧ a↾I ∈ A}`**, with each
+> subformula over only the variables it MENTIONS — so `x ∈ y` and `y ∈ z` had
+> domains `{0,2}` and `{1,2}`, `∧` had to widen both first, and removing an
+> index from an arbitrary finite set needed indices proved distinct. Over the
+> variables in SCOPE none of that arises. Widening would only let a subformula
+> under two different scopes share one class — an optimisation, never a need.
+
+**Every row is a THEOREM, proved from §1's axioms — never an axiom.** Each is an
+instance of NBG's class existence theorem (its right side quantifies over sets
+only), so NBG proves it and nothing is added to what NBG says; that is why the
+base stays standard (§1a). Gödel's triples appear in B6/B7 and inside these
+proofs, and nowhere above them.
+
+The rows are the operations of a **cylindric set algebra** (Henkin, Monk, Tarski,
+*Cylindric Algebras* I 1971, II 1985) — a formula as the set of assignments that
+satisfy it, `∃y` as cylindrification in `y`, the atom as a diagonal element with
+`∈` for `=`. The algebra is textbook; using it as NBG's class existence is ours.
+
+**Decided (2026-09-29): the variables in scope, not one dimension.** A cylindric
+set algebra fixes ONE index set for every assignment, typically `ω`; that also
+needs no widening, but makes every assignment infinite — Infinity in every class
+construction — and its `∃` rewrites an arbitrary index instead of removing the
+last. The scope rule keeps every domain a natural number and every removal at
+the top.
+
+**These assignments are the META level's, and serve only the encoding.**
+Isabelle/ZF has its OWN theory of tuples and environments — `pair`, `func`'s
+`n → A`, `List`'s `nth`, ZF-Constructible's `sats(A, p, env)` over
+`env ∈ list(A)` — and that is object-language content, translated like any other
+theory. The two are never identified, as an Isabelle pair is never an assignment.
 
 ### What this does NOT remove
 
@@ -760,29 +905,27 @@ The count is not canonical (presentations of NBG use four, seven, or eight class
 axioms). **The invariant is that the set derives class existence, and any change
 carries that as a proof obligation, not an observation.**
 
-**⚠ THE ATOM IS NOT BUILT, AND AN ATTEMPT THAT LOOKED LIKE IT WAS HAS BEEN
-DELETED.** A probe derived `tmem(a,u,v,C) ↔ elem(u,v)` from B1 → T3 → T1 and was
-registered as evidence for this section. It was wrong twice over: T1 and T3 are
-§3a's lemmas, the ones the widening law replaces; and the result carried no
-`function`, `dom` or `app`, so `a` in it was a bare coordinate, not an
-assignment. It demonstrated a step the two constructions SHARE.
+**The atom is BUILT, and every row with it** (`base/tiers/classes`, kernel-checked
+from B1–B7). The question this section left open — does dropping `u` and `v` from
+`a(x) ∈ a(y)` force a nested-pair intermediate? — has the answer **yes, and only
+there**: B4 consumes a class of PAIRS, so the proofs build classes of triples
+`⟨⟨a,u⟩,v⟩` with Gödel's own operations (B5–B7), and drop `v`, then `u`. Those
+triples live in the toolkit lemmas and their proofs — the same place B6/B7's live —
+and in no row's statement: every row is stated over assignments, with no
+position and no arity.
 
-**The open question it exposed, which this section does not answer.** `a(x) ∈
-a(y)` unfolds to `∃u v. (⟨x,u⟩∈a ∧ ⟨y,v⟩∈a ∧ u∈v)`, and B4 — the only
-elimination — consumes a class of PAIRS:
+Two moves keep the toolkit small, and they are the ones worth repeating:
 
-    B4:  elem(u,C) ↔ ∃v. pmem(u,v,A)
-
-So dropping `u` and `v` appears to force a nested-pair intermediate, which is
-what dragged the T-lemmas back in. Either the `∃` does not arise (the atom is
-built at `I = {x,y}`, where the assignment IS `{⟨x,u⟩,⟨y,v⟩}` and determines
-both), or the width-3 intermediate is bookkeeping the axioms' own vocabulary
-forces. **This section must say which before anything is built on it**, because
-the difference is exactly whether T1/T3 come back.
+- **B1's `E` read at a pair is application.** `⟨⟨i,y⟩,a⟩ ∈ E` says `⟨i,y⟩ ∈ a`,
+  i.e. `a(i) = y`; one B6 rotation gives the class `{⟨⟨a,i⟩,y⟩ : a(i) = y}`. No
+  diagonal and no pairing class is needed for it.
+- **A pair in the first slot is one set.** A triple `⟨⟨b,y⟩,z⟩` whose `b` is itself
+  a pair `⟨a,i⟩` lets the pair- and triple-level operations act on four variables
+  with no new placement law — T1, "prepend", never arises.
 
 What is NOT in doubt: `a ∈ C` is plain `elem`, so **`∧` is B2 and `¬` is B3
-DIRECTLY** — no pair lifting. `base/tiers/steps`' `step_and`/`step_not` lift them
-to `pmem` and are §3a's; under §3 they are not needed.
+DIRECTLY** — no pair lifting. The tier that lifted them to `pmem`, §3a's, is
+deleted.
 
 ### The one open cost — MEASURED, and access does not dominate
 
@@ -821,16 +964,19 @@ source owning the coordinate order, NOT on the family being infinite.
 
 ## 3a. The superseded construction — WHAT THE DELETED LAYER DID
 
+**⚠ WRONG, NOT MERELY SUPERSEDED: ITS TUPLE IS A NESTED PAIR (§1a).** A variable
+here is a position, which is what made T1–T4, `tmem` and every placement law
+necessary. Nothing in it is to be rebuilt in any form.
+
 **⚠ THIS SECTION USED TO BE TITLED "WHAT THE CODE STILL DOES" AND TO SAY "the
 code realises the position-indexed construction below". BOTH WENT STALE WHEN THE
 LAYER WAS DELETED, AND THE STALENESS ACTIVELY MISLEADS.** No code realises any of
-it. What survives are three probes — `tuple_lemma`, `expansion`, `compiler_b` —
-which are in `CHAIN_PROBES` and **green**, so a search for "how is class
-existence built" answers from here, kernel-verified, reading as current. It is
-not current. T1–T4 are what §3's widening law REPLACES.
+it, and the three probes that encoded it — `tuple_lemma`, `expansion`,
+`compiler_b` — are deleted too (2026-09-29): green, they answered "how is class
+existence built" from here, kernel-verified, reading as current.
 
-Read §3 for what must be true. Read this for what the deleted encoder did and
-what those three probes still encode. **Do not build on T1–T4.**
+Read §3 for what must be true. Read this only for what the deleted encoder did.
+**Do not build on T1–T4.**
 
 Tuples left-nested, `(x₁,…,xₙ) = ((x₁,…,xₙ₋₁), xₙ)`.
 

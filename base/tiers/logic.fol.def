@@ -57,8 +57,8 @@ schema forall_as_nexists [P(1)]: ((~ (exists z. (set(z) & (~ P(z))))) <-> (foral
 # here may state a weaker or stronger one.
 claim ext_guarded: forall A. forall B. ((forall z. (set(z) -> (elem(z,A) <-> elem(z,B)))) <-> eq(A,B))
 
-# UNION, the `|` case of Compiler B's induction, proved once from B3/B2/B3 the
-# way the Tuple Lemma is proved once from B5/B6/B7. Expanding `|` per use costs
+# UNION, the `|` case of the class-existence induction, proved once from
+# B3/B2/B3. Expanding `|` per use costs
 # three complements and an intersection EVERY time; this costs one class.
 claim B_or: forall A. forall B. (exists C. (forall u. (set(u) -> (elem(u,C) <-> (elem(u,A) | elem(u,B))))))
 

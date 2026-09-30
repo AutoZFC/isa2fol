@@ -76,39 +76,16 @@ schema replace_fun [Psi(2)]: (forall F. ((forall x. (set(x) -> (forall y. (set(y
 # compose_ex/compose_uniq above.
 schema guard_from_ex_uniq [Psi(2)]: ((forall u. (set(u) -> (exists r. (set(r) & Psi(u,r))))) -> ((forall u. (set(u) -> (forall r. (set(r) -> (forall r2. (set(r2) -> (Psi(u,r) -> (Psi(u,r2) -> eq(r,r2))))))))) -> (forall u. (set(u) -> (exists z. (set(z) & ((exists v. (set(v) & (Psi(u,v) & eq(z,v)))) & (forall w. (set(w) -> ((exists v. (set(v) & (Psi(u,v) & eq(w,v)))) -> eq(z,w)))))))))))
 
-# **THE ONE IRREDUCIBLY BINARY STEP.** A function is unary, so a multi-argument
-# application is unary on a TUPLE -- but the tuple constructor itself takes two
-# inputs and cannot be tupled without regress. `kpair` is therefore the single
-# place composition meets a two-input step, and these three discharge it ONCE,
-# for every arity, which is why no `compose_*` indexed by arity is needed.
-# FOUNDATION §2 carries the derivation.
-
-schema pair_fn_ex [F(2), G(2)]: ((forall x. (set(x) -> (exists t. (set(t) & F(x,t))))) -> ((forall x. (set(x) -> (exists t. (set(t) & G(x,t))))) -> (forall x. (set(x) -> (exists p. (set(p) & (exists t. (set(t) & (F(x,t) & (exists u. (set(u) & (G(x,u) & kpair(t,u,p)))))))))))))
-schema pair_fn_uniq [F(2), G(2)]: ((forall x. (set(x) -> (forall t. (set(t) -> (forall t2. (set(t2) -> (F(x,t) -> (F(x,t2) -> eq(t,t2))))))))) -> ((forall x. (set(x) -> (forall t. (set(t) -> (forall t2. (set(t2) -> (G(x,t) -> (G(x,t2) -> eq(t,t2))))))))) -> (forall x. (set(x) -> (forall p. (set(p) -> (forall q. (set(q) -> ((exists t. (set(t) & (F(x,t) & (exists u. (set(u) & (G(x,u) & kpair(t,u,p))))))) -> ((exists t. (set(t) & (F(x,t) & (exists u. (set(u) & (G(x,u) & kpair(t,u,q))))))) -> eq(p,q)))))))))))
-schema pair_fn_cong [F(2), G(2)]: ((forall a. (set(a) -> (forall b. (set(b) -> (forall r. (set(r) -> (eq(a,b) -> (F(a,r) -> F(b,r))))))))) -> ((forall a. (set(a) -> (forall b. (set(b) -> (forall r. (set(r) -> (eq(a,b) -> (G(a,r) -> G(b,r))))))))) -> (forall a. (set(a) -> (forall b. (set(b) -> (forall p. (set(p) -> (eq(a,b) -> ((exists t. (set(t) & (F(a,t) & (exists u. (set(u) & (G(a,u) & kpair(t,u,p))))))) -> (exists t. (set(t) & (F(b,t) & (exists u. (set(u) & (G(b,u) & kpair(t,u,p)))))))))))))))))
-
-# THE TUPLING KERNELS -- a function is UNARY.
+# A TUPLED CONSTANT IS PARTIAL. R7 makes a constant unary on ONE tuple, and
+# FOUNDATION §1a makes the tuple a function: `C(t,r)` is FALSE at every `t`
+# that is not a tuple of its arity.
 #
-# `C(a,b,r)` is the UNCURRIED presentation of a function on pairs, not a ternary
-# primitive. These lift a 2-ary constant's S2 claims to the unary form over
-#     T(p,r)  <->  exists a b. (kpair(a,b,p) & C(a,b,r))
-#
-# WHY `compose_ex_dom` EXISTS. `compose_ex` requires its `H` total on EVERY set.
-# A tupled `T(p,r)` is FALSE at every `p` that is not a pair, so that hypothesis
-# is not available and `compose_ex` cannot consume a tupled constant. The
+# WHY `compose_ex_dom` EXISTS. `compose_ex` requires its `H` total on EVERY set,
+# which a tupled constant is not, so `compose_ex` cannot consume one. The
 # domain-restricted form takes `F` landing in `D` and `H` total ON `D`. `D` is
 # never interpreted and nothing builds `{p : D(p)}`, so R2 holds.
 #
-# EX IS THE ONLY ONE THAT NEEDS THE DOMAIN. `tuple_uniq` and `tuple_cong` hold
-# vacuously wherever `T` is false, so the totality gap touches one kernel of the
-# three -- do not add a domain hypothesis to the other two.
-#
-# `tuple_uniq` NEEDS CONG(G), for the reason `compose_uniq` needs CONG(H): two
-# derivations reach `p` through DIFFERENT components, `pair_inj` equates them,
-# and CONG transports the second value back. `tuple_cong` needs NO hypothesis on
-# `G` at all -- the value is untouched and only the pair moves, which is why n
-# equality hypotheses collapse to one.
+# `pair_fn_*` and `tuple_*` WERE HERE AND ARE DELETED: they tupled through
+# Kuratowski pairs, `kpair(a,b,p)`, the nested tuple §1a rules out. The
+# function-tuple's own lemmas replace them; do not reinstate these.
 schema compose_ex_dom [F(2), D(1), H(2)]: ((forall x. (set(x) -> (exists t. (set(t) & (F(x,t) & D(t)))))) -> ((forall t. (set(t) -> (D(t) -> (exists r. (set(r) & H(t,r)))))) -> (forall x. (set(x) -> (exists r. (set(r) & (exists t. (set(t) & (F(x,t) & H(t,r))))))))))
-schema tuple_ex [G(3)]: ((forall a. (set(a) -> (forall b. (set(b) -> (exists r. (set(r) & G(a,b,r))))))) -> (forall p. (set(p) -> ((exists a. (set(a) & (exists b. (set(b) & kpair(a,b,p))))) -> (exists r. (set(r) & (exists a. (set(a) & (exists b. (set(b) & (kpair(a,b,p) & G(a,b,r))))))))))))
-schema tuple_uniq [G(3)]: ((forall a. (set(a) -> (forall b. (set(b) -> (forall r. (set(r) -> (forall s. (set(s) -> (G(a,b,r) -> (G(a,b,s) -> eq(r,s))))))))))) -> ((forall a. (set(a) -> (forall b. (set(b) -> (forall a2. (set(a2) -> (forall b2. (set(b2) -> (forall r. (set(r) -> (eq(a,a2) -> (eq(b,b2) -> (G(a,b,r) -> G(a2,b2,r)))))))))))))) -> (forall p. (set(p) -> (forall r. (set(r) -> (forall s. (set(s) -> ((exists a. (set(a) & (exists b. (set(b) & (kpair(a,b,p) & G(a,b,r)))))) -> ((exists a. (set(a) & (exists b. (set(b) & (kpair(a,b,p) & G(a,b,s)))))) -> eq(r,s)))))))))))
-schema tuple_cong [G(3)]: (forall p. (set(p) -> (forall q. (set(q) -> (forall r. (set(r) -> (eq(p,q) -> ((exists a. (set(a) & (exists b. (set(b) & (kpair(a,b,p) & G(a,b,r)))))) -> (exists a. (set(a) & (exists b. (set(b) & (kpair(a,b,q) & G(a,b,r))))))))))))))
