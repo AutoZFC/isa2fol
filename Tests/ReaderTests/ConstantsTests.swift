@@ -4,16 +4,10 @@ import Testing
 import YXML
 @testable import Reader
 
-private func load(_ c: inout Constants, _ entities: String...) throws {
+private func load(_ c: inout Constants, family: Family = .zf, foundation: Bool = false, _ entities: String...) throws {
     var f = Forest()
     let body = try f.parse(Array(entities.joined().utf8))
-    try c.load(body, in: f)
-}
-
-private func load(_ c: inout Constants, contentsOf path: String) throws {
-    var f = Forest()
-    let body = try f.parse(contentsOf: path)
-    try c.load(body, in: f)
+    try c.load(body, family: family, foundation: foundation, in: f)
 }
 
 private let a = IsaType.tfree("'a", sort: [])
@@ -22,10 +16,10 @@ private let iT = IsaType.type("ZF_Base.i", [])
 private let oT = IsaType.type("IFOL.o", [])
 private func fnT(_ x: IsaType, _ y: IsaType) -> IsaType { .type("fun", [x, y]) }
 
-@Test func aConstantLoadsItsParametersInOrderAndItsScheme() throws {
+@Test func aConstantLoadsItsParametersInOrderItsSchemeAndItsTheorysFamily() throws {
     var c = Constants()
     try load(&c, constEntity("T.k", parameters: ["'b", "'a"], scheme: fn(tfree("'a"), tfree("'b"))))
-    #expect(c["T.k"] == Constants.Declaration(parameters: ["'b", "'a"], scheme: fnT(a, b)))
+    #expect(c["T.k"] == Constants.Declaration(parameters: ["'b", "'a"], scheme: fnT(a, b), family: .zf, foundation: false))
     #expect(c["T.absent"] == nil)
 }
 
@@ -59,6 +53,7 @@ private func fnT(_ x: IsaType, _ y: IsaType) -> IsaType { .type("fun", [x, y]) }
 
 @Test func anUndeclaredConstantIsMalformed() {
     #expect(throws: MalformedExport.undeclaredConstant("T.k")) { try Constants().instantiate("T.k", []) }
+    #expect(throws: MalformedExport.undeclaredConstant("T.k")) { try Constants().reading("T.k") }
 }
 
 @Test func aTypeArgumentCountOtherThanTheParameterCountIsMalformed() throws {
@@ -97,49 +92,57 @@ private func fnT(_ x: IsaType, _ y: IsaType) -> IsaType { .type("fun", [x, y]) }
     }
 }
 
-private func realConstants(_ theories: String...) throws -> Constants? {
-    var c = Constants()
-    for t in theories {
-        let path = "data/zf_export/\(t)/theory/consts"
-        guard FileManager.default.fileExists(atPath: path) else {
-            Issue.record("export missing at \(path) — run from the repo root")
-            return nil
-        }
-        try load(&c, contentsOf: path)
-    }
-    return c
+/// How a name is read is ONE function (DESIGN §4.3b 2).
+@Test func eachKindOfConstantHasItsReading() throws {
+    let c = try testConstants()
+    #expect(try c.reading("IFOL.Trueprop") == .erased)
+    #expect(try c.reading("IFOL.conj") == .and)
+    #expect(try c.reading("Pure.all") == .all)
+    #expect(try c.reading("Pure.eq") == .metaEquality)
+    #expect(try c.reading("Pure.dummy_pattern") == .hidden)
+    #expect(try c.reading("ZF_Base.mem") == .constant(.primitive(.zf(.mem))))
+    #expect(try c.reading("IFOL.eq") == .constant(.primitive(.ifol(.eq))))
+    #expect(try c.reading("IFOL.iff") == .constant(defined(.ifol, "IFOL.iff")))
+    #expect(try c.reading("Pure.prop") == .constant(defined(.pure, "Pure.prop")))
+    #expect(try c.reading("Sum.Inl") == .constant(defined(.zf, "Sum.Inl")))
+    #expect(try c.reading("T.claim") == .constant(.declared("T.claim")))
+    #expect(throws: DialectGap.leaf("ZF_Base.not_mem")) { try c.reading("ZF_Base.not_mem") }
 }
 
-@Test func ifolEqAtIIsIToIToO() throws {
-    guard let c = try realConstants("IFOL") else { return }
-    #expect(c["IFOL.eq"] == Constants.Declaration(parameters: ["'a"], scheme: fnT(a, fnT(a, oT))))
-    let T = try c.instantiate("IFOL.eq", [iT])
-    #expect(T == fnT(iT, fnT(iT, oT)))
-    #expect(try T.irType() == .fn(.i, .fn(.i, .o)))
+@Test func aDefinitionOfALeafTheDialectListsIsMalformed() throws {
+    var c = try testConstants()
+    #expect(throws: MalformedExport.definedLeaf("IFOL.conj")) { try c.define("IFOL.conj", by: "IFOL.conj_def") }
+    #expect(throws: MalformedExport.definedLeaf("ZF_Base.mem")) { try c.define("ZF_Base.mem", by: "ZF_Base.mem_def") }
 }
 
-@Test func zfBaseMemIsGround() throws {
-    guard let c = try realConstants("IFOL", "ZF.ZF_Base") else { return }
-    #expect(c["ZF_Base.mem"] == Constants.Declaration(parameters: [], scheme: fnT(iT, fnT(iT, oT))))
-    #expect(try c.instantiate("ZF_Base.mem", []).irType() == .fn(.i, .fn(.i, .o)))
+@Test func aConstantDefinedTwiceOrTwoConstantsByOneAxiomIsMalformed() throws {
+    var c = try testConstants()
+    #expect(throws: MalformedExport.duplicateDefinition("IFOL.iff")) { try c.define("IFOL.iff", by: "IFOL.iff_again") }
+    #expect(throws: MalformedExport.duplicateDefinition("T.f")) { try c.define("T.f", by: "IFOL.iff_def_raw") }
+    #expect(c.defined(byAxiom: "IFOL.iff_def_raw") == Defined(.ifol, "IFOL.iff"))
 }
 
-@Test func pureEqAtIConvertsWithPropAsO() throws {
-    guard let c = try realConstants("Pure") else { return }
-    #expect(try c.instantiate("Pure.eq", [iT]).irType() == .fn(.i, .fn(.i, .o)))
-}
-
-@Test func everyExportedConstsFileLoadsIntoOneTable() throws {
+private func realExport() throws -> Export? {
     let root = "data/zf_export"
-    guard let theories = try? FileManager.default.contentsOfDirectory(atPath: root) else {
+    guard FileManager.default.fileExists(atPath: root) else {
         Issue.record("export missing at \(root) — run from the repo root")
-        return
+        return nil
     }
-    var c = Constants()
-    for t in theories where FileManager.default.fileExists(atPath: "\(root)/\(t)/theory/consts") {
-        try load(&c, contentsOf: "\(root)/\(t)/theory/consts")
-    }
-    #expect(c["Pure.eq"] != nil)
-    #expect(c["IFOL.eq"] != nil)
-    #expect(c["ZF_Base.mem"] != nil)
+    return try Export(root: root)
+}
+
+@Test func theExportsConstantsReadByTheirTheoriesAndDefinitions() throws {
+    guard let e = try realExport() else { return }
+    let c = e.constants
+    #expect(c["IFOL.eq"] == Constants.Declaration(parameters: ["'a"], scheme: fnT(a, fnT(a, oT)), family: .ifol, foundation: true))
+    #expect(try c.instantiate("IFOL.eq", [iT]).irType() == .fn(.i, .fn(.i, .o)))
+    #expect(try c.instantiate("ZF_Base.mem", []).irType() == .fn(.i, .fn(.i, .o)))
+    #expect(try c.instantiate("Pure.eq", [iT]).irType() == .fn(.i, .fn(.i, .o)))
+    #expect(try c.reading("ZF_Base.mem") == .constant(.primitive(.zf(.mem))))
+    #expect(try c.reading("IFOL.iff") == .constant(defined(.ifol, "IFOL.iff")))
+    #expect(try c.reading("FOL.induct_implies") == .constant(defined(.fol, "FOL.induct_implies")))
+    #expect(try c.reading("ZF_Base.Ball") == .constant(defined(.zf, "ZF_Base.Ball")))
+    #expect(try c.reading("Language.Const") == .constant(.declared("Language.Const")))
+    #expect(try c.reading("Com.loc") == .constant(.declared("Com.loc")))
+    #expect(throws: DialectGap.leaf("IFOL.not_equal")) { try c.reading("IFOL.not_equal") }
 }

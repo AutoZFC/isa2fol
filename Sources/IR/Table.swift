@@ -43,6 +43,13 @@ public struct Table: Sendable {
         return nil
     }
 
+    func patternType(of id: NodeID) -> IRType {
+        switch sorts[Int(id.raw)] {
+        case let .value(T): return T
+        case .step: return .o
+        }
+    }
+
     public func looseBound(of id: NodeID) -> Int { looseTerms[Int(id.raw)] }
     public func looseHyps(of id: NodeID) -> Int { looseHypotheses[Int(id.raw)] }
 

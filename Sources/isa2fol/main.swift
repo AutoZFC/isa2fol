@@ -23,6 +23,10 @@ func describe(_ error: any Error) -> String {
     return "\(failure.file): \(describe(failure.error))"
 }
 
+func stopped(_ error: any Error) -> Never {
+    fail("the read stopped at \(describe(error))", 1)
+}
+
 let arguments = Array(CommandLine.arguments.dropFirst())
 let usage = """
     usage: isa2fol read EXPORT_DIR [--show OUTCOME]
@@ -33,12 +37,13 @@ let usage = """
 
 if arguments.count == 2, arguments[0] == "surface" || arguments[0] == "closure" {
     do {
-        var export = try Export(root: arguments[1])
+        var reader = try Reader(try Export(root: arguments[1]))
+        let census = try reader.census()
         let command = "isa2fol \(arguments[0]) \(arguments[1])"
-        print(arguments[0] == "surface" ? surfaceReport(try export.surface(), command: command)
-                                        : closureReport(try export.closure(), command: command), terminator: "")
+        print(arguments[0] == "surface" ? surfaceReport(census, command: command)
+                                        : closureReport(census, command: command), terminator: "")
     } catch {
-        fail("malformed export at \(describe(error))", 1)
+        stopped(error)
     }
     exit(0)
 }
@@ -84,7 +89,7 @@ do {
         if !read.contains(theorem) { cited[try outcome(theorem), default: 0] += 1 }
     }
 } catch {
-    fail("malformed export at \(describe(error))", 1)
+    stopped(error)
 }
 
 func report(_ title: String, _ counts: [String: Int]) {

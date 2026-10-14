@@ -10,7 +10,7 @@ func lower(_ root: String) {
     do {
         (unit, notRead) = try readUnit(root)
     } catch {
-        fail("malformed export at \(describe(error))", 1)
+        stopped(error)
     }
     let read = Date(), named = unit.statements.count + notRead
     let passes: [Pass] = [Guard()]

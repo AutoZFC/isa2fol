@@ -9,14 +9,14 @@ private func fn(_ a: IRType, _ b: IRType) -> IRType { .fn(a, b) }
 private struct F {
     var t = Table()
     mutating func b(_ k: Int) throws -> NodeID { try t.intern(.isaBound(k, i)) }
-    mutating func const(_ n: String, _ T: IRType, _ xs: NodeID...) throws -> NodeID { try t.intern(.isaConst(n, T, args: xs)) }
-    mutating func pred(_ n: String, _ x: NodeID) throws -> NodeID { try const(n, fn(i, o), x) }
+    mutating func const(_ c: Constant, _ T: IRType, _ xs: NodeID...) throws -> NodeID { try t.intern(.isaConst(c, T, args: xs)) }
+    mutating func pred(_ n: String, _ x: NodeID) throws -> NodeID { try const(.declared(n), fn(i, o), x) }
     mutating func set(_ x: NodeID) throws -> NodeID { try t.intern(.folPred("set", args: [x])) }
     mutating func imp(_ a: NodeID, _ b: NodeID) throws -> NodeID { try t.intern(.folImplies(a, b)) }
     mutating func all(_ body: NodeID) throws -> NodeID { try t.intern(.ifolAll(i, body: body)) }
     mutating func guardedAll(_ body: NodeID) throws -> NodeID { try all(try imp(try set(try b(0)), body)) }
     mutating func hyp(_ k: Int, _ a: NodeID) throws -> NodeID { try t.intern(.hyp(k, a)) }
-    mutating func use(_ n: String, _ root: NodeID) throws -> NodeID { try t.intern(.use(n, [], root)) }
+    mutating func use(_ n: String, _ root: NodeID) throws -> NodeID { try t.intern(.use(.theorem(n), [], root)) }
     mutating func fix(_ body: NodeID) throws -> NodeID { try t.intern(.isaAllIntro(i, body: body)) }
     mutating func assume(_ a: NodeID, _ body: NodeID) throws -> NodeID { try t.intern(.folImpliesIntro(a, body: body)) }
     mutating func mp(_ p: NodeID, _ q: NodeID) throws -> NodeID { try t.intern(.folImpliesElim(p, q)) }
@@ -44,14 +44,14 @@ private func statement(_ unit: Unit, _ name: String) throws -> Statement {
 @Test func aQuantifierAtIIsGuardedAndEveryVariableKeepsItsType() throws {
     var f = F()
     let px = try f.pred("P", try f.b(0))
-    let a = try f.const("a", i)
+    let a = try f.const(.declared("a"), i)
     let allAtI = try f.all(px)
     let exAtI = try f.t.intern(.ifolEx(i, body: px))
     let atO = try f.t.intern(.ifolAll(o, body: try f.t.intern(.isaBound(0, o))))
     let atPredicate = try f.t.intern(.ifolAll(fn(i, o), body: try f.t.intern(
         .isaVarApp(head: try f.t.intern(.isaBound(0, fn(i, o))), args: [a]))))
     let atVariable = try f.t.intern(.ifolAll(.variable("'a"), body: try f.t.intern(.folBottom)))
-    let lambda = try f.const("F", fn(fn(i, o), o), try f.t.intern(.isaAbs(i, body: px)))
+    let lambda = try f.const(.declared("F"), fn(fn(i, o), o), try f.t.intern(.isaAbs(i, body: px)))
     let roots = [allAtI, exAtI, atO, atPredicate, atVariable, lambda]
     let out = try Guard().run(roots, in: &f.t).map { r -> NodeID? in
         if case let .rewritten(id) = r { return id }
@@ -98,7 +98,7 @@ private func statement(_ unit: Unit, _ name: String) throws -> Statement {
 /// `C ⟹ ⋀x. P(x) ⟹ C`: `x`'s guard is inserted between `hyp(1, C)` and `C`'s binder.
 @Test func aHypothesisAcrossAGuardIsRenumbered() throws {
     var f = F()
-    let c = try f.const("C", o)
+    let c = try f.const(.declared("C"), o)
     let x = try f.b(0), px = try f.pred("P", x)
     let root = try f.imp(c, try f.all(try f.imp(px, c)))
     let proof = try f.assume(c, try f.fix(try f.assume(px, try f.hyp(1, c))))
@@ -112,7 +112,7 @@ private func statement(_ unit: Unit, _ name: String) throws -> Statement {
 /// `C ⟹ ⋀P::o. P ⟹ C`: a fix at `o` brings no guard, so nothing is inserted and nothing renumbered.
 @Test func aBinderAtAnotherTypeInsertsNoGuard() throws {
     var f = F()
-    let c = try f.const("C", o)
+    let c = try f.const(.declared("C"), o)
     let p = try f.t.intern(.isaBound(0, o))
     let root = try f.imp(c, try f.t.intern(.ifolAll(o, body: try f.imp(p, c))))
     let proof = try f.assume(c, try f.t.intern(.isaAllIntro(o, body: try f.assume(p, try f.hyp(1, c)))))
@@ -124,7 +124,7 @@ private func statement(_ unit: Unit, _ name: String) throws -> Statement {
 @Test func anEliminationAtACompoundTermIsRefusedByName() throws {
     var f = F()
     let lem = try f.lem()
-    let pow = try f.const("ZF_Base.Pow", fn(i, i), try f.const("a", i))
+    let pow = try f.const(.primitive(.zf(.pow)), fn(i, i), try f.const(.declared("a"), i))
     let root = try f.imp(try f.pred("P", pow), try f.pred("Q", pow))
     let proof = try f.elim(try f.use("lem", lem.root), pow)
     let unit = try lowered(f, [lem, Statement(name: "thm", root: root, proof: proof)])
@@ -143,7 +143,7 @@ private func statement(_ unit: Unit, _ name: String) throws -> Statement {
     var seen: Set<NodeID> = [], work = [try statement(unit, "thm").proof], cited: [NodeID] = []
     while let n = work.popLast() {
         guard seen.insert(n).inserted else { continue }
-        if case let .use("lem", _, root) = unit.table[n] { cited.append(root) }
+        if case let .use(.theorem("lem"), _, root) = unit.table[n] { cited.append(root) }
         unit.table[n].forEachChild { c, _ in work.append(c) }
     }
     #expect(cited == [try statement(unit, "lem").root])

@@ -21,7 +21,7 @@ private let refl = trueprop(app(const("IFOL.eq", typeA), free("a"), free("a")))
 @Test func aStatementReadsClosedOverItsFreesTheFirstOutermost() throws {
     var t = Table()
     let got = try read(proofFile(frees: [("a", i), ("A", i)], prop: memAa), into: &t)
-    let mem = try t.intern(.isaConst("ZF_Base.mem", memT, args: [try t.intern(.isaBound(1, .i)), try t.intern(.isaBound(0, .i))]))
+    let mem = try t.intern(.isaConst(.primitive(.zf(.mem)), memT, args: [try t.intern(.isaBound(1, .i)), try t.intern(.isaBound(0, .i))]))
     let closed = try t.intern(.ifolAll(.i, body: try t.intern(.ifolAll(.i, body: mem))))
     #expect(got == closed)
 }
@@ -41,7 +41,7 @@ private let refl = trueprop(app(const("IFOL.eq", typeA), free("a"), free("a")))
     let file = proofFile(tfrees: ["'a"], frees: [("a", typeA)], prop: refl)
     for T in [IRType.i, .o] {
         let a = try t.intern(.isaBound(0, T))
-        let eq = try t.intern(.isaConst("IFOL.eq", .fn(T, .fn(T, .o)), args: [a, a]))
+        let eq = try t.intern(.isaConst(.primitive(.ifol(.eq)), .fn(T, .fn(T, .o)), args: [a, a]))
         #expect(try read(file, at: [T], into: &t) == (try t.intern(.ifolAll(T, body: eq))))
     }
     #expect(throws: MalformedExport.instanceArity(expected: 1, found: 0)) { try read(file, into: &t) }
@@ -51,7 +51,7 @@ private let refl = trueprop(app(const("IFOL.eq", typeA), free("a"), free("a")))
     var t = Table()
     let a = IRType.variable("'a")
     let x = try t.intern(.isaBound(0, a))
-    let eq = try t.intern(.isaConst("IFOL.eq", .fn(a, .fn(a, .o)), args: [x, x]))
+    let eq = try t.intern(.isaConst(.primitive(.ifol(.eq)), .fn(a, .fn(a, .o)), args: [x, x]))
     let got = try read(proofFile(tfrees: ["'a"], frees: [("a", typeA)], prop: refl), at: [a], into: &t)
     #expect(got == (try t.intern(.ifolAll(a, body: eq))))
 }
@@ -76,7 +76,7 @@ private let refl = trueprop(app(const("IFOL.eq", typeA), free("a"), free("a")))
     let got = try read(proofFile(tfrees: ["'a"], frees: [("a", typeA)],
                                  prop: app(const("Pure.imp"), ofclass(typeA, "IFOL.term"), refl)), at: [.i], into: &t)
     let a = try t.intern(.isaBound(0, .i))
-    let eq = try t.intern(.isaConst("IFOL.eq", memT, args: [a, a]))
+    let eq = try t.intern(.isaConst(.primitive(.ifol(.eq)), memT, args: [a, a]))
     let member = try t.intern(.isaOfClass(.i, "IFOL.term"))
     #expect(got == (try t.intern(.ifolAll(.i, body: try t.intern(.folImplies(member, eq))))))
 }
@@ -106,7 +106,7 @@ private let refl = trueprop(app(const("IFOL.eq", typeA), free("a"), free("a")))
 @Test func aMetaLevelPropositionalVariableReadsAsAFormulaVariable() throws {
     var t = Table()
     let got = try read(proofFile(frees: [("a", i), ("A", i), ("W", prop)], prop: app(const("Pure.imp"), memAa, free("W"))), into: &t)
-    let mem = try t.intern(.isaConst("ZF_Base.mem", memT, args: [try t.intern(.isaBound(2, .i)), try t.intern(.isaBound(1, .i))]))
+    let mem = try t.intern(.isaConst(.primitive(.zf(.mem)), memT, args: [try t.intern(.isaBound(2, .i)), try t.intern(.isaBound(1, .i))]))
     let body = try t.intern(.folImplies(mem, try t.intern(.isaBound(0, .o))))
     let closed = try [IRType.o, .i, .i].reduce(body) { b, T in try t.intern(.ifolAll(T, body: b)) }
     #expect(got == closed)
@@ -145,8 +145,8 @@ private func zfBase(_ name: String, at types: [IRType] = []) throws -> (Table, N
     let P = IRType.fn(.i, .o)
     let x = try t.intern(.isaBound(0, .i)), A = try t.intern(.isaBound(1, .i)), AunderX = try t.intern(.isaBound(2, .i))
     let Px = try t.intern(.isaVarApp(head: try t.intern(.isaBound(1, P)), args: [x]))
-    let ball = try t.intern(.isaConst("ZF_Base.Ball", .fn(.i, .fn(P, .o)), args: [A, try t.intern(.isaAbs(.i, body: Px))]))
-    let mem = try t.intern(.isaConst("ZF_Base.mem", memT, args: [x, AunderX]))
+    let ball = try t.intern(.isaConst(defined(.zf, "ZF_Base.Ball"), .fn(.i, .fn(P, .o)), args: [A, try t.intern(.isaAbs(.i, body: Px))]))
+    let mem = try t.intern(.isaConst(.primitive(.zf(.mem)), memT, args: [x, AunderX]))
     let all = try t.intern(.ifolAll(.i, body: try t.intern(.folImplies(mem, Px))))
     let closed = try t.intern(.ifolAll(.i, body: try t.intern(.ifolAll(P, body: try t.intern(.folIff(ball, all))))))
     #expect(got == closed)

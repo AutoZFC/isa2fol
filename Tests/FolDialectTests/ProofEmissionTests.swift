@@ -38,7 +38,7 @@ private struct Pf {
 @Test func aCitationOfAnInstanceIsNotRendered() throws {
     var f = Pf()
     let a = try f.p("A")
-    let cited = try f.n(.use("thm", [.i], a))
+    let cited = try f.n(.use(.theorem("thm"), [.i], a))
     let claim = Declaration(kind: .claim, name: "probe", root: a)
     #expect(throws: RenderError.instanceCitation(cited)) { try render(proof: cited, of: claim, in: f.t) }
 }
@@ -113,7 +113,7 @@ private struct Pf {
 
     let elem10 = try f.p("elem", try f.b(1), try f.b(0))
     let membersAreSets = try f.n(.folForall(body: try f.n(.folForall(body: try f.imp(elem10, try f.p("set", try f.b(1)))))))
-    let cited = try f.n(.folForallElim(try f.n(.folForallElim(try f.n(.use("members_are_sets", [], membersAreSets)), try f.b(1))), try f.b(0)))
+    let cited = try f.n(.folForallElim(try f.n(.folForallElim(try f.n(.use(.theorem("members_are_sets"), [], membersAreSets)), try f.b(1))), try f.b(0)))
     proofs.append(("p_use", try f.n(.folForallIntro(body: try f.n(.folForallIntro(body:
         try f.intro(elem10, try f.n(.folImpliesElim(cited, try f.hyp(0, elem10))))))))))
 

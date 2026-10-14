@@ -1,3 +1,5 @@
+import Foundation
+import IR
 import YXML
 @testable import Reader
 
@@ -49,45 +51,92 @@ func app(_ f: String, _ args: String...) -> String { args.reduce(f) { tagged(5, 
 func ofclass(_ T: String, _ c: String) -> String { tagged(6, [c], [T]) }
 func trueprop(_ t: String) -> String { app(const("IFOL.Trueprop"), t) }
 
-private let declarations: [(String, [String], String)] = [
-    ("Pure.prop", [], fn(prop, prop)),
-    ("Pure.imp", [], fn(prop, fn(prop, prop))),
-    ("Pure.eq", ["'a"], fn(typeA, fn(typeA, prop))),
-    ("Pure.all", ["'a"], fn(fn(typeA, prop), prop)),
-    ("Pure.term", ["'a"], fn(typeA, prop)),
-    ("Pure.conjunction", [], fn(prop, fn(prop, prop))),
-    ("IFOL.Trueprop", [], fn(o, prop)),
-    ("IFOL.False", [], o),
-    ("IFOL.conj", [], fn(o, fn(o, o))),
-    ("IFOL.disj", [], fn(o, fn(o, o))),
-    ("IFOL.imp", [], fn(o, fn(o, o))),
-    ("IFOL.iff", [], fn(o, fn(o, o))),
-    ("IFOL.Not", [], fn(o, o)),
-    ("IFOL.eq", ["'a"], fn(typeA, fn(typeA, o))),
-    ("IFOL.All", ["'a"], fn(fn(typeA, o), o)),
-    ("IFOL.Ex", ["'a"], fn(fn(typeA, o), o)),
-    ("ZF_Base.mem", [], fn(i, fn(i, o))),
-    ("ZF_Base.Ball", [], fn(i, fn(fn(i, o), o))),
-    ("ZF_Base.split", ["'a"], fn(fn(i, fn(i, typeA)), fn(i, typeA))),
-    ("Sum.Inl", [], fn(i, i)),
-    ("Sum.Part", [], fn(i, fn(fn(i, i), i))),
-    ("EquivClass.congruent", [], fn(i, fn(fn(i, i), o))),
-    ("T.f", [], fn(i, fn(i, i))),
-    ("T.g", [], fn(fn(i, fn(i, i)), i)),
-    ("T.h", [], fn(fn(i, o), o)),
-    ("T.k", [], fn(fn(fn(i, o), o), i)),
-    ("T.claim", [], prop),
-    ("T.metaEx", ["'a"], fn(fn(typeA, prop), prop)),
+private struct FixtureTheory {
+    let name: String
+    let family: Family
+    let foundation: Bool
+    let constants: [(String, [String], String)]
+    let definitions: [(String, String)]
+}
+
+private let fixtureTheories = [
+    FixtureTheory(name: "Pure", family: .pure, foundation: true, constants: [
+        ("Pure.prop", [], fn(prop, prop)),
+        ("Pure.imp", [], fn(prop, fn(prop, prop))),
+        ("Pure.eq", ["'a"], fn(typeA, fn(typeA, prop))),
+        ("Pure.all", ["'a"], fn(fn(typeA, prop), prop)),
+        ("Pure.term", ["'a"], fn(typeA, prop)),
+        ("Pure.conjunction", [], fn(prop, fn(prop, prop))),
+        ("Pure.dummy_pattern", ["'a"], typeA),
+    ], definitions: [("Pure.prop", "Pure.prop_def"), ("Pure.term", "Pure.term_def"),
+                     ("Pure.conjunction", "Pure.conjunction_def")]),
+    FixtureTheory(name: "IFOL", family: .ifol, foundation: true, constants: [
+        ("IFOL.Trueprop", [], fn(o, prop)),
+        ("IFOL.False", [], o),
+        ("IFOL.conj", [], fn(o, fn(o, o))),
+        ("IFOL.disj", [], fn(o, fn(o, o))),
+        ("IFOL.imp", [], fn(o, fn(o, o))),
+        ("IFOL.iff", [], fn(o, fn(o, o))),
+        ("IFOL.Not", [], fn(o, o)),
+        ("IFOL.eq", ["'a"], fn(typeA, fn(typeA, o))),
+        ("IFOL.All", ["'a"], fn(fn(typeA, o), o)),
+        ("IFOL.Ex", ["'a"], fn(fn(typeA, o), o)),
+    ], definitions: [("IFOL.iff", "IFOL.iff_def_raw"), ("IFOL.Not", "IFOL.not_def_raw")]),
+    FixtureTheory(name: "ZF.ZF_Base", family: .zf, foundation: true, constants: [
+        ("ZF_Base.mem", [], fn(i, fn(i, o))),
+        ("ZF_Base.not_mem", [], fn(i, fn(i, o))),
+        ("ZF_Base.Ball", [], fn(i, fn(fn(i, o), o))),
+        ("ZF_Base.split", ["'a"], fn(fn(i, fn(i, typeA)), fn(i, typeA))),
+    ], definitions: [("ZF_Base.Ball", "ZF_Base.Ball_def_raw"), ("ZF_Base.split", "ZF_Base.split_def_raw")]),
+    FixtureTheory(name: "ZF.T", family: .zf, foundation: false, constants: [
+        ("Sum.Inl", [], fn(i, i)),
+        ("Sum.Part", [], fn(i, fn(fn(i, i), i))),
+        ("EquivClass.congruent", [], fn(i, fn(fn(i, i), o))),
+        ("T.f", [], fn(i, fn(i, i))),
+        ("T.g", [], fn(fn(i, fn(i, i)), i)),
+        ("T.h", [], fn(fn(i, o), o)),
+        ("T.k", [], fn(fn(fn(i, o), o), i)),
+        ("T.claim", [], prop),
+        ("T.metaEx", ["'a"], fn(fn(typeA, prop), prop)),
+    ], definitions: [("Sum.Inl", "Sum.Inl_def"), ("Sum.Part", "Sum.Part_def"),
+                     ("EquivClass.congruent", "EquivClass.congruent_def")]),
 ]
 
-let constsFile = declarations.map { constEntity($0.0, parameters: $0.1, scheme: $0.2) }.joined()
+func defined(_ family: Family, _ name: String) -> Constant { .defined(Defined(family, name)) }
+
+func constdefsFile(_ pairs: [(String, String)]) -> String {
+    pairs.map { node(node($0.0), node($0.1)) }.joined()
+}
 
 func testConstants() throws -> Constants {
-    var f = Forest()
-    let body = try f.parse(Array(constsFile.utf8))
     var c = Constants()
-    try c.load(body, in: f)
+    for theory in fixtureTheories {
+        var f = Forest()
+        let body = try f.parse(Array(theory.constants.map { constEntity($0.0, parameters: $0.1, scheme: $0.2) }.joined().utf8))
+        try c.load(body, family: theory.family, foundation: theory.foundation, in: f)
+    }
+    for theory in fixtureTheories {
+        for (constant, axiom) in theory.definitions { try c.define(constant, by: axiom) }
+    }
     return c
+}
+
+/// The fixture theories' consts, constdefs and parents, `IFOL`'s classes, then `files`, under a fresh root.
+func writeExport(_ files: [String: String]) throws -> String {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent("isa2fol-\(UUID())").path
+    func write(_ path: String, _ text: String) throws {
+        let full = "\(root)/\(path)"
+        try FileManager.default.createDirectory(atPath: (full as NSString).deletingLastPathComponent, withIntermediateDirectories: true)
+        try text.write(toFile: full, atomically: true, encoding: .utf8)
+    }
+    for theory in fixtureTheories {
+        try write("\(theory.name)/theory/consts", theory.constants.map { constEntity($0.0, parameters: $0.1, scheme: $0.2) }.joined())
+        try write("\(theory.name)/theory/constdefs", constdefsFile(theory.definitions))
+    }
+    try write("ZF.T/theory/parents", "ZF.ZF_Base\n")
+    try write("IFOL/theory/classes", classesFile)
+    for (path, text) in files { try write(path, text) }
+    return root
 }
 
 func proofFile(tfrees: [String] = [], frees: [(String, String)], prop: String, proof: String = pnop) -> String {

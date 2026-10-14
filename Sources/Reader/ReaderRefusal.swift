@@ -1,4 +1,4 @@
-@frozen public enum ReaderRefusal: Error, Equatable, Sendable {
+@frozen public enum ReaderRefusal: Error, Hashable, Sendable {
     case typeConstructor(String)
     case ofclass(String)
     case betaRedex

@@ -53,6 +53,8 @@ private struct FileProof {
     var steps: [Key: NodeID] = [:]
 }
 
+private let axioms = Dictionary(uniqueKeysWithValues: Axiom.all.map { ($0.name, $0) })
+
 public struct Reader {
     private enum Source: Hashable {
         case theorem(TheoremKey)
@@ -67,10 +69,11 @@ public struct Reader {
     public private(set) var table = Table()
     public let population: [Theorem]
     public private(set) var cited: [Theorem] = []
-    private var citedOnce: Set<TheoremKey> = []
+    private(set) var citedAs: [String: Theorem] = [:]
     private let decode: Decode
     private let constants: Constants
     private let classes: Classes
+    private let families: Families
     private let corpus: Corpus
     private var statements: [Instance: NodeID] = [:]
     private var boxes: [Instance: NodeID] = [:]
@@ -81,12 +84,17 @@ public struct Reader {
         decode = Decode(forest: export.forest)
         constants = export.constants
         classes = export.classes
+        families = export.families
         population = corpus.names.keys.filter { session(of: $0.theory) != nil }
             .sorted { ($0.theory, $0.serial) < ($1.theory, $1.serial) }
             .map(Theorem.init)
     }
 
     public func name(of theorem: Theorem) -> String? { corpus.names[theorem.key] }
+
+    func typeVariables(of theorem: Theorem) throws -> [String] {
+        try located(theorem.key.path) { try decode.proofFile(try corpus.file(theorem.key)).0.tfrees }
+    }
 
     public mutating func read(_ theorem: Theorem) throws -> Outcome {
         do {
@@ -151,7 +159,7 @@ public struct Reader {
             throw MalformedExport.freeHypothesis
         case let .axiom(name, types):
             let instance = Instance(source: .axiom(name), types: try types.map(f.terms.irType))
-            return try use(name, instance)
+            return try use(try cited(axiom: name), instance)
         case let .ofclass(_, c):
             throw ReaderRefusal.ofclass(c)
         case let .oracle(name, _):
@@ -160,13 +168,29 @@ public struct Reader {
             let key = TheoremKey(theory: c.theory, serial: c.serial)
             let instance = Instance(source: .theorem(key), types: try c.types.map(f.terms.irType))
             guard let name = corpus.names[key] else { return try box(key, instance) }
-            if citedOnce.insert(key).inserted { cited.append(Theorem(key)) }
-            return try use(try claimName(name), instance)
+            let claim = try claimName(name)
+            if citedAs.updateValue(Theorem(key), forKey: claim) == nil { cited.append(Theorem(key)) }
+            return try use(.theorem(claim), instance)
         }
     }
 
-    private mutating func use(_ name: String, _ instance: Instance) throws -> NodeID {
-        try table.intern(.use(name, instance.types, try statement(instance)))
+    private func cited(axiom name: String) throws -> Cited {
+        if let a = axioms[name] { return .axiom(a) }
+        if let d = constants.defined(byAxiom: name) { return .isaDefinition(name, of: d) }
+        guard let entry = corpus.axioms[name] else { throw MalformedExport.undeclaredAxiom(name) }
+        guard !families.isFoundation(entry.theory) else { throw DialectGap.axiom(name) }
+        return .theoryAxiom(name)
+    }
+
+    private mutating func use(_ cited: Cited, _ instance: Instance) throws -> NodeID {
+        try table.intern(.use(cited, instance.types, try statement(instance)))
+    }
+
+    mutating func definition(of d: Defined) throws -> NodeID {
+        guard let axiom = constants[d.name]?.definition else { throw MalformedExport.undeclaredConstant(d.name) }
+        guard let entry = corpus.axioms[axiom] else { throw MalformedExport.undeclaredAxiom(axiom) }
+        let e = try located(entry.file) { try decode.axiom(entry.body) }
+        return try statement(Instance(source: .axiom(axiom), types: e.tfrees.map(IRType.variable)))
     }
 
     private mutating func box(_ key: TheoremKey, _ instance: Instance) throws -> NodeID {
@@ -191,9 +215,9 @@ public struct Reader {
             path = key.path
             e = try located(path) { try decode.proofFile(try corpus.file(key)).0 }
         case let .axiom(name):
-            guard let axiom = corpus.axioms[name] else { throw MalformedExport.undeclaredAxiom(name) }
-            path = axiom.file
-            e = try located(path) { try decode.axiom(axiom.body) }
+            guard let entry = corpus.axioms[name] else { throw MalformedExport.undeclaredAxiom(name) }
+            path = entry.file
+            e = try located(path) { try decode.axiom(entry.body) }
         }
         let p = try located(path) {
             var terms = try Terms(decode: decode, constants: constants, classes: classes, file: e, at: instance.types)

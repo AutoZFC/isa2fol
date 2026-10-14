@@ -1,9 +1,9 @@
 # CLOSURE — what every named ZF theorem rests on
 
-**Generated.** `isa2fol closure data/zf_export`. Each named theorem of the ZF sessions is followed through EVERY
-citation — named theorems, derived Pure/IFOL/FOL rules, unnamed boxes — down to axioms and
-oracles, class discharges included. A definition is an axiom named `*_def` or `*_def_raw` (by
-name). Counts are named theorems whose closure contains it.
+**Generated.** `isa2fol closure data/zf_export`. Each named theorem of the ZF sessions is followed through every citation — named
+theorems, derived Pure/IFOL/FOL rules, unnamed boxes, class discharges — down to axioms. A citation is read as
+the reader types it (`DESIGN.md` §4.3b): an axiom of the foundation, a definition, or an axiom a theory above
+the foundation states. Counts are named theorems whose closure contains it.
 
 | session | named theorems |
 |---|---:|
@@ -18,11 +18,9 @@ name). Counts are named theorems whose closure contains it.
 | ZF-ex | 798 |
 | **all** | **9420** |
 
-## Oracles — unproved steps
+The reader refuses none of them, nor any theorem they cite.
 
-(none)
-
-## Pure — every axiom and definition reached
+## pure — every axiom and definition reached
 
 | axiom | theorems reaching it | % |
 |---|---:|---:|
@@ -37,7 +35,7 @@ name). Counts are named theorems whose closure contains it.
 | `Pure.abstract_rule` | 7627 | 81.0% |
 | `Pure.term_def` | 28 | 0.3% |
 
-## IFOL — every axiom and definition reached
+## ifol — every axiom and definition reached
 
 | axiom | theorems reaching it | % |
 |---|---:|---:|
@@ -65,7 +63,7 @@ name). Counts are named theorems whose closure contains it.
 | `IFOL.ex1_def_raw` | 7316 | 77.7% |
 | `IFOL.Let_def_raw` | 439 | 4.7% |
 
-## FOL — every axiom and definition reached
+## fol — every axiom and definition reached
 
 | axiom | theorems reaching it | % |
 |---|---:|---:|
@@ -75,7 +73,7 @@ name). Counts are named theorems whose closure contains it.
 | `FOL.induct_equal_def_raw` | 105 | 1.1% |
 | `FOL.induct_conj_def_raw` | 2 | 0.0% |
 
-## ZF sessions — axioms that are not definitions
+## zf — every axiom reached
 
 | axiom | theorems reaching it | % |
 |---|---:|---:|
@@ -86,15 +84,20 @@ name). Counts are named theorems whose closure contains it.
 | `ZF_Base.foundation` | 6969 | 74.0% |
 | `ZF_Base.infinity` | 4129 | 43.8% |
 | `AC.AC` | 51 | 0.5% |
+
+Plus **984 definitions** of the zf family; the most-reached is reached by 7461 (`ZF_Base.Ball_def_raw`).
+
+## Axioms of theories above the foundation — not ZF's
+
+| axiom | theorems reaching it | % |
+|---|---:|---:|
 | `Language.constNEE` | 9 | 0.1% |
 | `Language.c_appI` | 6 | 0.1% |
 | `LList.flip_LCons` | 5 | 0.1% |
 | `LList.flip_LNil` | 5 | 0.1% |
 | `Static.isof_app` | 4 | 0.0% |
 
-Plus **984 definitions** from the ZF sessions; the most-reached is reached by 7461 (`ZF_Base.Ball_def_raw`).
+## Type variables
 
-## Monomorphisation
-
-**23 named theorems are polymorphic.** Every other named theorem is ground.
-**0 citations use a type variable their citing proof does not bind** — every instance is determined by its citer.
+**23 named theorems state a type variable.** A citation at a type variable its citing proof does not
+bind stops the read (`undeclaredTypeVariable`), so every instance is determined by its citer.

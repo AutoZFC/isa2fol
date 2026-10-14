@@ -10,7 +10,7 @@ private struct P {
     var t = Table()
     mutating func b(_ k: Int) throws -> NodeID { try t.intern(.folBound(k)) }
     mutating func pred(_ n: String, _ xs: NodeID...) throws -> NodeID { try t.intern(.folPred(n, args: xs)) }
-    mutating func mem(_ a: NodeID, _ b: NodeID) throws -> NodeID { try t.intern(.isaConst("ZF_Base.mem", memT, args: [a, b])) }
+    mutating func mem(_ a: NodeID, _ b: NodeID) throws -> NodeID { try t.intern(.isaConst(.primitive(.zf(.mem)), memT, args: [a, b])) }
     mutating func hyp(_ k: Int, _ a: NodeID) throws -> NodeID { try t.intern(.hyp(k, a)) }
     mutating func concl(_ s: NodeID) -> NodeID { t.conclusion(of: s)! }
 }
@@ -18,7 +18,7 @@ private struct P {
 /// A step constrains only its principal connective: `and_intro` over two isa statements is valid.
 @Test func anIntroductionTakesPremisesOfAnyDialect() throws {
     var p = P()
-    let a = try p.t.intern(.isaFree("a", i))
+    let a = try p.t.intern(.isaFree(.named("a"), i))
     let isaAtom = try p.mem(a, a)
     let isaAll = try p.t.intern(.ifolAll(i, body: try p.mem(try p.t.intern(.isaBound(0, i)), a)))
     let both = try p.t.intern(.folAndIntro(try p.hyp(1, isaAtom), try p.hyp(0, isaAll)))
@@ -70,14 +70,14 @@ private struct P {
     let bToA = try p.hyp(0, try p.t.intern(.folImplies(b, a)))
     #expect(p.concl(try p.t.intern(.folOrElim(try p.hyp(1, orAB), aa, bToA))) == a)
     let root = try p.t.intern(.folAnd(a, b))
-    #expect(p.concl(try p.t.intern(.use("thm", [], root))) == root)
+    #expect(p.concl(try p.t.intern(.use(.theorem("thm"), [], root))) == root)
 }
 
 /// A citation's types are part of what it is: one statement cited at two instances is two steps.
 @Test func aCitationCarriesItsTypes() throws {
     var p = P()
     let root = try p.pred("A")
-    let atI = try p.t.intern(.use("thm", [i], root)), atO = try p.t.intern(.use("thm", [o], root))
+    let atI = try p.t.intern(.use(.theorem("thm"), [i], root)), atO = try p.t.intern(.use(.theorem("thm"), [o], root))
     #expect(atI != atO)
     #expect(p.concl(atI) == root)
 }
@@ -85,12 +85,12 @@ private struct P {
 @Test func aTypeVariableTypesNodesLikeAnyType() throws {
     var p = P()
     let a = IRType.variable("'a"), eqT = fn(a, fn(a, o))
-    let x = try p.t.intern(.isaBound(0, a)), y = try p.t.intern(.isaFree("y", a))
-    let xx = try p.t.intern(.isaConst("IFOL.eq", eqT, args: [x, x]))
-    let yy = try p.t.intern(.isaConst("IFOL.eq", eqT, args: [y, y]))
+    let x = try p.t.intern(.isaBound(0, a)), y = try p.t.intern(.isaFree(.named("y"), a))
+    let xx = try p.t.intern(.isaConst(.primitive(.ifol(.eq)), eqT, args: [x, x]))
+    let yy = try p.t.intern(.isaConst(.primitive(.ifol(.eq)), eqT, args: [y, y]))
     let all = try p.hyp(0, try p.t.intern(.ifolAll(a, body: xx)))
     #expect(p.concl(try p.t.intern(.isaAllElim(all, y))) == yy)
-    let z = try p.t.intern(.isaFree("z", i))
+    let z = try p.t.intern(.isaFree(.named("z"), i))
     #expect(throws: TableError.childType(expected: a, found: i)) { try p.t.intern(.isaAllElim(all, z)) }
 }
 
@@ -105,8 +105,8 @@ private struct P {
     #expect(p.t.looseHyps(of: intro) == 1, "a term binder binds no hypothesis")
     let elim = try p.t.intern(.folForallElim(try p.hyp(0, all), try p.b(3)))
     #expect(p.concl(elim) == (try p.pred("set", try p.b(3))))
-    #expect(throws: TableError.notATermVariable(try p.t.intern(.isaFree("a", i)))) {
-        try p.t.intern(.folForallElim(try p.hyp(0, all), try p.t.intern(.isaFree("a", i))))
+    #expect(throws: TableError.notATermVariable(try p.t.intern(.isaFree(.named("a"), i)))) {
+        try p.t.intern(.folForallElim(try p.hyp(0, all), try p.t.intern(.isaFree(.named("a"), i))))
     }
 }
 
@@ -135,7 +135,7 @@ private struct P {
     let hypothesis = try p.t.intern(.ifolEx(i, body: elem01))
     let elim = try p.t.intern(.folExistsElim(try p.hyp(0, hypothesis), body: intro))
     #expect(p.concl(elim) == hypothesis)
-    let a = try p.t.intern(.isaFree("a", i))
+    let a = try p.t.intern(.isaFree(.named("a"), i))
     #expect(throws: TableError.notATermVariable(a)) {
         try p.t.intern(.folExistsIntro(try p.hyp(0, elem01), a))
     }
@@ -143,7 +143,7 @@ private struct P {
 
 @Test func theIsaQuantifierStepsTypeTheirTerm() throws {
     var p = P()
-    let a = try p.t.intern(.isaFree("a", i))
+    let a = try p.t.intern(.isaFree(.named("a"), i))
     let body = try p.mem(try p.t.intern(.isaBound(0, i)), a)
     let all = try p.t.intern(.ifolAll(i, body: body))
     #expect(p.concl(try p.t.intern(.isaAllIntro(i, body: try p.hyp(0, body)))) == all)
@@ -161,10 +161,10 @@ private struct P {
 /// η-long is the one canonical form: a function-typed term is a λ, here as in every argument position.
 @Test func isaAllElimAtAFunctionTypeTakesAnAbstraction() throws {
     var p = P()
-    let a = try p.t.intern(.isaFree("a", i))
+    let a = try p.t.intern(.isaFree(.named("a"), i))
     let applied = try p.t.intern(.isaVarApp(head: try p.t.intern(.isaBound(0, fn(i, o))), args: [a]))
     let all = try p.t.intern(.ifolAll(fn(i, o), body: applied))
-    let bare = try p.t.intern(.isaFree("Q", fn(i, o)))
+    let bare = try p.t.intern(.isaFree(.named("Q"), fn(i, o)))
     #expect(throws: TableError.functionArgumentNotAbstraction(bare)) {
         try p.t.intern(.isaAllElim(try p.hyp(0, all), bare))
     }
@@ -187,7 +187,7 @@ private struct P {
 private struct LowerCitationThenElimination: Rule {
     let isaRoot: NodeID, folRoot: NodeID
     func after(_ n: Node, context depth: Depth, in t: inout Table) throws -> NodeID? {
-        if case let .use(name, types, root) = n, root == isaRoot { return try t.intern(.use(name, types, folRoot)) }
+        if case let .use(cited, types, root) = n, root == isaRoot { return try t.intern(.use(cited, types, folRoot)) }
         guard case let .isaAllElim(p, x) = n, case let .folForall(body)? = t.conclusion(of: p).map({ t[$0] }),
               case let .folImplies(guardFormula, _) = t[body] else { return nil }
         let guardHere = try instantiate(guardFormula, with: x, in: &t)
@@ -198,12 +198,12 @@ private struct LowerCitationThenElimination: Rule {
 
 @Test func afterRewritesAStepOnceItsPremisesAreRewritten() throws {
     var p = P()
-    let A = try p.t.intern(.isaFree("A", i))
+    let A = try p.t.intern(.isaFree(.named("A"), i))
     let memBody = try p.mem(try p.t.intern(.isaBound(0, i)), A)
     let isaRoot = try p.t.intern(.ifolAll(i, body: memBody))
     let folRoot = try p.t.intern(.folForall(body: try p.t.intern(.folImplies(try p.pred("set", try p.b(0)), try p.mem(try p.b(0), A)))))
     let x = try p.b(0)
-    let before = try p.t.intern(.isaAllElim(try p.t.intern(.use("thm", [], isaRoot)), x))
+    let before = try p.t.intern(.isaAllElim(try p.t.intern(.use(.theorem("thm"), [], isaRoot)), x))
     let concluded = p.concl(before)
     let after = try transform(before, LowerCitationThenElimination(isaRoot: isaRoot, folRoot: folRoot), in: &p.t)
     #expect(after != before)

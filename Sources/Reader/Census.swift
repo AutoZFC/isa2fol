@@ -1,0 +1,151 @@
+import IR
+
+public struct Census: Sendable {
+    public internal(set) var named: [String: Int] = [:]
+    public internal(set) var polymorphic = 0
+    public internal(set) var refused: [ReaderRefusal: Int] = [:]
+    public internal(set) var patterns: [Pattern: Int] = [:]
+    public internal(set) var citations: [Cited: Int] = [:]
+}
+
+private enum Fact: Hashable {
+    case pattern(Pattern)
+    case cited(Cited)
+}
+
+private enum Vertex: Hashable {
+    case theorem(statement: NodeID, proof: NodeID)
+    case definition(Defined)
+}
+
+private struct Bits {
+    var words: [UInt64] = []
+
+    mutating func insert(_ k: Int) {
+        while words.count <= k / 64 { words.append(0) }
+        words[k / 64] |= 1 << UInt64(k % 64)
+    }
+
+    mutating func formUnion(_ other: Bits) {
+        while words.count < other.words.count { words.append(0) }
+        for (k, w) in other.words.enumerated() { words[k] |= w }
+    }
+
+    var members: [Int] {
+        words.indices.flatMap { k in (0..<64).filter { words[k] & (1 << UInt64($0)) != 0 }.map { k * 64 + $0 } }
+    }
+}
+
+private struct Closure {
+    var facts: [Fact] = []
+    var ids: [Fact: Int] = [:]
+    var patternOf: [NodeID: Int] = [:]
+    var own: [Vertex: (facts: Bits, edges: [Vertex])] = [:]
+    var closed: [Vertex: Bits] = [:]
+
+    mutating func id(_ f: Fact) -> Int {
+        if let k = ids[f] { return k }
+        facts.append(f)
+        ids[f] = facts.count - 1
+        return facts.count - 1
+    }
+
+    mutating func pattern(_ n: NodeID, _ t: Table) -> Int {
+        if let k = patternOf[n] { return k }
+        let k = id(.pattern(Pattern(t[n], in: t)))
+        patternOf[n] = k
+        return k
+    }
+
+    mutating func walk(_ v: Vertex, _ roots: [NodeID], _ t: Table, _ cited: (String) -> Vertex?) -> (facts: Bits, edges: [Vertex]) {
+        var bits = Bits(), edges: Set<Vertex> = [], seen: Set<NodeID> = [], work = roots
+        while let n = work.popLast() {
+            guard seen.insert(n).inserted else { continue }
+            bits.insert(pattern(n, t))
+            if case let .use(c, _, _) = t[n] {
+                switch c {
+                case let .theorem(name):
+                    if let v = cited(name) { edges.insert(v) }
+                case .isaDefinition, .axiom, .theoryAxiom:
+                    bits.insert(id(.cited(c)))
+                }
+            }
+            if case let .isaConst(.defined(d), _, _) = t[n] { edges.insert(.definition(d)) }
+            t[n].forEachChild { c, _ in work.append(c) }
+        }
+        edges.remove(v)
+        return (bits, Array(edges))
+    }
+}
+
+extension Reader {
+    public mutating func census() throws -> Census {
+        var c = Census()
+        var proved: [Theorem: Vertex] = [:], read: Set<Theorem> = []
+        func take(_ theorem: Theorem) throws {
+            guard read.insert(theorem).inserted else { return }
+            switch try self.read(theorem) {
+            case let .proved(statement, proof): proved[theorem] = .theorem(statement: statement, proof: proof)
+            case let .refused(r): c.refused[r, default: 0] += 1
+            }
+        }
+        for theorem in population {
+            try take(theorem)
+            c.named[session(of: theorem.theory)!, default: 0] += 1
+            if try !typeVariables(of: theorem).isEmpty { c.polymorphic += 1 }
+        }
+        var next = 0
+        while next < cited.count {
+            try take(cited[next])
+            next += 1
+        }
+
+        var g = Closure()
+        let citedAs = self.citedAs
+        func own(_ v: Vertex) throws -> (facts: Bits, edges: [Vertex]) {
+            if let o = g.own[v] { return o }
+            let roots: [NodeID]
+            switch v {
+            case let .theorem(statement, proof): roots = [statement, proof]
+            case let .definition(d): roots = [try definition(of: d)]
+            }
+            let o = g.walk(v, roots, table) { citedAs[$0].flatMap { proved[$0] } }
+            g.own[v] = o
+            return o
+        }
+        func close(_ root: Vertex) throws -> Bits {
+            if let b = g.closed[root] { return b }
+            var work: [(Vertex, expanded: Bool)] = [(root, false)], open: Set<Vertex> = [], last = Bits()
+            while let (v, expanded) = work.popLast() {
+                let o = try own(v)
+                guard expanded else {
+                    if g.closed[v] != nil { continue }
+                    guard open.insert(v).inserted else { throw MalformedExport.cyclicClosure("\(v)") }
+                    work.append((v, true))
+                    for e in o.edges where g.closed[e] == nil { work.append((e, false)) }
+                    continue
+                }
+                var bits = o.facts
+                for e in o.edges {
+                    guard let b = g.closed[e] else { throw MalformedExport.cyclicClosure("\(v) → \(e)") }
+                    bits.formUnion(b)
+                }
+                g.closed[v] = bits
+                open.remove(v)
+                last = bits
+            }
+            return last
+        }
+
+        for theorem in population {
+            guard let v = proved[theorem] else { continue }
+            for k in try close(v).members {
+                switch g.facts[k] {
+                case let .pattern(p): c.patterns[p, default: 0] += 1
+                case let .cited(cited): c.citations[cited, default: 0] += 1
+                }
+            }
+        }
+        return c
+    }
+}

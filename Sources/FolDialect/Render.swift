@@ -96,10 +96,10 @@ private struct Writer {
         case let .folForall(b): return try quantifier("forall", b, operand)
         case let .folExists(b): return try quantifier("exists", b, operand)
 
-        case let .use(name, types, _):
+        case let .use(cited, types, _):
             guard types.isEmpty else { throw RenderError.instanceCitation(id) }
-            try checkName(name)
-            return emit("use \(name)")
+            try checkName(cited.name)
+            return emit("use \(cited.name)")
         case let .hyp(k, _):
             return .step(hyps[hyps.count - 1 - k])
         case let .folAndIntro(p, q): return emit("and_intro \(try step(p)), \(try step(q))")

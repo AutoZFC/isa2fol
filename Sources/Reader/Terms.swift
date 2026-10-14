@@ -93,18 +93,6 @@ private enum Argument {
     case decoded(NodeID)
 }
 
-private enum Connective {
-    case erased, implies, and, or, iff, not, bottom, metaEquality, all, ex
-}
-
-private let connectives: [String: Connective] = [
-    "IFOL.Trueprop": .erased, "Pure.prop": .erased,
-    "Pure.imp": .implies, "IFOL.imp": .implies,
-    "IFOL.conj": .and, "IFOL.disj": .or, "IFOL.iff": .iff, "IFOL.Not": .not, "IFOL.False": .bottom,
-    "Pure.eq": .metaEquality,
-    "IFOL.All": .all, "IFOL.Ex": .ex, "Pure.all": .all,
-]
-
 struct Terms {
     private struct Memo: Hashable {
         let body: Body
@@ -249,18 +237,18 @@ struct Terms {
     private mutating func constant(_ name: String, _ types: [IsaType], _ arguments: [Argument],
                                    _ s: Scope, _ t: inout Table) throws -> NodeID {
         let scheme = try constants.instantiate(name, types)
-        guard let c = connectives[name] else {
+        switch try constants.reading(name) {
+        case let .constant(c):
             let T = try irType(scheme)
-            return try t.intern(.isaConst(name, T, args: try operands(name, T.domains, arguments, s, &t)))
-        }
-        switch c {
+            return try t.intern(.isaConst(c, T, args: try operands(name, T.domains, arguments, s, &t)))
+        case .hidden:
+            let T = try irType(scheme)
+            return try variable(name, try t.intern(.isaFree(.hidden, T)), T, arguments, s, &t)
         case .bottom:
             _ = try operands(name, [], arguments, s, &t)
             return try t.intern(.folBottom)
         case .erased:
             return try operands(name, [.o], arguments, s, &t)[0]
-        case .not:
-            return try t.intern(.folNot(try operands(name, [.o], arguments, s, &t)[0]))
         case .implies:
             let ab = try operands(name, [.o, .o], arguments, s, &t)
             return try t.intern(.folImplies(ab[0], ab[1]))
@@ -270,16 +258,13 @@ struct Terms {
         case .or:
             let ab = try operands(name, [.o, .o], arguments, s, &t)
             return try t.intern(.folOr(ab[0], ab[1]))
-        case .iff:
-            let ab = try operands(name, [.o, .o], arguments, s, &t)
-            return try t.intern(.folIff(ab[0], ab[1]))
         case .metaEquality:
             let T = try irType(try typeArgument(name, types))
             let ab = try operands(name, [T, T], arguments, s, &t)
             switch T {
             case .o: return try t.intern(.folIff(ab[0], ab[1]))
-            case .i: return try t.intern(.isaConst("IFOL.eq", .fn(.i, .fn(.i, .o)), args: ab))
-            case .fn, .variable: return try t.intern(.isaConst("Pure.eq", .fn(T, .fn(T, .o)), args: ab))
+            case .i: return try t.intern(.isaConst(.primitive(.ifol(.eq)), .fn(.i, .fn(.i, .o)), args: ab))
+            case .fn, .variable: return try t.intern(.isaConst(.primitive(.pure(.eq)), .fn(T, .fn(T, .o)), args: ab))
             }
         case .all:
             let T = try irType(try typeArgument(name, types))

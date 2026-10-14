@@ -31,8 +31,8 @@ private struct Reading {
         try n(.isaBound(binders + frees.count - 1 - frees.firstIndex(of: name)!, T))
     }
     mutating func bound(_ k: Int, _ T: IRType = .i) throws -> NodeID { try n(.isaBound(k, T)) }
-    mutating func const(_ name: String, _ T: IRType, _ args: NodeID...) throws -> NodeID {
-        try n(.isaConst(name, T, args: args))
+    mutating func const(_ c: Constant, _ T: IRType, _ args: NodeID...) throws -> NodeID {
+        try n(.isaConst(c, T, args: args))
     }
     mutating func abs(_ T: IRType, _ body: NodeID) throws -> NodeID { try n(.isaAbs(T, body: body)) }
     mutating func varApp(_ head: NodeID, _ args: NodeID...) throws -> NodeID { try n(.isaVarApp(head: head, args: args)) }
@@ -40,16 +40,14 @@ private struct Reading {
 
 private let memT = fnT(iT, fnT(iT, oT))
 private let pq = [("P", o), ("Q", o)]
+private let mem = Constant.primitive(.zf(.mem))
 
-/// The surface is one to one with the dialect AFTER coverage: a covered Isabelle construct reads
-/// as the SAME node as the FOL construct that covers it.
-@Test func aCoveredConstructReadsAsItsCover() throws {
+/// A LEAF that FOL has reads as the SAME node as the FOL construct that covers it.
+@Test func aCoveredLeafReadsAsItsCover() throws {
     var r = try Reading()
     let P = trueprop(free("P")), Q = trueprop(free("Q"))
     #expect(try r.proposition(app(const("Pure.imp"), P, Q), frees: pq)
             == (try r.proposition(trueprop(app(const("IFOL.imp"), free("P"), free("Q"))), frees: pq)), "⟹ is →")
-    #expect(try r.proposition(app(const("Pure.eq", o), free("P"), free("Q")), frees: pq)
-            == (try r.proposition(trueprop(app(const("IFOL.iff"), free("P"), free("Q"))), frees: pq)), "≡ at o is ↔")
     let body = app(const("ZF_Base.mem"), bound(0), free("A"))
     #expect(try r.proposition(app(const("Pure.all", i), lam("x", i, trueprop(body))), frees: [("A", i)])
             == (try r.proposition(trueprop(app(const("IFOL.All", i), lam("x", i, body))), frees: [("A", i)])), "⋀ is ∀")
@@ -60,7 +58,8 @@ private let pq = [("P", o), ("Q", o)]
     #expect(try r.proposition(trueprop(const("IFOL.False"))) == (try r.n(.folBottom)))
 }
 
-@Test func theConnectivesReadAsTheirFolNodes() throws {
+/// Coverage is for leaves only: IFOL DEFINES `↔` and `¬`, so they read as defined constants, never as `folIff`/`folNot`.
+@Test func theCoveredLeavesReadAsFolNodesAndADefinedConnectiveAsDefined() throws {
     var r = try Reading()
     let prop = trueprop(app(const("IFOL.conj"), free("P"),
                             app(const("IFOL.disj"), free("Q"),
@@ -68,8 +67,38 @@ private let pq = [("P", o), ("Q", o)]
                                     app(const("IFOL.iff"), free("Q"), app(const("IFOL.Not"), free("P")))))))
     let got = try r.proposition(prop, frees: pq)
     let P = try r.free("P", oT), Q = try r.free("Q", oT)
-    let iff = try r.n(.folIff(Q, try r.n(.folNot(P))))
+    let not = try r.const(defined(.ifol, "IFOL.Not"), fnT(oT, oT), P)
+    let iff = try r.const(defined(.ifol, "IFOL.iff"), fnT(oT, fnT(oT, oT)), Q, not)
     #expect(got == (try r.n(.folAnd(P, try r.n(.folOr(Q, try r.n(.folImplies(P, iff))))))))
+}
+
+/// `Trueprop` is a leaf, the coercion FOL does not need; `PROP` is Pure's DEFINED identity, read as defined.
+@Test func truepropIsErasedAndPropIsADefinedConstant() throws {
+    var r = try Reading()
+    let got = try r.proposition(app(const("Pure.prop"), trueprop(free("P"))), frees: [("P", o)])
+    #expect(got == (try r.const(defined(.pure, "Pure.prop"), fnT(oT, oT), try r.free("P", oT))))
+}
+
+/// The exporter writes a variable only the proof uses as `dummy_pattern` (`standard_hidden_terms`): the hidden variable.
+@Test func dummyPatternReadsAsTheHiddenVariable() throws {
+    var r = try Reading()
+    let bare = try r.proposition(trueprop(app(const("ZF_Base.mem"), const("Pure.dummy_pattern", i), free("A"))), frees: [("A", i)])
+    #expect(bare == (try r.const(mem, memT, try r.n(.isaFree(.hidden, iT)), try r.free("A", iT))))
+    let applied = try r.proposition(trueprop(app(const("Pure.dummy_pattern", fn(i, o)), free("A"))), frees: [("A", i)])
+    #expect(applied == (try r.varApp(try r.n(.isaFree(.hidden, fnT(iT, oT))), try r.free("A", iT))))
+}
+
+@Test func anUndefinedConstantAboveTheFoundationIsDeclared() throws {
+    var r = try Reading()
+    #expect(try r.proposition(const("T.claim")) == (try r.const(.declared("T.claim"), oT)))
+}
+
+/// `ZF_Base.not_mem` is an undefined constant of the foundation that the dialect does not list.
+@Test func anUnlistedLeafOfTheFoundationStopsTheRead() throws {
+    var r = try Reading()
+    #expect(throws: DialectGap.leaf("ZF_Base.not_mem")) {
+        try r.proposition(trueprop(app(const("ZF_Base.not_mem"), free("a"), free("a"))), frees: [("a", i)])
+    }
 }
 
 @Test func metaImplicationIsFolImplies() throws {
@@ -93,7 +122,7 @@ private let pq = [("P", o), ("Q", o)]
     let meta = try r.proposition(app(const("Pure.eq", i), free("a"), free("b")), frees: ab)
     let object = try r.proposition(trueprop(app(const("IFOL.eq", i), free("a"), free("b"))), frees: ab)
     #expect(meta == object)
-    #expect(meta == (try r.const("IFOL.eq", memT, try r.free("a", iT), try r.free("b", iT))))
+    #expect(meta == (try r.const(.primitive(.ifol(.eq)), memT, try r.free("a", iT), try r.free("b", iT))))
 }
 
 /// Nothing covers `≡` at a type variable — it is `↔` at `o`, `=` at `i` — so it stays Pure's constant.
@@ -101,7 +130,7 @@ private let pq = [("P", o), ("Q", o)]
     var r = try Reading()
     let a = IRType.variable("'a")
     let got = try r.proposition(app(const("Pure.eq", typeA), free("x"), free("y")), tfrees: ["'a"], frees: [("x", typeA), ("y", typeA)])
-    #expect(got == (try r.const("Pure.eq", fnT(a, fnT(a, oT)), try r.bound(1, a), try r.bound(0, a))))
+    #expect(got == (try r.const(.primitive(.pure(.eq)), fnT(a, fnT(a, oT)), try r.bound(1, a), try r.bound(0, a))))
 }
 
 @Test func metaEqualityAtAFunctionTypeIsADefinitionNode() throws {
@@ -110,15 +139,15 @@ private let pq = [("P", o), ("Q", o)]
                                 frees: [("F", fn(i, i))])
     let ii = fnT(iT, iT)
     let lhs = try r.abs(iT, try r.varApp(try r.free("F", ii, under: 1), try r.bound(0)))
-    let rhs = try r.abs(iT, try r.const("Sum.Inl", ii, try r.bound(0)))
-    #expect(got == (try r.const("Pure.eq", fnT(ii, fnT(ii, oT)), lhs, rhs)))
+    let rhs = try r.abs(iT, try r.const(defined(.zf, "Sum.Inl"), ii, try r.bound(0)))
+    #expect(got == (try r.const(.primitive(.pure(.eq)), fnT(ii, fnT(ii, oT)), lhs, rhs)))
 }
 
 @Test func quantifiersReadAsIfolBinders() throws {
     var r = try Reading()
     let body = trueprop(app(const("ZF_Base.mem"), bound(0), free("A")))
     let meta = try r.proposition(app(const("Pure.all", i), lam("x", i, body)), frees: [("A", i)])
-    let mem = try r.const("ZF_Base.mem", memT, try r.bound(0), try r.free("A", iT, under: 1))
+    let mem = try r.const(mem, memT, try r.bound(0), try r.free("A", iT, under: 1))
     #expect(meta == (try r.n(.ifolAll(iT, body: mem))))
     let exists = try r.proposition(trueprop(app(const("IFOL.Ex", i), lam("x", i, app(const("ZF_Base.mem"), bound(0), free("A"))))),
                                    frees: [("A", i)])
@@ -141,15 +170,15 @@ private let pq = [("P", o), ("Q", o)]
 @Test func aPropositionValuedConstantReadsAsAFormulaConstant() throws {
     var r = try Reading()
     let got = try r.proposition(app(const("Pure.imp"), const("T.claim"), trueprop(const("IFOL.False"))))
-    #expect(got == (try r.n(.folImplies(try r.const("T.claim", oT), try r.n(.folBottom)))))
+    #expect(got == (try r.n(.folImplies(try r.const(.declared("T.claim"), oT), try r.n(.folBottom)))))
 }
 
 @Test func aConstantOverPropositionsReadsWithPropAsO() throws {
     var r = try Reading()
     let got = try r.proposition(app(const("T.metaEx", i), lam("x", i, trueprop(app(const("ZF_Base.mem"), bound(0), free("A"))))),
                                 frees: [("A", i)])
-    let mem = try r.const("ZF_Base.mem", memT, try r.bound(0), try r.free("A", iT, under: 1))
-    #expect(got == (try r.const("T.metaEx", fnT(fnT(iT, oT), oT), try r.abs(iT, mem))))
+    let mem = try r.const(mem, memT, try r.bound(0), try r.free("A", iT, under: 1))
+    #expect(got == (try r.const(.declared("T.metaEx"), fnT(fnT(iT, oT), oT), try r.abs(iT, mem))))
 }
 
 @Test func aMetaQuantifierOverAFunctionIsAQuantifierAtThatType() throws {
@@ -165,7 +194,7 @@ private let pq = [("P", o), ("Q", o)]
     let long = try r.proposition(trueprop(app(const("ZF_Base.Ball"), free("A"), lam("x", i, app(free("P"), bound(0))))), frees: frees)
     #expect(short == long)
     let P = try r.abs(iT, try r.varApp(try r.free("P", fnT(iT, oT), under: 1), try r.bound(0)))
-    #expect(short == (try r.const("ZF_Base.Ball", fnT(iT, fnT(fnT(iT, oT), oT)), try r.free("A", iT), P)))
+    #expect(short == (try r.const(defined(.zf, "ZF_Base.Ball"), fnT(iT, fnT(fnT(iT, oT), oT)), try r.free("A", iT), P)))
 }
 
 @Test func aConstantArgumentReadsAsItsEtaExpansion() throws {
@@ -182,8 +211,8 @@ private let pq = [("P", o), ("Q", o)]
                                 frees: [("r", i), ("f", fn(i, fn(i, i)))])
     let iii = fnT(iT, fnT(iT, iT))
     let f = try r.abs(iT, try r.abs(iT, try r.varApp(try r.free("f", iii, under: 3), try r.bound(1), try r.bound(0))))
-    let split = try r.abs(iT, try r.const("ZF_Base.split", fnT(iii, fnT(iT, iT)), f, try r.bound(0)))
-    #expect(got == (try r.const("EquivClass.congruent", fnT(iT, fnT(fnT(iT, iT), oT)), try r.free("r", iT), split)))
+    let split = try r.abs(iT, try r.const(defined(.zf, "ZF_Base.split"), fnT(iii, fnT(iT, iT)), f, try r.bound(0)))
+    #expect(got == (try r.const(defined(.zf, "EquivClass.congruent"), fnT(iT, fnT(fnT(iT, iT), oT)), try r.free("r", iT), split)))
 }
 
 @Test func aPartlyEtaReducedLambdaIsCompleted() throws {
@@ -234,10 +263,10 @@ private let pq = [("P", o), ("Q", o)]
 @Test func aPureInternalConstantReadsAsAConstant() throws {
     var r = try Reading()
     let term = try r.proposition(app(const("Pure.term", i), free("a")), frees: [("a", i)])
-    #expect(term == (try r.const("Pure.term", fnT(iT, oT), try r.free("a", iT))))
+    #expect(term == (try r.const(defined(.pure, "Pure.term"), fnT(iT, oT), try r.free("a", iT))))
     let conjunction = try r.proposition(app(const("Pure.conjunction"), trueprop(const("IFOL.False")), trueprop(const("IFOL.False"))))
     let bottom = try r.n(.folBottom)
-    #expect(conjunction == (try r.const("Pure.conjunction", fnT(oT, fnT(oT, oT)), bottom, bottom)))
+    #expect(conjunction == (try r.const(defined(.pure, "Pure.conjunction"), fnT(oT, fnT(oT, oT)), bottom, bottom)))
 }
 
 @Test func aBetaRedexIsRefused() throws {
@@ -264,7 +293,7 @@ private let pq = [("P", o), ("Q", o)]
 @Test func aFreeReadsAsItsClosureBinderTheFirstOutermost() throws {
     var r = try Reading()
     let got = try r.proposition(trueprop(app(const("ZF_Base.mem"), free("a"), free("A"))), frees: [("a", i), ("A", i)])
-    #expect(got == (try r.const("ZF_Base.mem", memT, try r.bound(1), try r.bound(0))))
+    #expect(got == (try r.const(mem, memT, try r.bound(1), try r.bound(0))))
 }
 
 /// Axioms are encoded with typed variables (`typed_vars = true`); the type must be the header's.
@@ -281,7 +310,7 @@ private let pq = [("P", o), ("Q", o)]
     let got = try r.proposition(trueprop(app(const("IFOL.All", i), lam("x", i, app(const("IFOL.conj"),
                                     app(const("IFOL.All", o), lam("P", o, bound(0))), app(const("ZF_Base.mem"), bound(0), bound(0)))))))
     let inner = try r.n(.ifolAll(oT, body: try r.bound(0, oT)))
-    let mem = try r.const("ZF_Base.mem", memT, try r.bound(0), try r.bound(0))
+    let mem = try r.const(mem, memT, try r.bound(0), try r.bound(0))
     #expect(got == (try r.n(.ifolAll(iT, body: try r.n(.folAnd(inner, mem))))))
 }
 

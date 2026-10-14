@@ -1,13 +1,14 @@
-# SOURCE SURFACE — what the isa dialect must model
+# SOURCE SURFACE — the patterns the translation owes a rule each
 
-**Generated — do not edit.** `isa2fol surface data/zf_export`. A census, not mathematics:
-`docs/FOUNDATION.md` says what the translation must satisfy; this says what the corpus contains.
+**Generated — do not edit.** `isa2fol surface data/zf_export`. A census, not mathematics: `docs/FOUNDATION.md` says what the
+translation must satisfy; this lists what the corpus is built from, as the reader emits it — each pattern a
+primitive at its type (`DESIGN.md` §4.3b). With one rule per pattern, every theorem built from them translates.
 
-**The cut.** The population is the NAMED theorems of the ZF sessions — unnamed boxes are pieces of
-the proofs that reach them. A proof includes every unnamed box it reaches and stops at every named
-theorem. A citation of a Pure/IFOL/FOL rule is a frontier leaf; its arguments, class discharges
-included, are part of the citer's proof. A box's statement is a proposition inside its citer's
-proof. Counts are theorems whose statement, or proof, contains the item.
+- **The population** is the closure of the named ZF theorems: every theorem they cite, each read from its own
+  proof, and the definition of every constant that occurs, transitively. An unnamed box is part of its citer's
+  proof.
+- **A count** is the named ZF theorems whose closure holds the pattern: the theorems that do not translate until
+  it has a rule. A count orders the work; it never justifies a rule.
 
 ## Population
 
@@ -24,1272 +25,2601 @@ proof. Counts are theorems whose statement, or proof, contains the item.
 | ZF-ex | 798 |
 | **all** | **9420** |
 
-## Statements
+The reader refuses none of them, nor any theorem they cite.
 
-### Logical constants
+## Patterns (2592)
 
-| constant | theorems | % |
+| pattern | theorems | % |
 |---|---:|---:|
-| `IFOL.Trueprop` | 8010 | 85.0% |
-| `Pure.imp` | 5484 | 58.2% |
-| `IFOL.eq` | 4139 | 43.9% |
-| `IFOL.iff` | 1297 | 13.8% |
-| `Pure.eq` | 1249 | 13.3% |
-| `IFOL.conj` | 1065 | 11.3% |
-| `Pure.all` | 617 | 6.5% |
-| `IFOL.Not` | 546 | 5.8% |
-| `IFOL.imp` | 408 | 4.3% |
-| `IFOL.Ex` | 398 | 4.2% |
-| `IFOL.disj` | 348 | 3.7% |
-| `IFOL.All` | 147 | 1.6% |
-| `IFOL.True` | 63 | 0.7% |
-| `IFOL.Ex1` | 27 | 0.3% |
-| `IFOL.False` | 20 | 0.2% |
-| `IFOL.Let` | 6 | 0.1% |
-
-Plus **997 distinct ZF constants**.
-
-### Types
-
-| type | theorems | % |
-|---|---:|---:|
-| `ZF_Base.i` | 9041 | 96.0% |
-| `fun` | 2361 | 25.1% |
-| `IFOL.o` | 1671 | 17.7% |
-| `prop` | 137 | 1.5% |
-| `a type variable` | 23 | 0.2% |
-
-### Other constructs
-
-| construct | theorems | % |
-|---|---:|---:|
-| `OFCLASS(_, IFOL.term)` | 9 | 0.1% |
-
-## Proofs
-
-### Frontier — Pure/IFOL/FOL rules cited
-
-#### Pure
-
-| rule | theorems | % |
-|---|---:|---:|
-| `Pure.protectD` | 5902 | 62.7% |
-| `Pure.protectI` | 5902 | 62.7% |
-| `Pure.conjunctionI` | 1207 | 12.8% |
-| `Pure.conjunctionD1` | 1192 | 12.7% |
-| `Pure.conjunctionD2` | 1188 | 12.6% |
-| `Pure.meta_spec` | 14 | 0.1% |
-| `Pure.termI` | 1 | 0.0% |
-
-#### IFOL
-
-| rule | theorems | % |
-|---|---:|---:|
-| `IFOL.TrueI` | 4637 | 49.2% |
-| `IFOL.eq_reflection` | 4603 | 48.9% |
-| `IFOL.iff_reflection` | 4533 | 48.1% |
-| `IFOL.impI` | 4529 | 48.1% |
-| `IFOL.conjE` | 4466 | 47.4% |
-| `IFOL.iff_reflection_T` | 4413 | 46.8% |
-| `IFOL.conjI` | 4405 | 46.8% |
-| `IFOL.refl` | 4385 | 46.5% |
-| `IFOL.mp` | 4343 | 46.1% |
-| `IFOL.allE` | 4309 | 45.7% |
-| `IFOL.notE` | 4297 | 45.6% |
-| `IFOL.allI` | 4200 | 44.6% |
-| `IFOL.subst` | 4195 | 44.5% |
-| `IFOL.sym` | 4066 | 43.2% |
-| `IFOL.rev_mp` | 4037 | 42.9% |
-| `IFOL.def_imp_iff` | 4011 | 42.6% |
-| `IFOL.exI` | 3946 | 41.9% |
-| `IFOL.exE` | 3928 | 41.7% |
-| `IFOL.iffI` | 3895 | 41.3% |
-| `IFOL.imp_cong` | 3886 | 41.3% |
-| `IFOL.meta_eq_to_obj_eq` | 3813 | 40.5% |
-| `IFOL.notI` | 3541 | 37.6% |
-| `IFOL.iffD2` | 3536 | 37.5% |
-| `IFOL.disjE` | 3334 | 35.4% |
-| `IFOL.iffD1` | 3210 | 34.1% |
-| `IFOL.conjunct1` | 2958 | 31.4% |
-| `IFOL.iff_reflection_F` | 2802 | 29.7% |
-| `IFOL.conj_cong` | 2776 | 29.5% |
-| `IFOL.conjunct2` | 2699 | 28.7% |
-| `IFOL.FalseE` | 1919 | 20.4% |
-| `IFOL.meta_eq_to_iff` | 1401 | 14.9% |
-| `IFOL.not_sym` | 1213 | 12.9% |
-| `IFOL.spec` | 1154 | 12.3% |
-| `IFOL.trans` | 1094 | 11.6% |
-| `IFOL.atomize_imp` | 451 | 4.8% |
-| `IFOL.ssubst` | 235 | 2.5% |
-| `IFOL.iff_sym` | 189 | 2.0% |
-| `IFOL.subst_context` | 186 | 2.0% |
-| `IFOL.atomize_iff` | 180 | 1.9% |
-| `IFOL.disjI1` | 178 | 1.9% |
-| `IFOL.disjI2` | 176 | 1.9% |
-| `IFOL.iff_trans` | 167 | 1.8% |
-| `IFOL.iff_refl` | 150 | 1.6% |
-| `IFOL.atomize_all` | 71 | 0.8% |
-| `IFOL.ex1I` | 60 | 0.6% |
-| `IFOL.impE` | 41 | 0.4% |
-| `IFOL.ex_ex1I` | 28 | 0.3% |
-| `IFOL.eq_commute` | 26 | 0.3% |
-| `IFOL.thin_refl` | 19 | 0.2% |
-| `IFOL.subst_all(2)` | 18 | 0.2% |
-| `IFOL.Let_def` | 12 | 0.1% |
-| `IFOL.ex1E` | 10 | 0.1% |
-| `IFOL.atomize_eq` | 8 | 0.1% |
-| `IFOL.back_subst` | 4 | 0.0% |
-| `IFOL.contrapos` | 4 | 0.0% |
-| `IFOL.forw_subst` | 4 | 0.0% |
-| `IFOL.distrib_simps(3)` | 3 | 0.0% |
-| `IFOL.atomize_conj` | 2 | 0.0% |
-| `IFOL.ex_cong` | 2 | 0.0% |
-| `IFOL.subst_all(1)` | 2 | 0.0% |
-| `IFOL.box_equals` | 1 | 0.0% |
-| `IFOL.conj_simps(1)` | 1 | 0.0% |
-| `IFOL.conj_simps(2)` | 1 | 0.0% |
-| `IFOL.conj_simps(3)` | 1 | 0.0% |
-| `IFOL.disj_cong` | 1 | 0.0% |
-| `IFOL.imp_disj` | 1 | 0.0% |
-| `IFOL.imp_simps(3)` | 1 | 0.0% |
-| `IFOL.quant_simps(4)` | 1 | 0.0% |
-| `IFOL.quant_simps(6)` | 1 | 0.0% |
-| `IFOL.rev_iffD1` | 1 | 0.0% |
-| `IFOL.rev_iffD2` | 1 | 0.0% |
-| `IFOL.term_class.intro` | 1 | 0.0% |
-
-#### FOL
-
-| rule | theorems | % |
-|---|---:|---:|
-| `FOL.swap` | 4555 | 48.4% |
-| `FOL.ccontr` | 4357 | 46.3% |
-| `FOL.impCE` | 4185 | 44.4% |
-| `FOL.IFOL_simps(29)` | 3961 | 42.0% |
-| `FOL.IFOL_simps(22)` | 3617 | 38.4% |
-| `FOL.int_all_simps(3)` | 3441 | 36.5% |
-| `FOL.classical` | 3400 | 36.1% |
-| `FOL.disjCI` | 3157 | 33.5% |
-| `FOL.meta_simps(2)` | 2870 | 30.5% |
-| `FOL.IFOL_simps(6)` | 2740 | 29.1% |
-| `FOL.IFOL_simps(1)` | 2634 | 28.0% |
-| `FOL.IFOL_simps(19)` | 2154 | 22.9% |
-| `FOL.IFOL_simps(33)` | 2028 | 21.5% |
-| `FOL.IFOL_simps(2)` | 1937 | 20.6% |
-| `FOL.IFOL_simps(32)` | 1921 | 20.4% |
-| `FOL.IFOL_simps(3)` | 1909 | 20.3% |
-| `FOL.case_split` | 1774 | 18.8% |
-| `FOL.meta_simps(1)` | 1662 | 17.6% |
-| `FOL.IFOL_simps(24)` | 1583 | 16.8% |
-| `FOL.IFOL_simps(13)` | 1471 | 15.6% |
-| `FOL.IFOL_simps(20)` | 1438 | 15.3% |
-| `FOL.IFOL_simps(23)` | 1436 | 15.2% |
-| `FOL.IFOL_simps(15)` | 1303 | 13.8% |
-| `FOL.IFOL_simps(39)` | 988 | 10.5% |
-| `FOL.cla_simps(7)` | 947 | 10.1% |
-| `FOL.int_ex_simps(2)` | 794 | 8.4% |
-| `FOL.IFOL_simps(10)` | 702 | 7.5% |
-| `FOL.IFOL_simps(25)` | 668 | 7.1% |
-| `FOL.iffCE` | 652 | 6.9% |
-| `FOL.IFOL_simps(11)` | 630 | 6.7% |
-| `FOL.IFOL_simps(14)` | 599 | 6.4% |
-| `FOL.IFOL_simps(5)` | 592 | 6.3% |
-| `FOL.IFOL_simps(12)` | 591 | 6.3% |
-| `FOL.IFOL_simps(37)` | 490 | 5.2% |
-| `FOL.IFOL_simps(28)` | 422 | 4.5% |
-| `FOL.cla_simps(1)` | 422 | 4.5% |
-| `FOL.IFOL_simps(18)` | 414 | 4.4% |
-| `FOL.IFOL_simps(35)` | 407 | 4.3% |
-| `FOL.cla_simps(12)` | 282 | 3.0% |
-| `FOL.imp_elim` | 209 | 2.2% |
-| `FOL.IFOL_simps(30)` | 185 | 2.0% |
-| `FOL.IFOL_simps(27)` | 183 | 1.9% |
-| `FOL.cla_simps(5)` | 170 | 1.8% |
-| `FOL.IFOL_simps(4)` | 150 | 1.6% |
-| `FOL.alt_ex1E` | 139 | 1.5% |
-| `FOL.iff_allI` | 63 | 0.7% |
-| `FOL.uncurry` | 63 | 0.7% |
-| `FOL.IFOL_simps(21)` | 53 | 0.6% |
-| `FOL.IFOL_simps(17)` | 51 | 0.5% |
-| `FOL.int_ex_simps(1)` | 34 | 0.4% |
-| `FOL.int_all_simps(4)` | 25 | 0.3% |
-| `FOL.cla_simps(8)` | 12 | 0.1% |
-| `FOL.IFOL_simps(36)` | 8 | 0.1% |
-| `FOL.IFOL_simps(38)` | 7 | 0.1% |
-| `FOL.IFOL_simps(34)` | 5 | 0.1% |
-| `FOL.IFOL_simps(31)` | 4 | 0.0% |
-| `FOL.contrapos2` | 4 | 0.0% |
-| `FOL.cla_simps(10)` | 3 | 0.0% |
-| `FOL.notnotD` | 3 | 0.0% |
-| `FOL.cla_simps(14)` | 2 | 0.0% |
-| `FOL.cla_simps(6)` | 2 | 0.0% |
-| `FOL.not_disj_iff_imp` | 2 | 0.0% |
-| `FOL.IFOL_simps(7)` | 1 | 0.0% |
-| `FOL.all_comm` | 1 | 0.0% |
-| `FOL.conj_mono` | 1 | 0.0% |
-| `FOL.disj_mono` | 1 | 0.0% |
-| `FOL.ex_comm` | 1 | 0.0% |
-| `FOL.ex_mono` | 1 | 0.0% |
-| `FOL.excluded_middle` | 1 | 0.0% |
-| `FOL.iff_exI` | 1 | 0.0% |
-| `FOL.imp_refl` | 1 | 0.0% |
-
-### Axioms
-
-| axiom | theorems | % |
-|---|---:|---:|
-| `Pure.reflexive` | 6647 | 70.6% |
-| `Pure.equal_elim` | 6636 | 70.4% |
-| `Pure.combination` | 6629 | 70.4% |
-| `Pure.symmetric` | 6453 | 68.5% |
-| `Pure.transitive` | 5526 | 58.7% |
-| `Pure.abstract_rule` | 4538 | 48.2% |
-| `Pure.equal_intr` | 4415 | 46.9% |
-| `FOL.induct_implies_def_raw` | 343 | 3.6% |
-| `Datatypes.enum.enum_def` | 65 | 0.7% |
-| `FOL.induct_forall_def_raw` | 26 | 0.3% |
-| `Tree_Forest.tree_forest.tree_forest_def` | 17 | 0.2% |
-| `Tree_Forest.tree_forest.forest_def` | 16 | 0.2% |
-| `Binary_Trees.bt.bt_def` | 15 | 0.2% |
-| `Tree_Forest.tree_forest.tree_def` | 15 | 0.2% |
-| `Com.evalc.evalc_def` | 12 | 0.1% |
-| `List.list.list_def` | 12 | 0.1% |
-| `Com.bexp.bexp_def` | 11 | 0.1% |
-| `Com.evalb.evalb_def` | 11 | 0.1% |
-| `Dynamic.EvalRel.EvalRel_def` | 11 | 0.1% |
-| `Primrec.prim_rec.prim_rec_def` | 11 | 0.1% |
-| `PropLog.propn.propn_def` | 11 | 0.1% |
-| `PropLog.thms.thms_def` | 11 | 0.1% |
-| `Com.com.com_def` | 10 | 0.1% |
-| `Comb.contract.contract_def` | 10 | 0.1% |
-| `Comb.parcontract.parcontract_def` | 10 | 0.1% |
-| `Formula.formula.formula_def` | 10 | 0.1% |
-| `Language.Exp.Exp_def` | 10 | 0.1% |
-| `Mutil.tiling.tiling_def` | 10 | 0.1% |
-| `Static.ElabRel.ElabRel_def` | 10 | 0.1% |
-| `Brouwer.brouwer.brouwer_def` | 9 | 0.1% |
-| `Com.aexp.aexp_def` | 9 | 0.1% |
-| `Com.evala.evala_def` | 9 | 0.1% |
-| `Datatypes.data.data_def` | 9 | 0.1% |
-| `Ntree.ntree.ntree_def` | 9 | 0.1% |
-| `Redex.Sreg.Sreg_def` | 9 | 0.1% |
-| `Redex.Ssub.Ssub_def` | 9 | 0.1% |
-| `Reduction.Spar_red1.Spar_red1_def` | 9 | 0.1% |
-| `Reduction.Sred1.Sred1_def` | 9 | 0.1% |
-| `Residuals.Sres.Sres_def` | 9 | 0.1% |
-| `AC_in_L.rlist.rlist_def` | 8 | 0.1% |
-| `Bin.bin.bin_def` | 8 | 0.1% |
-| `Comb.comb.comb_def` | 8 | 0.1% |
-| `Confluence.Sconv.Sconv_def` | 8 | 0.1% |
-| `Redex.Scomp.Scomp_def` | 8 | 0.1% |
-| `Redex.redexes.redexes_def` | 8 | 0.1% |
-| `Reduction.Sred.Sred_def` | 8 | 0.1% |
-| `Reduction.lambda.lambda_def` | 8 | 0.1% |
-| `Values.Val_ValEnv.Val_ValEnv_def` | 8 | 0.1% |
-| `Brouwer.Well.Well_def` | 7 | 0.1% |
-| `Com.bexp.bexp_rec_def` | 7 | 0.1% |
-| `Confluence.Sconv1.Sconv1_def` | 7 | 0.1% |
-| `ECR.HasTyRel.HasTyRel_def` | 7 | 0.1% |
-| `Finite.Fin.Fin_def` | 7 | 0.1% |
-| `Finite.FiniteFun.FiniteFun_def` | 7 | 0.1% |
-| `FoldSet.fold_set.fold_set_def` | 7 | 0.1% |
-| `LList.lleq.lleq_def` | 7 | 0.1% |
-| `LList.llist.llist_def` | 7 | 0.1% |
-| `ListN.listn.listn_def` | 7 | 0.1% |
-| `Mutil.domino.domino_def` | 7 | 0.1% |
-| `Ntree.maptree.maptree_def` | 7 | 0.1% |
-| `Ntree.maptree2.maptree2_def` | 7 | 0.1% |
-| `Reduction.Spar_red.Spar_red_def` | 7 | 0.1% |
-| `Rmap.rmap.rmap_def` | 7 | 0.1% |
-| `Term.term.term_def` | 7 | 0.1% |
-| `Types.Ty.Ty_def` | 7 | 0.1% |
-| `Types.TyEnv.TyEnv_def` | 7 | 0.1% |
-| `Zorn.TFin.TFin_def` | 7 | 0.1% |
-| `Acc.acc.acc_def` | 6 | 0.1% |
-| `CoUnit.counit.counit_def` | 6 | 0.1% |
-| `CoUnit.counit2.counit2_def` | 6 | 0.1% |
-| `Com.com.com_rec_def` | 6 | 0.1% |
-| `Language.Exp.Exp_rec_def` | 6 | 0.1% |
-| `Values.Val_ValEnv.Val_def` | 6 | 0.1% |
-| `Com.aexp.aexp_rec_def` | 5 | 0.1% |
-| `Datatypes.data.data_rec_def` | 5 | 0.1% |
-| `Formula.formula.formula_rec_def` | 5 | 0.1% |
-| `Values.Val_ValEnv.ValEnv_def` | 5 | 0.1% |
-| `Bin.bin.bin_rec_def` | 4 | 0.0% |
-| `Brouwer.brouwer.brouwer_rec_def` | 4 | 0.0% |
-| `Comb.comb.comb_rec_def` | 4 | 0.0% |
-| `PropLog.propn.propn_rec_def` | 4 | 0.0% |
-| `Redex.redexes.redexes_rec_def` | 4 | 0.0% |
-| `Tree_Forest.tree_forest.tree_forest_rec_def` | 4 | 0.0% |
-| `Binary_Trees.bt.bt_rec_def` | 3 | 0.0% |
-| `List.list.list_rec_def` | 3 | 0.0% |
-| `Types.Ty.Ty_rec_def` | 3 | 0.0% |
-| `Types.TyEnv.TyEnv_rec_def` | 3 | 0.0% |
-| `FOL.induct_conj_def_raw` | 2 | 0.0% |
-| `FOL.induct_equal_def_raw` | 2 | 0.0% |
-| `AC.AC` | 1 | 0.0% |
-| `AC16_WO4.AC16_def` | 1 | 0.0% |
-| `AC18_AC19.uu_def_raw` | 1 | 0.0% |
-| `AC_Equiv.AC0_def_raw` | 1 | 0.0% |
-| `AC_Equiv.AC10_def_raw` | 1 | 0.0% |
-| `AC_Equiv.AC11_def_raw` | 1 | 0.0% |
-| `AC_Equiv.AC12_def_raw` | 1 | 0.0% |
-| `AC_Equiv.AC13_def_raw` | 1 | 0.0% |
-| `AC_Equiv.AC14_def_raw` | 1 | 0.0% |
-| `AC_Equiv.AC15_def_raw` | 1 | 0.0% |
-| `AC_Equiv.AC16_def_raw` | 1 | 0.0% |
-| `AC_Equiv.AC17_def_raw` | 1 | 0.0% |
-| `AC_Equiv.AC18_def` | 1 | 0.0% |
-| `AC_Equiv.AC19_def_raw` | 1 | 0.0% |
-| `AC_Equiv.AC1_def_raw` | 1 | 0.0% |
-| `AC_Equiv.AC2_def_raw` | 1 | 0.0% |
-| `AC_Equiv.AC3_def_raw` | 1 | 0.0% |
-| `AC_Equiv.AC4_def_raw` | 1 | 0.0% |
-| `AC_Equiv.AC5_def_raw` | 1 | 0.0% |
-| `AC_Equiv.AC6_def_raw` | 1 | 0.0% |
-| `AC_Equiv.AC7_def_raw` | 1 | 0.0% |
-| `AC_Equiv.AC8_def_raw` | 1 | 0.0% |
-| `AC_Equiv.AC9_def_raw` | 1 | 0.0% |
-| `AC_Equiv.WO1_def_raw` | 1 | 0.0% |
-| `AC_Equiv.WO2_def_raw` | 1 | 0.0% |
-| `AC_Equiv.WO3_def_raw` | 1 | 0.0% |
-| `AC_Equiv.WO4_def_raw` | 1 | 0.0% |
-| `AC_Equiv.WO5_def_raw` | 1 | 0.0% |
-| `AC_Equiv.WO6_def_raw` | 1 | 0.0% |
-| `AC_Equiv.WO7_def_raw` | 1 | 0.0% |
-| `AC_Equiv.WO8_def_raw` | 1 | 0.0% |
-| `AC_Equiv.pairwise_disjoint_def_raw` | 1 | 0.0% |
-| `AC_Equiv.sets_of_size_between_def_raw` | 1 | 0.0% |
-| `AC_in_L.DPow_least_def_raw` | 1 | 0.0% |
-| `AC_in_L.DPow_ord_def_raw` | 1 | 0.0% |
-| `AC_in_L.DPow_r_def_raw` | 1 | 0.0% |
-| `AC_in_L.L_r_def_raw` | 1 | 0.0% |
-| `AC_in_L.Lset_new_def_raw` | 1 | 0.0% |
-| `AC_in_L.Nat_Times_Nat_def` | 1 | 0.0% |
-| `AC_in_L.enum.enum_formula_def` | 1 | 0.0% |
-| `AC_in_L.env_form_map_def_raw` | 1 | 0.0% |
-| `AC_in_L.env_form_r_def_raw` | 1 | 0.0% |
-| `AC_in_L.rlimit_def_raw` | 1 | 0.0% |
-| `Arith.add_def_raw` | 1 | 0.0% |
-| `Arith.diff_def_raw` | 1 | 0.0% |
-| `Arith.div_def_raw` | 1 | 0.0% |
-| `Arith.mod_def_raw` | 1 | 0.0% |
-| `Arith.mult_def_raw` | 1 | 0.0% |
-| `Arith.natify_def_raw` | 1 | 0.0% |
-| `Arith.pred_def_raw` | 1 | 0.0% |
-| `Arith.raw_add.raw_add_nat_def` | 1 | 0.0% |
-| `Arith.raw_diff.raw_diff_nat_def` | 1 | 0.0% |
-| `Arith.raw_div_def_raw` | 1 | 0.0% |
-| `Arith.raw_mod_def_raw` | 1 | 0.0% |
-| `Arith.raw_mult.raw_mult_nat_def` | 1 | 0.0% |
-| `Bin.NCons.NCons_bin_def` | 1 | 0.0% |
-| `Bin.bin.Bit_def` | 1 | 0.0% |
-| `Bin.bin.Min_def` | 1 | 0.0% |
-| `Bin.bin.Pls_def` | 1 | 0.0% |
-| `Bin.bin.bin_case_def` | 1 | 0.0% |
-| `Bin.bin_add_def_raw` | 1 | 0.0% |
-| `Bin.bin_adder.bin_adder_bin_def` | 1 | 0.0% |
-| `Bin.bin_minus.bin_minus_bin_def` | 1 | 0.0% |
-| `Bin.bin_mult.bin_mult_bin_def` | 1 | 0.0% |
-| `Bin.bin_pred.bin_pred_bin_def` | 1 | 0.0% |
-| `Bin.bin_succ.bin_succ_bin_def` | 1 | 0.0% |
-| `Bin.integ_of.integ_of_bin_def` | 1 | 0.0% |
-| `Binary_Trees.bt.Br_def` | 1 | 0.0% |
-| `Binary_Trees.bt.Lf_def` | 1 | 0.0% |
-| `Binary_Trees.bt.bt_case_def` | 1 | 0.0% |
-| `Binary_Trees.bt_reflect.bt_reflect_bt_def` | 1 | 0.0% |
-| `Binary_Trees.n_leaves.n_leaves_bt_def` | 1 | 0.0% |
-| `Binary_Trees.n_nodes.n_nodes_bt_def` | 1 | 0.0% |
-| `Binary_Trees.n_nodes_aux.n_nodes_aux_bt_def` | 1 | 0.0% |
-| `Binary_Trees.n_nodes_tail_def_raw` | 1 | 0.0% |
-| `Bool.and_def_raw` | 1 | 0.0% |
-| `Bool.bool_def_raw` | 1 | 0.0% |
-| `Bool.bool_of_o_def_raw` | 1 | 0.0% |
-| `Bool.cond_def_raw` | 1 | 0.0% |
-| `Bool.not_def_raw` | 1 | 0.0% |
-| `Bool.or_def_raw` | 1 | 0.0% |
-| `Bool.xor_def_raw` | 1 | 0.0% |
-| `Brouwer.Well.Sup_def` | 1 | 0.0% |
-| `Brouwer.Well.Well_case_def` | 1 | 0.0% |
-| `Brouwer.brouwer.Lim_def` | 1 | 0.0% |
-| `Brouwer.brouwer.Suc_def` | 1 | 0.0% |
-| `Brouwer.brouwer.Zero_def` | 1 | 0.0% |
-| `Brouwer.brouwer.brouwer_case_def` | 1 | 0.0% |
-| `Cardinal.Card_def_raw` | 1 | 0.0% |
-| `Cardinal.Finite_def_raw` | 1 | 0.0% |
-| `Cardinal.Least_def_raw` | 1 | 0.0% |
-| `Cardinal.cardinal_def_raw` | 1 | 0.0% |
-| `Cardinal.eqpoll_def_raw` | 1 | 0.0% |
-| `Cardinal.lepoll_def_raw` | 1 | 0.0% |
-| `Cardinal.lesspoll_def_raw` | 1 | 0.0% |
-| `CardinalArith.InfCard_def_raw` | 1 | 0.0% |
-| `CardinalArith.cadd_def_raw` | 1 | 0.0% |
-| `CardinalArith.cmult_def_raw` | 1 | 0.0% |
-| `CardinalArith.csquare_rel_def_raw` | 1 | 0.0% |
-| `CardinalArith.csucc_def_raw` | 1 | 0.0% |
-| `CardinalArith.jump_cardinal_def_raw` | 1 | 0.0% |
-| `CoUnit.counit.Con_def` | 1 | 0.0% |
-| `CoUnit.counit.counit_case_def` | 1 | 0.0% |
-| `CoUnit.counit2.Con2_def` | 1 | 0.0% |
-| `CoUnit.counit2.counit2_case_def` | 1 | 0.0% |
-| `Com.aexp.N_def` | 1 | 0.0% |
-| `Com.aexp.Op1_def` | 1 | 0.0% |
-| `Com.aexp.Op2_def` | 1 | 0.0% |
-| `Com.aexp.X_def` | 1 | 0.0% |
-| `Com.aexp.aexp_case_def` | 1 | 0.0% |
-| `Com.bexp.ROp_def` | 1 | 0.0% |
-| `Com.bexp.andi_def` | 1 | 0.0% |
-| `Com.bexp.bexp_case_def` | 1 | 0.0% |
-| `Com.bexp.false_def` | 1 | 0.0% |
-| `Com.bexp.noti_def` | 1 | 0.0% |
-| `Com.bexp.ori_def` | 1 | 0.0% |
-| `Com.bexp.true_def` | 1 | 0.0% |
-| `Com.com.assignment_def` | 1 | 0.0% |
-| `Com.com.com_case_def` | 1 | 0.0% |
-| `Com.com.if_def` | 1 | 0.0% |
-| `Com.com.semicolon_def` | 1 | 0.0% |
-| `Com.com.skip_def` | 1 | 0.0% |
-| `Com.com.while_def` | 1 | 0.0% |
-| `Comb.I_def_raw` | 1 | 0.0% |
-| `Comb.comb.K_def` | 1 | 0.0% |
-| `Comb.comb.S_def` | 1 | 0.0% |
-| `Comb.comb.app_def` | 1 | 0.0% |
-| `Comb.comb.comb_case_def` | 1 | 0.0% |
-| `Comb.diamond_def_raw` | 1 | 0.0% |
-| `Commutation.Church_Rosser_def_raw` | 1 | 0.0% |
-| `Commutation.commute_def_raw` | 1 | 0.0% |
-| `Commutation.confluent_def_raw` | 1 | 0.0% |
-| `Commutation.diamond_def_raw` | 1 | 0.0% |
-| `Commutation.square_def_raw` | 1 | 0.0% |
-| `Commutation.strip_def_raw` | 1 | 0.0% |
-| `Confluence.confluence_def_raw` | 1 | 0.0% |
-| `Confluence.strip_def_raw` | 1 | 0.0% |
-| `DC.DC0_def_raw` | 1 | 0.0% |
-| `DC.DC0_imp_def` | 1 | 0.0% |
-| `DC.DC_def_raw` | 1 | 0.0% |
-| `DC.ff_def_raw` | 1 | 0.0% |
-| `DPow_absolute.Collect_fm_def_raw` | 1 | 0.0% |
-| `DPow_absolute.DPow'_fm_def_raw` | 1 | 0.0% |
-| `DPow_absolute.DPow_sats_fm_def_raw` | 1 | 0.0% |
-| `DPow_absolute.M_DPow_axioms_def` | 1 | 0.0% |
-| `DPow_absolute.M_DPow_def` | 1 | 0.0% |
-| `DPow_absolute.M_Lset_axioms_def` | 1 | 0.0% |
-| `DPow_absolute.M_Lset_def` | 1 | 0.0% |
-| `DPow_absolute.Replace_fm_def_raw` | 1 | 0.0% |
-| `DPow_absolute.constructible_def_raw` | 1 | 0.0% |
-| `DPow_absolute.formula_rec_fm_def_raw` | 1 | 0.0% |
-| `DPow_absolute.is_DPow'_def_raw` | 1 | 0.0% |
-| `DPow_absolute.is_DPow_sats_def_raw` | 1 | 0.0% |
-| `DPow_absolute.is_Lset_def_raw` | 1 | 0.0% |
-| `DPow_absolute.satisfies_fm_def_raw` | 1 | 0.0% |
-| `DPow_absolute.transrec_body_def_raw` | 1 | 0.0% |
-| `Datatype_absolute.Formula_Rec_axioms_def` | 1 | 0.0% |
-| `Datatype_absolute.Formula_Rec_def` | 1 | 0.0% |
-| `Datatype_absolute.M_datatypes_axioms_def` | 1 | 0.0% |
-| `Datatype_absolute.M_datatypes_def` | 1 | 0.0% |
-| `Datatype_absolute.M_eclose_axioms_def` | 1 | 0.0% |
-| `Datatype_absolute.M_eclose_def` | 1 | 0.0% |
-| `Datatype_absolute.contin_def_raw` | 1 | 0.0% |
-| `Datatype_absolute.depth.depth_formula_def` | 1 | 0.0% |
-| `Datatype_absolute.directed_def_raw` | 1 | 0.0% |
-| `Datatype_absolute.formula_N_def_raw` | 1 | 0.0% |
-| `Datatype_absolute.formula_rec_case_def_raw` | 1 | 0.0% |
-| `Datatype_absolute.is_Equal_def_raw` | 1 | 0.0% |
-| `Datatype_absolute.is_Forall_def_raw` | 1 | 0.0% |
-| `Datatype_absolute.is_Member_def_raw` | 1 | 0.0% |
-| `Datatype_absolute.is_Nand_def_raw` | 1 | 0.0% |
-| `Datatype_absolute.is_depth_def_raw` | 1 | 0.0% |
-| `Datatype_absolute.is_eclose_def_raw` | 1 | 0.0% |
-| `Datatype_absolute.is_eclose_n_def_raw` | 1 | 0.0% |
-| `Datatype_absolute.is_formula_N_def_raw` | 1 | 0.0% |
-| `Datatype_absolute.is_formula_case_def_raw` | 1 | 0.0% |
-| `Datatype_absolute.is_formula_def_raw` | 1 | 0.0% |
-| `Datatype_absolute.is_formula_functor_def_raw` | 1 | 0.0% |
-| `Datatype_absolute.is_formula_rec_def_raw` | 1 | 0.0% |
-| `Datatype_absolute.is_iterates_def_raw` | 1 | 0.0% |
-| `Datatype_absolute.is_length_def_raw` | 1 | 0.0% |
-| `Datatype_absolute.is_list_N_def_raw` | 1 | 0.0% |
-| `Datatype_absolute.is_list_def_raw` | 1 | 0.0% |
-| `Datatype_absolute.is_list_functor_def_raw` | 1 | 0.0% |
-| `Datatype_absolute.is_nth_def_raw` | 1 | 0.0% |
-| `Datatype_absolute.is_transrec_def_raw` | 1 | 0.0% |
-| `Datatype_absolute.iterates_MH_def_raw` | 1 | 0.0% |
-| `Datatype_absolute.iterates_replacement_def_raw` | 1 | 0.0% |
-| `Datatype_absolute.list_N_def_raw` | 1 | 0.0% |
-| `Datatype_absolute.mem_eclose_def_raw` | 1 | 0.0% |
-| `Datatype_absolute.mem_formula_def_raw` | 1 | 0.0% |
-| `Datatype_absolute.mem_list_def_raw` | 1 | 0.0% |
-| `Datatype_absolute.transrec_replacement_def_raw` | 1 | 0.0% |
-| `Datatypes.data.Con0_def` | 1 | 0.0% |
-| `Datatypes.data.Con1_def` | 1 | 0.0% |
-| `Datatypes.data.Con2_def` | 1 | 0.0% |
-| `Datatypes.data.Con3_def` | 1 | 0.0% |
-| `Datatypes.data.data_case_def` | 1 | 0.0% |
-| `Datatypes.enum.C00_def` | 1 | 0.0% |
-| `Datatypes.enum.C01_def` | 1 | 0.0% |
-| `Datatypes.enum.C02_def` | 1 | 0.0% |
-| `Datatypes.enum.C03_def` | 1 | 0.0% |
-| `Datatypes.enum.C04_def` | 1 | 0.0% |
-| `Datatypes.enum.C05_def` | 1 | 0.0% |
-| `Datatypes.enum.C06_def` | 1 | 0.0% |
-| `Datatypes.enum.C07_def` | 1 | 0.0% |
-| `Datatypes.enum.C08_def` | 1 | 0.0% |
-| `Datatypes.enum.C09_def` | 1 | 0.0% |
-| `Datatypes.enum.C10_def` | 1 | 0.0% |
-| `Datatypes.enum.C11_def` | 1 | 0.0% |
-| `Datatypes.enum.C12_def` | 1 | 0.0% |
-| `Datatypes.enum.C13_def` | 1 | 0.0% |
-| `Datatypes.enum.C14_def` | 1 | 0.0% |
-| `Datatypes.enum.C15_def` | 1 | 0.0% |
-| `Datatypes.enum.C16_def` | 1 | 0.0% |
-| `Datatypes.enum.C17_def` | 1 | 0.0% |
-| `Datatypes.enum.C18_def` | 1 | 0.0% |
-| `Datatypes.enum.C19_def` | 1 | 0.0% |
-| `Datatypes.enum.C20_def` | 1 | 0.0% |
-| `Datatypes.enum.C21_def` | 1 | 0.0% |
-| `Datatypes.enum.C22_def` | 1 | 0.0% |
-| `Datatypes.enum.C23_def` | 1 | 0.0% |
-| `Datatypes.enum.C24_def` | 1 | 0.0% |
-| `Datatypes.enum.C25_def` | 1 | 0.0% |
-| `Datatypes.enum.C26_def` | 1 | 0.0% |
-| `Datatypes.enum.C27_def` | 1 | 0.0% |
-| `Datatypes.enum.C28_def` | 1 | 0.0% |
-| `Datatypes.enum.C29_def` | 1 | 0.0% |
-| `Datatypes.enum.C30_def` | 1 | 0.0% |
-| `Datatypes.enum.C31_def` | 1 | 0.0% |
-| `Datatypes.enum.C32_def` | 1 | 0.0% |
-| `Datatypes.enum.C33_def` | 1 | 0.0% |
-| `Datatypes.enum.C34_def` | 1 | 0.0% |
-| `Datatypes.enum.C35_def` | 1 | 0.0% |
-| `Datatypes.enum.C36_def` | 1 | 0.0% |
-| `Datatypes.enum.C37_def` | 1 | 0.0% |
-| `Datatypes.enum.C38_def` | 1 | 0.0% |
-| `Datatypes.enum.C39_def` | 1 | 0.0% |
-| `Datatypes.enum.C40_def` | 1 | 0.0% |
-| `Datatypes.enum.C41_def` | 1 | 0.0% |
-| `Datatypes.enum.C42_def` | 1 | 0.0% |
-| `Datatypes.enum.C43_def` | 1 | 0.0% |
-| `Datatypes.enum.C44_def` | 1 | 0.0% |
-| `Datatypes.enum.C45_def` | 1 | 0.0% |
-| `Datatypes.enum.C46_def` | 1 | 0.0% |
-| `Datatypes.enum.C47_def` | 1 | 0.0% |
-| `Datatypes.enum.C48_def` | 1 | 0.0% |
-| `Datatypes.enum.C49_def` | 1 | 0.0% |
-| `Datatypes.enum.C50_def` | 1 | 0.0% |
-| `Datatypes.enum.C51_def` | 1 | 0.0% |
-| `Datatypes.enum.C52_def` | 1 | 0.0% |
-| `Datatypes.enum.C53_def` | 1 | 0.0% |
-| `Datatypes.enum.C54_def` | 1 | 0.0% |
-| `Datatypes.enum.C55_def` | 1 | 0.0% |
-| `Datatypes.enum.C56_def` | 1 | 0.0% |
-| `Datatypes.enum.C57_def` | 1 | 0.0% |
-| `Datatypes.enum.C58_def` | 1 | 0.0% |
-| `Datatypes.enum.C59_def` | 1 | 0.0% |
-| `Datatypes.enum.enum_case_def` | 1 | 0.0% |
-| `Denotation.A.A_aexp_def` | 1 | 0.0% |
-| `Denotation.B.B_bexp_def` | 1 | 0.0% |
-| `Denotation.C.C_com_def` | 1 | 0.0% |
-| `Denotation.Gamma_def_raw` | 1 | 0.0% |
-| `ECR.hastyenv_def_raw` | 1 | 0.0% |
-| `Epsilon.eclose_def_raw` | 1 | 0.0% |
-| `Epsilon.rank_def_raw` | 1 | 0.0% |
-| `Epsilon.rec_def_raw` | 1 | 0.0% |
-| `Epsilon.recursor_def_raw` | 1 | 0.0% |
-| `Epsilon.transrec2_def_raw` | 1 | 0.0% |
-| `Epsilon.transrec_def_raw` | 1 | 0.0% |
-| `EquivClass.congruent2_def_raw` | 1 | 0.0% |
-| `EquivClass.congruent_def_raw` | 1 | 0.0% |
-| `EquivClass.quotient_def_raw` | 1 | 0.0% |
-| `Finite.contents_def_raw` | 1 | 0.0% |
-| `Fixedpt.bnd_mono_def_raw` | 1 | 0.0% |
-| `Fixedpt.gfp_def_raw` | 1 | 0.0% |
-| `Fixedpt.lfp_def_raw` | 1 | 0.0% |
-| `FoldSet.fold_def_raw` | 1 | 0.0% |
-| `FoldSet.fold_typing_def` | 1 | 0.0% |
-| `FoldSet.setsum_def_raw` | 1 | 0.0% |
-| `Formula.And_def_raw` | 1 | 0.0% |
-| `Formula.DPow'_def_raw` | 1 | 0.0% |
-| `Formula.DPow_def_raw` | 1 | 0.0% |
-| `Formula.Exists_def_raw` | 1 | 0.0% |
-| `Formula.Iff_def_raw` | 1 | 0.0% |
-| `Formula.Implies_def_raw` | 1 | 0.0% |
-| `Formula.L_def_raw` | 1 | 0.0% |
-| `Formula.Lset_def_raw` | 1 | 0.0% |
-| `Formula.Neg_def_raw` | 1 | 0.0% |
-| `Formula.Or_def_raw` | 1 | 0.0% |
-| `Formula.arity.arity_formula_def` | 1 | 0.0% |
-| `Formula.formula.Equal_def` | 1 | 0.0% |
-| `Formula.formula.Forall_def` | 1 | 0.0% |
-| `Formula.formula.Member_def` | 1 | 0.0% |
-| `Formula.formula.Nand_def` | 1 | 0.0% |
-| `Formula.formula.formula_case_def` | 1 | 0.0% |
-| `Formula.incr_bv.incr_bv_formula_def` | 1 | 0.0% |
-| `Formula.incr_bv1_def_raw` | 1 | 0.0% |
-| `Formula.incr_var_def_raw` | 1 | 0.0% |
-| `Formula.lrank_def_raw` | 1 | 0.0% |
-| `Formula.ordinal_fm_def_raw` | 1 | 0.0% |
-| `Formula.satisfies.satisfies_formula_def` | 1 | 0.0% |
-| `Formula.subset_fm_def_raw` | 1 | 0.0% |
-| `Formula.transset_fm_def_raw` | 1 | 0.0% |
-| `Group.AutoGroup_def_raw` | 1 | 0.0% |
-| `Group.BijGroup_def_raw` | 1 | 0.0% |
-| `Group.DirProdGroup_def_raw` | 1 | 0.0% |
-| `Group.FactGroup_def_raw` | 1 | 0.0% |
-| `Group.RCOSETS_def_raw` | 1 | 0.0% |
-| `Group.SET_INV_def_raw` | 1 | 0.0% |
-| `Group.auto_def_raw` | 1 | 0.0% |
-| `Group.carrier_def_raw` | 1 | 0.0% |
-| `Group.comm_group_def` | 1 | 0.0% |
-| `Group.comm_monoid_axioms_def` | 1 | 0.0% |
-| `Group.comm_monoid_def` | 1 | 0.0% |
-| `Group.group_axioms_def` | 1 | 0.0% |
-| `Group.group_def` | 1 | 0.0% |
-| `Group.group_hom_axioms_def` | 1 | 0.0% |
-| `Group.group_hom_def` | 1 | 0.0% |
-| `Group.hom_def_raw` | 1 | 0.0% |
-| `Group.iso_def_raw` | 1 | 0.0% |
-| `Group.kernel_def_raw` | 1 | 0.0% |
-| `Group.l_coset_def_raw` | 1 | 0.0% |
-| `Group.m_inv_def_raw` | 1 | 0.0% |
-| `Group.mmult_def_raw` | 1 | 0.0% |
-| `Group.monoid_def` | 1 | 0.0% |
-| `Group.normal_axioms_def` | 1 | 0.0% |
-| `Group.normal_def` | 1 | 0.0% |
-| `Group.one_def_raw` | 1 | 0.0% |
-| `Group.order_def_raw` | 1 | 0.0% |
-| `Group.r_congruent_def_raw` | 1 | 0.0% |
-| `Group.r_coset_def_raw` | 1 | 0.0% |
-| `Group.set_mult_def_raw` | 1 | 0.0% |
-| `Group.subgroup_def` | 1 | 0.0% |
-| `Group.update_carrier_def_raw` | 1 | 0.0% |
-| `HH.HH_def_raw` | 1 | 0.0% |
-| `Hartog.Hartog_def_raw` | 1 | 0.0% |
-| `Int.int_def_raw` | 1 | 0.0% |
-| `Int.int_of_def_raw` | 1 | 0.0% |
-| `Int.intify_def_raw` | 1 | 0.0% |
-| `Int.intrel_def_raw` | 1 | 0.0% |
-| `Int.iszero_def_raw` | 1 | 0.0% |
-| `Int.nat_of_def_raw` | 1 | 0.0% |
-| `Int.raw_nat_of_def_raw` | 1 | 0.0% |
-| `Int.raw_zadd_def_raw` | 1 | 0.0% |
-| `Int.raw_zminus_def_raw` | 1 | 0.0% |
-| `Int.raw_zmult_def_raw` | 1 | 0.0% |
-| `Int.zadd_def_raw` | 1 | 0.0% |
-| `Int.zdiff_def_raw` | 1 | 0.0% |
-| `Int.zle_def_raw` | 1 | 0.0% |
-| `Int.zless_def_raw` | 1 | 0.0% |
-| `Int.zmagnitude_def_raw` | 1 | 0.0% |
-| `Int.zminus_def_raw` | 1 | 0.0% |
-| `Int.zmult_def_raw` | 1 | 0.0% |
-| `Int.znegative_def_raw` | 1 | 0.0% |
-| `IntDiv.adjust_def_raw` | 1 | 0.0% |
-| `IntDiv.divAlg_def_raw` | 1 | 0.0% |
-| `IntDiv.negDivAlg_def_raw` | 1 | 0.0% |
-| `IntDiv.negateSnd_def_raw` | 1 | 0.0% |
-| `IntDiv.posDivAlg_def_raw` | 1 | 0.0% |
-| `IntDiv.quorem_def_raw` | 1 | 0.0% |
-| `IntDiv.zdiv_def_raw` | 1 | 0.0% |
-| `IntDiv.zmod_def_raw` | 1 | 0.0% |
-| `Internalize.Cons_fm_def_raw` | 1 | 0.0% |
-| `Internalize.Equal_fm_def_raw` | 1 | 0.0% |
-| `Internalize.Forall_fm_def_raw` | 1 | 0.0% |
-| `Internalize.Inl_fm_def_raw` | 1 | 0.0% |
-| `Internalize.Inr_fm_def_raw` | 1 | 0.0% |
-| `Internalize.Member_fm_def_raw` | 1 | 0.0% |
-| `Internalize.Nand_fm_def_raw` | 1 | 0.0% |
-| `Internalize.Nil_fm_def_raw` | 1 | 0.0% |
-| `Internalize.and_fm_def_raw` | 1 | 0.0% |
-| `Internalize.bool_of_o_fm_def_raw` | 1 | 0.0% |
-| `Internalize.cartprod_fm_def_raw` | 1 | 0.0% |
-| `Internalize.eclose_n_fm_def_raw` | 1 | 0.0% |
-| `Internalize.formula_N_fm_def_raw` | 1 | 0.0% |
-| `Internalize.formula_functor_fm_def_raw` | 1 | 0.0% |
-| `Internalize.hd_fm_def_raw` | 1 | 0.0% |
-| `Internalize.is_eclose_fm_def_raw` | 1 | 0.0% |
-| `Internalize.is_formula_fm_def_raw` | 1 | 0.0% |
-| `Internalize.is_iterates_fm_def_raw` | 1 | 0.0% |
-| `Internalize.is_list_fm_def_raw` | 1 | 0.0% |
-| `Internalize.is_nat_case_fm_def_raw` | 1 | 0.0% |
-| `Internalize.is_recfun_fm_def_raw` | 1 | 0.0% |
-| `Internalize.is_transrec_fm_def_raw` | 1 | 0.0% |
-| `Internalize.is_wfrec_fm_def_raw` | 1 | 0.0% |
-| `Internalize.iterates_MH_fm_def_raw` | 1 | 0.0% |
-| `Internalize.lambda_fm_def_raw` | 1 | 0.0% |
-| `Internalize.list_N_fm_def_raw` | 1 | 0.0% |
-| `Internalize.list_functor_fm_def_raw` | 1 | 0.0% |
-| `Internalize.mem_eclose_fm_def_raw` | 1 | 0.0% |
-| `Internalize.mem_formula_fm_def_raw` | 1 | 0.0% |
-| `Internalize.mem_list_fm_def_raw` | 1 | 0.0% |
-| `Internalize.not_fm_def_raw` | 1 | 0.0% |
-| `Internalize.or_fm_def_raw` | 1 | 0.0% |
-| `Internalize.quasilist_fm_def_raw` | 1 | 0.0% |
-| `Internalize.quasinat_fm_def_raw` | 1 | 0.0% |
-| `Internalize.sum_fm_def_raw` | 1 | 0.0% |
-| `Internalize.tl_fm_def_raw` | 1 | 0.0% |
-| `LList.flip_LCons` | 1 | 0.0% |
-| `LList.flip_LNil` | 1 | 0.0% |
-| `LList.lconst_def_raw` | 1 | 0.0% |
-| `LList.llist.LCons_def` | 1 | 0.0% |
-| `LList.llist.LNil_def` | 1 | 0.0% |
-| `LList.llist.llist_case_def` | 1 | 0.0% |
-| `L_axioms.L_ClEx_def_raw` | 1 | 0.0% |
-| `L_axioms.L_F0_def_raw` | 1 | 0.0% |
-| `L_axioms.L_FF_def_raw` | 1 | 0.0% |
-| `L_axioms.L_Reflects_def_raw` | 1 | 0.0% |
-| `L_axioms.Memrel_fm_def_raw` | 1 | 0.0% |
-| `L_axioms.big_union_fm_def_raw` | 1 | 0.0% |
-| `L_axioms.bijection_fm_def_raw` | 1 | 0.0% |
-| `L_axioms.composition_fm_def_raw` | 1 | 0.0% |
-| `L_axioms.cons_fm_def_raw` | 1 | 0.0% |
-| `L_axioms.domain_fm_def_raw` | 1 | 0.0% |
-| `L_axioms.empty_fm_def_raw` | 1 | 0.0% |
-| `L_axioms.field_fm_def_raw` | 1 | 0.0% |
-| `L_axioms.finite_ordinal_fm_def_raw` | 1 | 0.0% |
-| `L_axioms.fun_apply_fm_def_raw` | 1 | 0.0% |
-| `L_axioms.function_fm_def_raw` | 1 | 0.0% |
-| `L_axioms.image_fm_def_raw` | 1 | 0.0% |
-| `L_axioms.injection_fm_def_raw` | 1 | 0.0% |
-| `L_axioms.limit_ordinal_fm_def_raw` | 1 | 0.0% |
-| `L_axioms.number1_fm_def_raw` | 1 | 0.0% |
-| `L_axioms.omega_fm_def_raw` | 1 | 0.0% |
-| `L_axioms.order_isomorphism_fm_def_raw` | 1 | 0.0% |
-| `L_axioms.pair_fm_def_raw` | 1 | 0.0% |
-| `L_axioms.pre_image_fm_def_raw` | 1 | 0.0% |
-| `L_axioms.pred_set_fm_def_raw` | 1 | 0.0% |
-| `L_axioms.range_fm_def_raw` | 1 | 0.0% |
-| `L_axioms.relation_fm_def_raw` | 1 | 0.0% |
-| `L_axioms.restriction_fm_def_raw` | 1 | 0.0% |
-| `L_axioms.succ_fm_def_raw` | 1 | 0.0% |
-| `L_axioms.surjection_fm_def_raw` | 1 | 0.0% |
-| `L_axioms.typed_function_fm_def_raw` | 1 | 0.0% |
-| `L_axioms.union_fm_def_raw` | 1 | 0.0% |
-| `L_axioms.upair_fm_def_raw` | 1 | 0.0% |
-| `Language.Exp.Exp_case_def` | 1 | 0.0% |
-| `Language.Exp.e_app_def` | 1 | 0.0% |
-| `Language.Exp.e_const_def` | 1 | 0.0% |
-| `Language.Exp.e_fix_def` | 1 | 0.0% |
-| `Language.Exp.e_fn_def` | 1 | 0.0% |
-| `Language.Exp.e_var_def` | 1 | 0.0% |
-| `Language.c_appI` | 1 | 0.0% |
-| `Language.constNEE` | 1 | 0.0% |
-| `Limit.Dinf_def_raw` | 1 | 0.0% |
-| `Limit.Rp_def_raw` | 1 | 0.0% |
-| `Limit.bot_def_raw` | 1 | 0.0% |
-| `Limit.cf_def_raw` | 1 | 0.0% |
-| `Limit.chain_def_raw` | 1 | 0.0% |
-| `Limit.commute_def_raw` | 1 | 0.0% |
-| `Limit.cont_def_raw` | 1 | 0.0% |
-| `Limit.cpo_def_raw` | 1 | 0.0% |
-| `Limit.dominate_def_raw` | 1 | 0.0% |
-| `Limit.e_gr_def_raw` | 1 | 0.0% |
-| `Limit.e_less_def_raw` | 1 | 0.0% |
-| `Limit.emb_chain_def_raw` | 1 | 0.0% |
-| `Limit.emb_def_raw` | 1 | 0.0% |
-| `Limit.eps_def_raw` | 1 | 0.0% |
-| `Limit.iprod_def_raw` | 1 | 0.0% |
-| `Limit.islub_def_raw` | 1 | 0.0% |
-| `Limit.isub_def_raw` | 1 | 0.0% |
-| `Limit.lub_def_raw` | 1 | 0.0% |
-| `Limit.matrix_def_raw` | 1 | 0.0% |
-| `Limit.mediating_def_raw` | 1 | 0.0% |
-| `Limit.mkcpo_def_raw` | 1 | 0.0% |
-| `Limit.mono_def_raw` | 1 | 0.0% |
-| `Limit.pcpo_def_raw` | 1 | 0.0% |
-| `Limit.po_def_raw` | 1 | 0.0% |
-| `Limit.projpair_def_raw` | 1 | 0.0% |
-| `Limit.rel_def_raw` | 1 | 0.0% |
-| `Limit.rho_emb_def_raw` | 1 | 0.0% |
-| `Limit.rho_proj_def_raw` | 1 | 0.0% |
-| `Limit.set_def_raw` | 1 | 0.0% |
-| `Limit.subchain_def_raw` | 1 | 0.0% |
-| `Limit.subcpo_def_raw` | 1 | 0.0% |
-| `Limit.subpcpo_def_raw` | 1 | 0.0% |
-| `Limit.suffix_def_raw` | 1 | 0.0% |
-| `List.app.app_list_def` | 1 | 0.0% |
-| `List.drop.drop_nat_def` | 1 | 0.0% |
-| `List.filter.filter_list_def` | 1 | 0.0% |
-| `List.flat.flat_list_def` | 1 | 0.0% |
-| `List.hd.hd_list_def` | 1 | 0.0% |
-| `List.length.length_list_def` | 1 | 0.0% |
-| `List.list.Cons_def` | 1 | 0.0% |
-| `List.list.Nil_def` | 1 | 0.0% |
-| `List.list.list_case_def` | 1 | 0.0% |
-| `List.list_add.list_add_list_def` | 1 | 0.0% |
-| `List.list_update_def_raw` | 1 | 0.0% |
-| `List.map.map_list_def` | 1 | 0.0% |
-| `List.max_def_raw` | 1 | 0.0% |
-| `List.min_def_raw` | 1 | 0.0% |
-| `List.nth_def_raw` | 1 | 0.0% |
-| `List.repeat.repeat_nat_def` | 1 | 0.0% |
-| `List.rev.rev_list_def` | 1 | 0.0% |
-| `List.set_of_list.set_of_list_list_def` | 1 | 0.0% |
-| `List.sublist_def_raw` | 1 | 0.0% |
-| `List.take_def_raw` | 1 | 0.0% |
-| `List.tl.tl_list_def` | 1 | 0.0% |
-| `List.upt.upt_nat_def` | 1 | 0.0% |
-| `List.zip_aux.zip_aux_list_def` | 1 | 0.0% |
-| `List.zip_def_raw` | 1 | 0.0% |
-| `Map.PMap_def_raw` | 1 | 0.0% |
-| `Map.TMap_def_raw` | 1 | 0.0% |
-| `Map.map_app_def_raw` | 1 | 0.0% |
-| `Map.map_emp_def_raw` | 1 | 0.0% |
-| `Map.map_owr_def_raw` | 1 | 0.0% |
-| `MetaExists.ex_def_raw` | 1 | 0.0% |
-| `Multiset.MCollect_def_raw` | 1 | 0.0% |
-| `Multiset.funrestrict_def_raw` | 1 | 0.0% |
-| `Multiset.mcount_def_raw` | 1 | 0.0% |
-| `Multiset.mdiff_def_raw` | 1 | 0.0% |
-| `Multiset.mle_def_raw` | 1 | 0.0% |
-| `Multiset.mless_def_raw` | 1 | 0.0% |
-| `Multiset.mset_of_def_raw` | 1 | 0.0% |
-| `Multiset.msingle_def_raw` | 1 | 0.0% |
-| `Multiset.msize_def_raw` | 1 | 0.0% |
-| `Multiset.multirel1_def_raw` | 1 | 0.0% |
-| `Multiset.multirel_def_raw` | 1 | 0.0% |
-| `Multiset.multiset_def_raw` | 1 | 0.0% |
-| `Multiset.munion_def_raw` | 1 | 0.0% |
-| `Multiset.normalize_def_raw` | 1 | 0.0% |
-| `Multiset.omultiset_def_raw` | 1 | 0.0% |
-| `Mutil.evnodd_def_raw` | 1 | 0.0% |
-| `Nat.Ge_def_raw` | 1 | 0.0% |
-| `Nat.Gt_def_raw` | 1 | 0.0% |
-| `Nat.Le_def_raw` | 1 | 0.0% |
-| `Nat.Lt_def_raw` | 1 | 0.0% |
-| `Nat.greater_than_def_raw` | 1 | 0.0% |
-| `Nat.nat_case_def_raw` | 1 | 0.0% |
-| `Nat.nat_def_raw` | 1 | 0.0% |
-| `Nat.nat_rec_def_raw` | 1 | 0.0% |
-| `Nat.quasinat_def_raw` | 1 | 0.0% |
-| `NatSum.sum.sum_nat_def` | 1 | 0.0% |
-| `Normal.Aleph_def_raw` | 1 | 0.0% |
-| `Normal.Closed_Unbounded_def_raw` | 1 | 0.0% |
-| `Normal.Closed_def_raw` | 1 | 0.0% |
-| `Normal.Normal_def_raw` | 1 | 0.0% |
-| `Normal.Unbounded_def_raw` | 1 | 0.0% |
-| `Normal.cont_Ord_def_raw` | 1 | 0.0% |
-| `Normal.cub_family_def` | 1 | 0.0% |
-| `Normal.mono_Ord_def_raw` | 1 | 0.0% |
-| `Normal.mono_le_subset_def_raw` | 1 | 0.0% |
-| `Normal.normalize_def_raw` | 1 | 0.0% |
-| `Ntree.maptree.Sons_def` | 1 | 0.0% |
-| `Ntree.maptree.maptree_case_def` | 1 | 0.0% |
-| `Ntree.maptree2.Sons2_def` | 1 | 0.0% |
-| `Ntree.maptree2.maptree2_case_def` | 1 | 0.0% |
-| `Ntree.ntree.Branch_def` | 1 | 0.0% |
-| `Ntree.ntree.ntree_case_def` | 1 | 0.0% |
-| `Ntree.ntree_copy_def_raw` | 1 | 0.0% |
-| `Ntree.ntree_rec_def_raw` | 1 | 0.0% |
-| `OrdQuant.OUnion_def_raw` | 1 | 0.0% |
-| `OrdQuant.oall_def_raw` | 1 | 0.0% |
-| `OrdQuant.oex_def_raw` | 1 | 0.0% |
-| `OrdQuant.rall_def_raw` | 1 | 0.0% |
-| `OrdQuant.rex_def_raw` | 1 | 0.0% |
-| `OrdQuant.setclass_def_raw` | 1 | 0.0% |
-| `Order.first_def_raw` | 1 | 0.0% |
-| `Order.linear_def_raw` | 1 | 0.0% |
-| `Order.mono_map_def_raw` | 1 | 0.0% |
-| `Order.ord_iso_def_raw` | 1 | 0.0% |
-| `Order.ord_iso_map_def_raw` | 1 | 0.0% |
-| `Order.part_ord_def_raw` | 1 | 0.0% |
-| `Order.partial_order_on_def_raw` | 1 | 0.0% |
-| `Order.pred_def_raw` | 1 | 0.0% |
-| `Order.preorder_on_def_raw` | 1 | 0.0% |
-| `Order.tot_ord_def_raw` | 1 | 0.0% |
-| `Order.well_ord_def_raw` | 1 | 0.0% |
-| `OrderArith.measure_def_raw` | 1 | 0.0% |
-| `OrderArith.radd_def_raw` | 1 | 0.0% |
-| `OrderArith.rmult_def_raw` | 1 | 0.0% |
-| `OrderArith.rvimage_def_raw` | 1 | 0.0% |
-| `OrderArith.wfrank_def_raw` | 1 | 0.0% |
-| `OrderArith.wftype_def_raw` | 1 | 0.0% |
-| `OrderType.Ord_alt_def_raw` | 1 | 0.0% |
-| `OrderType.oadd_def_raw` | 1 | 0.0% |
-| `OrderType.odiff_def_raw` | 1 | 0.0% |
-| `OrderType.omult_def_raw` | 1 | 0.0% |
-| `OrderType.ordermap_def_raw` | 1 | 0.0% |
-| `OrderType.ordertype_def_raw` | 1 | 0.0% |
-| `OrderType.ordify_def_raw` | 1 | 0.0% |
-| `OrderType.raw_oadd_def_raw` | 1 | 0.0% |
-| `Ordinal.Limit_def_raw` | 1 | 0.0% |
-| `Ordinal.Memrel_def_raw` | 1 | 0.0% |
-| `Ordinal.Ord_def_raw` | 1 | 0.0% |
-| `Ordinal.Transset_def_raw` | 1 | 0.0% |
-| `Ordinal.lt_def_raw` | 1 | 0.0% |
-| `Perm.bij_def_raw` | 1 | 0.0% |
-| `Perm.comp_def_raw` | 1 | 0.0% |
-| `Perm.id_def_raw` | 1 | 0.0% |
-| `Perm.inj_def_raw` | 1 | 0.0% |
-| `Perm.surj_def_raw` | 1 | 0.0% |
-| `Primes.coprime_def_raw` | 1 | 0.0% |
-| `Primes.divides_def_raw` | 1 | 0.0% |
-| `Primes.gcd_def_raw` | 1 | 0.0% |
-| `Primes.is_gcd_def_raw` | 1 | 0.0% |
-| `Primes.prime_def_raw` | 1 | 0.0% |
-| `Primrec.ACK.ACK_nat_def` | 1 | 0.0% |
-| `Primrec.COMP_def_raw` | 1 | 0.0% |
-| `Primrec.CONSTANT_def_raw` | 1 | 0.0% |
-| `Primrec.PREC_def_raw` | 1 | 0.0% |
-| `Primrec.PROJ_def_raw` | 1 | 0.0% |
-| `Primrec.SC_def_raw` | 1 | 0.0% |
-| `PropLog.hyps.hyps_propn_def` | 1 | 0.0% |
-| `PropLog.is_true_def_raw` | 1 | 0.0% |
-| `PropLog.is_true_fun.is_true_fun_propn_def` | 1 | 0.0% |
-| `PropLog.logcon_def_raw` | 1 | 0.0% |
-| `PropLog.propn.Fls_def` | 1 | 0.0% |
-| `PropLog.propn.Imp_def` | 1 | 0.0% |
-| `PropLog.propn.Var_def` | 1 | 0.0% |
-| `PropLog.propn.propn_case_def` | 1 | 0.0% |
-| `QPair.QInl_def_raw` | 1 | 0.0% |
-| `QPair.QInr_def_raw` | 1 | 0.0% |
-| `QPair.QPair_def_raw` | 1 | 0.0% |
-| `QPair.QSigma_def_raw` | 1 | 0.0% |
-| `QPair.qcase_def_raw` | 1 | 0.0% |
-| `QPair.qconverse_def_raw` | 1 | 0.0% |
-| `QPair.qfst_def_raw` | 1 | 0.0% |
-| `QPair.qsnd_def_raw` | 1 | 0.0% |
-| `QPair.qsplit_def_raw` | 1 | 0.0% |
-| `QPair.qsum_def_raw` | 1 | 0.0% |
-| `QUniv.quniv_def_raw` | 1 | 0.0% |
-| `Ramsey.Atleast_def_raw` | 1 | 0.0% |
-| `Ramsey.Clique_def_raw` | 1 | 0.0% |
-| `Ramsey.Indept_def_raw` | 1 | 0.0% |
-| `Ramsey.Ramsey_def_raw` | 1 | 0.0% |
-| `Ramsey.Symmetric_def_raw` | 1 | 0.0% |
-| `Rank.M_ord_arith_axioms_def` | 1 | 0.0% |
-| `Rank.M_ord_arith_def` | 1 | 0.0% |
-| `Rank.M_ordertype_axioms_def` | 1 | 0.0% |
-| `Rank.M_ordertype_def` | 1 | 0.0% |
-| `Rank.M_wfrank_axioms_def` | 1 | 0.0% |
-| `Rank.M_wfrank_def` | 1 | 0.0% |
-| `Rank.is_oadd_def_raw` | 1 | 0.0% |
-| `Rank.is_oadd_fun_def_raw` | 1 | 0.0% |
-| `Rank.is_omult_def_raw` | 1 | 0.0% |
-| `Rank.is_omult_fun_def_raw` | 1 | 0.0% |
-| `Rank.obase_def_raw` | 1 | 0.0% |
-| `Rank.omap_def_raw` | 1 | 0.0% |
-| `Rank.omult_eqns_def_raw` | 1 | 0.0% |
-| `Rank.otype_def_raw` | 1 | 0.0% |
-| `Rank.wellfoundedrank_def_raw` | 1 | 0.0% |
-| `Rec_Separation.nth_fm_def_raw` | 1 | 0.0% |
-| `Rec_Separation.rtran_closure_fm_def_raw` | 1 | 0.0% |
-| `Rec_Separation.rtran_closure_mem_fm_def_raw` | 1 | 0.0% |
-| `Rec_Separation.tran_closure_fm_def_raw` | 1 | 0.0% |
-| `Redex.redexes.App_def` | 1 | 0.0% |
-| `Redex.redexes.Fun_def` | 1 | 0.0% |
-| `Redex.redexes.Var_def` | 1 | 0.0% |
-| `Redex.redexes.redexes_case_def` | 1 | 0.0% |
-| `Redex.union_aux.union_aux_redexes_def` | 1 | 0.0% |
-| `Redex.union_def_raw` | 1 | 0.0% |
-| `Reduction.unmark.unmark_redexes_def` | 1 | 0.0% |
-| `Reflection.ex_reflection_axioms_def` | 1 | 0.0% |
-| `Reflection.ex_reflection_def` | 1 | 0.0% |
-| `Reflection.reflection_def` | 1 | 0.0% |
-| `Relative.M_basic_axioms_def` | 1 | 0.0% |
-| `Relative.M_basic_def` | 1 | 0.0% |
-| `Relative.M_trans_def` | 1 | 0.0% |
-| `Relative.M_trivial_axioms_def` | 1 | 0.0% |
-| `Relative.M_trivial_def` | 1 | 0.0% |
-| `Relative.Relation1_def_raw` | 1 | 0.0% |
-| `Relative.Relation2_def_raw` | 1 | 0.0% |
-| `Relative.Relation3_def_raw` | 1 | 0.0% |
-| `Relative.Union_ax_def_raw` | 1 | 0.0% |
-| `Relative.big_inter_def_raw` | 1 | 0.0% |
-| `Relative.big_union_def_raw` | 1 | 0.0% |
-| `Relative.bijection_def_raw` | 1 | 0.0% |
-| `Relative.cartprod_def_raw` | 1 | 0.0% |
-| `Relative.composition_def_raw` | 1 | 0.0% |
-| `Relative.empty_def_raw` | 1 | 0.0% |
-| `Relative.extensionality_def_raw` | 1 | 0.0% |
-| `Relative.finite_ordinal_def_raw` | 1 | 0.0% |
-| `Relative.foundation_ax_def_raw` | 1 | 0.0% |
-| `Relative.fun_apply_def_raw` | 1 | 0.0% |
-| `Relative.hd'_def_raw` | 1 | 0.0% |
-| `Relative.image_def_raw` | 1 | 0.0% |
-| `Relative.injection_def_raw` | 1 | 0.0% |
-| `Relative.inter_def_raw` | 1 | 0.0% |
-| `Relative.is_Collect_def_raw` | 1 | 0.0% |
-| `Relative.is_Cons_def_raw` | 1 | 0.0% |
-| `Relative.is_Inl_def_raw` | 1 | 0.0% |
-| `Relative.is_Inr_def_raw` | 1 | 0.0% |
-| `Relative.is_Nil_def_raw` | 1 | 0.0% |
-| `Relative.is_Replace_def_raw` | 1 | 0.0% |
-| `Relative.is_and_def_raw` | 1 | 0.0% |
-| `Relative.is_bool_of_o_def_raw` | 1 | 0.0% |
-| `Relative.is_cons_def_raw` | 1 | 0.0% |
-| `Relative.is_converse_def_raw` | 1 | 0.0% |
-| `Relative.is_domain_def_raw` | 1 | 0.0% |
-| `Relative.is_field_def_raw` | 1 | 0.0% |
-| `Relative.is_function_def_raw` | 1 | 0.0% |
-| `Relative.is_funspace_def_raw` | 1 | 0.0% |
-| `Relative.is_hd_def_raw` | 1 | 0.0% |
-| `Relative.is_lambda_def_raw` | 1 | 0.0% |
-| `Relative.is_list_case_def_raw` | 1 | 0.0% |
-| `Relative.is_nat_case_def_raw` | 1 | 0.0% |
-| `Relative.is_not_def_raw` | 1 | 0.0% |
-| `Relative.is_or_def_raw` | 1 | 0.0% |
-| `Relative.is_quasilist_def_raw` | 1 | 0.0% |
-| `Relative.is_quasinat_def_raw` | 1 | 0.0% |
-| `Relative.is_range_def_raw` | 1 | 0.0% |
-| `Relative.is_relation_def_raw` | 1 | 0.0% |
-| `Relative.is_sum_def_raw` | 1 | 0.0% |
-| `Relative.is_tl_def_raw` | 1 | 0.0% |
-| `Relative.limit_ordinal_def_raw` | 1 | 0.0% |
-| `Relative.list_case'_def_raw` | 1 | 0.0% |
-| `Relative.membership_def_raw` | 1 | 0.0% |
-| `Relative.number1_def_raw` | 1 | 0.0% |
-| `Relative.number2_def_raw` | 1 | 0.0% |
-| `Relative.number3_def_raw` | 1 | 0.0% |
-| `Relative.omega_def_raw` | 1 | 0.0% |
-| `Relative.order_isomorphism_def_raw` | 1 | 0.0% |
-| `Relative.ordinal_def_raw` | 1 | 0.0% |
-| `Relative.pair_def_raw` | 1 | 0.0% |
-| `Relative.power_ax_def_raw` | 1 | 0.0% |
-| `Relative.powerset_def_raw` | 1 | 0.0% |
-| `Relative.pre_image_def_raw` | 1 | 0.0% |
-| `Relative.pred_set_def_raw` | 1 | 0.0% |
-| `Relative.quasilist_def_raw` | 1 | 0.0% |
-| `Relative.relation1_def_raw` | 1 | 0.0% |
-| `Relative.relation2_def_raw` | 1 | 0.0% |
-| `Relative.relation3_def_raw` | 1 | 0.0% |
-| `Relative.relation4_def_raw` | 1 | 0.0% |
-| `Relative.replacement_def_raw` | 1 | 0.0% |
-| `Relative.restriction_def_raw` | 1 | 0.0% |
-| `Relative.separation_def_raw` | 1 | 0.0% |
-| `Relative.setdiff_def_raw` | 1 | 0.0% |
-| `Relative.strong_replacement_def_raw` | 1 | 0.0% |
-| `Relative.subset_def_raw` | 1 | 0.0% |
-| `Relative.successor_def_raw` | 1 | 0.0% |
-| `Relative.successor_ordinal_def_raw` | 1 | 0.0% |
-| `Relative.surjection_def_raw` | 1 | 0.0% |
-| `Relative.tl'_def_raw` | 1 | 0.0% |
-| `Relative.transitive_set_def_raw` | 1 | 0.0% |
-| `Relative.typed_function_def_raw` | 1 | 0.0% |
-| `Relative.union_def_raw` | 1 | 0.0% |
-| `Relative.univalent_def_raw` | 1 | 0.0% |
-| `Relative.upair_ax_def_raw` | 1 | 0.0% |
-| `Relative.upair_def_raw` | 1 | 0.0% |
-| `Residuals.res_func_def_raw` | 1 | 0.0% |
-| `Ring.a_inv_def_raw` | 1 | 0.0% |
-| `Ring.abelian_group_axioms_def` | 1 | 0.0% |
-| `Ring.abelian_group_def` | 1 | 0.0% |
-| `Ring.abelian_monoid_def` | 1 | 0.0% |
-| `Ring.add_field_def_raw` | 1 | 0.0% |
-| `Ring.cring_def` | 1 | 0.0% |
-| `Ring.domain_axioms_def` | 1 | 0.0% |
-| `Ring.domain_def` | 1 | 0.0% |
-| `Ring.minus_def_raw` | 1 | 0.0% |
-| `Ring.ring_add_def_raw` | 1 | 0.0% |
-| `Ring.ring_axioms_def` | 1 | 0.0% |
-| `Ring.ring_def` | 1 | 0.0% |
-| `Ring.ring_hom_cring_axioms_def` | 1 | 0.0% |
-| `Ring.ring_hom_cring_def` | 1 | 0.0% |
-| `Ring.ring_hom_def_raw` | 1 | 0.0% |
-| `Ring.zero_def_raw` | 1 | 0.0% |
-| `Satisfies_absolute.M_satisfies_axioms_def` | 1 | 0.0% |
-| `Satisfies_absolute.M_satisfies_def` | 1 | 0.0% |
-| `Satisfies_absolute.depth_apply_fm_def_raw` | 1 | 0.0% |
-| `Satisfies_absolute.depth_fm_def_raw` | 1 | 0.0% |
-| `Satisfies_absolute.formula_case_fm_def_raw` | 1 | 0.0% |
-| `Satisfies_absolute.is_depth_apply_def_raw` | 1 | 0.0% |
-| `Satisfies_absolute.is_satisfies_def_raw` | 1 | 0.0% |
-| `Satisfies_absolute.satisfies_MH_def_raw` | 1 | 0.0% |
-| `Satisfies_absolute.satisfies_MH_fm_def_raw` | 1 | 0.0% |
-| `Satisfies_absolute.satisfies_a_def_raw` | 1 | 0.0% |
-| `Satisfies_absolute.satisfies_b_def_raw` | 1 | 0.0% |
-| `Satisfies_absolute.satisfies_c_def_raw` | 1 | 0.0% |
-| `Satisfies_absolute.satisfies_d_def_raw` | 1 | 0.0% |
-| `Satisfies_absolute.satisfies_is_a_def_raw` | 1 | 0.0% |
-| `Satisfies_absolute.satisfies_is_a_fm_def_raw` | 1 | 0.0% |
-| `Satisfies_absolute.satisfies_is_b_def_raw` | 1 | 0.0% |
-| `Satisfies_absolute.satisfies_is_b_fm_def_raw` | 1 | 0.0% |
-| `Satisfies_absolute.satisfies_is_c_def_raw` | 1 | 0.0% |
-| `Satisfies_absolute.satisfies_is_c_fm_def_raw` | 1 | 0.0% |
-| `Satisfies_absolute.satisfies_is_d_def_raw` | 1 | 0.0% |
-| `Satisfies_absolute.satisfies_is_d_fm_def_raw` | 1 | 0.0% |
-| `Static.isof_app` | 1 | 0.0% |
-| `Static.isofenv_def_raw` | 1 | 0.0% |
-| `Substitution.lift_aux.lift_aux_redexes_def` | 1 | 0.0% |
-| `Substitution.lift_rec_def_raw` | 1 | 0.0% |
-| `Substitution.subst_aux.subst_aux_redexes_def` | 1 | 0.0% |
-| `Substitution.subst_rec_def_raw` | 1 | 0.0% |
-| `Sum.Inl_def_raw` | 1 | 0.0% |
-| `Sum.Inr_def_raw` | 1 | 0.0% |
-| `Sum.Part_def_raw` | 1 | 0.0% |
-| `Sum.case_def_raw` | 1 | 0.0% |
-| `Sum.sum_def_raw` | 1 | 0.0% |
-| `Term.postorder_def_raw` | 1 | 0.0% |
-| `Term.preorder_def_raw` | 1 | 0.0% |
-| `Term.reflect_def_raw` | 1 | 0.0% |
-| `Term.term.Apply_def` | 1 | 0.0% |
-| `Term.term.term_case_def` | 1 | 0.0% |
-| `Term.term_map_def_raw` | 1 | 0.0% |
-| `Term.term_rec_def_raw` | 1 | 0.0% |
-| `Term.term_size_def_raw` | 1 | 0.0% |
-| `Trancl.antisym_def_raw` | 1 | 0.0% |
-| `Trancl.asym_def_raw` | 1 | 0.0% |
-| `Trancl.equiv_def_raw` | 1 | 0.0% |
-| `Trancl.irrefl_def_raw` | 1 | 0.0% |
-| `Trancl.refl_def_raw` | 1 | 0.0% |
-| `Trancl.rtrancl_def_raw` | 1 | 0.0% |
-| `Trancl.sym_def_raw` | 1 | 0.0% |
-| `Trancl.trancl_def_raw` | 1 | 0.0% |
-| `Trancl.trans_def_raw` | 1 | 0.0% |
-| `Trancl.trans_on_def_raw` | 1 | 0.0% |
-| `Tree_Forest.list_of_TF.list_of_TF_tree_forest_def` | 1 | 0.0% |
-| `Tree_Forest.map.map_tree_forest_def` | 1 | 0.0% |
-| `Tree_Forest.of_list.of_list_list_def` | 1 | 0.0% |
-| `Tree_Forest.preorder.preorder_tree_forest_def` | 1 | 0.0% |
-| `Tree_Forest.reflect.reflect_tree_forest_def` | 1 | 0.0% |
-| `Tree_Forest.size.size_tree_forest_def` | 1 | 0.0% |
-| `Tree_Forest.tree_forest.Fcons_def` | 1 | 0.0% |
-| `Tree_Forest.tree_forest.Fnil_def` | 1 | 0.0% |
-| `Tree_Forest.tree_forest.Tcons_def` | 1 | 0.0% |
-| `Tree_Forest.tree_forest.tree_forest_case_def` | 1 | 0.0% |
-| `Types.Ty.Ty_case_def` | 1 | 0.0% |
-| `Types.Ty.t_const_def` | 1 | 0.0% |
-| `Types.Ty.t_fun_def` | 1 | 0.0% |
-| `Types.TyEnv.TyEnv_case_def` | 1 | 0.0% |
-| `Types.TyEnv.te_emp_def` | 1 | 0.0% |
-| `Types.TyEnv.te_owr_def` | 1 | 0.0% |
-| `Types.te_app.te_app_TyEnv_def` | 1 | 0.0% |
-| `Types.te_dom.te_dom_TyEnv_def` | 1 | 0.0% |
-| `Univ.Vfrom_def_raw` | 1 | 0.0% |
-| `Univ.Vrec_def_raw` | 1 | 0.0% |
-| `Univ.Vrecursor_def_raw` | 1 | 0.0% |
-| `Univ.univ_def_raw` | 1 | 0.0% |
-| `Values.Val_ValEnv.Val_ValEnv_case_def` | 1 | 0.0% |
-| `Values.Val_ValEnv.v_clos_def` | 1 | 0.0% |
-| `Values.Val_ValEnv.v_const_def` | 1 | 0.0% |
-| `Values.Val_ValEnv.ve_mk_def` | 1 | 0.0% |
-| `Values.ve_app.ve_app_Val_ValEnv_def` | 1 | 0.0% |
-| `Values.ve_dom.ve_dom_Val_ValEnv_def` | 1 | 0.0% |
-| `Values.ve_emp_def_raw` | 1 | 0.0% |
-| `Values.ve_owr.ve_owr_Val_ValEnv_def` | 1 | 0.0% |
-| `WF.is_recfun_def_raw` | 1 | 0.0% |
-| `WF.the_recfun_def_raw` | 1 | 0.0% |
-| `WF.wf_def_raw` | 1 | 0.0% |
-| `WF.wf_on_def_raw` | 1 | 0.0% |
-| `WF.wfrec_def_raw` | 1 | 0.0% |
-| `WF.wfrec_on_def_raw` | 1 | 0.0% |
-| `WF.wftrec_def_raw` | 1 | 0.0% |
-| `WF_absolute.M_trancl_axioms_def` | 1 | 0.0% |
-| `WF_absolute.M_trancl_def` | 1 | 0.0% |
-| `WF_absolute.rtran_closure_def_raw` | 1 | 0.0% |
-| `WF_absolute.rtran_closure_mem_def_raw` | 1 | 0.0% |
-| `WF_absolute.rtrancl_alt_def_raw` | 1 | 0.0% |
-| `WF_absolute.tran_closure_def_raw` | 1 | 0.0% |
-| `WFrec.M_is_recfun_def_raw` | 1 | 0.0% |
-| `WFrec.is_wfrec_def_raw` | 1 | 0.0% |
-| `WFrec.wfrec_replacement_def_raw` | 1 | 0.0% |
-| `WO1_WO7.LEMMA_def_raw` | 1 | 0.0% |
-| `WO2_AC16.recfunAC16_def_raw` | 1 | 0.0% |
-| `WO6_WO1.NN_def_raw` | 1 | 0.0% |
-| `WO6_WO1.gg1_def_raw` | 1 | 0.0% |
-| `WO6_WO1.gg2_def_raw` | 1 | 0.0% |
-| `WO6_WO1.uu_def_raw` | 1 | 0.0% |
-| `WO6_WO1.vv1_def_raw` | 1 | 0.0% |
-| `WO6_WO1.vv2_def_raw` | 1 | 0.0% |
-| `WO6_WO1.ww1_def_raw` | 1 | 0.0% |
-| `WO6_WO1.ww2_def_raw` | 1 | 0.0% |
-| `Wellorderings.irreflexive_def_raw` | 1 | 0.0% |
-| `Wellorderings.linear_rel_def_raw` | 1 | 0.0% |
-| `Wellorderings.transitive_rel_def_raw` | 1 | 0.0% |
-| `Wellorderings.wellfounded_def_raw` | 1 | 0.0% |
-| `Wellorderings.wellfounded_on_def_raw` | 1 | 0.0% |
-| `Wellorderings.wellordered_def_raw` | 1 | 0.0% |
-| `ZF.iterates.iterates_nat_def` | 1 | 0.0% |
-| `ZF.iterates_omega_def_raw` | 1 | 0.0% |
-| `ZF.transrec3_def_raw` | 1 | 0.0% |
-| `ZF_Base.Ball_def_raw` | 1 | 0.0% |
-| `ZF_Base.Bex_def_raw` | 1 | 0.0% |
-| `ZF_Base.Collect_def_raw` | 1 | 0.0% |
-| `ZF_Base.Diff_def_raw` | 1 | 0.0% |
-| `ZF_Base.Int_def_raw` | 1 | 0.0% |
-| `ZF_Base.Inter_def_raw` | 1 | 0.0% |
-| `ZF_Base.Pair_def_raw` | 1 | 0.0% |
-| `ZF_Base.Pi_def_raw` | 1 | 0.0% |
-| `ZF_Base.Pow_iff` | 1 | 0.0% |
-| `ZF_Base.RepFun_def_raw` | 1 | 0.0% |
-| `ZF_Base.Replace_def_raw` | 1 | 0.0% |
-| `ZF_Base.Sigma_def_raw` | 1 | 0.0% |
-| `ZF_Base.Un_def_raw` | 1 | 0.0% |
-| `ZF_Base.Union_iff` | 1 | 0.0% |
-| `ZF_Base.Upair_def_raw` | 1 | 0.0% |
-| `ZF_Base.apply_def_raw` | 1 | 0.0% |
-| `ZF_Base.cons_def_raw` | 1 | 0.0% |
-| `ZF_Base.converse_def_raw` | 1 | 0.0% |
-| `ZF_Base.domain_def_raw` | 1 | 0.0% |
-| `ZF_Base.extension` | 1 | 0.0% |
-| `ZF_Base.field_def_raw` | 1 | 0.0% |
-| `ZF_Base.foundation` | 1 | 0.0% |
-| `ZF_Base.fst_def_raw` | 1 | 0.0% |
-| `ZF_Base.function_def_raw` | 1 | 0.0% |
-| `ZF_Base.if_def_raw` | 1 | 0.0% |
-| `ZF_Base.image_def_raw` | 1 | 0.0% |
-| `ZF_Base.infinity` | 1 | 0.0% |
-| `ZF_Base.lam_def_raw` | 1 | 0.0% |
-| `ZF_Base.range_def_raw` | 1 | 0.0% |
-| `ZF_Base.relation_def_raw` | 1 | 0.0% |
-| `ZF_Base.replacement` | 1 | 0.0% |
-| `ZF_Base.restrict_def_raw` | 1 | 0.0% |
-| `ZF_Base.snd_def_raw` | 1 | 0.0% |
-| `ZF_Base.split_def_raw` | 1 | 0.0% |
-| `ZF_Base.subset_def_raw` | 1 | 0.0% |
-| `ZF_Base.succ_def_raw` | 1 | 0.0% |
-| `ZF_Base.the_def_raw` | 1 | 0.0% |
-| `ZF_Base.vimage_def_raw` | 1 | 0.0% |
-| `Zorn.Chain_def_raw` | 1 | 0.0% |
-| `Zorn.Subset_rel_def_raw` | 1 | 0.0% |
-| `Zorn.chain_def_raw` | 1 | 0.0% |
-| `Zorn.increasing_def_raw` | 1 | 0.0% |
-| `Zorn.maxchain_def_raw` | 1 | 0.0% |
-| `Zorn.super_def_raw` | 1 | 0.0% |
-| `func.update_def_raw` | 1 | 0.0% |
-
-### Proof calculus
-
-| step | theorems | % |
-|---|---:|---:|
-| `⋀-elim` | 9016 | 95.7% |
-| `⟹-elim` | 7813 | 82.9% |
-| `⟹-intro` | 6875 | 73.0% |
-| `hypothesis` | 6848 | 72.7% |
-| `⋀-intro` | 5124 | 54.4% |
-
-### Inside proofs — logical constants, types and constructs of the propositions
-
-| item | theorems | % |
-|---|---:|---:|
-| `ZF_Base.i` | 7599 | 80.7% |
-| `IFOL.Trueprop` | 7094 | 75.3% |
-| `Pure.imp` | 6858 | 72.8% |
-| `fun` | 6648 | 70.6% |
-| `prop` | 6635 | 70.4% |
-| `IFOL.o` | 6265 | 66.5% |
-| `IFOL.eq` | 6088 | 64.6% |
-| `OFCLASS(_, IFOL.term)` | 6045 | 64.2% |
-| `Pure.prop` | 5902 | 62.7% |
-| `IFOL.conj` | 5542 | 58.8% |
-| `Pure.eq` | 5425 | 57.6% |
-| `IFOL.Not` | 4915 | 52.2% |
-| `IFOL.imp` | 4867 | 51.7% |
-| `IFOL.Ex` | 4815 | 51.1% |
-| `IFOL.All` | 4653 | 49.4% |
-| `IFOL.False` | 4623 | 49.1% |
-| `Pure.all` | 4614 | 49.0% |
-| `IFOL.iff` | 4599 | 48.8% |
-| `IFOL.True` | 4597 | 48.8% |
-| `IFOL.disj` | 3911 | 41.5% |
-| `Pure.dummy_pattern` | 1699 | 18.0% |
-| `Pure.conjunction` | 1207 | 12.8% |
-| `FOL.induct_implies` | 343 | 3.6% |
-| `IFOL.Ex1` | 190 | 2.0% |
-| `FOL.induct_forall` | 26 | 0.3% |
-| `a type variable` | 23 | 0.2% |
-| `IFOL.Let` | 17 | 0.2% |
-| `dummy` | 3 | 0.0% |
-| `FOL.induct_conj` | 2 | 0.0% |
-| `FOL.induct_equal` | 2 | 0.0% |
-| `Pure.term` | 1 | 0.0% |
-
-**5524 distinct named ZF theorems are cited** by ZF proofs — ZF content, not the frontier.
+| `folAnd(o, o)` | 9330 | 99.0% |
+| `folBottom` | 8576 | 91.0% |
+| `folIff(o, o)` | 8904 | 94.5% |
+| `folImplies(o, o)` | 9416 | 100.0% |
+| `folImpliesElim(o, o)` | 8833 | 93.8% |
+| `folImpliesIntro(o, body: o)` | 8839 | 93.8% |
+| `folOr(o, o)` | 9211 | 97.8% |
+| `hyp(o)` | 8824 | 93.7% |
+| `ifolAll('a, body: o)` | 9179 | 97.4% |
+| `ifolAll('b, body: o)` | 4636 | 49.2% |
+| `ifolAll(('a => 'b), body: o)` | 4626 | 49.1% |
+| `ifolAll(('a => ('a => o)), body: o)` | 7578 | 80.4% |
+| `ifolAll(('a => ('b => o)), body: o)` | 1195 | 12.7% |
+| `ifolAll(('a => o), body: o)` | 7950 | 84.4% |
+| `ifolAll(('b => 'a), body: o)` | 439 | 4.7% |
+| `ifolAll(('b => ('b => o)), body: o)` | 4626 | 49.1% |
+| `ifolAll(('b => (('b => 'a) => 'a)), body: o)` | 439 | 4.7% |
+| `ifolAll(('b => o), body: o)` | 4634 | 49.2% |
+| `ifolAll((('a => o) => o), body: o)` | 7324 | 77.7% |
+| `ifolAll((('b => 'a) => 'a), body: o)` | 439 | 4.7% |
+| `ifolAll((('b => (('b => 'a) => 'a)) => (('b => (('b => 'a) => 'a)) => o)), body: o)` | 439 | 4.7% |
+| `ifolAll((('b => (('b => 'a) => 'a)) => o), body: o)` | 439 | 4.7% |
+| `ifolAll(((('a => o) => o) => ((('a => o) => o) => o)), body: o)` | 7323 | 77.7% |
+| `ifolAll(((('a => o) => o) => o), body: o)` | 7323 | 77.7% |
+| `ifolAll((((i => (i => 'a)) => (i => 'a)) => (((i => (i => 'a)) => (i => 'a)) => o)), body: o)` | 2773 | 29.4% |
+| `ifolAll((((i => (i => 'a)) => (i => 'a)) => o), body: o)` | 2773 | 29.4% |
+| `ifolAll((((i => (i => (i => i))) => (i => i)) => (((i => (i => (i => i))) => (i => i)) => o)), body: o)` | 4 | 0.0% |
+| `ifolAll((((i => (i => (i => i))) => (i => i)) => o), body: o)` | 4 | 0.0% |
+| `ifolAll((((i => (i => i)) => ((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => (i => i)))))) => (((i => (i => i)) => ((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => (i => i)))))) => o)), body: o)` | 38 | 0.4% |
+| `ifolAll((((i => (i => i)) => ((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => (i => i)))))) => o), body: o)` | 38 | 0.4% |
+| `ifolAll((((i => (i => i)) => (i => i)) => (((i => (i => i)) => (i => i)) => o)), body: o)` | 2760 | 29.3% |
+| `ifolAll((((i => (i => i)) => (i => i)) => o), body: o)` | 2760 | 29.3% |
+| `ifolAll((((i => i) => ((i => i) => (i => i))) => (((i => i) => ((i => i) => (i => i))) => o)), body: o)` | 2421 | 25.7% |
+| `ifolAll((((i => i) => ((i => i) => (i => i))) => o), body: o)` | 2421 | 25.7% |
+| `ifolAll((((i => i) => (i => i)) => (((i => i) => (i => i)) => o)), body: o)` | 514 | 5.5% |
+| `ifolAll((((i => i) => (i => i)) => o), body: o)` | 514 | 5.5% |
+| `ifolAll((((i => i) => o) => (((i => i) => o) => o)), body: o)` | 531 | 5.6% |
+| `ifolAll((((i => i) => o) => o), body: o)` | 531 | 5.6% |
+| `ifolAll((((i => o) => ((i => (i => (i => (i => (i => o))))) => ((i => (i => (i => (i => i)))) => o))) => (((i => o) => ((i => (i => (i => (i => (i => o))))) => ((i => (i => (i => (i => i)))) => o))) => o)), body: o)` | 1 | 0.0% |
+| `ifolAll((((i => o) => ((i => (i => (i => (i => (i => o))))) => ((i => (i => (i => (i => i)))) => o))) => o), body: o)` | 1 | 0.0% |
+| `ifolAll((((i => o) => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o))) => (((i => o) => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o))) => o)), body: o)` | 1 | 0.0% |
+| `ifolAll((((i => o) => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o))) => o), body: o)` | 1 | 0.0% |
+| `ifolAll((((i => o) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => o)) => (i => (i => o))))))) => (((i => o) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => o)) => (i => (i => o))))))) => o)), body: o)` | 70 | 0.7% |
+| `ifolAll((((i => o) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => o)) => (i => (i => o))))))) => o), body: o)` | 70 | 0.7% |
+| `ifolAll((((i => o) => ((i => (i => (i => o))) => ((i => (i => i)) => o))) => (((i => o) => ((i => (i => (i => o))) => ((i => (i => i)) => o))) => o)), body: o)` | 183 | 1.9% |
+| `ifolAll((((i => o) => ((i => (i => (i => o))) => ((i => (i => i)) => o))) => o), body: o)` | 183 | 1.9% |
+| `ifolAll((((i => o) => ((i => (i => (i => o))) => (i => (i => (i => o))))) => (((i => o) => ((i => (i => (i => o))) => (i => (i => (i => o))))) => o)), body: o)` | 318 | 3.4% |
+| `ifolAll((((i => o) => ((i => (i => (i => o))) => (i => (i => (i => o))))) => o), body: o)` | 318 | 3.4% |
+| `ifolAll((((i => o) => ((i => (i => (i => o))) => (i => (i => o)))) => (((i => o) => ((i => (i => (i => o))) => (i => (i => o)))) => o)), body: o)` | 53 | 0.6% |
+| `ifolAll((((i => o) => ((i => (i => (i => o))) => (i => (i => o)))) => o), body: o)` | 53 | 0.6% |
+| `ifolAll((((i => o) => ((i => (i => (i => o))) => (i => o))) => (((i => o) => ((i => (i => (i => o))) => (i => o))) => o)), body: o)` | 155 | 1.6% |
+| `ifolAll((((i => o) => ((i => (i => (i => o))) => (i => o))) => o), body: o)` | 155 | 1.6% |
+| `ifolAll((((i => o) => ((i => (i => o)) => ((i => i) => o))) => (((i => o) => ((i => (i => o)) => ((i => i) => o))) => o)), body: o)` | 128 | 1.4% |
+| `ifolAll((((i => o) => ((i => (i => o)) => ((i => i) => o))) => o), body: o)` | 128 | 1.4% |
+| `ifolAll((((i => o) => ((i => (i => o)) => (i => (i => (i => (i => o)))))) => (((i => o) => ((i => (i => o)) => (i => (i => (i => (i => o)))))) => o)), body: o)` | 243 | 2.6% |
+| `ifolAll((((i => o) => ((i => (i => o)) => (i => (i => (i => (i => o)))))) => o), body: o)` | 243 | 2.6% |
+| `ifolAll((((i => o) => ((i => (i => o)) => (i => (i => (i => o))))) => (((i => o) => ((i => (i => o)) => (i => (i => (i => o))))) => o)), body: o)` | 225 | 2.4% |
+| `ifolAll((((i => o) => ((i => (i => o)) => (i => (i => (i => o))))) => o), body: o)` | 225 | 2.4% |
+| `ifolAll((((i => o) => ((i => (i => o)) => (i => o))) => (((i => o) => ((i => (i => o)) => (i => o))) => o)), body: o)` | 141 | 1.5% |
+| `ifolAll((((i => o) => ((i => (i => o)) => (i => o))) => o), body: o)` | 141 | 1.5% |
+| `ifolAll((((i => o) => ((i => (i => o)) => o)) => (((i => o) => ((i => (i => o)) => o)) => o)), body: o)` | 585 | 6.2% |
+| `ifolAll((((i => o) => ((i => (i => o)) => o)) => o), body: o)` | 585 | 6.2% |
+| `ifolAll((((i => o) => ((i => o) => o)) => (((i => o) => ((i => o) => o)) => o)), body: o)` | 1163 | 12.3% |
+| `ifolAll((((i => o) => ((i => o) => o)) => o), body: o)` | 1163 | 12.3% |
+| `ifolAll((((i => o) => (i => ((i => (i => (i => o))) => (i => (i => o))))) => (((i => o) => (i => ((i => (i => (i => o))) => (i => (i => o))))) => o)), body: o)` | 3 | 0.0% |
+| `ifolAll((((i => o) => (i => ((i => (i => (i => o))) => (i => (i => o))))) => o), body: o)` | 3 | 0.0% |
+| `ifolAll((((i => o) => (i => ((i => (i => o)) => ((i => i) => o)))) => (((i => o) => (i => ((i => (i => o)) => ((i => i) => o)))) => o)), body: o)` | 44 | 0.5% |
+| `ifolAll((((i => o) => (i => ((i => (i => o)) => ((i => i) => o)))) => o), body: o)` | 44 | 0.5% |
+| `ifolAll((((i => o) => (i => ((i => (i => o)) => (i => (i => o))))) => (((i => o) => (i => ((i => (i => o)) => (i => (i => o))))) => o)), body: o)` | 249 | 2.6% |
+| `ifolAll((((i => o) => (i => ((i => (i => o)) => (i => (i => o))))) => o), body: o)` | 249 | 2.6% |
+| `ifolAll((((i => o) => (i => ((i => (i => o)) => (i => o)))) => (((i => o) => (i => ((i => (i => o)) => (i => o)))) => o)), body: o)` | 96 | 1.0% |
+| `ifolAll((((i => o) => (i => ((i => (i => o)) => (i => o)))) => o), body: o)` | 96 | 1.0% |
+| `ifolAll((((i => o) => (i => ((i => (i => o)) => o))) => (((i => o) => (i => ((i => (i => o)) => o))) => o)), body: o)` | 374 | 4.0% |
+| `ifolAll((((i => o) => (i => ((i => (i => o)) => o))) => o), body: o)` | 374 | 4.0% |
+| `ifolAll((((i => o) => (i => ((i => o) => (i => o)))) => (((i => o) => (i => ((i => o) => (i => o)))) => o)), body: o)` | 46 | 0.5% |
+| `ifolAll((((i => o) => (i => ((i => o) => (i => o)))) => o), body: o)` | 46 | 0.5% |
+| `ifolAll((((i => o) => (i => (i => ((i => (i => (i => o))) => ((i => (i => i)) => o))))) => (((i => o) => (i => (i => ((i => (i => (i => o))) => ((i => (i => i)) => o))))) => o)), body: o)` | 41 | 0.4% |
+| `ifolAll((((i => o) => (i => (i => ((i => (i => (i => o))) => ((i => (i => i)) => o))))) => o), body: o)` | 41 | 0.4% |
+| `ifolAll((((i => o) => (i => (i => (i => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o)))))) => (((i => o) => (i => (i => (i => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o)))))) => o)), body: o)` | 1 | 0.0% |
+| `ifolAll((((i => o) => (i => (i => (i => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o)))))) => o), body: o)` | 1 | 0.0% |
+| `ifolAll((((i => o) => (i => (i => (i => (i => (i => o)))))) => (((i => o) => (i => (i => (i => (i => (i => o)))))) => o)), body: o)` | 89 | 0.9% |
+| `ifolAll((((i => o) => (i => (i => (i => (i => (i => o)))))) => o), body: o)` | 89 | 0.9% |
+| `ifolAll((((i => o) => (i => (i => (i => (i => o))))) => (((i => o) => (i => (i => (i => (i => o))))) => o)), body: o)` | 117 | 1.2% |
+| `ifolAll((((i => o) => (i => (i => (i => (i => o))))) => o), body: o)` | 117 | 1.2% |
+| `ifolAll((((i => o) => (i => (i => (i => o)))) => (((i => o) => (i => (i => (i => o)))) => o)), body: o)` | 1025 | 10.9% |
+| `ifolAll((((i => o) => (i => (i => (i => o)))) => o), body: o)` | 1025 | 10.9% |
+| `ifolAll((((i => o) => (i => (i => i))) => (((i => o) => (i => (i => i))) => o)), body: o)` | 44 | 0.5% |
+| `ifolAll((((i => o) => (i => (i => i))) => o), body: o)` | 44 | 0.5% |
+| `ifolAll((((i => o) => (i => (i => o))) => (((i => o) => (i => (i => o))) => o)), body: o)` | 945 | 10.0% |
+| `ifolAll((((i => o) => (i => (i => o))) => o), body: o)` | 945 | 10.0% |
+| `ifolAll((((i => o) => (i => i)) => (((i => o) => (i => i)) => o)), body: o)` | 2 | 0.0% |
+| `ifolAll((((i => o) => (i => i)) => o), body: o)` | 2 | 0.0% |
+| `ifolAll((((i => o) => (i => o)) => (((i => o) => (i => o)) => o)), body: o)` | 670 | 7.1% |
+| `ifolAll((((i => o) => (i => o)) => o), body: o)` | 670 | 7.1% |
+| `ifolAll((((i => o) => (o => (i => o))) => (((i => o) => (o => (i => o))) => o)), body: o)` | 92 | 1.0% |
+| `ifolAll((((i => o) => (o => (i => o))) => o), body: o)` | 92 | 1.0% |
+| `ifolAll((((i => o) => i) => (((i => o) => i) => o)), body: o)` | 5274 | 56.0% |
+| `ifolAll((((i => o) => i) => o), body: o)` | 5274 | 56.0% |
+| `ifolAll((((i => o) => o) => (((i => o) => o) => o)), body: o)` | 4100 | 43.5% |
+| `ifolAll((((i => o) => o) => o), body: o)` | 4102 | 43.5% |
+| `ifolAll(((i => 'a) => ((i => 'a) => o)), body: o)` | 2739 | 29.1% |
+| `ifolAll(((i => 'a) => o), body: o)` | 2739 | 29.1% |
+| `ifolAll(((i => ((i => (i => (i => i))) => i)) => ((i => ((i => (i => (i => i))) => i)) => o)), body: o)` | 25 | 0.3% |
+| `ifolAll(((i => ((i => (i => (i => i))) => i)) => o), body: o)` | 25 | 0.3% |
+| `ifolAll(((i => ((i => (i => i)) => (i => (i => i)))) => ((i => ((i => (i => i)) => (i => (i => i)))) => o)), body: o)` | 53 | 0.6% |
+| `ifolAll(((i => ((i => (i => i)) => (i => (i => i)))) => o), body: o)` | 53 | 0.6% |
+| `ifolAll(((i => ((i => (i => i)) => (i => i))) => ((i => ((i => (i => i)) => (i => i))) => o)), body: o)` | 2044 | 21.7% |
+| `ifolAll(((i => ((i => (i => i)) => (i => i))) => o), body: o)` | 2044 | 21.7% |
+| `ifolAll(((i => ((i => (i => i)) => i)) => ((i => ((i => (i => i)) => i)) => o)), body: o)` | 3706 | 39.3% |
+| `ifolAll(((i => ((i => (i => i)) => i)) => o), body: o)` | 3706 | 39.3% |
+| `ifolAll(((i => ((i => (i => o)) => i)) => ((i => ((i => (i => o)) => i)) => o)), body: o)` | 7313 | 77.6% |
+| `ifolAll(((i => ((i => (i => o)) => i)) => o), body: o)` | 7313 | 77.6% |
+| `ifolAll(((i => ((i => i) => (i => i))) => ((i => ((i => i) => (i => i))) => o)), body: o)` | 3854 | 40.9% |
+| `ifolAll(((i => ((i => i) => (i => i))) => o), body: o)` | 3854 | 40.9% |
+| `ifolAll(((i => ((i => i) => i)) => ((i => ((i => i) => i)) => o)), body: o)` | 6215 | 66.0% |
+| `ifolAll(((i => ((i => i) => i)) => o), body: o)` | 6215 | 66.0% |
+| `ifolAll(((i => ((i => i) => o)) => ((i => ((i => i) => o)) => o)), body: o)` | 4841 | 51.4% |
+| `ifolAll(((i => ((i => i) => o)) => o), body: o)` | 4841 | 51.4% |
+| `ifolAll(((i => ((i => o) => i)) => ((i => ((i => o) => i)) => o)), body: o)` | 7247 | 76.9% |
+| `ifolAll(((i => ((i => o) => i)) => o), body: o)` | 7247 | 76.9% |
+| `ifolAll(((i => ((i => o) => o)) => ((i => ((i => o) => o)) => o)), body: o)` | 7493 | 79.5% |
+| `ifolAll(((i => ((i => o) => o)) => o), body: o)` | 7493 | 79.5% |
+| `ifolAll(((i => (i => 'a)) => (i => 'a)), body: o)` | 2773 | 29.4% |
+| `ifolAll(((i => (i => ((i => (i => i)) => ((i => (i => i)) => i)))) => ((i => (i => ((i => (i => i)) => ((i => (i => i)) => i)))) => o)), body: o)` | 8 | 0.1% |
+| `ifolAll(((i => (i => ((i => (i => i)) => ((i => (i => i)) => i)))) => o), body: o)` | 8 | 0.1% |
+| `ifolAll(((i => (i => ((i => (i => i)) => (i => o)))) => ((i => (i => ((i => (i => i)) => (i => o)))) => o)), body: o)` | 4068 | 43.2% |
+| `ifolAll(((i => (i => ((i => (i => i)) => (i => o)))) => o), body: o)` | 4068 | 43.2% |
+| `ifolAll(((i => (i => ((i => (i => i)) => i))) => ((i => (i => ((i => (i => i)) => i))) => o)), body: o)` | 4061 | 43.1% |
+| `ifolAll(((i => (i => ((i => (i => i)) => i))) => o), body: o)` | 4061 | 43.1% |
+| `ifolAll(((i => (i => ((i => (i => i)) => o))) => ((i => (i => ((i => (i => i)) => o))) => o)), body: o)` | 439 | 4.7% |
+| `ifolAll(((i => (i => ((i => (i => i)) => o))) => o), body: o)` | 439 | 4.7% |
+| `ifolAll(((i => (i => ((i => i) => ((i => i) => (i => o))))) => ((i => (i => ((i => i) => ((i => i) => (i => o))))) => o)), body: o)` | 7 | 0.1% |
+| `ifolAll(((i => (i => ((i => i) => ((i => i) => (i => o))))) => o), body: o)` | 7 | 0.1% |
+| `ifolAll(((i => (i => (i => ((i => (i => i)) => i)))) => ((i => (i => (i => ((i => (i => i)) => i)))) => o)), body: o)` | 896 | 9.5% |
+| `ifolAll(((i => (i => (i => ((i => (i => i)) => i)))) => o), body: o)` | 896 | 9.5% |
+| `ifolAll(((i => (i => (i => ((i => i) => o)))) => ((i => (i => (i => ((i => i) => o)))) => o)), body: o)` | 21 | 0.2% |
+| `ifolAll(((i => (i => (i => ((i => i) => o)))) => o), body: o)` | 21 | 0.2% |
+| `ifolAll(((i => (i => (i => (i => (i => (i => i)))))) => ((i => (i => (i => (i => (i => (i => i)))))) => o)), body: o)` | 35 | 0.4% |
+| `ifolAll(((i => (i => (i => (i => (i => (i => i)))))) => o), body: o)` | 35 | 0.4% |
+| `ifolAll(((i => (i => (i => (i => (i => i))))) => ((i => (i => (i => (i => (i => i))))) => o)), body: o)` | 187 | 2.0% |
+| `ifolAll(((i => (i => (i => (i => (i => i))))) => o), body: o)` | 187 | 2.0% |
+| `ifolAll(((i => (i => (i => (i => (i => o))))) => ((i => (i => (i => (i => (i => o))))) => o)), body: o)` | 9 | 0.1% |
+| `ifolAll(((i => (i => (i => (i => (i => o))))) => ((i => (i => (i => (i => i)))) => o)), body: o)` | 1 | 0.0% |
+| `ifolAll(((i => (i => (i => (i => (i => o))))) => o), body: o)` | 9 | 0.1% |
+| `ifolAll(((i => (i => (i => (i => i)))) => ((i => (i => (i => (i => i)))) => o)), body: o)` | 1108 | 11.8% |
+| `ifolAll(((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => (i => i)))), body: o)` | 38 | 0.4% |
+| `ifolAll(((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => i))), body: o)` | 24 | 0.3% |
+| `ifolAll(((i => (i => (i => (i => i)))) => o), body: o)` | 1109 | 11.8% |
+| `ifolAll(((i => (i => (i => (i => o)))) => ((i => (i => (i => (i => o)))) => o)), body: o)` | 114 | 1.2% |
+| `ifolAll(((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o)), body: o)` | 2 | 0.0% |
+| `ifolAll(((i => (i => (i => (i => o)))) => o), body: o)` | 114 | 1.2% |
+| `ifolAll(((i => (i => (i => i))) => ((i => (i => (i => i))) => o)), body: o)` | 3075 | 32.6% |
+| `ifolAll(((i => (i => (i => i))) => ((i => (i => i)) => (i => i))), body: o)` | 10 | 0.1% |
+| `ifolAll(((i => (i => (i => i))) => (i => (i => i))), body: o)` | 103 | 1.1% |
+| `ifolAll(((i => (i => (i => i))) => (i => i)), body: o)` | 1096 | 11.6% |
+| `ifolAll(((i => (i => (i => i))) => i), body: o)` | 25 | 0.3% |
+| `ifolAll(((i => (i => (i => i))) => o), body: o)` | 3077 | 32.7% |
+| `ifolAll(((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => o)) => (i => (i => o)))))), body: o)` | 70 | 0.7% |
+| `ifolAll(((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => o)) => (i => (i => o))))), body: o)` | 70 | 0.7% |
+| `ifolAll(((i => (i => (i => o))) => ((i => (i => (i => o))) => o)), body: o)` | 284 | 3.0% |
+| `ifolAll(((i => (i => (i => o))) => ((i => (i => i)) => o)), body: o)` | 185 | 2.0% |
+| `ifolAll(((i => (i => (i => o))) => ((i => (i => o)) => (i => (i => o)))), body: o)` | 70 | 0.7% |
+| `ifolAll(((i => (i => (i => o))) => (i => (i => (i => o)))), body: o)` | 318 | 3.4% |
+| `ifolAll(((i => (i => (i => o))) => (i => (i => o))), body: o)` | 149 | 1.6% |
+| `ifolAll(((i => (i => (i => o))) => (i => o)), body: o)` | 156 | 1.7% |
+| `ifolAll(((i => (i => (i => o))) => o), body: o)` | 284 | 3.0% |
+| `ifolAll(((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => (i => i))))), body: o)` | 38 | 0.4% |
+| `ifolAll(((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => i)))), body: o)` | 24 | 0.3% |
+| `ifolAll(((i => (i => i)) => ((i => (i => (i => i))) => ((i => (i => i)) => (i => i)))), body: o)` | 10 | 0.1% |
+| `ifolAll(((i => (i => i)) => ((i => (i => (i => i))) => (i => i))), body: o)` | 37 | 0.4% |
+| `ifolAll(((i => (i => i)) => ((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => (i => i)))))), body: o)` | 38 | 0.4% |
+| `ifolAll(((i => (i => i)) => ((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => i))))), body: o)` | 24 | 0.3% |
+| `ifolAll(((i => (i => i)) => ((i => (i => i)) => ((i => (i => (i => i))) => (i => i)))), body: o)` | 21 | 0.2% |
+| `ifolAll(((i => (i => i)) => ((i => (i => i)) => (i => i))), body: o)` | 23 | 0.2% |
+| `ifolAll(((i => (i => i)) => ((i => (i => i)) => i)), body: o)` | 8 | 0.1% |
+| `ifolAll(((i => (i => i)) => ((i => (i => i)) => o)), body: o)` | 6923 | 73.5% |
+| `ifolAll(((i => (i => i)) => ((i => i) => (i => i))), body: o)` | 965 | 10.2% |
+| `ifolAll(((i => (i => i)) => (i => ((i => (i => i)) => (i => i)))), body: o)` | 35 | 0.4% |
+| `ifolAll(((i => (i => i)) => (i => (i => i))), body: o)` | 91 | 1.0% |
+| `ifolAll(((i => (i => i)) => (i => i)), body: o)` | 2884 | 30.6% |
+| `ifolAll(((i => (i => i)) => (i => o)), body: o)` | 4068 | 43.2% |
+| `ifolAll(((i => (i => i)) => i), body: o)` | 4065 | 43.2% |
+| `ifolAll(((i => (i => i)) => o), body: o)` | 6927 | 73.5% |
+| `ifolAll(((i => (i => o)) => ((i => (i => o)) => o)), body: o)` | 7387 | 78.4% |
+| `ifolAll(((i => (i => o)) => ((i => i) => o)), body: o)` | 132 | 1.4% |
+| `ifolAll(((i => (i => o)) => (i => (i => (i => (i => o))))), body: o)` | 243 | 2.6% |
+| `ifolAll(((i => (i => o)) => (i => (i => (i => o)))), body: o)` | 225 | 2.4% |
+| `ifolAll(((i => (i => o)) => (i => (i => o))), body: o)` | 250 | 2.7% |
+| `ifolAll(((i => (i => o)) => (i => o)), body: o)` | 344 | 3.7% |
+| `ifolAll(((i => (i => o)) => i), body: o)` | 7313 | 77.6% |
+| `ifolAll(((i => (i => o)) => o), body: o)` | 7404 | 78.6% |
+| `ifolAll(((i => i) => ((i => (i => (i => i))) => (i => i))), body: o)` | 92 | 1.0% |
+| `ifolAll(((i => i) => ((i => (i => i)) => ((i => (i => i)) => (i => i)))), body: o)` | 23 | 0.2% |
+| `ifolAll(((i => i) => ((i => i) => (i => i))), body: o)` | 2421 | 25.7% |
+| `ifolAll(((i => i) => ((i => i) => (i => o))), body: o)` | 7 | 0.1% |
+| `ifolAll(((i => i) => ((i => i) => o)), body: o)` | 6847 | 72.7% |
+| `ifolAll(((i => i) => (i => (i => i))), body: o)` | 442 | 4.7% |
+| `ifolAll(((i => i) => (i => i)), body: o)` | 4223 | 44.8% |
+| `ifolAll(((i => i) => (i => o)), body: o)` | 7 | 0.1% |
+| `ifolAll(((i => i) => i), body: o)` | 6229 | 66.1% |
+| `ifolAll(((i => i) => o), body: o)` | 6955 | 73.8% |
+| `ifolAll(((i => o) => ((i => (i => (i => (i => (i => o))))) => ((i => (i => (i => (i => i)))) => o))), body: o)` | 1 | 0.0% |
+| `ifolAll(((i => o) => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o))), body: o)` | 1 | 0.0% |
+| `ifolAll(((i => o) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => o)) => (i => (i => o))))))), body: o)` | 70 | 0.7% |
+| `ifolAll(((i => o) => ((i => (i => (i => o))) => ((i => (i => i)) => o))), body: o)` | 183 | 1.9% |
+| `ifolAll(((i => o) => ((i => (i => (i => o))) => (i => (i => (i => o))))), body: o)` | 318 | 3.4% |
+| `ifolAll(((i => o) => ((i => (i => (i => o))) => (i => (i => o)))), body: o)` | 53 | 0.6% |
+| `ifolAll(((i => o) => ((i => (i => (i => o))) => (i => o))), body: o)` | 155 | 1.6% |
+| `ifolAll(((i => o) => ((i => (i => o)) => ((i => i) => o))), body: o)` | 128 | 1.4% |
+| `ifolAll(((i => o) => ((i => (i => o)) => (i => (i => (i => (i => o)))))), body: o)` | 243 | 2.6% |
+| `ifolAll(((i => o) => ((i => (i => o)) => (i => (i => (i => o))))), body: o)` | 225 | 2.4% |
+| `ifolAll(((i => o) => ((i => (i => o)) => (i => o))), body: o)` | 141 | 1.5% |
+| `ifolAll(((i => o) => ((i => (i => o)) => o)), body: o)` | 597 | 6.3% |
+| `ifolAll(((i => o) => ((i => o) => ((i => (i => o)) => o))), body: o)` | 429 | 4.6% |
+| `ifolAll(((i => o) => ((i => o) => o)), body: o)` | 5453 | 57.9% |
+| `ifolAll(((i => o) => (i => ((i => (i => (i => o))) => (i => (i => o))))), body: o)` | 3 | 0.0% |
+| `ifolAll(((i => o) => (i => ((i => (i => o)) => ((i => i) => o)))), body: o)` | 44 | 0.5% |
+| `ifolAll(((i => o) => (i => ((i => (i => o)) => (i => (i => o))))), body: o)` | 249 | 2.6% |
+| `ifolAll(((i => o) => (i => ((i => (i => o)) => (i => o)))), body: o)` | 96 | 1.0% |
+| `ifolAll(((i => o) => (i => ((i => (i => o)) => o))), body: o)` | 374 | 4.0% |
+| `ifolAll(((i => o) => (i => ((i => o) => (i => o)))), body: o)` | 46 | 0.5% |
+| `ifolAll(((i => o) => (i => (i => ((i => (i => (i => o))) => ((i => (i => i)) => o))))), body: o)` | 41 | 0.4% |
+| `ifolAll(((i => o) => (i => (i => (i => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o)))))), body: o)` | 1 | 0.0% |
+| `ifolAll(((i => o) => (i => (i => (i => (i => (i => o)))))), body: o)` | 89 | 0.9% |
+| `ifolAll(((i => o) => (i => (i => (i => (i => o))))), body: o)` | 225 | 2.4% |
+| `ifolAll(((i => o) => (i => (i => (i => o)))), body: o)` | 1026 | 10.9% |
+| `ifolAll(((i => o) => (i => (i => i))), body: o)` | 44 | 0.5% |
+| `ifolAll(((i => o) => (i => (i => o))), body: o)` | 946 | 10.0% |
+| `ifolAll(((i => o) => (i => i)), body: o)` | 445 | 4.7% |
+| `ifolAll(((i => o) => (i => o)), body: o)` | 838 | 8.9% |
+| `ifolAll(((i => o) => (o => (i => o))), body: o)` | 92 | 1.0% |
+| `ifolAll(((i => o) => i), body: o)` | 7257 | 77.0% |
+| `ifolAll(((i => o) => o), body: o)` | 7746 | 82.2% |
+| `ifolAll(((o => (i => (i => i))) => ((o => (i => (i => i))) => o)), body: o)` | 5018 | 53.3% |
+| `ifolAll(((o => (i => (i => i))) => o), body: o)` | 5018 | 53.3% |
+| `ifolAll(((o => (o => o)) => ((o => (o => o)) => o)), body: o)` | 7841 | 83.2% |
+| `ifolAll(((o => (o => o)) => o), body: o)` | 7841 | 83.2% |
+| `ifolAll(((o => i) => ((o => i) => o)), body: o)` | 882 | 9.4% |
+| `ifolAll(((o => i) => o), body: o)` | 882 | 9.4% |
+| `ifolAll(((o => o) => ((o => o) => o)), body: o)` | 7819 | 83.0% |
+| `ifolAll(((o => o) => o), body: o)` | 7819 | 83.0% |
+| `ifolAll((i => 'a), body: o)` | 2773 | 29.4% |
+| `ifolAll((i => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o))), body: o)` | 1 | 0.0% |
+| `ifolAll((i => ((i => (i => (i => i))) => i)), body: o)` | 25 | 0.3% |
+| `ifolAll((i => ((i => (i => (i => o))) => ((i => (i => i)) => o))), body: o)` | 41 | 0.4% |
+| `ifolAll((i => ((i => (i => (i => o))) => (i => (i => o)))), body: o)` | 3 | 0.0% |
+| `ifolAll((i => ((i => (i => i)) => ((i => (i => i)) => i))), body: o)` | 8 | 0.1% |
+| `ifolAll((i => ((i => (i => i)) => (i => (i => i)))), body: o)` | 53 | 0.6% |
+| `ifolAll((i => ((i => (i => i)) => (i => i))), body: o)` | 2100 | 22.3% |
+| `ifolAll((i => ((i => (i => i)) => (i => o))), body: o)` | 4068 | 43.2% |
+| `ifolAll((i => ((i => (i => i)) => i)), body: o)` | 4064 | 43.1% |
+| `ifolAll((i => ((i => (i => i)) => o)), body: o)` | 439 | 4.7% |
+| `ifolAll((i => ((i => (i => o)) => ((i => i) => o))), body: o)` | 44 | 0.5% |
+| `ifolAll((i => ((i => (i => o)) => (i => (i => o)))), body: o)` | 249 | 2.6% |
+| `ifolAll((i => ((i => (i => o)) => (i => o))), body: o)` | 96 | 1.0% |
+| `ifolAll((i => ((i => (i => o)) => i)), body: o)` | 7313 | 77.6% |
+| `ifolAll((i => ((i => (i => o)) => o)), body: o)` | 374 | 4.0% |
+| `ifolAll((i => ((i => i) => ((i => i) => (i => o)))), body: o)` | 7 | 0.1% |
+| `ifolAll((i => ((i => i) => (i => i))), body: o)` | 3854 | 40.9% |
+| `ifolAll((i => ((i => i) => i)), body: o)` | 6226 | 66.1% |
+| `ifolAll((i => ((i => i) => o)), body: o)` | 4845 | 51.4% |
+| `ifolAll((i => ((i => o) => (i => o))), body: o)` | 46 | 0.5% |
+| `ifolAll((i => ((i => o) => i)), body: o)` | 7247 | 76.9% |
+| `ifolAll((i => ((i => o) => o)), body: o)` | 7494 | 79.6% |
+| `ifolAll((i => (i => 'a)), body: o)` | 2773 | 29.4% |
+| `ifolAll((i => (i => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o)))), body: o)` | 1 | 0.0% |
+| `ifolAll((i => (i => ((i => (i => (i => o))) => ((i => (i => i)) => o)))), body: o)` | 41 | 0.4% |
+| `ifolAll((i => (i => ((i => (i => i)) => ((i => (i => i)) => i)))), body: o)` | 8 | 0.1% |
+| `ifolAll((i => (i => ((i => (i => i)) => (i => i)))), body: o)` | 13 | 0.1% |
+| `ifolAll((i => (i => ((i => (i => i)) => (i => o)))), body: o)` | 4068 | 43.2% |
+| `ifolAll((i => (i => ((i => (i => i)) => i))), body: o)` | 4062 | 43.1% |
+| `ifolAll((i => (i => ((i => (i => i)) => o))), body: o)` | 439 | 4.7% |
+| `ifolAll((i => (i => ((i => i) => ((i => i) => (i => o))))), body: o)` | 7 | 0.1% |
+| `ifolAll((i => (i => ((i => i) => o))), body: o)` | 21 | 0.2% |
+| `ifolAll((i => (i => (i => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o))))), body: o)` | 1 | 0.0% |
+| `ifolAll((i => (i => (i => ((i => (i => i)) => i)))), body: o)` | 896 | 9.5% |
+| `ifolAll((i => (i => (i => ((i => i) => o)))), body: o)` | 21 | 0.2% |
+| `ifolAll((i => (i => (i => (i => (i => (i => i)))))), body: o)` | 35 | 0.4% |
+| `ifolAll((i => (i => (i => (i => (i => i))))), body: o)` | 471 | 5.0% |
+| `ifolAll((i => (i => (i => (i => (i => o))))), body: o)` | 99 | 1.1% |
+| `ifolAll((i => (i => (i => (i => i)))), body: o)` | 1859 | 19.7% |
+| `ifolAll((i => (i => (i => (i => o)))), body: o)` | 435 | 4.6% |
+| `ifolAll((i => (i => (i => i))), body: o)` | 3581 | 38.0% |
+| `ifolAll((i => (i => (i => o))), body: o)` | 1482 | 15.7% |
+| `ifolAll((i => (i => i)), body: o)` | 7298 | 77.5% |
+| `ifolAll((i => (i => o)), body: o)` | 8027 | 85.2% |
+| `ifolAll((i => i), body: o)` | 7771 | 82.5% |
+| `ifolAll((i => o), body: o)` | 8423 | 89.4% |
+| `ifolAll((o => (i => (i => i))), body: o)` | 5020 | 53.3% |
+| `ifolAll((o => (i => o)), body: o)` | 92 | 1.0% |
+| `ifolAll((o => (o => o)), body: o)` | 8323 | 88.4% |
+| `ifolAll((o => i), body: o)` | 883 | 9.4% |
+| `ifolAll((o => o), body: o)` | 8432 | 89.5% |
+| `ifolAll(dummy, body: o)` | 28 | 0.3% |
+| `ifolAll(i, body: o)` | 9169 | 97.3% |
+| `ifolAll(o, body: o)` | 8838 | 93.8% |
+| `ifolEx('a, body: o)` | 9098 | 96.6% |
+| `ifolEx('b, body: o)` | 580 | 6.2% |
+| `ifolEx(i, body: o)` | 8567 | 90.9% |
+| `isaAbs('a, body: 'b)` | 4655 | 49.4% |
+| `isaAbs('a, body: ('a => o))` | 7578 | 80.4% |
+| `isaAbs('a, body: ('b => o))` | 1195 | 12.7% |
+| `isaAbs('a, body: (('a => 'b) => 'b))` | 508 | 5.4% |
+| `isaAbs('a, body: o)` | 9167 | 97.3% |
+| `isaAbs('b, body: 'a)` | 439 | 4.7% |
+| `isaAbs('b, body: ('b => o))` | 4626 | 49.1% |
+| `isaAbs('b, body: (('b => 'a) => 'a))` | 439 | 4.7% |
+| `isaAbs('b, body: o)` | 4634 | 49.2% |
+| `isaAbs(('a => 'b), body: 'b)` | 508 | 5.4% |
+| `isaAbs(('a => o), body: o)` | 8963 | 95.1% |
+| `isaAbs(('b => 'a), body: 'a)` | 439 | 4.7% |
+| `isaAbs(('b => (('b => 'a) => 'a)), body: (('b => (('b => 'a) => 'a)) => o))` | 439 | 4.7% |
+| `isaAbs(('b => (('b => 'a) => 'a)), body: o)` | 439 | 4.7% |
+| `isaAbs((('a => o) => o), body: ((('a => o) => o) => o))` | 7323 | 77.7% |
+| `isaAbs((('a => o) => o), body: o)` | 7323 | 77.7% |
+| `isaAbs(((i => (i => 'a)) => (i => 'a)), body: (((i => (i => 'a)) => (i => 'a)) => o))` | 2773 | 29.4% |
+| `isaAbs(((i => (i => 'a)) => (i => 'a)), body: o)` | 2773 | 29.4% |
+| `isaAbs(((i => (i => (i => i))) => (i => i)), body: (((i => (i => (i => i))) => (i => i)) => o))` | 4 | 0.0% |
+| `isaAbs(((i => (i => (i => i))) => (i => i)), body: o)` | 4 | 0.0% |
+| `isaAbs(((i => (i => i)) => ((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => (i => i)))))), body: (((i => (i => i)) => ((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => (i => i)))))) => o))` | 38 | 0.4% |
+| `isaAbs(((i => (i => i)) => ((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => (i => i)))))), body: o)` | 38 | 0.4% |
+| `isaAbs(((i => (i => i)) => (i => i)), body: (((i => (i => i)) => (i => i)) => o))` | 2760 | 29.3% |
+| `isaAbs(((i => (i => i)) => (i => i)), body: o)` | 2760 | 29.3% |
+| `isaAbs(((i => i) => ((i => i) => (i => i))), body: (((i => i) => ((i => i) => (i => i))) => o))` | 2421 | 25.7% |
+| `isaAbs(((i => i) => ((i => i) => (i => i))), body: o)` | 2421 | 25.7% |
+| `isaAbs(((i => i) => (i => i)), body: (((i => i) => (i => i)) => o))` | 514 | 5.5% |
+| `isaAbs(((i => i) => (i => i)), body: o)` | 514 | 5.5% |
+| `isaAbs(((i => i) => o), body: (((i => i) => o) => o))` | 531 | 5.6% |
+| `isaAbs(((i => i) => o), body: o)` | 531 | 5.6% |
+| `isaAbs(((i => o) => ((i => (i => (i => (i => (i => o))))) => ((i => (i => (i => (i => i)))) => o))), body: (((i => o) => ((i => (i => (i => (i => (i => o))))) => ((i => (i => (i => (i => i)))) => o))) => o))` | 1 | 0.0% |
+| `isaAbs(((i => o) => ((i => (i => (i => (i => (i => o))))) => ((i => (i => (i => (i => i)))) => o))), body: o)` | 1 | 0.0% |
+| `isaAbs(((i => o) => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o))), body: (((i => o) => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o))) => o))` | 1 | 0.0% |
+| `isaAbs(((i => o) => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o))), body: o)` | 1 | 0.0% |
+| `isaAbs(((i => o) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => o)) => (i => (i => o))))))), body: (((i => o) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => o)) => (i => (i => o))))))) => o))` | 70 | 0.7% |
+| `isaAbs(((i => o) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => o)) => (i => (i => o))))))), body: o)` | 70 | 0.7% |
+| `isaAbs(((i => o) => ((i => (i => (i => o))) => ((i => (i => i)) => o))), body: (((i => o) => ((i => (i => (i => o))) => ((i => (i => i)) => o))) => o))` | 183 | 1.9% |
+| `isaAbs(((i => o) => ((i => (i => (i => o))) => ((i => (i => i)) => o))), body: o)` | 183 | 1.9% |
+| `isaAbs(((i => o) => ((i => (i => (i => o))) => (i => (i => (i => o))))), body: (((i => o) => ((i => (i => (i => o))) => (i => (i => (i => o))))) => o))` | 318 | 3.4% |
+| `isaAbs(((i => o) => ((i => (i => (i => o))) => (i => (i => (i => o))))), body: o)` | 318 | 3.4% |
+| `isaAbs(((i => o) => ((i => (i => (i => o))) => (i => (i => o)))), body: (((i => o) => ((i => (i => (i => o))) => (i => (i => o)))) => o))` | 53 | 0.6% |
+| `isaAbs(((i => o) => ((i => (i => (i => o))) => (i => (i => o)))), body: o)` | 53 | 0.6% |
+| `isaAbs(((i => o) => ((i => (i => (i => o))) => (i => o))), body: (((i => o) => ((i => (i => (i => o))) => (i => o))) => o))` | 155 | 1.6% |
+| `isaAbs(((i => o) => ((i => (i => (i => o))) => (i => o))), body: o)` | 155 | 1.6% |
+| `isaAbs(((i => o) => ((i => (i => o)) => ((i => i) => o))), body: (((i => o) => ((i => (i => o)) => ((i => i) => o))) => o))` | 128 | 1.4% |
+| `isaAbs(((i => o) => ((i => (i => o)) => ((i => i) => o))), body: o)` | 128 | 1.4% |
+| `isaAbs(((i => o) => ((i => (i => o)) => (i => (i => (i => (i => o)))))), body: (((i => o) => ((i => (i => o)) => (i => (i => (i => (i => o)))))) => o))` | 243 | 2.6% |
+| `isaAbs(((i => o) => ((i => (i => o)) => (i => (i => (i => (i => o)))))), body: o)` | 243 | 2.6% |
+| `isaAbs(((i => o) => ((i => (i => o)) => (i => (i => (i => o))))), body: (((i => o) => ((i => (i => o)) => (i => (i => (i => o))))) => o))` | 225 | 2.4% |
+| `isaAbs(((i => o) => ((i => (i => o)) => (i => (i => (i => o))))), body: o)` | 225 | 2.4% |
+| `isaAbs(((i => o) => ((i => (i => o)) => (i => o))), body: (((i => o) => ((i => (i => o)) => (i => o))) => o))` | 141 | 1.5% |
+| `isaAbs(((i => o) => ((i => (i => o)) => (i => o))), body: o)` | 141 | 1.5% |
+| `isaAbs(((i => o) => ((i => (i => o)) => o)), body: (((i => o) => ((i => (i => o)) => o)) => o))` | 585 | 6.2% |
+| `isaAbs(((i => o) => ((i => (i => o)) => o)), body: o)` | 585 | 6.2% |
+| `isaAbs(((i => o) => ((i => o) => o)), body: (((i => o) => ((i => o) => o)) => o))` | 1163 | 12.3% |
+| `isaAbs(((i => o) => ((i => o) => o)), body: o)` | 1163 | 12.3% |
+| `isaAbs(((i => o) => (i => ((i => (i => (i => o))) => (i => (i => o))))), body: (((i => o) => (i => ((i => (i => (i => o))) => (i => (i => o))))) => o))` | 3 | 0.0% |
+| `isaAbs(((i => o) => (i => ((i => (i => (i => o))) => (i => (i => o))))), body: o)` | 3 | 0.0% |
+| `isaAbs(((i => o) => (i => ((i => (i => o)) => ((i => i) => o)))), body: (((i => o) => (i => ((i => (i => o)) => ((i => i) => o)))) => o))` | 44 | 0.5% |
+| `isaAbs(((i => o) => (i => ((i => (i => o)) => ((i => i) => o)))), body: o)` | 44 | 0.5% |
+| `isaAbs(((i => o) => (i => ((i => (i => o)) => (i => (i => o))))), body: (((i => o) => (i => ((i => (i => o)) => (i => (i => o))))) => o))` | 249 | 2.6% |
+| `isaAbs(((i => o) => (i => ((i => (i => o)) => (i => (i => o))))), body: o)` | 249 | 2.6% |
+| `isaAbs(((i => o) => (i => ((i => (i => o)) => (i => o)))), body: (((i => o) => (i => ((i => (i => o)) => (i => o)))) => o))` | 96 | 1.0% |
+| `isaAbs(((i => o) => (i => ((i => (i => o)) => (i => o)))), body: o)` | 96 | 1.0% |
+| `isaAbs(((i => o) => (i => ((i => (i => o)) => o))), body: (((i => o) => (i => ((i => (i => o)) => o))) => o))` | 374 | 4.0% |
+| `isaAbs(((i => o) => (i => ((i => (i => o)) => o))), body: o)` | 374 | 4.0% |
+| `isaAbs(((i => o) => (i => ((i => o) => (i => o)))), body: (((i => o) => (i => ((i => o) => (i => o)))) => o))` | 46 | 0.5% |
+| `isaAbs(((i => o) => (i => ((i => o) => (i => o)))), body: o)` | 46 | 0.5% |
+| `isaAbs(((i => o) => (i => (i => ((i => (i => (i => o))) => ((i => (i => i)) => o))))), body: (((i => o) => (i => (i => ((i => (i => (i => o))) => ((i => (i => i)) => o))))) => o))` | 41 | 0.4% |
+| `isaAbs(((i => o) => (i => (i => ((i => (i => (i => o))) => ((i => (i => i)) => o))))), body: o)` | 41 | 0.4% |
+| `isaAbs(((i => o) => (i => (i => (i => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o)))))), body: (((i => o) => (i => (i => (i => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o)))))) => o))` | 1 | 0.0% |
+| `isaAbs(((i => o) => (i => (i => (i => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o)))))), body: o)` | 1 | 0.0% |
+| `isaAbs(((i => o) => (i => (i => (i => (i => (i => o)))))), body: (((i => o) => (i => (i => (i => (i => (i => o)))))) => o))` | 89 | 0.9% |
+| `isaAbs(((i => o) => (i => (i => (i => (i => (i => o)))))), body: o)` | 89 | 0.9% |
+| `isaAbs(((i => o) => (i => (i => (i => (i => o))))), body: (((i => o) => (i => (i => (i => (i => o))))) => o))` | 117 | 1.2% |
+| `isaAbs(((i => o) => (i => (i => (i => (i => o))))), body: o)` | 117 | 1.2% |
+| `isaAbs(((i => o) => (i => (i => (i => o)))), body: (((i => o) => (i => (i => (i => o)))) => o))` | 1025 | 10.9% |
+| `isaAbs(((i => o) => (i => (i => (i => o)))), body: o)` | 1025 | 10.9% |
+| `isaAbs(((i => o) => (i => (i => i))), body: (((i => o) => (i => (i => i))) => o))` | 44 | 0.5% |
+| `isaAbs(((i => o) => (i => (i => i))), body: o)` | 44 | 0.5% |
+| `isaAbs(((i => o) => (i => (i => o))), body: (((i => o) => (i => (i => o))) => o))` | 945 | 10.0% |
+| `isaAbs(((i => o) => (i => (i => o))), body: o)` | 945 | 10.0% |
+| `isaAbs(((i => o) => (i => i)), body: (((i => o) => (i => i)) => o))` | 2 | 0.0% |
+| `isaAbs(((i => o) => (i => i)), body: o)` | 2 | 0.0% |
+| `isaAbs(((i => o) => (i => o)), body: (((i => o) => (i => o)) => o))` | 670 | 7.1% |
+| `isaAbs(((i => o) => (i => o)), body: o)` | 670 | 7.1% |
+| `isaAbs(((i => o) => (o => (i => o))), body: (((i => o) => (o => (i => o))) => o))` | 92 | 1.0% |
+| `isaAbs(((i => o) => (o => (i => o))), body: o)` | 92 | 1.0% |
+| `isaAbs(((i => o) => i), body: (((i => o) => i) => o))` | 5274 | 56.0% |
+| `isaAbs(((i => o) => i), body: o)` | 5274 | 56.0% |
+| `isaAbs(((i => o) => o), body: (((i => o) => o) => o))` | 4100 | 43.5% |
+| `isaAbs(((i => o) => o), body: o)` | 4102 | 43.5% |
+| `isaAbs((i => 'a), body: ((i => 'a) => o))` | 2739 | 29.1% |
+| `isaAbs((i => 'a), body: o)` | 2739 | 29.1% |
+| `isaAbs((i => ((i => (i => (i => i))) => i)), body: ((i => ((i => (i => (i => i))) => i)) => o))` | 25 | 0.3% |
+| `isaAbs((i => ((i => (i => (i => i))) => i)), body: o)` | 25 | 0.3% |
+| `isaAbs((i => ((i => (i => i)) => (i => (i => i)))), body: ((i => ((i => (i => i)) => (i => (i => i)))) => o))` | 53 | 0.6% |
+| `isaAbs((i => ((i => (i => i)) => (i => (i => i)))), body: o)` | 53 | 0.6% |
+| `isaAbs((i => ((i => (i => i)) => (i => i))), body: ((i => ((i => (i => i)) => (i => i))) => o))` | 2044 | 21.7% |
+| `isaAbs((i => ((i => (i => i)) => (i => i))), body: o)` | 2044 | 21.7% |
+| `isaAbs((i => ((i => (i => i)) => i)), body: ((i => ((i => (i => i)) => i)) => o))` | 3706 | 39.3% |
+| `isaAbs((i => ((i => (i => i)) => i)), body: o)` | 3706 | 39.3% |
+| `isaAbs((i => ((i => (i => o)) => i)), body: ((i => ((i => (i => o)) => i)) => o))` | 7313 | 77.6% |
+| `isaAbs((i => ((i => (i => o)) => i)), body: o)` | 7313 | 77.6% |
+| `isaAbs((i => ((i => i) => (i => i))), body: ((i => ((i => i) => (i => i))) => o))` | 3854 | 40.9% |
+| `isaAbs((i => ((i => i) => (i => i))), body: o)` | 3854 | 40.9% |
+| `isaAbs((i => ((i => i) => i)), body: ((i => ((i => i) => i)) => o))` | 6215 | 66.0% |
+| `isaAbs((i => ((i => i) => i)), body: o)` | 6215 | 66.0% |
+| `isaAbs((i => ((i => i) => o)), body: ((i => ((i => i) => o)) => o))` | 4841 | 51.4% |
+| `isaAbs((i => ((i => i) => o)), body: o)` | 4841 | 51.4% |
+| `isaAbs((i => ((i => o) => i)), body: ((i => ((i => o) => i)) => o))` | 7247 | 76.9% |
+| `isaAbs((i => ((i => o) => i)), body: o)` | 7247 | 76.9% |
+| `isaAbs((i => ((i => o) => o)), body: ((i => ((i => o) => o)) => o))` | 7493 | 79.5% |
+| `isaAbs((i => ((i => o) => o)), body: o)` | 7493 | 79.5% |
+| `isaAbs((i => (i => 'a)), body: (i => 'a))` | 3297 | 35.0% |
+| `isaAbs((i => (i => ((i => (i => i)) => ((i => (i => i)) => i)))), body: ((i => (i => ((i => (i => i)) => ((i => (i => i)) => i)))) => o))` | 8 | 0.1% |
+| `isaAbs((i => (i => ((i => (i => i)) => ((i => (i => i)) => i)))), body: o)` | 8 | 0.1% |
+| `isaAbs((i => (i => ((i => (i => i)) => (i => o)))), body: ((i => (i => ((i => (i => i)) => (i => o)))) => o))` | 4068 | 43.2% |
+| `isaAbs((i => (i => ((i => (i => i)) => (i => o)))), body: o)` | 4068 | 43.2% |
+| `isaAbs((i => (i => ((i => (i => i)) => i))), body: ((i => (i => ((i => (i => i)) => i))) => o))` | 4061 | 43.1% |
+| `isaAbs((i => (i => ((i => (i => i)) => i))), body: o)` | 4061 | 43.1% |
+| `isaAbs((i => (i => ((i => (i => i)) => o))), body: ((i => (i => ((i => (i => i)) => o))) => o))` | 439 | 4.7% |
+| `isaAbs((i => (i => ((i => (i => i)) => o))), body: o)` | 439 | 4.7% |
+| `isaAbs((i => (i => ((i => i) => ((i => i) => (i => o))))), body: ((i => (i => ((i => i) => ((i => i) => (i => o))))) => o))` | 7 | 0.1% |
+| `isaAbs((i => (i => ((i => i) => ((i => i) => (i => o))))), body: o)` | 7 | 0.1% |
+| `isaAbs((i => (i => (i => ((i => (i => i)) => i)))), body: ((i => (i => (i => ((i => (i => i)) => i)))) => o))` | 896 | 9.5% |
+| `isaAbs((i => (i => (i => ((i => (i => i)) => i)))), body: o)` | 896 | 9.5% |
+| `isaAbs((i => (i => (i => ((i => i) => o)))), body: ((i => (i => (i => ((i => i) => o)))) => o))` | 21 | 0.2% |
+| `isaAbs((i => (i => (i => ((i => i) => o)))), body: o)` | 21 | 0.2% |
+| `isaAbs((i => (i => (i => (i => (i => (i => i)))))), body: ((i => (i => (i => (i => (i => (i => i)))))) => o))` | 35 | 0.4% |
+| `isaAbs((i => (i => (i => (i => (i => (i => i)))))), body: o)` | 35 | 0.4% |
+| `isaAbs((i => (i => (i => (i => (i => i))))), body: ((i => (i => (i => (i => (i => i))))) => o))` | 187 | 2.0% |
+| `isaAbs((i => (i => (i => (i => (i => i))))), body: o)` | 187 | 2.0% |
+| `isaAbs((i => (i => (i => (i => (i => o))))), body: ((i => (i => (i => (i => (i => o))))) => o))` | 9 | 0.1% |
+| `isaAbs((i => (i => (i => (i => (i => o))))), body: ((i => (i => (i => (i => i)))) => o))` | 1 | 0.0% |
+| `isaAbs((i => (i => (i => (i => (i => o))))), body: o)` | 9 | 0.1% |
+| `isaAbs((i => (i => (i => (i => i)))), body: ((i => (i => (i => (i => i)))) => o))` | 1108 | 11.8% |
+| `isaAbs((i => (i => (i => (i => i)))), body: ((i => (i => i)) => (i => (i => i))))` | 55 | 0.6% |
+| `isaAbs((i => (i => (i => (i => i)))), body: ((i => (i => i)) => (i => i)))` | 24 | 0.3% |
+| `isaAbs((i => (i => (i => (i => i)))), body: o)` | 1109 | 11.8% |
+| `isaAbs((i => (i => (i => (i => o)))), body: ((i => (i => (i => (i => o)))) => o))` | 114 | 1.2% |
+| `isaAbs((i => (i => (i => (i => o)))), body: ((i => (i => (i => i))) => o))` | 2 | 0.0% |
+| `isaAbs((i => (i => (i => (i => o)))), body: o)` | 114 | 1.2% |
+| `isaAbs((i => (i => (i => i))), body: ((i => (i => (i => i))) => o))` | 3075 | 32.6% |
+| `isaAbs((i => (i => (i => i))), body: ((i => (i => i)) => (i => i)))` | 10 | 0.1% |
+| `isaAbs((i => (i => (i => i))), body: (i => (i => i)))` | 103 | 1.1% |
+| `isaAbs((i => (i => (i => i))), body: (i => i))` | 1097 | 11.6% |
+| `isaAbs((i => (i => (i => i))), body: i)` | 30 | 0.3% |
+| `isaAbs((i => (i => (i => i))), body: o)` | 3077 | 32.7% |
+| `isaAbs((i => (i => (i => o))), body: ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => o)) => (i => (i => o))))))` | 136 | 1.4% |
+| `isaAbs((i => (i => (i => o))), body: ((i => (i => (i => o))) => ((i => (i => o)) => (i => (i => o)))))` | 136 | 1.4% |
+| `isaAbs((i => (i => (i => o))), body: ((i => (i => (i => o))) => o))` | 284 | 3.0% |
+| `isaAbs((i => (i => (i => o))), body: ((i => (i => i)) => o))` | 202 | 2.1% |
+| `isaAbs((i => (i => (i => o))), body: ((i => (i => o)) => (i => (i => o))))` | 136 | 1.4% |
+| `isaAbs((i => (i => (i => o))), body: (i => (i => (i => o))))` | 441 | 4.7% |
+| `isaAbs((i => (i => (i => o))), body: (i => (i => o)))` | 171 | 1.8% |
+| `isaAbs((i => (i => (i => o))), body: (i => o))` | 222 | 2.4% |
+| `isaAbs((i => (i => (i => o))), body: o)` | 284 | 3.0% |
+| `isaAbs((i => (i => i)), body: ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => (i => i)))))` | 55 | 0.6% |
+| `isaAbs((i => (i => i)), body: ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => i))))` | 24 | 0.3% |
+| `isaAbs((i => (i => i)), body: ((i => (i => (i => i))) => ((i => (i => i)) => (i => i))))` | 10 | 0.1% |
+| `isaAbs((i => (i => i)), body: ((i => (i => (i => i))) => (i => i)))` | 37 | 0.4% |
+| `isaAbs((i => (i => i)), body: ((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => (i => i))))))` | 55 | 0.6% |
+| `isaAbs((i => (i => i)), body: ((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => i)))))` | 24 | 0.3% |
+| `isaAbs((i => (i => i)), body: ((i => (i => i)) => ((i => (i => (i => i))) => (i => i))))` | 21 | 0.2% |
+| `isaAbs((i => (i => i)), body: ((i => (i => i)) => (i => i)))` | 23 | 0.2% |
+| `isaAbs((i => (i => i)), body: ((i => (i => i)) => i))` | 9 | 0.1% |
+| `isaAbs((i => (i => i)), body: ((i => (i => i)) => o))` | 6923 | 73.5% |
+| `isaAbs((i => (i => i)), body: ((i => i) => (i => i)))` | 965 | 10.2% |
+| `isaAbs((i => (i => i)), body: (i => ((i => (i => i)) => (i => i))))` | 35 | 0.4% |
+| `isaAbs((i => (i => i)), body: (i => (i => i)))` | 110 | 1.2% |
+| `isaAbs((i => (i => i)), body: (i => i))` | 3439 | 36.5% |
+| `isaAbs((i => (i => i)), body: (i => o))` | 5033 | 53.4% |
+| `isaAbs((i => (i => i)), body: i)` | 5018 | 53.3% |
+| `isaAbs((i => (i => i)), body: o)` | 6944 | 73.7% |
+| `isaAbs((i => (i => o)), body: ((i => (i => o)) => o))` | 7387 | 78.4% |
+| `isaAbs((i => (i => o)), body: ((i => i) => o))` | 149 | 1.6% |
+| `isaAbs((i => (i => o)), body: (i => (i => (i => (i => o)))))` | 341 | 3.6% |
+| `isaAbs((i => (i => o)), body: (i => (i => (i => o))))` | 323 | 3.4% |
+| `isaAbs((i => (i => o)), body: (i => (i => o)))` | 348 | 3.7% |
+| `isaAbs((i => (i => o)), body: (i => o))` | 421 | 4.5% |
+| `isaAbs((i => (i => o)), body: i)` | 8957 | 95.1% |
+| `isaAbs((i => (i => o)), body: o)` | 7524 | 79.9% |
+| `isaAbs((i => i), body: ((i => (i => (i => i))) => (i => i)))` | 92 | 1.0% |
+| `isaAbs((i => i), body: ((i => (i => i)) => ((i => (i => i)) => (i => i))))` | 23 | 0.2% |
+| `isaAbs((i => i), body: ((i => i) => (i => i)))` | 2872 | 30.5% |
+| `isaAbs((i => i), body: ((i => i) => (i => o)))` | 7 | 0.1% |
+| `isaAbs((i => i), body: ((i => i) => o))` | 6847 | 72.7% |
+| `isaAbs((i => i), body: (i => (i => i)))` | 442 | 4.7% |
+| `isaAbs((i => i), body: (i => i))` | 5180 | 55.0% |
+| `isaAbs((i => i), body: (i => o))` | 7 | 0.1% |
+| `isaAbs((i => i), body: i)` | 7209 | 76.5% |
+| `isaAbs((i => i), body: o)` | 6991 | 74.2% |
+| `isaAbs((i => o), body: ((i => (i => (i => (i => (i => o))))) => ((i => (i => (i => (i => i)))) => o)))` | 1 | 0.0% |
+| `isaAbs((i => o), body: ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o)))` | 1 | 0.0% |
+| `isaAbs((i => o), body: ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => o)) => (i => (i => o)))))))` | 136 | 1.4% |
+| `isaAbs((i => o), body: ((i => (i => (i => o))) => ((i => (i => i)) => o)))` | 183 | 1.9% |
+| `isaAbs((i => o), body: ((i => (i => (i => o))) => (i => (i => (i => o)))))` | 441 | 4.7% |
+| `isaAbs((i => o), body: ((i => (i => (i => o))) => (i => (i => o))))` | 75 | 0.8% |
+| `isaAbs((i => o), body: ((i => (i => (i => o))) => (i => o)))` | 222 | 2.4% |
+| `isaAbs((i => o), body: ((i => (i => o)) => ((i => i) => o)))` | 128 | 1.4% |
+| `isaAbs((i => o), body: ((i => (i => o)) => (i => (i => (i => (i => o))))))` | 341 | 3.6% |
+| `isaAbs((i => o), body: ((i => (i => o)) => (i => (i => (i => o)))))` | 323 | 3.4% |
+| `isaAbs((i => o), body: ((i => (i => o)) => (i => o)))` | 201 | 2.1% |
+| `isaAbs((i => o), body: ((i => (i => o)) => o))` | 821 | 8.7% |
+| `isaAbs((i => o), body: ((i => o) => ((i => (i => o)) => o)))` | 429 | 4.6% |
+| `isaAbs((i => o), body: ((i => o) => o))` | 5713 | 60.6% |
+| `isaAbs((i => o), body: (i => ((i => (i => (i => o))) => (i => (i => o)))))` | 3 | 0.0% |
+| `isaAbs((i => o), body: (i => ((i => (i => o)) => ((i => i) => o))))` | 63 | 0.7% |
+| `isaAbs((i => o), body: (i => ((i => (i => o)) => (i => (i => o)))))` | 348 | 3.7% |
+| `isaAbs((i => o), body: (i => ((i => (i => o)) => (i => o))))` | 162 | 1.7% |
+| `isaAbs((i => o), body: (i => ((i => (i => o)) => o)))` | 599 | 6.4% |
+| `isaAbs((i => o), body: (i => ((i => o) => (i => o))))` | 65 | 0.7% |
+| `isaAbs((i => o), body: (i => (i => ((i => (i => (i => o))) => ((i => (i => i)) => o)))))` | 60 | 0.6% |
+| `isaAbs((i => o), body: (i => (i => (i => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o))))))` | 1 | 0.0% |
+| `isaAbs((i => o), body: (i => (i => (i => (i => (i => o))))))` | 186 | 2.0% |
+| `isaAbs((i => o), body: (i => (i => (i => (i => o)))))` | 307 | 3.3% |
+| `isaAbs((i => o), body: (i => (i => (i => o))))` | 1249 | 13.3% |
+| `isaAbs((i => o), body: (i => (i => i)))` | 44 | 0.5% |
+| `isaAbs((i => o), body: (i => (i => o)))` | 1170 | 12.4% |
+| `isaAbs((i => o), body: (i => i))` | 446 | 4.7% |
+| `isaAbs((i => o), body: (i => o))` | 1019 | 10.8% |
+| `isaAbs((i => o), body: (o => (i => o)))` | 132 | 1.4% |
+| `isaAbs((i => o), body: i)` | 8237 | 87.4% |
+| `isaAbs((i => o), body: o)` | 8650 | 91.8% |
+| `isaAbs((o => (i => (i => i))), body: ((o => (i => (i => i))) => o))` | 5018 | 53.3% |
+| `isaAbs((o => (i => (i => i))), body: o)` | 5018 | 53.3% |
+| `isaAbs((o => (o => o)), body: ((o => (o => o)) => o))` | 7841 | 83.2% |
+| `isaAbs((o => (o => o)), body: o)` | 7841 | 83.2% |
+| `isaAbs((o => i), body: ((o => i) => o))` | 882 | 9.4% |
+| `isaAbs((o => i), body: o)` | 882 | 9.4% |
+| `isaAbs((o => o), body: ((o => o) => o))` | 7819 | 83.0% |
+| `isaAbs((o => o), body: o)` | 7819 | 83.0% |
+| `isaAbs(i, body: 'a)` | 3297 | 35.0% |
+| `isaAbs(i, body: ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o)))` | 1 | 0.0% |
+| `isaAbs(i, body: ((i => (i => (i => i))) => i))` | 30 | 0.3% |
+| `isaAbs(i, body: ((i => (i => (i => o))) => ((i => (i => i)) => o)))` | 60 | 0.6% |
+| `isaAbs(i, body: ((i => (i => (i => o))) => (i => (i => o))))` | 3 | 0.0% |
+| `isaAbs(i, body: ((i => (i => i)) => ((i => (i => i)) => i)))` | 9 | 0.1% |
+| `isaAbs(i, body: ((i => (i => i)) => (i => (i => i))))` | 55 | 0.6% |
+| `isaAbs(i, body: ((i => (i => i)) => (i => i)))` | 2493 | 26.5% |
+| `isaAbs(i, body: ((i => (i => i)) => (i => o)))` | 5033 | 53.4% |
+| `isaAbs(i, body: ((i => (i => i)) => i))` | 5018 | 53.3% |
+| `isaAbs(i, body: ((i => (i => i)) => o))` | 439 | 4.7% |
+| `isaAbs(i, body: ((i => (i => o)) => ((i => i) => o)))` | 63 | 0.7% |
+| `isaAbs(i, body: ((i => (i => o)) => (i => (i => o))))` | 348 | 3.7% |
+| `isaAbs(i, body: ((i => (i => o)) => (i => o)))` | 162 | 1.7% |
+| `isaAbs(i, body: ((i => (i => o)) => i))` | 8957 | 95.1% |
+| `isaAbs(i, body: ((i => (i => o)) => o))` | 599 | 6.4% |
+| `isaAbs(i, body: ((i => i) => ((i => i) => (i => o))))` | 7 | 0.1% |
+| `isaAbs(i, body: ((i => i) => (i => i)))` | 4781 | 50.8% |
+| `isaAbs(i, body: ((i => i) => i))` | 7209 | 76.5% |
+| `isaAbs(i, body: ((i => i) => o))` | 4846 | 51.4% |
+| `isaAbs(i, body: ((i => o) => (i => o)))` | 65 | 0.7% |
+| `isaAbs(i, body: ((i => o) => i))` | 8137 | 86.4% |
+| `isaAbs(i, body: ((i => o) => o))` | 8395 | 89.1% |
+| `isaAbs(i, body: (i => 'a))` | 3297 | 35.0% |
+| `isaAbs(i, body: (i => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o))))` | 1 | 0.0% |
+| `isaAbs(i, body: (i => ((i => (i => (i => o))) => ((i => (i => i)) => o))))` | 60 | 0.6% |
+| `isaAbs(i, body: (i => ((i => (i => i)) => ((i => (i => i)) => i))))` | 9 | 0.1% |
+| `isaAbs(i, body: (i => ((i => (i => i)) => (i => i))))` | 13 | 0.1% |
+| `isaAbs(i, body: (i => ((i => (i => i)) => (i => o))))` | 5033 | 53.4% |
+| `isaAbs(i, body: (i => ((i => (i => i)) => i)))` | 5018 | 53.3% |
+| `isaAbs(i, body: (i => ((i => (i => i)) => o)))` | 439 | 4.7% |
+| `isaAbs(i, body: (i => ((i => i) => ((i => i) => (i => o)))))` | 7 | 0.1% |
+| `isaAbs(i, body: (i => ((i => i) => o)))` | 21 | 0.2% |
+| `isaAbs(i, body: (i => (i => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o)))))` | 1 | 0.0% |
+| `isaAbs(i, body: (i => (i => ((i => (i => i)) => i))))` | 947 | 10.1% |
+| `isaAbs(i, body: (i => (i => ((i => i) => o))))` | 21 | 0.2% |
+| `isaAbs(i, body: (i => (i => (i => (i => (i => i))))))` | 39 | 0.4% |
+| `isaAbs(i, body: (i => (i => (i => (i => i)))))` | 493 | 5.2% |
+| `isaAbs(i, body: (i => (i => (i => (i => o)))))` | 201 | 2.1% |
+| `isaAbs(i, body: (i => (i => (i => i))))` | 2099 | 22.3% |
+| `isaAbs(i, body: (i => (i => (i => o))))` | 624 | 6.6% |
+| `isaAbs(i, body: (i => (i => i)))` | 3948 | 41.9% |
+| `isaAbs(i, body: (i => (i => o)))` | 1797 | 19.1% |
+| `isaAbs(i, body: (i => i))` | 8796 | 93.4% |
+| `isaAbs(i, body: (i => o))` | 9238 | 98.1% |
+| `isaAbs(i, body: i)` | 8930 | 94.8% |
+| `isaAbs(i, body: o)` | 9342 | 99.2% |
+| `isaAbs(o, body: (i => (i => i)))` | 5590 | 59.3% |
+| `isaAbs(o, body: (i => o))` | 132 | 1.4% |
+| `isaAbs(o, body: (o => o))` | 8409 | 89.3% |
+| `isaAbs(o, body: i)` | 983 | 10.4% |
+| `isaAbs(o, body: o)` | 8828 | 93.7% |
+| `isaAllElim(o, 'a)` | 7972 | 84.6% |
+| `isaAllElim(o, 'b)` | 4636 | 49.2% |
+| `isaAllElim(o, ('a => 'b))` | 4626 | 49.1% |
+| `isaAllElim(o, ('a => ('a => o)))` | 7578 | 80.4% |
+| `isaAllElim(o, ('a => ('b => o)))` | 1195 | 12.7% |
+| `isaAllElim(o, ('a => o))` | 7950 | 84.4% |
+| `isaAllElim(o, ('b => 'a))` | 439 | 4.7% |
+| `isaAllElim(o, ('b => ('b => o)))` | 4626 | 49.1% |
+| `isaAllElim(o, ('b => (('b => 'a) => 'a)))` | 439 | 4.7% |
+| `isaAllElim(o, ('b => o))` | 4634 | 49.2% |
+| `isaAllElim(o, (('a => o) => o))` | 7324 | 77.7% |
+| `isaAllElim(o, (('b => 'a) => 'a))` | 439 | 4.7% |
+| `isaAllElim(o, (('b => (('b => 'a) => 'a)) => (('b => (('b => 'a) => 'a)) => o)))` | 439 | 4.7% |
+| `isaAllElim(o, (('b => (('b => 'a) => 'a)) => o))` | 439 | 4.7% |
+| `isaAllElim(o, ((('a => o) => o) => ((('a => o) => o) => o)))` | 7323 | 77.7% |
+| `isaAllElim(o, ((('a => o) => o) => o))` | 7323 | 77.7% |
+| `isaAllElim(o, (((i => (i => 'a)) => (i => 'a)) => (((i => (i => 'a)) => (i => 'a)) => o)))` | 2773 | 29.4% |
+| `isaAllElim(o, (((i => (i => 'a)) => (i => 'a)) => o))` | 2773 | 29.4% |
+| `isaAllElim(o, (((i => (i => (i => i))) => (i => i)) => (((i => (i => (i => i))) => (i => i)) => o)))` | 4 | 0.0% |
+| `isaAllElim(o, (((i => (i => (i => i))) => (i => i)) => o))` | 4 | 0.0% |
+| `isaAllElim(o, (((i => (i => i)) => ((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => (i => i)))))) => (((i => (i => i)) => ((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => (i => i)))))) => o)))` | 38 | 0.4% |
+| `isaAllElim(o, (((i => (i => i)) => ((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => (i => i)))))) => o))` | 38 | 0.4% |
+| `isaAllElim(o, (((i => (i => i)) => (i => i)) => (((i => (i => i)) => (i => i)) => o)))` | 2760 | 29.3% |
+| `isaAllElim(o, (((i => (i => i)) => (i => i)) => o))` | 2760 | 29.3% |
+| `isaAllElim(o, (((i => i) => ((i => i) => (i => i))) => (((i => i) => ((i => i) => (i => i))) => o)))` | 2421 | 25.7% |
+| `isaAllElim(o, (((i => i) => ((i => i) => (i => i))) => o))` | 2421 | 25.7% |
+| `isaAllElim(o, (((i => i) => (i => i)) => (((i => i) => (i => i)) => o)))` | 514 | 5.5% |
+| `isaAllElim(o, (((i => i) => (i => i)) => o))` | 514 | 5.5% |
+| `isaAllElim(o, (((i => i) => o) => (((i => i) => o) => o)))` | 531 | 5.6% |
+| `isaAllElim(o, (((i => i) => o) => o))` | 531 | 5.6% |
+| `isaAllElim(o, (((i => o) => ((i => (i => (i => (i => (i => o))))) => ((i => (i => (i => (i => i)))) => o))) => (((i => o) => ((i => (i => (i => (i => (i => o))))) => ((i => (i => (i => (i => i)))) => o))) => o)))` | 1 | 0.0% |
+| `isaAllElim(o, (((i => o) => ((i => (i => (i => (i => (i => o))))) => ((i => (i => (i => (i => i)))) => o))) => o))` | 1 | 0.0% |
+| `isaAllElim(o, (((i => o) => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o))) => (((i => o) => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o))) => o)))` | 1 | 0.0% |
+| `isaAllElim(o, (((i => o) => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o))) => o))` | 1 | 0.0% |
+| `isaAllElim(o, (((i => o) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => o)) => (i => (i => o))))))) => (((i => o) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => o)) => (i => (i => o))))))) => o)))` | 70 | 0.7% |
+| `isaAllElim(o, (((i => o) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => o)) => (i => (i => o))))))) => o))` | 70 | 0.7% |
+| `isaAllElim(o, (((i => o) => ((i => (i => (i => o))) => ((i => (i => i)) => o))) => (((i => o) => ((i => (i => (i => o))) => ((i => (i => i)) => o))) => o)))` | 183 | 1.9% |
+| `isaAllElim(o, (((i => o) => ((i => (i => (i => o))) => ((i => (i => i)) => o))) => o))` | 183 | 1.9% |
+| `isaAllElim(o, (((i => o) => ((i => (i => (i => o))) => (i => (i => (i => o))))) => (((i => o) => ((i => (i => (i => o))) => (i => (i => (i => o))))) => o)))` | 318 | 3.4% |
+| `isaAllElim(o, (((i => o) => ((i => (i => (i => o))) => (i => (i => (i => o))))) => o))` | 318 | 3.4% |
+| `isaAllElim(o, (((i => o) => ((i => (i => (i => o))) => (i => (i => o)))) => (((i => o) => ((i => (i => (i => o))) => (i => (i => o)))) => o)))` | 53 | 0.6% |
+| `isaAllElim(o, (((i => o) => ((i => (i => (i => o))) => (i => (i => o)))) => o))` | 53 | 0.6% |
+| `isaAllElim(o, (((i => o) => ((i => (i => (i => o))) => (i => o))) => (((i => o) => ((i => (i => (i => o))) => (i => o))) => o)))` | 155 | 1.6% |
+| `isaAllElim(o, (((i => o) => ((i => (i => (i => o))) => (i => o))) => o))` | 155 | 1.6% |
+| `isaAllElim(o, (((i => o) => ((i => (i => o)) => ((i => i) => o))) => (((i => o) => ((i => (i => o)) => ((i => i) => o))) => o)))` | 128 | 1.4% |
+| `isaAllElim(o, (((i => o) => ((i => (i => o)) => ((i => i) => o))) => o))` | 128 | 1.4% |
+| `isaAllElim(o, (((i => o) => ((i => (i => o)) => (i => (i => (i => (i => o)))))) => (((i => o) => ((i => (i => o)) => (i => (i => (i => (i => o)))))) => o)))` | 243 | 2.6% |
+| `isaAllElim(o, (((i => o) => ((i => (i => o)) => (i => (i => (i => (i => o)))))) => o))` | 243 | 2.6% |
+| `isaAllElim(o, (((i => o) => ((i => (i => o)) => (i => (i => (i => o))))) => (((i => o) => ((i => (i => o)) => (i => (i => (i => o))))) => o)))` | 225 | 2.4% |
+| `isaAllElim(o, (((i => o) => ((i => (i => o)) => (i => (i => (i => o))))) => o))` | 225 | 2.4% |
+| `isaAllElim(o, (((i => o) => ((i => (i => o)) => (i => o))) => (((i => o) => ((i => (i => o)) => (i => o))) => o)))` | 141 | 1.5% |
+| `isaAllElim(o, (((i => o) => ((i => (i => o)) => (i => o))) => o))` | 141 | 1.5% |
+| `isaAllElim(o, (((i => o) => ((i => (i => o)) => o)) => (((i => o) => ((i => (i => o)) => o)) => o)))` | 585 | 6.2% |
+| `isaAllElim(o, (((i => o) => ((i => (i => o)) => o)) => o))` | 585 | 6.2% |
+| `isaAllElim(o, (((i => o) => ((i => o) => o)) => (((i => o) => ((i => o) => o)) => o)))` | 1163 | 12.3% |
+| `isaAllElim(o, (((i => o) => ((i => o) => o)) => o))` | 1163 | 12.3% |
+| `isaAllElim(o, (((i => o) => (i => ((i => (i => (i => o))) => (i => (i => o))))) => (((i => o) => (i => ((i => (i => (i => o))) => (i => (i => o))))) => o)))` | 3 | 0.0% |
+| `isaAllElim(o, (((i => o) => (i => ((i => (i => (i => o))) => (i => (i => o))))) => o))` | 3 | 0.0% |
+| `isaAllElim(o, (((i => o) => (i => ((i => (i => o)) => ((i => i) => o)))) => (((i => o) => (i => ((i => (i => o)) => ((i => i) => o)))) => o)))` | 44 | 0.5% |
+| `isaAllElim(o, (((i => o) => (i => ((i => (i => o)) => ((i => i) => o)))) => o))` | 44 | 0.5% |
+| `isaAllElim(o, (((i => o) => (i => ((i => (i => o)) => (i => (i => o))))) => (((i => o) => (i => ((i => (i => o)) => (i => (i => o))))) => o)))` | 249 | 2.6% |
+| `isaAllElim(o, (((i => o) => (i => ((i => (i => o)) => (i => (i => o))))) => o))` | 249 | 2.6% |
+| `isaAllElim(o, (((i => o) => (i => ((i => (i => o)) => (i => o)))) => (((i => o) => (i => ((i => (i => o)) => (i => o)))) => o)))` | 96 | 1.0% |
+| `isaAllElim(o, (((i => o) => (i => ((i => (i => o)) => (i => o)))) => o))` | 96 | 1.0% |
+| `isaAllElim(o, (((i => o) => (i => ((i => (i => o)) => o))) => (((i => o) => (i => ((i => (i => o)) => o))) => o)))` | 374 | 4.0% |
+| `isaAllElim(o, (((i => o) => (i => ((i => (i => o)) => o))) => o))` | 374 | 4.0% |
+| `isaAllElim(o, (((i => o) => (i => ((i => o) => (i => o)))) => (((i => o) => (i => ((i => o) => (i => o)))) => o)))` | 46 | 0.5% |
+| `isaAllElim(o, (((i => o) => (i => ((i => o) => (i => o)))) => o))` | 46 | 0.5% |
+| `isaAllElim(o, (((i => o) => (i => (i => ((i => (i => (i => o))) => ((i => (i => i)) => o))))) => (((i => o) => (i => (i => ((i => (i => (i => o))) => ((i => (i => i)) => o))))) => o)))` | 41 | 0.4% |
+| `isaAllElim(o, (((i => o) => (i => (i => ((i => (i => (i => o))) => ((i => (i => i)) => o))))) => o))` | 41 | 0.4% |
+| `isaAllElim(o, (((i => o) => (i => (i => (i => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o)))))) => (((i => o) => (i => (i => (i => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o)))))) => o)))` | 1 | 0.0% |
+| `isaAllElim(o, (((i => o) => (i => (i => (i => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o)))))) => o))` | 1 | 0.0% |
+| `isaAllElim(o, (((i => o) => (i => (i => (i => (i => (i => o)))))) => (((i => o) => (i => (i => (i => (i => (i => o)))))) => o)))` | 89 | 0.9% |
+| `isaAllElim(o, (((i => o) => (i => (i => (i => (i => (i => o)))))) => o))` | 89 | 0.9% |
+| `isaAllElim(o, (((i => o) => (i => (i => (i => (i => o))))) => (((i => o) => (i => (i => (i => (i => o))))) => o)))` | 117 | 1.2% |
+| `isaAllElim(o, (((i => o) => (i => (i => (i => (i => o))))) => o))` | 117 | 1.2% |
+| `isaAllElim(o, (((i => o) => (i => (i => (i => o)))) => (((i => o) => (i => (i => (i => o)))) => o)))` | 1025 | 10.9% |
+| `isaAllElim(o, (((i => o) => (i => (i => (i => o)))) => o))` | 1025 | 10.9% |
+| `isaAllElim(o, (((i => o) => (i => (i => i))) => (((i => o) => (i => (i => i))) => o)))` | 44 | 0.5% |
+| `isaAllElim(o, (((i => o) => (i => (i => i))) => o))` | 44 | 0.5% |
+| `isaAllElim(o, (((i => o) => (i => (i => o))) => (((i => o) => (i => (i => o))) => o)))` | 945 | 10.0% |
+| `isaAllElim(o, (((i => o) => (i => (i => o))) => o))` | 945 | 10.0% |
+| `isaAllElim(o, (((i => o) => (i => i)) => (((i => o) => (i => i)) => o)))` | 2 | 0.0% |
+| `isaAllElim(o, (((i => o) => (i => i)) => o))` | 2 | 0.0% |
+| `isaAllElim(o, (((i => o) => (i => o)) => (((i => o) => (i => o)) => o)))` | 670 | 7.1% |
+| `isaAllElim(o, (((i => o) => (i => o)) => o))` | 670 | 7.1% |
+| `isaAllElim(o, (((i => o) => (o => (i => o))) => (((i => o) => (o => (i => o))) => o)))` | 92 | 1.0% |
+| `isaAllElim(o, (((i => o) => (o => (i => o))) => o))` | 92 | 1.0% |
+| `isaAllElim(o, (((i => o) => i) => (((i => o) => i) => o)))` | 5274 | 56.0% |
+| `isaAllElim(o, (((i => o) => i) => o))` | 5274 | 56.0% |
+| `isaAllElim(o, (((i => o) => o) => (((i => o) => o) => o)))` | 4100 | 43.5% |
+| `isaAllElim(o, (((i => o) => o) => o))` | 4102 | 43.5% |
+| `isaAllElim(o, ((i => 'a) => ((i => 'a) => o)))` | 2739 | 29.1% |
+| `isaAllElim(o, ((i => 'a) => o))` | 2739 | 29.1% |
+| `isaAllElim(o, ((i => ((i => (i => (i => i))) => i)) => ((i => ((i => (i => (i => i))) => i)) => o)))` | 25 | 0.3% |
+| `isaAllElim(o, ((i => ((i => (i => (i => i))) => i)) => o))` | 25 | 0.3% |
+| `isaAllElim(o, ((i => ((i => (i => i)) => (i => (i => i)))) => ((i => ((i => (i => i)) => (i => (i => i)))) => o)))` | 53 | 0.6% |
+| `isaAllElim(o, ((i => ((i => (i => i)) => (i => (i => i)))) => o))` | 53 | 0.6% |
+| `isaAllElim(o, ((i => ((i => (i => i)) => (i => i))) => ((i => ((i => (i => i)) => (i => i))) => o)))` | 2044 | 21.7% |
+| `isaAllElim(o, ((i => ((i => (i => i)) => (i => i))) => o))` | 2044 | 21.7% |
+| `isaAllElim(o, ((i => ((i => (i => i)) => i)) => ((i => ((i => (i => i)) => i)) => o)))` | 3706 | 39.3% |
+| `isaAllElim(o, ((i => ((i => (i => i)) => i)) => o))` | 3706 | 39.3% |
+| `isaAllElim(o, ((i => ((i => (i => o)) => i)) => ((i => ((i => (i => o)) => i)) => o)))` | 7313 | 77.6% |
+| `isaAllElim(o, ((i => ((i => (i => o)) => i)) => o))` | 7313 | 77.6% |
+| `isaAllElim(o, ((i => ((i => i) => (i => i))) => ((i => ((i => i) => (i => i))) => o)))` | 3854 | 40.9% |
+| `isaAllElim(o, ((i => ((i => i) => (i => i))) => o))` | 3854 | 40.9% |
+| `isaAllElim(o, ((i => ((i => i) => i)) => ((i => ((i => i) => i)) => o)))` | 6215 | 66.0% |
+| `isaAllElim(o, ((i => ((i => i) => i)) => o))` | 6215 | 66.0% |
+| `isaAllElim(o, ((i => ((i => i) => o)) => ((i => ((i => i) => o)) => o)))` | 4841 | 51.4% |
+| `isaAllElim(o, ((i => ((i => i) => o)) => o))` | 4841 | 51.4% |
+| `isaAllElim(o, ((i => ((i => o) => i)) => ((i => ((i => o) => i)) => o)))` | 7247 | 76.9% |
+| `isaAllElim(o, ((i => ((i => o) => i)) => o))` | 7247 | 76.9% |
+| `isaAllElim(o, ((i => ((i => o) => o)) => ((i => ((i => o) => o)) => o)))` | 7493 | 79.5% |
+| `isaAllElim(o, ((i => ((i => o) => o)) => o))` | 7493 | 79.5% |
+| `isaAllElim(o, ((i => (i => 'a)) => (i => 'a)))` | 2773 | 29.4% |
+| `isaAllElim(o, ((i => (i => ((i => (i => i)) => ((i => (i => i)) => i)))) => ((i => (i => ((i => (i => i)) => ((i => (i => i)) => i)))) => o)))` | 8 | 0.1% |
+| `isaAllElim(o, ((i => (i => ((i => (i => i)) => ((i => (i => i)) => i)))) => o))` | 8 | 0.1% |
+| `isaAllElim(o, ((i => (i => ((i => (i => i)) => (i => o)))) => ((i => (i => ((i => (i => i)) => (i => o)))) => o)))` | 4068 | 43.2% |
+| `isaAllElim(o, ((i => (i => ((i => (i => i)) => (i => o)))) => o))` | 4068 | 43.2% |
+| `isaAllElim(o, ((i => (i => ((i => (i => i)) => i))) => ((i => (i => ((i => (i => i)) => i))) => o)))` | 4061 | 43.1% |
+| `isaAllElim(o, ((i => (i => ((i => (i => i)) => i))) => o))` | 4061 | 43.1% |
+| `isaAllElim(o, ((i => (i => ((i => (i => i)) => o))) => ((i => (i => ((i => (i => i)) => o))) => o)))` | 439 | 4.7% |
+| `isaAllElim(o, ((i => (i => ((i => (i => i)) => o))) => o))` | 439 | 4.7% |
+| `isaAllElim(o, ((i => (i => ((i => i) => ((i => i) => (i => o))))) => ((i => (i => ((i => i) => ((i => i) => (i => o))))) => o)))` | 7 | 0.1% |
+| `isaAllElim(o, ((i => (i => ((i => i) => ((i => i) => (i => o))))) => o))` | 7 | 0.1% |
+| `isaAllElim(o, ((i => (i => (i => ((i => (i => i)) => i)))) => ((i => (i => (i => ((i => (i => i)) => i)))) => o)))` | 896 | 9.5% |
+| `isaAllElim(o, ((i => (i => (i => ((i => (i => i)) => i)))) => o))` | 896 | 9.5% |
+| `isaAllElim(o, ((i => (i => (i => ((i => i) => o)))) => ((i => (i => (i => ((i => i) => o)))) => o)))` | 21 | 0.2% |
+| `isaAllElim(o, ((i => (i => (i => ((i => i) => o)))) => o))` | 21 | 0.2% |
+| `isaAllElim(o, ((i => (i => (i => (i => (i => (i => i)))))) => ((i => (i => (i => (i => (i => (i => i)))))) => o)))` | 35 | 0.4% |
+| `isaAllElim(o, ((i => (i => (i => (i => (i => (i => i)))))) => o))` | 35 | 0.4% |
+| `isaAllElim(o, ((i => (i => (i => (i => (i => i))))) => ((i => (i => (i => (i => (i => i))))) => o)))` | 187 | 2.0% |
+| `isaAllElim(o, ((i => (i => (i => (i => (i => i))))) => o))` | 187 | 2.0% |
+| `isaAllElim(o, ((i => (i => (i => (i => (i => o))))) => ((i => (i => (i => (i => (i => o))))) => o)))` | 9 | 0.1% |
+| `isaAllElim(o, ((i => (i => (i => (i => (i => o))))) => ((i => (i => (i => (i => i)))) => o)))` | 1 | 0.0% |
+| `isaAllElim(o, ((i => (i => (i => (i => (i => o))))) => o))` | 9 | 0.1% |
+| `isaAllElim(o, ((i => (i => (i => (i => i)))) => ((i => (i => (i => (i => i)))) => o)))` | 1108 | 11.8% |
+| `isaAllElim(o, ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => (i => i)))))` | 38 | 0.4% |
+| `isaAllElim(o, ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => i))))` | 24 | 0.3% |
+| `isaAllElim(o, ((i => (i => (i => (i => i)))) => o))` | 1109 | 11.8% |
+| `isaAllElim(o, ((i => (i => (i => (i => o)))) => ((i => (i => (i => (i => o)))) => o)))` | 114 | 1.2% |
+| `isaAllElim(o, ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o)))` | 2 | 0.0% |
+| `isaAllElim(o, ((i => (i => (i => (i => o)))) => o))` | 114 | 1.2% |
+| `isaAllElim(o, ((i => (i => (i => i))) => ((i => (i => (i => i))) => o)))` | 3075 | 32.6% |
+| `isaAllElim(o, ((i => (i => (i => i))) => ((i => (i => i)) => (i => i))))` | 10 | 0.1% |
+| `isaAllElim(o, ((i => (i => (i => i))) => (i => (i => i))))` | 103 | 1.1% |
+| `isaAllElim(o, ((i => (i => (i => i))) => (i => i)))` | 1096 | 11.6% |
+| `isaAllElim(o, ((i => (i => (i => i))) => i))` | 25 | 0.3% |
+| `isaAllElim(o, ((i => (i => (i => i))) => o))` | 3077 | 32.7% |
+| `isaAllElim(o, ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => o)) => (i => (i => o)))))))` | 70 | 0.7% |
+| `isaAllElim(o, ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => o)) => (i => (i => o))))))` | 70 | 0.7% |
+| `isaAllElim(o, ((i => (i => (i => o))) => ((i => (i => (i => o))) => o)))` | 284 | 3.0% |
+| `isaAllElim(o, ((i => (i => (i => o))) => ((i => (i => i)) => o)))` | 185 | 2.0% |
+| `isaAllElim(o, ((i => (i => (i => o))) => ((i => (i => o)) => (i => (i => o)))))` | 70 | 0.7% |
+| `isaAllElim(o, ((i => (i => (i => o))) => (i => (i => (i => o)))))` | 318 | 3.4% |
+| `isaAllElim(o, ((i => (i => (i => o))) => (i => (i => o))))` | 149 | 1.6% |
+| `isaAllElim(o, ((i => (i => (i => o))) => (i => o)))` | 156 | 1.7% |
+| `isaAllElim(o, ((i => (i => (i => o))) => o))` | 284 | 3.0% |
+| `isaAllElim(o, ((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => (i => i))))))` | 38 | 0.4% |
+| `isaAllElim(o, ((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => i)))))` | 24 | 0.3% |
+| `isaAllElim(o, ((i => (i => i)) => ((i => (i => (i => i))) => ((i => (i => i)) => (i => i)))))` | 10 | 0.1% |
+| `isaAllElim(o, ((i => (i => i)) => ((i => (i => (i => i))) => (i => i))))` | 37 | 0.4% |
+| `isaAllElim(o, ((i => (i => i)) => ((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => (i => i)))))))` | 38 | 0.4% |
+| `isaAllElim(o, ((i => (i => i)) => ((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => i))))))` | 24 | 0.3% |
+| `isaAllElim(o, ((i => (i => i)) => ((i => (i => i)) => ((i => (i => (i => i))) => (i => i)))))` | 21 | 0.2% |
+| `isaAllElim(o, ((i => (i => i)) => ((i => (i => i)) => (i => i))))` | 23 | 0.2% |
+| `isaAllElim(o, ((i => (i => i)) => ((i => (i => i)) => i)))` | 8 | 0.1% |
+| `isaAllElim(o, ((i => (i => i)) => ((i => (i => i)) => o)))` | 6923 | 73.5% |
+| `isaAllElim(o, ((i => (i => i)) => ((i => i) => (i => i))))` | 965 | 10.2% |
+| `isaAllElim(o, ((i => (i => i)) => (i => ((i => (i => i)) => (i => i)))))` | 35 | 0.4% |
+| `isaAllElim(o, ((i => (i => i)) => (i => (i => i))))` | 91 | 1.0% |
+| `isaAllElim(o, ((i => (i => i)) => (i => i)))` | 2884 | 30.6% |
+| `isaAllElim(o, ((i => (i => i)) => (i => o)))` | 4068 | 43.2% |
+| `isaAllElim(o, ((i => (i => i)) => i))` | 4065 | 43.2% |
+| `isaAllElim(o, ((i => (i => i)) => o))` | 6927 | 73.5% |
+| `isaAllElim(o, ((i => (i => o)) => ((i => (i => o)) => o)))` | 7387 | 78.4% |
+| `isaAllElim(o, ((i => (i => o)) => ((i => i) => o)))` | 132 | 1.4% |
+| `isaAllElim(o, ((i => (i => o)) => (i => (i => (i => (i => o))))))` | 243 | 2.6% |
+| `isaAllElim(o, ((i => (i => o)) => (i => (i => (i => o)))))` | 225 | 2.4% |
+| `isaAllElim(o, ((i => (i => o)) => (i => (i => o))))` | 250 | 2.7% |
+| `isaAllElim(o, ((i => (i => o)) => (i => o)))` | 344 | 3.7% |
+| `isaAllElim(o, ((i => (i => o)) => i))` | 7313 | 77.6% |
+| `isaAllElim(o, ((i => (i => o)) => o))` | 7404 | 78.6% |
+| `isaAllElim(o, ((i => i) => ((i => (i => (i => i))) => (i => i))))` | 92 | 1.0% |
+| `isaAllElim(o, ((i => i) => ((i => (i => i)) => ((i => (i => i)) => (i => i)))))` | 23 | 0.2% |
+| `isaAllElim(o, ((i => i) => ((i => i) => (i => i))))` | 2421 | 25.7% |
+| `isaAllElim(o, ((i => i) => ((i => i) => (i => o))))` | 7 | 0.1% |
+| `isaAllElim(o, ((i => i) => ((i => i) => o)))` | 6847 | 72.7% |
+| `isaAllElim(o, ((i => i) => (i => (i => i))))` | 442 | 4.7% |
+| `isaAllElim(o, ((i => i) => (i => i)))` | 4223 | 44.8% |
+| `isaAllElim(o, ((i => i) => (i => o)))` | 7 | 0.1% |
+| `isaAllElim(o, ((i => i) => i))` | 6229 | 66.1% |
+| `isaAllElim(o, ((i => i) => o))` | 6955 | 73.8% |
+| `isaAllElim(o, ((i => o) => ((i => (i => (i => (i => (i => o))))) => ((i => (i => (i => (i => i)))) => o))))` | 1 | 0.0% |
+| `isaAllElim(o, ((i => o) => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o))))` | 1 | 0.0% |
+| `isaAllElim(o, ((i => o) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => o)) => (i => (i => o))))))))` | 70 | 0.7% |
+| `isaAllElim(o, ((i => o) => ((i => (i => (i => o))) => ((i => (i => i)) => o))))` | 183 | 1.9% |
+| `isaAllElim(o, ((i => o) => ((i => (i => (i => o))) => (i => (i => (i => o))))))` | 318 | 3.4% |
+| `isaAllElim(o, ((i => o) => ((i => (i => (i => o))) => (i => (i => o)))))` | 53 | 0.6% |
+| `isaAllElim(o, ((i => o) => ((i => (i => (i => o))) => (i => o))))` | 155 | 1.6% |
+| `isaAllElim(o, ((i => o) => ((i => (i => o)) => ((i => i) => o))))` | 128 | 1.4% |
+| `isaAllElim(o, ((i => o) => ((i => (i => o)) => (i => (i => (i => (i => o)))))))` | 243 | 2.6% |
+| `isaAllElim(o, ((i => o) => ((i => (i => o)) => (i => (i => (i => o))))))` | 225 | 2.4% |
+| `isaAllElim(o, ((i => o) => ((i => (i => o)) => (i => o))))` | 141 | 1.5% |
+| `isaAllElim(o, ((i => o) => ((i => (i => o)) => o)))` | 597 | 6.3% |
+| `isaAllElim(o, ((i => o) => ((i => o) => ((i => (i => o)) => o))))` | 429 | 4.6% |
+| `isaAllElim(o, ((i => o) => ((i => o) => o)))` | 5453 | 57.9% |
+| `isaAllElim(o, ((i => o) => (i => ((i => (i => (i => o))) => (i => (i => o))))))` | 3 | 0.0% |
+| `isaAllElim(o, ((i => o) => (i => ((i => (i => o)) => ((i => i) => o)))))` | 44 | 0.5% |
+| `isaAllElim(o, ((i => o) => (i => ((i => (i => o)) => (i => (i => o))))))` | 249 | 2.6% |
+| `isaAllElim(o, ((i => o) => (i => ((i => (i => o)) => (i => o)))))` | 96 | 1.0% |
+| `isaAllElim(o, ((i => o) => (i => ((i => (i => o)) => o))))` | 374 | 4.0% |
+| `isaAllElim(o, ((i => o) => (i => ((i => o) => (i => o)))))` | 46 | 0.5% |
+| `isaAllElim(o, ((i => o) => (i => (i => ((i => (i => (i => o))) => ((i => (i => i)) => o))))))` | 41 | 0.4% |
+| `isaAllElim(o, ((i => o) => (i => (i => (i => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o)))))))` | 1 | 0.0% |
+| `isaAllElim(o, ((i => o) => (i => (i => (i => (i => (i => o)))))))` | 89 | 0.9% |
+| `isaAllElim(o, ((i => o) => (i => (i => (i => (i => o))))))` | 225 | 2.4% |
+| `isaAllElim(o, ((i => o) => (i => (i => (i => o)))))` | 1026 | 10.9% |
+| `isaAllElim(o, ((i => o) => (i => (i => i))))` | 44 | 0.5% |
+| `isaAllElim(o, ((i => o) => (i => (i => o))))` | 946 | 10.0% |
+| `isaAllElim(o, ((i => o) => (i => i)))` | 445 | 4.7% |
+| `isaAllElim(o, ((i => o) => (i => o)))` | 838 | 8.9% |
+| `isaAllElim(o, ((i => o) => (o => (i => o))))` | 92 | 1.0% |
+| `isaAllElim(o, ((i => o) => i))` | 7257 | 77.0% |
+| `isaAllElim(o, ((i => o) => o))` | 7746 | 82.2% |
+| `isaAllElim(o, ((o => (i => (i => i))) => ((o => (i => (i => i))) => o)))` | 5018 | 53.3% |
+| `isaAllElim(o, ((o => (i => (i => i))) => o))` | 5018 | 53.3% |
+| `isaAllElim(o, ((o => (o => o)) => ((o => (o => o)) => o)))` | 7841 | 83.2% |
+| `isaAllElim(o, ((o => (o => o)) => o))` | 7841 | 83.2% |
+| `isaAllElim(o, ((o => i) => ((o => i) => o)))` | 882 | 9.4% |
+| `isaAllElim(o, ((o => i) => o))` | 882 | 9.4% |
+| `isaAllElim(o, ((o => o) => ((o => o) => o)))` | 7819 | 83.0% |
+| `isaAllElim(o, ((o => o) => o))` | 7819 | 83.0% |
+| `isaAllElim(o, (i => 'a))` | 2773 | 29.4% |
+| `isaAllElim(o, (i => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o))))` | 1 | 0.0% |
+| `isaAllElim(o, (i => ((i => (i => (i => i))) => i)))` | 25 | 0.3% |
+| `isaAllElim(o, (i => ((i => (i => (i => o))) => ((i => (i => i)) => o))))` | 41 | 0.4% |
+| `isaAllElim(o, (i => ((i => (i => (i => o))) => (i => (i => o)))))` | 3 | 0.0% |
+| `isaAllElim(o, (i => ((i => (i => i)) => ((i => (i => i)) => i))))` | 8 | 0.1% |
+| `isaAllElim(o, (i => ((i => (i => i)) => (i => (i => i)))))` | 53 | 0.6% |
+| `isaAllElim(o, (i => ((i => (i => i)) => (i => i))))` | 2100 | 22.3% |
+| `isaAllElim(o, (i => ((i => (i => i)) => (i => o))))` | 4068 | 43.2% |
+| `isaAllElim(o, (i => ((i => (i => i)) => i)))` | 4064 | 43.1% |
+| `isaAllElim(o, (i => ((i => (i => i)) => o)))` | 439 | 4.7% |
+| `isaAllElim(o, (i => ((i => (i => o)) => ((i => i) => o))))` | 44 | 0.5% |
+| `isaAllElim(o, (i => ((i => (i => o)) => (i => (i => o)))))` | 249 | 2.6% |
+| `isaAllElim(o, (i => ((i => (i => o)) => (i => o))))` | 96 | 1.0% |
+| `isaAllElim(o, (i => ((i => (i => o)) => i)))` | 7313 | 77.6% |
+| `isaAllElim(o, (i => ((i => (i => o)) => o)))` | 374 | 4.0% |
+| `isaAllElim(o, (i => ((i => i) => ((i => i) => (i => o)))))` | 7 | 0.1% |
+| `isaAllElim(o, (i => ((i => i) => (i => i))))` | 3854 | 40.9% |
+| `isaAllElim(o, (i => ((i => i) => i)))` | 6226 | 66.1% |
+| `isaAllElim(o, (i => ((i => i) => o)))` | 4845 | 51.4% |
+| `isaAllElim(o, (i => ((i => o) => (i => o))))` | 46 | 0.5% |
+| `isaAllElim(o, (i => ((i => o) => i)))` | 7247 | 76.9% |
+| `isaAllElim(o, (i => ((i => o) => o)))` | 7494 | 79.6% |
+| `isaAllElim(o, (i => (i => 'a)))` | 2773 | 29.4% |
+| `isaAllElim(o, (i => (i => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o)))))` | 1 | 0.0% |
+| `isaAllElim(o, (i => (i => ((i => (i => (i => o))) => ((i => (i => i)) => o)))))` | 41 | 0.4% |
+| `isaAllElim(o, (i => (i => ((i => (i => i)) => ((i => (i => i)) => i)))))` | 8 | 0.1% |
+| `isaAllElim(o, (i => (i => ((i => (i => i)) => (i => i)))))` | 13 | 0.1% |
+| `isaAllElim(o, (i => (i => ((i => (i => i)) => (i => o)))))` | 4068 | 43.2% |
+| `isaAllElim(o, (i => (i => ((i => (i => i)) => i))))` | 4062 | 43.1% |
+| `isaAllElim(o, (i => (i => ((i => (i => i)) => o))))` | 439 | 4.7% |
+| `isaAllElim(o, (i => (i => ((i => i) => ((i => i) => (i => o))))))` | 7 | 0.1% |
+| `isaAllElim(o, (i => (i => ((i => i) => o))))` | 21 | 0.2% |
+| `isaAllElim(o, (i => (i => (i => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o))))))` | 1 | 0.0% |
+| `isaAllElim(o, (i => (i => (i => ((i => (i => i)) => i)))))` | 896 | 9.5% |
+| `isaAllElim(o, (i => (i => (i => ((i => i) => o)))))` | 21 | 0.2% |
+| `isaAllElim(o, (i => (i => (i => (i => (i => (i => i)))))))` | 35 | 0.4% |
+| `isaAllElim(o, (i => (i => (i => (i => (i => i))))))` | 341 | 3.6% |
+| `isaAllElim(o, (i => (i => (i => (i => (i => o))))))` | 99 | 1.1% |
+| `isaAllElim(o, (i => (i => (i => (i => i)))))` | 1733 | 18.4% |
+| `isaAllElim(o, (i => (i => (i => (i => o)))))` | 435 | 4.6% |
+| `isaAllElim(o, (i => (i => (i => i))))` | 3237 | 34.4% |
+| `isaAllElim(o, (i => (i => (i => o))))` | 1482 | 15.7% |
+| `isaAllElim(o, (i => (i => i)))` | 7133 | 75.7% |
+| `isaAllElim(o, (i => (i => o)))` | 8027 | 85.2% |
+| `isaAllElim(o, (i => i))` | 7693 | 81.7% |
+| `isaAllElim(o, (i => o))` | 8423 | 89.4% |
+| `isaAllElim(o, (o => (i => (i => i))))` | 5020 | 53.3% |
+| `isaAllElim(o, (o => (i => o)))` | 92 | 1.0% |
+| `isaAllElim(o, (o => (o => o)))` | 8323 | 88.4% |
+| `isaAllElim(o, (o => i))` | 883 | 9.4% |
+| `isaAllElim(o, (o => o))` | 8432 | 89.5% |
+| `isaAllElim(o, i)` | 8951 | 95.0% |
+| `isaAllElim(o, o)` | 8838 | 93.8% |
+| `isaAllIntro('a, body: o)` | 7971 | 84.6% |
+| `isaAllIntro('b, body: o)` | 2990 | 31.7% |
+| `isaAllIntro(('a => 'b), body: o)` | 4626 | 49.1% |
+| `isaAllIntro(('a => ('b => o)), body: o)` | 1195 | 12.7% |
+| `isaAllIntro(('a => o), body: o)` | 7941 | 84.3% |
+| `isaAllIntro(('b => 'a), body: o)` | 439 | 4.7% |
+| `isaAllIntro(('b => (('b => 'a) => 'a)), body: o)` | 439 | 4.7% |
+| `isaAllIntro((('a => o) => o), body: o)` | 7323 | 77.7% |
+| `isaAllIntro(((i => (i => 'a)) => (i => 'a)), body: o)` | 2773 | 29.4% |
+| `isaAllIntro(((i => (i => (i => i))) => (i => i)), body: o)` | 4 | 0.0% |
+| `isaAllIntro(((i => (i => i)) => ((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => (i => i)))))), body: o)` | 38 | 0.4% |
+| `isaAllIntro(((i => (i => i)) => (i => i)), body: o)` | 2760 | 29.3% |
+| `isaAllIntro(((i => i) => ((i => i) => (i => i))), body: o)` | 2421 | 25.7% |
+| `isaAllIntro(((i => i) => (i => i)), body: o)` | 514 | 5.5% |
+| `isaAllIntro(((i => i) => o), body: o)` | 531 | 5.6% |
+| `isaAllIntro(((i => o) => ((i => (i => (i => (i => (i => o))))) => ((i => (i => (i => (i => i)))) => o))), body: o)` | 1 | 0.0% |
+| `isaAllIntro(((i => o) => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o))), body: o)` | 1 | 0.0% |
+| `isaAllIntro(((i => o) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => o)) => (i => (i => o))))))), body: o)` | 70 | 0.7% |
+| `isaAllIntro(((i => o) => ((i => (i => (i => o))) => ((i => (i => i)) => o))), body: o)` | 183 | 1.9% |
+| `isaAllIntro(((i => o) => ((i => (i => (i => o))) => (i => (i => (i => o))))), body: o)` | 318 | 3.4% |
+| `isaAllIntro(((i => o) => ((i => (i => (i => o))) => (i => (i => o)))), body: o)` | 53 | 0.6% |
+| `isaAllIntro(((i => o) => ((i => (i => (i => o))) => (i => o))), body: o)` | 155 | 1.6% |
+| `isaAllIntro(((i => o) => ((i => (i => o)) => ((i => i) => o))), body: o)` | 128 | 1.4% |
+| `isaAllIntro(((i => o) => ((i => (i => o)) => (i => (i => (i => (i => o)))))), body: o)` | 243 | 2.6% |
+| `isaAllIntro(((i => o) => ((i => (i => o)) => (i => (i => (i => o))))), body: o)` | 225 | 2.4% |
+| `isaAllIntro(((i => o) => ((i => (i => o)) => (i => o))), body: o)` | 141 | 1.5% |
+| `isaAllIntro(((i => o) => ((i => (i => o)) => o)), body: o)` | 585 | 6.2% |
+| `isaAllIntro(((i => o) => ((i => o) => ((i => (i => o)) => o))), body: o)` | 429 | 4.6% |
+| `isaAllIntro(((i => o) => ((i => o) => o)), body: o)` | 1163 | 12.3% |
+| `isaAllIntro(((i => o) => (i => ((i => (i => (i => o))) => (i => (i => o))))), body: o)` | 3 | 0.0% |
+| `isaAllIntro(((i => o) => (i => ((i => (i => o)) => ((i => i) => o)))), body: o)` | 44 | 0.5% |
+| `isaAllIntro(((i => o) => (i => ((i => (i => o)) => (i => (i => o))))), body: o)` | 249 | 2.6% |
+| `isaAllIntro(((i => o) => (i => ((i => (i => o)) => (i => o)))), body: o)` | 96 | 1.0% |
+| `isaAllIntro(((i => o) => (i => ((i => (i => o)) => o))), body: o)` | 374 | 4.0% |
+| `isaAllIntro(((i => o) => (i => ((i => o) => (i => o)))), body: o)` | 46 | 0.5% |
+| `isaAllIntro(((i => o) => (i => (i => ((i => (i => (i => o))) => ((i => (i => i)) => o))))), body: o)` | 41 | 0.4% |
+| `isaAllIntro(((i => o) => (i => (i => (i => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o)))))), body: o)` | 1 | 0.0% |
+| `isaAllIntro(((i => o) => (i => (i => (i => (i => (i => o)))))), body: o)` | 89 | 0.9% |
+| `isaAllIntro(((i => o) => (i => (i => (i => (i => o))))), body: o)` | 225 | 2.4% |
+| `isaAllIntro(((i => o) => (i => (i => (i => o)))), body: o)` | 1026 | 10.9% |
+| `isaAllIntro(((i => o) => (i => (i => i))), body: o)` | 44 | 0.5% |
+| `isaAllIntro(((i => o) => (i => (i => o))), body: o)` | 946 | 10.0% |
+| `isaAllIntro(((i => o) => (i => i)), body: o)` | 438 | 4.6% |
+| `isaAllIntro(((i => o) => (i => o)), body: o)` | 827 | 8.8% |
+| `isaAllIntro(((i => o) => (o => (i => o))), body: o)` | 92 | 1.0% |
+| `isaAllIntro(((i => o) => i), body: o)` | 5274 | 56.0% |
+| `isaAllIntro(((i => o) => o), body: o)` | 4185 | 44.4% |
+| `isaAllIntro((i => ((i => (i => (i => i))) => i)), body: o)` | 25 | 0.3% |
+| `isaAllIntro((i => ((i => (i => i)) => (i => (i => i)))), body: o)` | 53 | 0.6% |
+| `isaAllIntro((i => ((i => (i => i)) => (i => i))), body: o)` | 2044 | 21.7% |
+| `isaAllIntro((i => ((i => (i => i)) => i)), body: o)` | 3706 | 39.3% |
+| `isaAllIntro((i => ((i => (i => o)) => i)), body: o)` | 7313 | 77.6% |
+| `isaAllIntro((i => ((i => i) => (i => i))), body: o)` | 3854 | 40.9% |
+| `isaAllIntro((i => ((i => i) => i)), body: o)` | 6215 | 66.0% |
+| `isaAllIntro((i => ((i => i) => o)), body: o)` | 4841 | 51.4% |
+| `isaAllIntro((i => ((i => o) => i)), body: o)` | 7247 | 76.9% |
+| `isaAllIntro((i => ((i => o) => o)), body: o)` | 7493 | 79.5% |
+| `isaAllIntro((i => (i => 'a)), body: o)` | 2773 | 29.4% |
+| `isaAllIntro((i => (i => ((i => (i => i)) => ((i => (i => i)) => i)))), body: o)` | 8 | 0.1% |
+| `isaAllIntro((i => (i => ((i => (i => i)) => (i => o)))), body: o)` | 4068 | 43.2% |
+| `isaAllIntro((i => (i => ((i => (i => i)) => i))), body: o)` | 4061 | 43.1% |
+| `isaAllIntro((i => (i => ((i => (i => i)) => o))), body: o)` | 439 | 4.7% |
+| `isaAllIntro((i => (i => ((i => i) => ((i => i) => (i => o))))), body: o)` | 7 | 0.1% |
+| `isaAllIntro((i => (i => (i => ((i => (i => i)) => i)))), body: o)` | 896 | 9.5% |
+| `isaAllIntro((i => (i => (i => ((i => i) => o)))), body: o)` | 21 | 0.2% |
+| `isaAllIntro((i => (i => (i => (i => (i => (i => i)))))), body: o)` | 35 | 0.4% |
+| `isaAllIntro((i => (i => (i => (i => (i => i))))), body: o)` | 340 | 3.6% |
+| `isaAllIntro((i => (i => (i => (i => (i => o))))), body: o)` | 10 | 0.1% |
+| `isaAllIntro((i => (i => (i => (i => i)))), body: o)` | 1635 | 17.4% |
+| `isaAllIntro((i => (i => (i => (i => o)))), body: o)` | 166 | 1.8% |
+| `isaAllIntro((i => (i => (i => i))), body: o)` | 3110 | 33.0% |
+| `isaAllIntro((i => (i => (i => o))), body: o)` | 958 | 10.2% |
+| `isaAllIntro((i => (i => i)), body: o)` | 7012 | 74.4% |
+| `isaAllIntro((i => (i => o)), body: o)` | 7514 | 79.8% |
+| `isaAllIntro((i => i), body: o)` | 7172 | 76.1% |
+| `isaAllIntro((i => o), body: o)` | 7948 | 84.4% |
+| `isaAllIntro((o => (i => (i => i))), body: o)` | 5018 | 53.3% |
+| `isaAllIntro((o => (o => o)), body: o)` | 7841 | 83.2% |
+| `isaAllIntro((o => i), body: o)` | 882 | 9.4% |
+| `isaAllIntro((o => o), body: o)` | 7819 | 83.0% |
+| `isaAllIntro(dummy, body: o)` | 28 | 0.3% |
+| `isaAllIntro(i, body: o)` | 8951 | 95.0% |
+| `isaAllIntro(o, body: o)` | 8205 | 87.1% |
+| `isaBound('a)` | 9179 | 97.4% |
+| `isaBound('b)` | 4636 | 49.2% |
+| `isaBound(('a => 'b))` | 4655 | 49.4% |
+| `isaBound(('a => ('a => o)))` | 7578 | 80.4% |
+| `isaBound(('a => ('b => o)))` | 1195 | 12.7% |
+| `isaBound(('a => o))` | 9167 | 97.3% |
+| `isaBound(('b => 'a))` | 439 | 4.7% |
+| `isaBound(('b => ('b => o)))` | 4626 | 49.1% |
+| `isaBound(('b => (('b => 'a) => 'a)))` | 439 | 4.7% |
+| `isaBound(('b => o))` | 4634 | 49.2% |
+| `isaBound((('a => o) => o))` | 7324 | 77.7% |
+| `isaBound((('b => 'a) => 'a))` | 439 | 4.7% |
+| `isaBound((('b => (('b => 'a) => 'a)) => (('b => (('b => 'a) => 'a)) => o)))` | 439 | 4.7% |
+| `isaBound((('b => (('b => 'a) => 'a)) => o))` | 439 | 4.7% |
+| `isaBound(((('a => o) => o) => ((('a => o) => o) => o)))` | 7323 | 77.7% |
+| `isaBound(((('a => o) => o) => o))` | 7323 | 77.7% |
+| `isaBound((((i => (i => 'a)) => (i => 'a)) => (((i => (i => 'a)) => (i => 'a)) => o)))` | 2773 | 29.4% |
+| `isaBound((((i => (i => 'a)) => (i => 'a)) => o))` | 2773 | 29.4% |
+| `isaBound((((i => (i => (i => i))) => (i => i)) => (((i => (i => (i => i))) => (i => i)) => o)))` | 4 | 0.0% |
+| `isaBound((((i => (i => (i => i))) => (i => i)) => o))` | 4 | 0.0% |
+| `isaBound((((i => (i => i)) => ((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => (i => i)))))) => (((i => (i => i)) => ((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => (i => i)))))) => o)))` | 38 | 0.4% |
+| `isaBound((((i => (i => i)) => ((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => (i => i)))))) => o))` | 38 | 0.4% |
+| `isaBound((((i => (i => i)) => (i => i)) => (((i => (i => i)) => (i => i)) => o)))` | 2760 | 29.3% |
+| `isaBound((((i => (i => i)) => (i => i)) => o))` | 2760 | 29.3% |
+| `isaBound((((i => i) => ((i => i) => (i => i))) => (((i => i) => ((i => i) => (i => i))) => o)))` | 2421 | 25.7% |
+| `isaBound((((i => i) => ((i => i) => (i => i))) => o))` | 2421 | 25.7% |
+| `isaBound((((i => i) => (i => i)) => (((i => i) => (i => i)) => o)))` | 514 | 5.5% |
+| `isaBound((((i => i) => (i => i)) => o))` | 514 | 5.5% |
+| `isaBound((((i => i) => o) => (((i => i) => o) => o)))` | 531 | 5.6% |
+| `isaBound((((i => i) => o) => o))` | 531 | 5.6% |
+| `isaBound((((i => o) => ((i => (i => (i => (i => (i => o))))) => ((i => (i => (i => (i => i)))) => o))) => (((i => o) => ((i => (i => (i => (i => (i => o))))) => ((i => (i => (i => (i => i)))) => o))) => o)))` | 1 | 0.0% |
+| `isaBound((((i => o) => ((i => (i => (i => (i => (i => o))))) => ((i => (i => (i => (i => i)))) => o))) => o))` | 1 | 0.0% |
+| `isaBound((((i => o) => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o))) => (((i => o) => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o))) => o)))` | 1 | 0.0% |
+| `isaBound((((i => o) => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o))) => o))` | 1 | 0.0% |
+| `isaBound((((i => o) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => o)) => (i => (i => o))))))) => (((i => o) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => o)) => (i => (i => o))))))) => o)))` | 70 | 0.7% |
+| `isaBound((((i => o) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => o)) => (i => (i => o))))))) => o))` | 70 | 0.7% |
+| `isaBound((((i => o) => ((i => (i => (i => o))) => ((i => (i => i)) => o))) => (((i => o) => ((i => (i => (i => o))) => ((i => (i => i)) => o))) => o)))` | 183 | 1.9% |
+| `isaBound((((i => o) => ((i => (i => (i => o))) => ((i => (i => i)) => o))) => o))` | 183 | 1.9% |
+| `isaBound((((i => o) => ((i => (i => (i => o))) => (i => (i => (i => o))))) => (((i => o) => ((i => (i => (i => o))) => (i => (i => (i => o))))) => o)))` | 318 | 3.4% |
+| `isaBound((((i => o) => ((i => (i => (i => o))) => (i => (i => (i => o))))) => o))` | 318 | 3.4% |
+| `isaBound((((i => o) => ((i => (i => (i => o))) => (i => (i => o)))) => (((i => o) => ((i => (i => (i => o))) => (i => (i => o)))) => o)))` | 53 | 0.6% |
+| `isaBound((((i => o) => ((i => (i => (i => o))) => (i => (i => o)))) => o))` | 53 | 0.6% |
+| `isaBound((((i => o) => ((i => (i => (i => o))) => (i => o))) => (((i => o) => ((i => (i => (i => o))) => (i => o))) => o)))` | 155 | 1.6% |
+| `isaBound((((i => o) => ((i => (i => (i => o))) => (i => o))) => o))` | 155 | 1.6% |
+| `isaBound((((i => o) => ((i => (i => o)) => ((i => i) => o))) => (((i => o) => ((i => (i => o)) => ((i => i) => o))) => o)))` | 128 | 1.4% |
+| `isaBound((((i => o) => ((i => (i => o)) => ((i => i) => o))) => o))` | 128 | 1.4% |
+| `isaBound((((i => o) => ((i => (i => o)) => (i => (i => (i => (i => o)))))) => (((i => o) => ((i => (i => o)) => (i => (i => (i => (i => o)))))) => o)))` | 243 | 2.6% |
+| `isaBound((((i => o) => ((i => (i => o)) => (i => (i => (i => (i => o)))))) => o))` | 243 | 2.6% |
+| `isaBound((((i => o) => ((i => (i => o)) => (i => (i => (i => o))))) => (((i => o) => ((i => (i => o)) => (i => (i => (i => o))))) => o)))` | 225 | 2.4% |
+| `isaBound((((i => o) => ((i => (i => o)) => (i => (i => (i => o))))) => o))` | 225 | 2.4% |
+| `isaBound((((i => o) => ((i => (i => o)) => (i => o))) => (((i => o) => ((i => (i => o)) => (i => o))) => o)))` | 141 | 1.5% |
+| `isaBound((((i => o) => ((i => (i => o)) => (i => o))) => o))` | 141 | 1.5% |
+| `isaBound((((i => o) => ((i => (i => o)) => o)) => (((i => o) => ((i => (i => o)) => o)) => o)))` | 585 | 6.2% |
+| `isaBound((((i => o) => ((i => (i => o)) => o)) => o))` | 585 | 6.2% |
+| `isaBound((((i => o) => ((i => o) => o)) => (((i => o) => ((i => o) => o)) => o)))` | 1163 | 12.3% |
+| `isaBound((((i => o) => ((i => o) => o)) => o))` | 1163 | 12.3% |
+| `isaBound((((i => o) => (i => ((i => (i => (i => o))) => (i => (i => o))))) => (((i => o) => (i => ((i => (i => (i => o))) => (i => (i => o))))) => o)))` | 3 | 0.0% |
+| `isaBound((((i => o) => (i => ((i => (i => (i => o))) => (i => (i => o))))) => o))` | 3 | 0.0% |
+| `isaBound((((i => o) => (i => ((i => (i => o)) => ((i => i) => o)))) => (((i => o) => (i => ((i => (i => o)) => ((i => i) => o)))) => o)))` | 44 | 0.5% |
+| `isaBound((((i => o) => (i => ((i => (i => o)) => ((i => i) => o)))) => o))` | 44 | 0.5% |
+| `isaBound((((i => o) => (i => ((i => (i => o)) => (i => (i => o))))) => (((i => o) => (i => ((i => (i => o)) => (i => (i => o))))) => o)))` | 249 | 2.6% |
+| `isaBound((((i => o) => (i => ((i => (i => o)) => (i => (i => o))))) => o))` | 249 | 2.6% |
+| `isaBound((((i => o) => (i => ((i => (i => o)) => (i => o)))) => (((i => o) => (i => ((i => (i => o)) => (i => o)))) => o)))` | 96 | 1.0% |
+| `isaBound((((i => o) => (i => ((i => (i => o)) => (i => o)))) => o))` | 96 | 1.0% |
+| `isaBound((((i => o) => (i => ((i => (i => o)) => o))) => (((i => o) => (i => ((i => (i => o)) => o))) => o)))` | 374 | 4.0% |
+| `isaBound((((i => o) => (i => ((i => (i => o)) => o))) => o))` | 374 | 4.0% |
+| `isaBound((((i => o) => (i => ((i => o) => (i => o)))) => (((i => o) => (i => ((i => o) => (i => o)))) => o)))` | 46 | 0.5% |
+| `isaBound((((i => o) => (i => ((i => o) => (i => o)))) => o))` | 46 | 0.5% |
+| `isaBound((((i => o) => (i => (i => ((i => (i => (i => o))) => ((i => (i => i)) => o))))) => (((i => o) => (i => (i => ((i => (i => (i => o))) => ((i => (i => i)) => o))))) => o)))` | 41 | 0.4% |
+| `isaBound((((i => o) => (i => (i => ((i => (i => (i => o))) => ((i => (i => i)) => o))))) => o))` | 41 | 0.4% |
+| `isaBound((((i => o) => (i => (i => (i => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o)))))) => (((i => o) => (i => (i => (i => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o)))))) => o)))` | 1 | 0.0% |
+| `isaBound((((i => o) => (i => (i => (i => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o)))))) => o))` | 1 | 0.0% |
+| `isaBound((((i => o) => (i => (i => (i => (i => (i => o)))))) => (((i => o) => (i => (i => (i => (i => (i => o)))))) => o)))` | 89 | 0.9% |
+| `isaBound((((i => o) => (i => (i => (i => (i => (i => o)))))) => o))` | 89 | 0.9% |
+| `isaBound((((i => o) => (i => (i => (i => (i => o))))) => (((i => o) => (i => (i => (i => (i => o))))) => o)))` | 117 | 1.2% |
+| `isaBound((((i => o) => (i => (i => (i => (i => o))))) => o))` | 117 | 1.2% |
+| `isaBound((((i => o) => (i => (i => (i => o)))) => (((i => o) => (i => (i => (i => o)))) => o)))` | 1025 | 10.9% |
+| `isaBound((((i => o) => (i => (i => (i => o)))) => o))` | 1025 | 10.9% |
+| `isaBound((((i => o) => (i => (i => i))) => (((i => o) => (i => (i => i))) => o)))` | 44 | 0.5% |
+| `isaBound((((i => o) => (i => (i => i))) => o))` | 44 | 0.5% |
+| `isaBound((((i => o) => (i => (i => o))) => (((i => o) => (i => (i => o))) => o)))` | 945 | 10.0% |
+| `isaBound((((i => o) => (i => (i => o))) => o))` | 945 | 10.0% |
+| `isaBound((((i => o) => (i => i)) => (((i => o) => (i => i)) => o)))` | 2 | 0.0% |
+| `isaBound((((i => o) => (i => i)) => o))` | 2 | 0.0% |
+| `isaBound((((i => o) => (i => o)) => (((i => o) => (i => o)) => o)))` | 670 | 7.1% |
+| `isaBound((((i => o) => (i => o)) => o))` | 670 | 7.1% |
+| `isaBound((((i => o) => (o => (i => o))) => (((i => o) => (o => (i => o))) => o)))` | 92 | 1.0% |
+| `isaBound((((i => o) => (o => (i => o))) => o))` | 92 | 1.0% |
+| `isaBound((((i => o) => i) => (((i => o) => i) => o)))` | 5274 | 56.0% |
+| `isaBound((((i => o) => i) => o))` | 5274 | 56.0% |
+| `isaBound((((i => o) => o) => (((i => o) => o) => o)))` | 4100 | 43.5% |
+| `isaBound((((i => o) => o) => o))` | 4102 | 43.5% |
+| `isaBound(((i => 'a) => ((i => 'a) => o)))` | 2739 | 29.1% |
+| `isaBound(((i => 'a) => o))` | 2739 | 29.1% |
+| `isaBound(((i => ((i => (i => (i => i))) => i)) => ((i => ((i => (i => (i => i))) => i)) => o)))` | 25 | 0.3% |
+| `isaBound(((i => ((i => (i => (i => i))) => i)) => o))` | 25 | 0.3% |
+| `isaBound(((i => ((i => (i => i)) => (i => (i => i)))) => ((i => ((i => (i => i)) => (i => (i => i)))) => o)))` | 53 | 0.6% |
+| `isaBound(((i => ((i => (i => i)) => (i => (i => i)))) => o))` | 53 | 0.6% |
+| `isaBound(((i => ((i => (i => i)) => (i => i))) => ((i => ((i => (i => i)) => (i => i))) => o)))` | 2044 | 21.7% |
+| `isaBound(((i => ((i => (i => i)) => (i => i))) => o))` | 2044 | 21.7% |
+| `isaBound(((i => ((i => (i => i)) => i)) => ((i => ((i => (i => i)) => i)) => o)))` | 3706 | 39.3% |
+| `isaBound(((i => ((i => (i => i)) => i)) => o))` | 3706 | 39.3% |
+| `isaBound(((i => ((i => (i => o)) => i)) => ((i => ((i => (i => o)) => i)) => o)))` | 7313 | 77.6% |
+| `isaBound(((i => ((i => (i => o)) => i)) => o))` | 7313 | 77.6% |
+| `isaBound(((i => ((i => i) => (i => i))) => ((i => ((i => i) => (i => i))) => o)))` | 3854 | 40.9% |
+| `isaBound(((i => ((i => i) => (i => i))) => o))` | 3854 | 40.9% |
+| `isaBound(((i => ((i => i) => i)) => ((i => ((i => i) => i)) => o)))` | 6215 | 66.0% |
+| `isaBound(((i => ((i => i) => i)) => o))` | 6215 | 66.0% |
+| `isaBound(((i => ((i => i) => o)) => ((i => ((i => i) => o)) => o)))` | 4841 | 51.4% |
+| `isaBound(((i => ((i => i) => o)) => o))` | 4841 | 51.4% |
+| `isaBound(((i => ((i => o) => i)) => ((i => ((i => o) => i)) => o)))` | 7247 | 76.9% |
+| `isaBound(((i => ((i => o) => i)) => o))` | 7247 | 76.9% |
+| `isaBound(((i => ((i => o) => o)) => ((i => ((i => o) => o)) => o)))` | 7493 | 79.5% |
+| `isaBound(((i => ((i => o) => o)) => o))` | 7493 | 79.5% |
+| `isaBound(((i => (i => 'a)) => (i => 'a)))` | 2773 | 29.4% |
+| `isaBound(((i => (i => ((i => (i => i)) => ((i => (i => i)) => i)))) => ((i => (i => ((i => (i => i)) => ((i => (i => i)) => i)))) => o)))` | 8 | 0.1% |
+| `isaBound(((i => (i => ((i => (i => i)) => ((i => (i => i)) => i)))) => o))` | 8 | 0.1% |
+| `isaBound(((i => (i => ((i => (i => i)) => (i => o)))) => ((i => (i => ((i => (i => i)) => (i => o)))) => o)))` | 4068 | 43.2% |
+| `isaBound(((i => (i => ((i => (i => i)) => (i => o)))) => o))` | 4068 | 43.2% |
+| `isaBound(((i => (i => ((i => (i => i)) => i))) => ((i => (i => ((i => (i => i)) => i))) => o)))` | 4061 | 43.1% |
+| `isaBound(((i => (i => ((i => (i => i)) => i))) => o))` | 4061 | 43.1% |
+| `isaBound(((i => (i => ((i => (i => i)) => o))) => ((i => (i => ((i => (i => i)) => o))) => o)))` | 439 | 4.7% |
+| `isaBound(((i => (i => ((i => (i => i)) => o))) => o))` | 439 | 4.7% |
+| `isaBound(((i => (i => ((i => i) => ((i => i) => (i => o))))) => ((i => (i => ((i => i) => ((i => i) => (i => o))))) => o)))` | 7 | 0.1% |
+| `isaBound(((i => (i => ((i => i) => ((i => i) => (i => o))))) => o))` | 7 | 0.1% |
+| `isaBound(((i => (i => (i => ((i => (i => i)) => i)))) => ((i => (i => (i => ((i => (i => i)) => i)))) => o)))` | 896 | 9.5% |
+| `isaBound(((i => (i => (i => ((i => (i => i)) => i)))) => o))` | 896 | 9.5% |
+| `isaBound(((i => (i => (i => ((i => i) => o)))) => ((i => (i => (i => ((i => i) => o)))) => o)))` | 21 | 0.2% |
+| `isaBound(((i => (i => (i => ((i => i) => o)))) => o))` | 21 | 0.2% |
+| `isaBound(((i => (i => (i => (i => (i => (i => i)))))) => ((i => (i => (i => (i => (i => (i => i)))))) => o)))` | 35 | 0.4% |
+| `isaBound(((i => (i => (i => (i => (i => (i => i)))))) => o))` | 35 | 0.4% |
+| `isaBound(((i => (i => (i => (i => (i => i))))) => ((i => (i => (i => (i => (i => i))))) => o)))` | 187 | 2.0% |
+| `isaBound(((i => (i => (i => (i => (i => i))))) => o))` | 187 | 2.0% |
+| `isaBound(((i => (i => (i => (i => (i => o))))) => ((i => (i => (i => (i => (i => o))))) => o)))` | 9 | 0.1% |
+| `isaBound(((i => (i => (i => (i => (i => o))))) => ((i => (i => (i => (i => i)))) => o)))` | 1 | 0.0% |
+| `isaBound(((i => (i => (i => (i => (i => o))))) => o))` | 9 | 0.1% |
+| `isaBound(((i => (i => (i => (i => i)))) => ((i => (i => (i => (i => i)))) => o)))` | 1108 | 11.8% |
+| `isaBound(((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => (i => i)))))` | 38 | 0.4% |
+| `isaBound(((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => i))))` | 24 | 0.3% |
+| `isaBound(((i => (i => (i => (i => i)))) => o))` | 1109 | 11.8% |
+| `isaBound(((i => (i => (i => (i => o)))) => ((i => (i => (i => (i => o)))) => o)))` | 114 | 1.2% |
+| `isaBound(((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o)))` | 2 | 0.0% |
+| `isaBound(((i => (i => (i => (i => o)))) => o))` | 114 | 1.2% |
+| `isaBound(((i => (i => (i => i))) => ((i => (i => (i => i))) => o)))` | 3075 | 32.6% |
+| `isaBound(((i => (i => (i => i))) => ((i => (i => i)) => (i => i))))` | 10 | 0.1% |
+| `isaBound(((i => (i => (i => i))) => (i => (i => i))))` | 103 | 1.1% |
+| `isaBound(((i => (i => (i => i))) => (i => i)))` | 1096 | 11.6% |
+| `isaBound(((i => (i => (i => i))) => i))` | 25 | 0.3% |
+| `isaBound(((i => (i => (i => i))) => o))` | 3077 | 32.7% |
+| `isaBound(((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => o)) => (i => (i => o)))))))` | 70 | 0.7% |
+| `isaBound(((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => o)) => (i => (i => o))))))` | 70 | 0.7% |
+| `isaBound(((i => (i => (i => o))) => ((i => (i => (i => o))) => o)))` | 284 | 3.0% |
+| `isaBound(((i => (i => (i => o))) => ((i => (i => i)) => o)))` | 185 | 2.0% |
+| `isaBound(((i => (i => (i => o))) => ((i => (i => o)) => (i => (i => o)))))` | 70 | 0.7% |
+| `isaBound(((i => (i => (i => o))) => (i => (i => (i => o)))))` | 318 | 3.4% |
+| `isaBound(((i => (i => (i => o))) => (i => (i => o))))` | 149 | 1.6% |
+| `isaBound(((i => (i => (i => o))) => (i => o)))` | 156 | 1.7% |
+| `isaBound(((i => (i => (i => o))) => o))` | 284 | 3.0% |
+| `isaBound(((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => (i => i))))))` | 38 | 0.4% |
+| `isaBound(((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => i)))))` | 24 | 0.3% |
+| `isaBound(((i => (i => i)) => ((i => (i => (i => i))) => ((i => (i => i)) => (i => i)))))` | 10 | 0.1% |
+| `isaBound(((i => (i => i)) => ((i => (i => (i => i))) => (i => i))))` | 37 | 0.4% |
+| `isaBound(((i => (i => i)) => ((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => (i => i)))))))` | 38 | 0.4% |
+| `isaBound(((i => (i => i)) => ((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => i))))))` | 24 | 0.3% |
+| `isaBound(((i => (i => i)) => ((i => (i => i)) => ((i => (i => (i => i))) => (i => i)))))` | 21 | 0.2% |
+| `isaBound(((i => (i => i)) => ((i => (i => i)) => (i => i))))` | 23 | 0.2% |
+| `isaBound(((i => (i => i)) => ((i => (i => i)) => i)))` | 8 | 0.1% |
+| `isaBound(((i => (i => i)) => ((i => (i => i)) => o)))` | 6923 | 73.5% |
+| `isaBound(((i => (i => i)) => ((i => i) => (i => i))))` | 965 | 10.2% |
+| `isaBound(((i => (i => i)) => (i => ((i => (i => i)) => (i => i)))))` | 35 | 0.4% |
+| `isaBound(((i => (i => i)) => (i => (i => i))))` | 91 | 1.0% |
+| `isaBound(((i => (i => i)) => (i => i)))` | 2884 | 30.6% |
+| `isaBound(((i => (i => i)) => (i => o)))` | 4068 | 43.2% |
+| `isaBound(((i => (i => i)) => i))` | 4065 | 43.2% |
+| `isaBound(((i => (i => i)) => o))` | 6927 | 73.5% |
+| `isaBound(((i => (i => o)) => ((i => (i => o)) => o)))` | 7387 | 78.4% |
+| `isaBound(((i => (i => o)) => ((i => i) => o)))` | 132 | 1.4% |
+| `isaBound(((i => (i => o)) => (i => (i => (i => (i => o))))))` | 243 | 2.6% |
+| `isaBound(((i => (i => o)) => (i => (i => (i => o)))))` | 225 | 2.4% |
+| `isaBound(((i => (i => o)) => (i => (i => o))))` | 250 | 2.7% |
+| `isaBound(((i => (i => o)) => (i => o)))` | 344 | 3.7% |
+| `isaBound(((i => (i => o)) => i))` | 7313 | 77.6% |
+| `isaBound(((i => (i => o)) => o))` | 7404 | 78.6% |
+| `isaBound(((i => i) => ((i => (i => (i => i))) => (i => i))))` | 92 | 1.0% |
+| `isaBound(((i => i) => ((i => (i => i)) => ((i => (i => i)) => (i => i)))))` | 23 | 0.2% |
+| `isaBound(((i => i) => ((i => i) => (i => i))))` | 2421 | 25.7% |
+| `isaBound(((i => i) => ((i => i) => (i => o))))` | 7 | 0.1% |
+| `isaBound(((i => i) => ((i => i) => o)))` | 6847 | 72.7% |
+| `isaBound(((i => i) => (i => (i => i))))` | 442 | 4.7% |
+| `isaBound(((i => i) => (i => i)))` | 4223 | 44.8% |
+| `isaBound(((i => i) => (i => o)))` | 7 | 0.1% |
+| `isaBound(((i => i) => i))` | 6229 | 66.1% |
+| `isaBound(((i => i) => o))` | 6955 | 73.8% |
+| `isaBound(((i => o) => ((i => (i => (i => (i => (i => o))))) => ((i => (i => (i => (i => i)))) => o))))` | 1 | 0.0% |
+| `isaBound(((i => o) => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o))))` | 1 | 0.0% |
+| `isaBound(((i => o) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => o)) => (i => (i => o))))))))` | 70 | 0.7% |
+| `isaBound(((i => o) => ((i => (i => (i => o))) => ((i => (i => i)) => o))))` | 183 | 1.9% |
+| `isaBound(((i => o) => ((i => (i => (i => o))) => (i => (i => (i => o))))))` | 318 | 3.4% |
+| `isaBound(((i => o) => ((i => (i => (i => o))) => (i => (i => o)))))` | 53 | 0.6% |
+| `isaBound(((i => o) => ((i => (i => (i => o))) => (i => o))))` | 155 | 1.6% |
+| `isaBound(((i => o) => ((i => (i => o)) => ((i => i) => o))))` | 128 | 1.4% |
+| `isaBound(((i => o) => ((i => (i => o)) => (i => (i => (i => (i => o)))))))` | 243 | 2.6% |
+| `isaBound(((i => o) => ((i => (i => o)) => (i => (i => (i => o))))))` | 225 | 2.4% |
+| `isaBound(((i => o) => ((i => (i => o)) => (i => o))))` | 141 | 1.5% |
+| `isaBound(((i => o) => ((i => (i => o)) => o)))` | 597 | 6.3% |
+| `isaBound(((i => o) => ((i => o) => ((i => (i => o)) => o))))` | 429 | 4.6% |
+| `isaBound(((i => o) => ((i => o) => o)))` | 5453 | 57.9% |
+| `isaBound(((i => o) => (i => ((i => (i => (i => o))) => (i => (i => o))))))` | 3 | 0.0% |
+| `isaBound(((i => o) => (i => ((i => (i => o)) => ((i => i) => o)))))` | 44 | 0.5% |
+| `isaBound(((i => o) => (i => ((i => (i => o)) => (i => (i => o))))))` | 249 | 2.6% |
+| `isaBound(((i => o) => (i => ((i => (i => o)) => (i => o)))))` | 96 | 1.0% |
+| `isaBound(((i => o) => (i => ((i => (i => o)) => o))))` | 374 | 4.0% |
+| `isaBound(((i => o) => (i => ((i => o) => (i => o)))))` | 46 | 0.5% |
+| `isaBound(((i => o) => (i => (i => ((i => (i => (i => o))) => ((i => (i => i)) => o))))))` | 41 | 0.4% |
+| `isaBound(((i => o) => (i => (i => (i => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o)))))))` | 1 | 0.0% |
+| `isaBound(((i => o) => (i => (i => (i => (i => (i => o)))))))` | 89 | 0.9% |
+| `isaBound(((i => o) => (i => (i => (i => (i => o))))))` | 225 | 2.4% |
+| `isaBound(((i => o) => (i => (i => (i => o)))))` | 1026 | 10.9% |
+| `isaBound(((i => o) => (i => (i => i))))` | 44 | 0.5% |
+| `isaBound(((i => o) => (i => (i => o))))` | 946 | 10.0% |
+| `isaBound(((i => o) => (i => i)))` | 445 | 4.7% |
+| `isaBound(((i => o) => (i => o)))` | 838 | 8.9% |
+| `isaBound(((i => o) => (o => (i => o))))` | 92 | 1.0% |
+| `isaBound(((i => o) => i))` | 7257 | 77.0% |
+| `isaBound(((i => o) => o))` | 7746 | 82.2% |
+| `isaBound(((o => (i => (i => i))) => ((o => (i => (i => i))) => o)))` | 5018 | 53.3% |
+| `isaBound(((o => (i => (i => i))) => o))` | 5018 | 53.3% |
+| `isaBound(((o => (o => o)) => ((o => (o => o)) => o)))` | 7841 | 83.2% |
+| `isaBound(((o => (o => o)) => o))` | 7841 | 83.2% |
+| `isaBound(((o => i) => ((o => i) => o)))` | 882 | 9.4% |
+| `isaBound(((o => i) => o))` | 882 | 9.4% |
+| `isaBound(((o => o) => ((o => o) => o)))` | 7819 | 83.0% |
+| `isaBound(((o => o) => o))` | 7819 | 83.0% |
+| `isaBound((i => 'a))` | 2773 | 29.4% |
+| `isaBound((i => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o))))` | 1 | 0.0% |
+| `isaBound((i => ((i => (i => (i => i))) => i)))` | 25 | 0.3% |
+| `isaBound((i => ((i => (i => (i => o))) => ((i => (i => i)) => o))))` | 41 | 0.4% |
+| `isaBound((i => ((i => (i => (i => o))) => (i => (i => o)))))` | 3 | 0.0% |
+| `isaBound((i => ((i => (i => i)) => ((i => (i => i)) => i))))` | 8 | 0.1% |
+| `isaBound((i => ((i => (i => i)) => (i => (i => i)))))` | 53 | 0.6% |
+| `isaBound((i => ((i => (i => i)) => (i => i))))` | 2100 | 22.3% |
+| `isaBound((i => ((i => (i => i)) => (i => o))))` | 4068 | 43.2% |
+| `isaBound((i => ((i => (i => i)) => i)))` | 4064 | 43.1% |
+| `isaBound((i => ((i => (i => i)) => o)))` | 439 | 4.7% |
+| `isaBound((i => ((i => (i => o)) => ((i => i) => o))))` | 44 | 0.5% |
+| `isaBound((i => ((i => (i => o)) => (i => (i => o)))))` | 249 | 2.6% |
+| `isaBound((i => ((i => (i => o)) => (i => o))))` | 96 | 1.0% |
+| `isaBound((i => ((i => (i => o)) => i)))` | 7313 | 77.6% |
+| `isaBound((i => ((i => (i => o)) => o)))` | 374 | 4.0% |
+| `isaBound((i => ((i => i) => ((i => i) => (i => o)))))` | 7 | 0.1% |
+| `isaBound((i => ((i => i) => (i => i))))` | 3854 | 40.9% |
+| `isaBound((i => ((i => i) => i)))` | 6226 | 66.1% |
+| `isaBound((i => ((i => i) => o)))` | 4845 | 51.4% |
+| `isaBound((i => ((i => o) => (i => o))))` | 46 | 0.5% |
+| `isaBound((i => ((i => o) => i)))` | 7247 | 76.9% |
+| `isaBound((i => ((i => o) => o)))` | 7494 | 79.6% |
+| `isaBound((i => (i => 'a)))` | 3297 | 35.0% |
+| `isaBound((i => (i => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o)))))` | 1 | 0.0% |
+| `isaBound((i => (i => ((i => (i => (i => o))) => ((i => (i => i)) => o)))))` | 41 | 0.4% |
+| `isaBound((i => (i => ((i => (i => i)) => ((i => (i => i)) => i)))))` | 8 | 0.1% |
+| `isaBound((i => (i => ((i => (i => i)) => (i => i)))))` | 13 | 0.1% |
+| `isaBound((i => (i => ((i => (i => i)) => (i => o)))))` | 4068 | 43.2% |
+| `isaBound((i => (i => ((i => (i => i)) => i))))` | 4062 | 43.1% |
+| `isaBound((i => (i => ((i => (i => i)) => o))))` | 439 | 4.7% |
+| `isaBound((i => (i => ((i => i) => ((i => i) => (i => o))))))` | 7 | 0.1% |
+| `isaBound((i => (i => ((i => i) => o))))` | 21 | 0.2% |
+| `isaBound((i => (i => (i => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o))))))` | 1 | 0.0% |
+| `isaBound((i => (i => (i => ((i => (i => i)) => i)))))` | 896 | 9.5% |
+| `isaBound((i => (i => (i => ((i => i) => o)))))` | 21 | 0.2% |
+| `isaBound((i => (i => (i => (i => (i => (i => i)))))))` | 35 | 0.4% |
+| `isaBound((i => (i => (i => (i => (i => i))))))` | 471 | 5.0% |
+| `isaBound((i => (i => (i => (i => (i => o))))))` | 99 | 1.1% |
+| `isaBound((i => (i => (i => (i => i)))))` | 1859 | 19.7% |
+| `isaBound((i => (i => (i => (i => o)))))` | 435 | 4.6% |
+| `isaBound((i => (i => (i => i))))` | 3582 | 38.0% |
+| `isaBound((i => (i => (i => o))))` | 1561 | 16.6% |
+| `isaBound((i => (i => i)))` | 7705 | 81.8% |
+| `isaBound((i => (i => o)))` | 9170 | 97.3% |
+| `isaBound((i => i))` | 8258 | 87.7% |
+| `isaBound((i => o))` | 8838 | 93.8% |
+| `isaBound((o => (i => (i => i))))` | 5020 | 53.3% |
+| `isaBound((o => (i => o)))` | 92 | 1.0% |
+| `isaBound((o => (o => o)))` | 8323 | 88.4% |
+| `isaBound((o => i))` | 883 | 9.4% |
+| `isaBound((o => o))` | 8432 | 89.5% |
+| `isaBound(i)` | 9352 | 99.3% |
+| `isaBound(o)` | 9034 | 95.9% |
+| `isaConst(declared, (i => (i => i)), args: [i, i])` | 25 | 0.3% |
+| `isaConst(declared, (i => (i => o)), args: [i, i])` | 50 | 0.5% |
+| `isaConst(declared, (i => i), args: [i])` | 6 | 0.1% |
+| `isaConst(declared, i, args: [])` | 275 | 2.9% |
+| `isaConst(defined fol, ('a => ('a => o)), args: ['a, 'a])` | 105 | 1.1% |
+| `isaConst(defined fol, (('a => o) => o), args: [('a => o)])` | 3947 | 41.9% |
+| `isaConst(defined fol, ((i => o) => o), args: [(i => o)])` | 3947 | 41.9% |
+| `isaConst(defined fol, (i => (i => o)), args: [i, i])` | 105 | 1.1% |
+| `isaConst(defined fol, (o => (o => o)), args: [o, o])` | 4022 | 42.7% |
+| `isaConst(defined ifol, ('a => (('a => 'b) => 'b)), args: ['a, ('a => 'b)])` | 508 | 5.4% |
+| `isaConst(defined ifol, ('b => (('b => 'a) => 'a)), args: ['b, ('b => 'a)])` | 439 | 4.7% |
+| `isaConst(defined ifol, (('a => o) => o), args: [('a => o)])` | 8959 | 95.1% |
+| `isaConst(defined ifol, ((i => o) => o), args: [(i => o)])` | 8958 | 95.1% |
+| `isaConst(defined ifol, (i => ((i => i) => i)), args: [i, (i => i)])` | 508 | 5.4% |
+| `isaConst(defined ifol, (o => (o => o)), args: [o, o])` | 8099 | 86.0% |
+| `isaConst(defined ifol, (o => o), args: [o])` | 8473 | 89.9% |
+| `isaConst(defined ifol, o, args: [])` | 7619 | 80.9% |
+| `isaConst(defined pure, ('a => o), args: ['a])` | 28 | 0.3% |
+| `isaConst(defined pure, (i => o), args: [i])` | 28 | 0.3% |
+| `isaConst(defined pure, (o => (o => o)), args: [o, o])` | 7700 | 81.7% |
+| `isaConst(defined pure, (o => o), args: [o])` | 8174 | 86.8% |
+| `isaConst(defined zf, (('a => o) => o), args: [('a => o)])` | 439 | 4.7% |
+| `isaConst(defined zf, (((i => o) => o) => o), args: [((i => o) => o)])` | 436 | 4.6% |
+| `isaConst(defined zf, ((i => (i => 'a)) => (i => 'a)), args: [(i => (i => 'a)), i])` | 3297 | 35.0% |
+| `isaConst(defined zf, ((i => (i => (i => i))) => (i => ((i => (i => (i => (i => i)))) => (i => i)))), args: [(i => (i => (i => i))), i, (i => (i => (i => (i => i)))), i])` | 41 | 0.4% |
+| `isaConst(defined zf, ((i => (i => (i => i))) => (i => (i => i))), args: [(i => (i => (i => i))), i, i])` | 146 | 1.5% |
+| `isaConst(defined zf, ((i => (i => (i => i))) => (i => i)), args: [(i => (i => (i => i))), i])` | 5 | 0.1% |
+| `isaConst(defined zf, ((i => (i => (i => o))) => (i => (i => o))), args: [(i => (i => (i => o))), i, i])` | 108 | 1.1% |
+| `isaConst(defined zf, ((i => (i => i)) => ((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => (i => i)))))), args: [(i => (i => i)), (i => (i => i)), (i => (i => (i => (i => i)))), (i => (i => i)), i, i])` | 55 | 0.6% |
+| `isaConst(defined zf, ((i => (i => i)) => ((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => i))))), args: [(i => (i => i)), (i => (i => i)), (i => (i => (i => (i => i)))), (i => (i => i)), i])` | 1058 | 11.2% |
+| `isaConst(defined zf, ((i => (i => i)) => ((i => (i => i)) => ((i => (i => i)) => ((i => i) => (i => i))))), args: [(i => (i => i)), (i => (i => i)), (i => (i => i)), (i => i), i])` | 1070 | 11.4% |
+| `isaConst(defined zf, ((i => (i => i)) => (i => ((i => (i => i)) => (i => i)))), args: [(i => (i => i)), i, (i => (i => i)), i])` | 49 | 0.5% |
+| `isaConst(defined zf, ((i => (i => i)) => (i => i)), args: [(i => (i => i)), i])` | 3857 | 40.9% |
+| `isaConst(defined zf, ((i => (i => o)) => (i => o)), args: [(i => (i => o)), i])` | 849 | 9.0% |
+| `isaConst(defined zf, ((i => i) => ((i => (i => (i => (i => i)))) => (i => i))), args: [(i => i), (i => (i => (i => (i => i)))), i])` | 5 | 0.1% |
+| `isaConst(defined zf, ((i => i) => ((i => (i => (i => i))) => ((i => i) => (i => i)))), args: [(i => i), (i => (i => (i => i))), (i => i), i])` | 65 | 0.7% |
+| `isaConst(defined zf, ((i => i) => ((i => (i => i)) => ((i => (i => (i => (i => (i => i))))) => (i => i)))), args: [(i => i), (i => (i => i)), (i => (i => (i => (i => (i => i))))), i])` | 207 | 2.2% |
+| `isaConst(defined zf, ((i => i) => ((i => (i => i)) => (i => i))), args: [(i => i), (i => (i => i)), i])` | 11 | 0.1% |
+| `isaConst(defined zf, ((i => i) => ((i => i) => ((i => (i => (i => i))) => ((i => (i => (i => (i => (i => i))))) => (i => i))))), args: [(i => i), (i => i), (i => (i => (i => i))), (i => (i => (i => (i => (i => i))))), i])` | 39 | 0.4% |
+| `isaConst(defined zf, ((i => i) => ((i => i) => ((i => (i => (i => i))) => ((i => (i => (i => (i => i)))) => ((i => (i => (i => (i => i)))) => (i => i)))))), args: [(i => i), (i => i), (i => (i => (i => i))), (i => (i => (i => (i => i)))), (i => (i => (i => (i => i)))), i])` | 11 | 0.1% |
+| `isaConst(defined zf, ((i => i) => ((i => i) => ((i => (i => (i => i))) => (i => i)))), args: [(i => i), (i => i), (i => (i => (i => i))), i])` | 215 | 2.3% |
+| `isaConst(defined zf, ((i => i) => ((i => i) => ((i => (i => i)) => ((i => (i => (i => i))) => ((i => (i => i)) => (i => i)))))), args: [(i => i), (i => i), (i => (i => i)), (i => (i => (i => i))), (i => (i => i)), i])` | 23 | 0.2% |
+| `isaConst(defined zf, ((i => i) => ((i => i) => ((i => (i => i)) => ((i => (i => (i => i))) => (i => i))))), args: [(i => i), (i => i), (i => (i => i)), (i => (i => (i => i))), i])` | 49 | 0.5% |
+| `isaConst(defined zf, ((i => i) => ((i => i) => (i => i))), args: [(i => i), (i => i), i])` | 2872 | 30.5% |
+| `isaConst(defined zf, ((i => i) => ((i => o) => ((i => (i => o)) => ((i => o) => o)))), args: [(i => i), (i => o), (i => (i => o)), (i => o)])` | 436 | 4.6% |
+| `isaConst(defined zf, ((i => i) => (i => (i => i))), args: [(i => i), i, i])` | 692 | 7.3% |
+| `isaConst(defined zf, ((i => i) => (i => i)), args: [(i => i), i])` | 641 | 6.8% |
+| `isaConst(defined zf, ((i => i) => o), args: [(i => i)])` | 557 | 5.9% |
+| `isaConst(defined zf, ((i => o) => ((i => (i => (i => (i => (i => o))))) => ((i => (i => (i => (i => i)))) => o))), args: [(i => o), (i => (i => (i => (i => (i => o))))), (i => (i => (i => (i => i))))])` | 1 | 0.0% |
+| `isaConst(defined zf, ((i => o) => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o))), args: [(i => o), (i => (i => (i => (i => o)))), (i => (i => (i => i)))])` | 1 | 0.0% |
+| `isaConst(defined zf, ((i => o) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => o)) => (i => (i => o))))))), args: [(i => o), (i => (i => (i => o))), (i => (i => (i => o))), (i => (i => (i => o))), (i => (i => o)), i, i])` | 136 | 1.4% |
+| `isaConst(defined zf, ((i => o) => ((i => (i => (i => o))) => ((i => (i => i)) => o))), args: [(i => o), (i => (i => (i => o))), (i => (i => i))])` | 183 | 1.9% |
+| `isaConst(defined zf, ((i => o) => ((i => (i => (i => o))) => (i => (i => (i => o))))), args: [(i => o), (i => (i => (i => o))), i, i, i])` | 441 | 4.7% |
+| `isaConst(defined zf, ((i => o) => ((i => (i => (i => o))) => (i => (i => o)))), args: [(i => o), (i => (i => (i => o))), i, i])` | 75 | 0.8% |
+| `isaConst(defined zf, ((i => o) => ((i => (i => (i => o))) => (i => o))), args: [(i => o), (i => (i => (i => o))), i])` | 222 | 2.4% |
+| `isaConst(defined zf, ((i => o) => ((i => (i => i)) => ((i => (i => (i => o))) => ((i => (i => i)) => ((i => (i => (i => o))) => ((i => (i => (i => (i => i)))) => ((i => (i => (i => (i => o)))) => ((i => (i => i)) => ((i => (i => (i => o))) => o))))))))), args: [(i => o), (i => (i => i)), (i => (i => (i => o))), (i => (i => i)), (i => (i => (i => o))), (i => (i => (i => (i => i)))), (i => (i => (i => (i => o)))), (i => (i => i)), (i => (i => (i => o)))])` | 50 | 0.5% |
+| `isaConst(defined zf, ((i => o) => ((i => (i => o)) => ((i => i) => o))), args: [(i => o), (i => (i => o)), (i => i)])` | 128 | 1.4% |
+| `isaConst(defined zf, ((i => o) => ((i => (i => o)) => (i => (i => (i => (i => o)))))), args: [(i => o), (i => (i => o)), i, i, i, i])` | 341 | 3.6% |
+| `isaConst(defined zf, ((i => o) => ((i => (i => o)) => (i => (i => (i => o))))), args: [(i => o), (i => (i => o)), i, i, i])` | 323 | 3.4% |
+| `isaConst(defined zf, ((i => o) => ((i => (i => o)) => (i => o))), args: [(i => o), (i => (i => o)), i])` | 201 | 2.1% |
+| `isaConst(defined zf, ((i => o) => ((i => (i => o)) => o)), args: [(i => o), (i => (i => o))])` | 809 | 8.6% |
+| `isaConst(defined zf, ((i => o) => ((i => o) => o)), args: [(i => o), (i => o)])` | 1427 | 15.1% |
+| `isaConst(defined zf, ((i => o) => (i => ((i => (i => (i => o))) => (i => (i => o))))), args: [(i => o), i, (i => (i => (i => o))), i, i])` | 3 | 0.0% |
+| `isaConst(defined zf, ((i => o) => (i => ((i => (i => o)) => ((i => i) => o)))), args: [(i => o), i, (i => (i => o)), (i => i)])` | 63 | 0.7% |
+| `isaConst(defined zf, ((i => o) => (i => ((i => (i => o)) => (i => (i => o))))), args: [(i => o), i, (i => (i => o)), i, i])` | 348 | 3.7% |
+| `isaConst(defined zf, ((i => o) => (i => ((i => (i => o)) => (i => o)))), args: [(i => o), i, (i => (i => o)), i])` | 162 | 1.7% |
+| `isaConst(defined zf, ((i => o) => (i => ((i => (i => o)) => o))), args: [(i => o), i, (i => (i => o))])` | 599 | 6.4% |
+| `isaConst(defined zf, ((i => o) => (i => ((i => o) => (i => o)))), args: [(i => o), i, (i => o), i])` | 65 | 0.7% |
+| `isaConst(defined zf, ((i => o) => (i => (i => ((i => (i => (i => o))) => ((i => (i => i)) => o))))), args: [(i => o), i, i, (i => (i => (i => o))), (i => (i => i))])` | 60 | 0.6% |
+| `isaConst(defined zf, ((i => o) => (i => (i => (i => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o)))))), args: [(i => o), i, i, i, (i => (i => (i => (i => o)))), (i => (i => (i => i)))])` | 1 | 0.0% |
+| `isaConst(defined zf, ((i => o) => (i => (i => (i => (i => (i => o)))))), args: [(i => o), i, i, i, i, i])` | 186 | 2.0% |
+| `isaConst(defined zf, ((i => o) => (i => (i => (i => (i => o))))), args: [(i => o), i, i, i, i])` | 199 | 2.1% |
+| `isaConst(defined zf, ((i => o) => (i => (i => (i => o)))), args: [(i => o), i, i, i])` | 1248 | 13.2% |
+| `isaConst(defined zf, ((i => o) => (i => (i => i))), args: [(i => o), i, i])` | 44 | 0.5% |
+| `isaConst(defined zf, ((i => o) => (i => (i => o))), args: [(i => o), i, i])` | 1169 | 12.4% |
+| `isaConst(defined zf, ((i => o) => (i => i)), args: [(i => o), i])` | 22 | 0.2% |
+| `isaConst(defined zf, ((i => o) => (i => o)), args: [(i => o), i])` | 851 | 9.0% |
+| `isaConst(defined zf, ((i => o) => (o => (i => o))), args: [(i => o), o, i])` | 132 | 1.4% |
+| `isaConst(defined zf, ((i => o) => i), args: [(i => o)])` | 6527 | 69.3% |
+| `isaConst(defined zf, ((i => o) => o), args: [(i => o)])` | 1071 | 11.4% |
+| `isaConst(defined zf, (i => ((i => (i => (i => (i => (i => i))))) => (i => i))), args: [i, (i => (i => (i => (i => (i => i))))), i])` | 26 | 0.3% |
+| `isaConst(defined zf, (i => ((i => (i => (i => (i => i)))) => (i => i))), args: [i, (i => (i => (i => (i => i)))), i])` | 64 | 0.7% |
+| `isaConst(defined zf, (i => ((i => (i => (i => i))) => (i => i))), args: [i, (i => (i => (i => i))), i])` | 1436 | 15.2% |
+| `isaConst(defined zf, (i => ((i => (i => (i => i))) => i)), args: [i, (i => (i => (i => i)))])` | 30 | 0.3% |
+| `isaConst(defined zf, (i => ((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => (i => i))) => ((i => (i => (i => (i => (i => i))))) => (i => i)))))), args: [i, (i => (i => i)), (i => (i => (i => (i => i)))), (i => (i => (i => i))), (i => (i => (i => (i => (i => i))))), i])` | 23 | 0.2% |
+| `isaConst(defined zf, (i => ((i => (i => i)) => ((i => (i => i)) => ((i => (i => i)) => ((i => (i => (i => i))) => (i => i)))))), args: [i, (i => (i => i)), (i => (i => i)), (i => (i => i)), (i => (i => (i => i))), i])` | 35 | 0.4% |
+| `isaConst(defined zf, (i => ((i => (i => i)) => ((i => i) => (i => i)))), args: [i, (i => (i => i)), (i => i), i])` | 7 | 0.1% |
+| `isaConst(defined zf, (i => ((i => (i => i)) => (i => (i => i)))), args: [i, (i => (i => i)), i, i])` | 55 | 0.6% |
+| `isaConst(defined zf, (i => ((i => (i => i)) => (i => i))), args: [i, (i => (i => i)), i])` | 2961 | 31.4% |
+| `isaConst(defined zf, (i => ((i => (i => i)) => i)), args: [i, (i => (i => i))])` | 4630 | 49.2% |
+| `isaConst(defined zf, (i => ((i => (i => o)) => i)), args: [i, (i => (i => o))])` | 8957 | 95.1% |
+| `isaConst(defined zf, (i => ((i => i) => ((i => (i => (i => (i => i)))) => (i => i)))), args: [i, (i => i), (i => (i => (i => (i => i)))), i])` | 31 | 0.3% |
+| `isaConst(defined zf, (i => ((i => i) => ((i => (i => i)) => ((i => (i => (i => (i => i)))) => (i => i))))), args: [i, (i => i), (i => (i => i)), (i => (i => (i => (i => i)))), i])` | 9 | 0.1% |
+| `isaConst(defined zf, (i => ((i => i) => ((i => (i => i)) => ((i => (i => (i => i))) => (i => i))))), args: [i, (i => i), (i => (i => i)), (i => (i => (i => i))), i])` | 19 | 0.2% |
+| `isaConst(defined zf, (i => ((i => i) => ((i => (i => i)) => (i => i)))), args: [i, (i => i), (i => (i => i)), i])` | 39 | 0.4% |
+| `isaConst(defined zf, (i => ((i => i) => ((i => i) => (i => i)))), args: [i, (i => i), (i => i), i])` | 15 | 0.2% |
+| `isaConst(defined zf, (i => ((i => i) => (i => i))), args: [i, (i => i), i])` | 4781 | 50.8% |
+| `isaConst(defined zf, (i => ((i => i) => i)), args: [i, (i => i)])` | 7209 | 76.5% |
+| `isaConst(defined zf, (i => ((i => i) => o)), args: [i, (i => i)])` | 4842 | 51.4% |
+| `isaConst(defined zf, (i => ((i => o) => i)), args: [i, (i => o)])` | 8137 | 86.4% |
+| `isaConst(defined zf, (i => ((i => o) => o)), args: [i, (i => o)])` | 8395 | 89.1% |
+| `isaConst(defined zf, (i => (i => ((i => (i => (i => (i => i)))) => (i => i)))), args: [i, i, (i => (i => (i => (i => i)))), i])` | 7 | 0.1% |
+| `isaConst(defined zf, (i => (i => ((i => (i => (i => i))) => ((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => (i => (i => i)))) => (i => i))))))), args: [i, i, (i => (i => (i => i))), (i => (i => i)), (i => (i => (i => (i => i)))), (i => (i => (i => (i => i)))), i])` | 36 | 0.4% |
+| `isaConst(defined zf, (i => (i => ((i => (i => (i => i))) => ((i => i) => ((i => (i => i)) => ((i => (i => i)) => (i => i))))))), args: [i, i, (i => (i => (i => i))), (i => i), (i => (i => i)), (i => (i => i)), i])` | 50 | 0.5% |
+| `isaConst(defined zf, (i => (i => ((i => (i => (i => i))) => (i => i)))), args: [i, i, (i => (i => (i => i))), i])` | 475 | 5.0% |
+| `isaConst(defined zf, (i => (i => ((i => (i => i)) => ((i => (i => i)) => i)))), args: [i, i, (i => (i => i)), (i => (i => i))])` | 9 | 0.1% |
+| `isaConst(defined zf, (i => (i => ((i => (i => i)) => (i => i)))), args: [i, i, (i => (i => i)), i])` | 529 | 5.6% |
+| `isaConst(defined zf, (i => (i => ((i => (i => i)) => (i => o)))), args: [i, i, (i => (i => i)), i])` | 5033 | 53.4% |
+| `isaConst(defined zf, (i => (i => ((i => (i => i)) => i))), args: [i, i, (i => (i => i))])` | 5018 | 53.3% |
+| `isaConst(defined zf, (i => (i => ((i => (i => i)) => o))), args: [i, i, (i => (i => i))])` | 439 | 4.7% |
+| `isaConst(defined zf, (i => (i => ((i => i) => ((i => i) => (i => o))))), args: [i, i, (i => i), (i => i), i])` | 7 | 0.1% |
+| `isaConst(defined zf, (i => (i => (i => ((i => (i => i)) => i)))), args: [i, i, i, (i => (i => i))])` | 947 | 10.1% |
+| `isaConst(defined zf, (i => (i => (i => ((i => (i => i)) => o)))), args: [i, i, i, (i => (i => i))])` | 57 | 0.6% |
+| `isaConst(defined zf, (i => (i => (i => ((i => i) => o)))), args: [i, i, i, (i => i)])` | 21 | 0.2% |
+| `isaConst(defined zf, (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => i))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))), args: [i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i])` | 122 | 1.3% |
+| `isaConst(defined zf, (i => (i => (i => (i => (i => (i => i)))))), args: [i, i, i, i, i, i])` | 39 | 0.4% |
+| `isaConst(defined zf, (i => (i => (i => (i => (i => (i => o)))))), args: [i, i, i, i, i, i])` | 52 | 0.6% |
+| `isaConst(defined zf, (i => (i => (i => (i => (i => i))))), args: [i, i, i, i, i])` | 210 | 2.2% |
+| `isaConst(defined zf, (i => (i => (i => (i => (i => o))))), args: [i, i, i, i, i])` | 14 | 0.1% |
+| `isaConst(defined zf, (i => (i => (i => (i => i)))), args: [i, i, i, i])` | 1164 | 12.4% |
+| `isaConst(defined zf, (i => (i => (i => (i => o)))), args: [i, i, i, i])` | 177 | 1.9% |
+| `isaConst(defined zf, (i => (i => (i => i))), args: [i, i, i])` | 4125 | 43.8% |
+| `isaConst(defined zf, (i => (i => (i => o))), args: [i, i, i])` | 372 | 3.9% |
+| `isaConst(defined zf, (i => (i => i)), args: [i, i])` | 8785 | 93.3% |
+| `isaConst(defined zf, (i => (i => o)), args: [i, i])` | 8196 | 87.0% |
+| `isaConst(defined zf, (i => i), args: [i])` | 8467 | 89.9% |
+| `isaConst(defined zf, (i => o), args: [i])` | 6111 | 64.9% |
+| `isaConst(defined zf, (o => (i => (i => i))), args: [o, i, i])` | 5590 | 59.3% |
+| `isaConst(defined zf, (o => i), args: [o])` | 983 | 10.4% |
+| `isaConst(defined zf, i, args: [])` | 5761 | 61.2% |
+| `isaConst(defined zf, o, args: [])` | 90 | 1.0% |
+| `isaConst(primitive IFOL.eq, ('a => ('a => o)), args: ['a, 'a])` | 9096 | 96.6% |
+| `isaConst(primitive IFOL.eq, ('b => ('b => o)), args: ['b, 'b])` | 4626 | 49.1% |
+| `isaConst(primitive IFOL.eq, (i => (i => o)), args: [i, i])` | 9284 | 98.6% |
+| `isaConst(primitive Pure.eq, ('a => ('a => o)), args: ['a, 'a])` | 7752 | 82.3% |
+| `isaConst(primitive Pure.eq, ('b => ('b => o)), args: ['b, 'b])` | 4628 | 49.1% |
+| `isaConst(primitive Pure.eq, (('a => 'b) => (('a => 'b) => o)), args: [('a => 'b), ('a => 'b)])` | 4626 | 49.1% |
+| `isaConst(primitive Pure.eq, (('a => ('a => o)) => (('a => ('a => o)) => o)), args: [('a => ('a => o)), ('a => ('a => o))])` | 7578 | 80.4% |
+| `isaConst(primitive Pure.eq, (('a => (('a => 'b) => 'b)) => (('a => (('a => 'b) => 'b)) => o)), args: [('a => (('a => 'b) => 'b)), ('a => (('a => 'b) => 'b))])` | 508 | 5.4% |
+| `isaConst(primitive Pure.eq, (('a => o) => (('a => o) => o)), args: [('a => o), ('a => o)])` | 7729 | 82.0% |
+| `isaConst(primitive Pure.eq, (('b => 'a) => (('b => 'a) => o)), args: [('b => 'a), ('b => 'a)])` | 439 | 4.7% |
+| `isaConst(primitive Pure.eq, (('b => ('b => o)) => (('b => ('b => o)) => o)), args: [('b => ('b => o)), ('b => ('b => o))])` | 4626 | 49.1% |
+| `isaConst(primitive Pure.eq, (('b => (('b => 'a) => 'a)) => (('b => (('b => 'a) => 'a)) => o)), args: [('b => (('b => 'a) => 'a)), ('b => (('b => 'a) => 'a))])` | 439 | 4.7% |
+| `isaConst(primitive Pure.eq, (('b => o) => (('b => o) => o)), args: [('b => o), ('b => o)])` | 4626 | 49.1% |
+| `isaConst(primitive Pure.eq, ((('a => o) => o) => ((('a => o) => o) => o)), args: [(('a => o) => o), (('a => o) => o)])` | 8963 | 95.1% |
+| `isaConst(primitive Pure.eq, ((('b => 'a) => 'a) => ((('b => 'a) => 'a) => o)), args: [(('b => 'a) => 'a), (('b => 'a) => 'a)])` | 439 | 4.7% |
+| `isaConst(primitive Pure.eq, ((('b => (('b => 'a) => 'a)) => (('b => (('b => 'a) => 'a)) => o)) => ((('b => (('b => 'a) => 'a)) => (('b => (('b => 'a) => 'a)) => o)) => o)), args: [(('b => (('b => 'a) => 'a)) => (('b => (('b => 'a) => 'a)) => o)), (('b => (('b => 'a) => 'a)) => (('b => (('b => 'a) => 'a)) => o))])` | 439 | 4.7% |
+| `isaConst(primitive Pure.eq, ((('b => (('b => 'a) => 'a)) => o) => ((('b => (('b => 'a) => 'a)) => o) => o)), args: [(('b => (('b => 'a) => 'a)) => o), (('b => (('b => 'a) => 'a)) => o)])` | 439 | 4.7% |
+| `isaConst(primitive Pure.eq, (((('a => o) => o) => ((('a => o) => o) => o)) => (((('a => o) => o) => ((('a => o) => o) => o)) => o)), args: [((('a => o) => o) => ((('a => o) => o) => o)), ((('a => o) => o) => ((('a => o) => o) => o))])` | 7323 | 77.7% |
+| `isaConst(primitive Pure.eq, (((('a => o) => o) => o) => (((('a => o) => o) => o) => o)), args: [((('a => o) => o) => o), ((('a => o) => o) => o)])` | 7323 | 77.7% |
+| `isaConst(primitive Pure.eq, ((((i => (i => 'a)) => (i => 'a)) => (((i => (i => 'a)) => (i => 'a)) => o)) => ((((i => (i => 'a)) => (i => 'a)) => (((i => (i => 'a)) => (i => 'a)) => o)) => o)), args: [(((i => (i => 'a)) => (i => 'a)) => (((i => (i => 'a)) => (i => 'a)) => o)), (((i => (i => 'a)) => (i => 'a)) => (((i => (i => 'a)) => (i => 'a)) => o))])` | 2773 | 29.4% |
+| `isaConst(primitive Pure.eq, ((((i => (i => 'a)) => (i => 'a)) => o) => ((((i => (i => 'a)) => (i => 'a)) => o) => o)), args: [(((i => (i => 'a)) => (i => 'a)) => o), (((i => (i => 'a)) => (i => 'a)) => o)])` | 2773 | 29.4% |
+| `isaConst(primitive Pure.eq, ((((i => (i => (i => i))) => (i => i)) => (((i => (i => (i => i))) => (i => i)) => o)) => ((((i => (i => (i => i))) => (i => i)) => (((i => (i => (i => i))) => (i => i)) => o)) => o)), args: [(((i => (i => (i => i))) => (i => i)) => (((i => (i => (i => i))) => (i => i)) => o)), (((i => (i => (i => i))) => (i => i)) => (((i => (i => (i => i))) => (i => i)) => o))])` | 4 | 0.0% |
+| `isaConst(primitive Pure.eq, ((((i => (i => (i => i))) => (i => i)) => o) => ((((i => (i => (i => i))) => (i => i)) => o) => o)), args: [(((i => (i => (i => i))) => (i => i)) => o), (((i => (i => (i => i))) => (i => i)) => o)])` | 4 | 0.0% |
+| `isaConst(primitive Pure.eq, ((((i => (i => i)) => ((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => (i => i)))))) => (((i => (i => i)) => ((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => (i => i)))))) => o)) => ((((i => (i => i)) => ((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => (i => i)))))) => (((i => (i => i)) => ((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => (i => i)))))) => o)) => o)), args: [(((i => (i => i)) => ((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => (i => i)))))) => (((i => (i => i)) => ((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => (i => i)))))) => o)), (((i => (i => i)) => ((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => (i => i)))))) => (((i => (i => i)) => ((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => (i => i)))))) => o))])` | 38 | 0.4% |
+| `isaConst(primitive Pure.eq, ((((i => (i => i)) => ((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => (i => i)))))) => o) => ((((i => (i => i)) => ((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => (i => i)))))) => o) => o)), args: [(((i => (i => i)) => ((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => (i => i)))))) => o), (((i => (i => i)) => ((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => (i => i)))))) => o)])` | 38 | 0.4% |
+| `isaConst(primitive Pure.eq, ((((i => (i => i)) => (i => i)) => (((i => (i => i)) => (i => i)) => o)) => ((((i => (i => i)) => (i => i)) => (((i => (i => i)) => (i => i)) => o)) => o)), args: [(((i => (i => i)) => (i => i)) => (((i => (i => i)) => (i => i)) => o)), (((i => (i => i)) => (i => i)) => (((i => (i => i)) => (i => i)) => o))])` | 2760 | 29.3% |
+| `isaConst(primitive Pure.eq, ((((i => (i => i)) => (i => i)) => o) => ((((i => (i => i)) => (i => i)) => o) => o)), args: [(((i => (i => i)) => (i => i)) => o), (((i => (i => i)) => (i => i)) => o)])` | 2760 | 29.3% |
+| `isaConst(primitive Pure.eq, ((((i => i) => ((i => i) => (i => i))) => (((i => i) => ((i => i) => (i => i))) => o)) => ((((i => i) => ((i => i) => (i => i))) => (((i => i) => ((i => i) => (i => i))) => o)) => o)), args: [(((i => i) => ((i => i) => (i => i))) => (((i => i) => ((i => i) => (i => i))) => o)), (((i => i) => ((i => i) => (i => i))) => (((i => i) => ((i => i) => (i => i))) => o))])` | 2421 | 25.7% |
+| `isaConst(primitive Pure.eq, ((((i => i) => ((i => i) => (i => i))) => o) => ((((i => i) => ((i => i) => (i => i))) => o) => o)), args: [(((i => i) => ((i => i) => (i => i))) => o), (((i => i) => ((i => i) => (i => i))) => o)])` | 2421 | 25.7% |
+| `isaConst(primitive Pure.eq, ((((i => i) => (i => i)) => (((i => i) => (i => i)) => o)) => ((((i => i) => (i => i)) => (((i => i) => (i => i)) => o)) => o)), args: [(((i => i) => (i => i)) => (((i => i) => (i => i)) => o)), (((i => i) => (i => i)) => (((i => i) => (i => i)) => o))])` | 514 | 5.5% |
+| `isaConst(primitive Pure.eq, ((((i => i) => (i => i)) => o) => ((((i => i) => (i => i)) => o) => o)), args: [(((i => i) => (i => i)) => o), (((i => i) => (i => i)) => o)])` | 514 | 5.5% |
+| `isaConst(primitive Pure.eq, ((((i => i) => o) => (((i => i) => o) => o)) => ((((i => i) => o) => (((i => i) => o) => o)) => o)), args: [(((i => i) => o) => (((i => i) => o) => o)), (((i => i) => o) => (((i => i) => o) => o))])` | 531 | 5.6% |
+| `isaConst(primitive Pure.eq, ((((i => i) => o) => o) => ((((i => i) => o) => o) => o)), args: [(((i => i) => o) => o), (((i => i) => o) => o)])` | 531 | 5.6% |
+| `isaConst(primitive Pure.eq, ((((i => o) => ((i => (i => (i => (i => (i => o))))) => ((i => (i => (i => (i => i)))) => o))) => (((i => o) => ((i => (i => (i => (i => (i => o))))) => ((i => (i => (i => (i => i)))) => o))) => o)) => ((((i => o) => ((i => (i => (i => (i => (i => o))))) => ((i => (i => (i => (i => i)))) => o))) => (((i => o) => ((i => (i => (i => (i => (i => o))))) => ((i => (i => (i => (i => i)))) => o))) => o)) => o)), args: [(((i => o) => ((i => (i => (i => (i => (i => o))))) => ((i => (i => (i => (i => i)))) => o))) => (((i => o) => ((i => (i => (i => (i => (i => o))))) => ((i => (i => (i => (i => i)))) => o))) => o)), (((i => o) => ((i => (i => (i => (i => (i => o))))) => ((i => (i => (i => (i => i)))) => o))) => (((i => o) => ((i => (i => (i => (i => (i => o))))) => ((i => (i => (i => (i => i)))) => o))) => o))])` | 1 | 0.0% |
+| `isaConst(primitive Pure.eq, ((((i => o) => ((i => (i => (i => (i => (i => o))))) => ((i => (i => (i => (i => i)))) => o))) => o) => ((((i => o) => ((i => (i => (i => (i => (i => o))))) => ((i => (i => (i => (i => i)))) => o))) => o) => o)), args: [(((i => o) => ((i => (i => (i => (i => (i => o))))) => ((i => (i => (i => (i => i)))) => o))) => o), (((i => o) => ((i => (i => (i => (i => (i => o))))) => ((i => (i => (i => (i => i)))) => o))) => o)])` | 1 | 0.0% |
+| `isaConst(primitive Pure.eq, ((((i => o) => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o))) => (((i => o) => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o))) => o)) => ((((i => o) => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o))) => (((i => o) => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o))) => o)) => o)), args: [(((i => o) => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o))) => (((i => o) => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o))) => o)), (((i => o) => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o))) => (((i => o) => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o))) => o))])` | 1 | 0.0% |
+| `isaConst(primitive Pure.eq, ((((i => o) => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o))) => o) => ((((i => o) => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o))) => o) => o)), args: [(((i => o) => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o))) => o), (((i => o) => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o))) => o)])` | 1 | 0.0% |
+| `isaConst(primitive Pure.eq, ((((i => o) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => o)) => (i => (i => o))))))) => (((i => o) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => o)) => (i => (i => o))))))) => o)) => ((((i => o) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => o)) => (i => (i => o))))))) => (((i => o) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => o)) => (i => (i => o))))))) => o)) => o)), args: [(((i => o) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => o)) => (i => (i => o))))))) => (((i => o) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => o)) => (i => (i => o))))))) => o)), (((i => o) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => o)) => (i => (i => o))))))) => (((i => o) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => o)) => (i => (i => o))))))) => o))])` | 70 | 0.7% |
+| `isaConst(primitive Pure.eq, ((((i => o) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => o)) => (i => (i => o))))))) => o) => ((((i => o) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => o)) => (i => (i => o))))))) => o) => o)), args: [(((i => o) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => o)) => (i => (i => o))))))) => o), (((i => o) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => o)) => (i => (i => o))))))) => o)])` | 70 | 0.7% |
+| `isaConst(primitive Pure.eq, ((((i => o) => ((i => (i => (i => o))) => ((i => (i => i)) => o))) => (((i => o) => ((i => (i => (i => o))) => ((i => (i => i)) => o))) => o)) => ((((i => o) => ((i => (i => (i => o))) => ((i => (i => i)) => o))) => (((i => o) => ((i => (i => (i => o))) => ((i => (i => i)) => o))) => o)) => o)), args: [(((i => o) => ((i => (i => (i => o))) => ((i => (i => i)) => o))) => (((i => o) => ((i => (i => (i => o))) => ((i => (i => i)) => o))) => o)), (((i => o) => ((i => (i => (i => o))) => ((i => (i => i)) => o))) => (((i => o) => ((i => (i => (i => o))) => ((i => (i => i)) => o))) => o))])` | 183 | 1.9% |
+| `isaConst(primitive Pure.eq, ((((i => o) => ((i => (i => (i => o))) => ((i => (i => i)) => o))) => o) => ((((i => o) => ((i => (i => (i => o))) => ((i => (i => i)) => o))) => o) => o)), args: [(((i => o) => ((i => (i => (i => o))) => ((i => (i => i)) => o))) => o), (((i => o) => ((i => (i => (i => o))) => ((i => (i => i)) => o))) => o)])` | 183 | 1.9% |
+| `isaConst(primitive Pure.eq, ((((i => o) => ((i => (i => (i => o))) => (i => (i => (i => o))))) => (((i => o) => ((i => (i => (i => o))) => (i => (i => (i => o))))) => o)) => ((((i => o) => ((i => (i => (i => o))) => (i => (i => (i => o))))) => (((i => o) => ((i => (i => (i => o))) => (i => (i => (i => o))))) => o)) => o)), args: [(((i => o) => ((i => (i => (i => o))) => (i => (i => (i => o))))) => (((i => o) => ((i => (i => (i => o))) => (i => (i => (i => o))))) => o)), (((i => o) => ((i => (i => (i => o))) => (i => (i => (i => o))))) => (((i => o) => ((i => (i => (i => o))) => (i => (i => (i => o))))) => o))])` | 318 | 3.4% |
+| `isaConst(primitive Pure.eq, ((((i => o) => ((i => (i => (i => o))) => (i => (i => (i => o))))) => o) => ((((i => o) => ((i => (i => (i => o))) => (i => (i => (i => o))))) => o) => o)), args: [(((i => o) => ((i => (i => (i => o))) => (i => (i => (i => o))))) => o), (((i => o) => ((i => (i => (i => o))) => (i => (i => (i => o))))) => o)])` | 318 | 3.4% |
+| `isaConst(primitive Pure.eq, ((((i => o) => ((i => (i => (i => o))) => (i => (i => o)))) => (((i => o) => ((i => (i => (i => o))) => (i => (i => o)))) => o)) => ((((i => o) => ((i => (i => (i => o))) => (i => (i => o)))) => (((i => o) => ((i => (i => (i => o))) => (i => (i => o)))) => o)) => o)), args: [(((i => o) => ((i => (i => (i => o))) => (i => (i => o)))) => (((i => o) => ((i => (i => (i => o))) => (i => (i => o)))) => o)), (((i => o) => ((i => (i => (i => o))) => (i => (i => o)))) => (((i => o) => ((i => (i => (i => o))) => (i => (i => o)))) => o))])` | 53 | 0.6% |
+| `isaConst(primitive Pure.eq, ((((i => o) => ((i => (i => (i => o))) => (i => (i => o)))) => o) => ((((i => o) => ((i => (i => (i => o))) => (i => (i => o)))) => o) => o)), args: [(((i => o) => ((i => (i => (i => o))) => (i => (i => o)))) => o), (((i => o) => ((i => (i => (i => o))) => (i => (i => o)))) => o)])` | 53 | 0.6% |
+| `isaConst(primitive Pure.eq, ((((i => o) => ((i => (i => (i => o))) => (i => o))) => (((i => o) => ((i => (i => (i => o))) => (i => o))) => o)) => ((((i => o) => ((i => (i => (i => o))) => (i => o))) => (((i => o) => ((i => (i => (i => o))) => (i => o))) => o)) => o)), args: [(((i => o) => ((i => (i => (i => o))) => (i => o))) => (((i => o) => ((i => (i => (i => o))) => (i => o))) => o)), (((i => o) => ((i => (i => (i => o))) => (i => o))) => (((i => o) => ((i => (i => (i => o))) => (i => o))) => o))])` | 155 | 1.6% |
+| `isaConst(primitive Pure.eq, ((((i => o) => ((i => (i => (i => o))) => (i => o))) => o) => ((((i => o) => ((i => (i => (i => o))) => (i => o))) => o) => o)), args: [(((i => o) => ((i => (i => (i => o))) => (i => o))) => o), (((i => o) => ((i => (i => (i => o))) => (i => o))) => o)])` | 155 | 1.6% |
+| `isaConst(primitive Pure.eq, ((((i => o) => ((i => (i => o)) => ((i => i) => o))) => (((i => o) => ((i => (i => o)) => ((i => i) => o))) => o)) => ((((i => o) => ((i => (i => o)) => ((i => i) => o))) => (((i => o) => ((i => (i => o)) => ((i => i) => o))) => o)) => o)), args: [(((i => o) => ((i => (i => o)) => ((i => i) => o))) => (((i => o) => ((i => (i => o)) => ((i => i) => o))) => o)), (((i => o) => ((i => (i => o)) => ((i => i) => o))) => (((i => o) => ((i => (i => o)) => ((i => i) => o))) => o))])` | 128 | 1.4% |
+| `isaConst(primitive Pure.eq, ((((i => o) => ((i => (i => o)) => ((i => i) => o))) => o) => ((((i => o) => ((i => (i => o)) => ((i => i) => o))) => o) => o)), args: [(((i => o) => ((i => (i => o)) => ((i => i) => o))) => o), (((i => o) => ((i => (i => o)) => ((i => i) => o))) => o)])` | 128 | 1.4% |
+| `isaConst(primitive Pure.eq, ((((i => o) => ((i => (i => o)) => (i => (i => (i => (i => o)))))) => (((i => o) => ((i => (i => o)) => (i => (i => (i => (i => o)))))) => o)) => ((((i => o) => ((i => (i => o)) => (i => (i => (i => (i => o)))))) => (((i => o) => ((i => (i => o)) => (i => (i => (i => (i => o)))))) => o)) => o)), args: [(((i => o) => ((i => (i => o)) => (i => (i => (i => (i => o)))))) => (((i => o) => ((i => (i => o)) => (i => (i => (i => (i => o)))))) => o)), (((i => o) => ((i => (i => o)) => (i => (i => (i => (i => o)))))) => (((i => o) => ((i => (i => o)) => (i => (i => (i => (i => o)))))) => o))])` | 243 | 2.6% |
+| `isaConst(primitive Pure.eq, ((((i => o) => ((i => (i => o)) => (i => (i => (i => (i => o)))))) => o) => ((((i => o) => ((i => (i => o)) => (i => (i => (i => (i => o)))))) => o) => o)), args: [(((i => o) => ((i => (i => o)) => (i => (i => (i => (i => o)))))) => o), (((i => o) => ((i => (i => o)) => (i => (i => (i => (i => o)))))) => o)])` | 243 | 2.6% |
+| `isaConst(primitive Pure.eq, ((((i => o) => ((i => (i => o)) => (i => (i => (i => o))))) => (((i => o) => ((i => (i => o)) => (i => (i => (i => o))))) => o)) => ((((i => o) => ((i => (i => o)) => (i => (i => (i => o))))) => (((i => o) => ((i => (i => o)) => (i => (i => (i => o))))) => o)) => o)), args: [(((i => o) => ((i => (i => o)) => (i => (i => (i => o))))) => (((i => o) => ((i => (i => o)) => (i => (i => (i => o))))) => o)), (((i => o) => ((i => (i => o)) => (i => (i => (i => o))))) => (((i => o) => ((i => (i => o)) => (i => (i => (i => o))))) => o))])` | 225 | 2.4% |
+| `isaConst(primitive Pure.eq, ((((i => o) => ((i => (i => o)) => (i => (i => (i => o))))) => o) => ((((i => o) => ((i => (i => o)) => (i => (i => (i => o))))) => o) => o)), args: [(((i => o) => ((i => (i => o)) => (i => (i => (i => o))))) => o), (((i => o) => ((i => (i => o)) => (i => (i => (i => o))))) => o)])` | 225 | 2.4% |
+| `isaConst(primitive Pure.eq, ((((i => o) => ((i => (i => o)) => (i => o))) => (((i => o) => ((i => (i => o)) => (i => o))) => o)) => ((((i => o) => ((i => (i => o)) => (i => o))) => (((i => o) => ((i => (i => o)) => (i => o))) => o)) => o)), args: [(((i => o) => ((i => (i => o)) => (i => o))) => (((i => o) => ((i => (i => o)) => (i => o))) => o)), (((i => o) => ((i => (i => o)) => (i => o))) => (((i => o) => ((i => (i => o)) => (i => o))) => o))])` | 141 | 1.5% |
+| `isaConst(primitive Pure.eq, ((((i => o) => ((i => (i => o)) => (i => o))) => o) => ((((i => o) => ((i => (i => o)) => (i => o))) => o) => o)), args: [(((i => o) => ((i => (i => o)) => (i => o))) => o), (((i => o) => ((i => (i => o)) => (i => o))) => o)])` | 141 | 1.5% |
+| `isaConst(primitive Pure.eq, ((((i => o) => ((i => (i => o)) => o)) => (((i => o) => ((i => (i => o)) => o)) => o)) => ((((i => o) => ((i => (i => o)) => o)) => (((i => o) => ((i => (i => o)) => o)) => o)) => o)), args: [(((i => o) => ((i => (i => o)) => o)) => (((i => o) => ((i => (i => o)) => o)) => o)), (((i => o) => ((i => (i => o)) => o)) => (((i => o) => ((i => (i => o)) => o)) => o))])` | 585 | 6.2% |
+| `isaConst(primitive Pure.eq, ((((i => o) => ((i => (i => o)) => o)) => o) => ((((i => o) => ((i => (i => o)) => o)) => o) => o)), args: [(((i => o) => ((i => (i => o)) => o)) => o), (((i => o) => ((i => (i => o)) => o)) => o)])` | 585 | 6.2% |
+| `isaConst(primitive Pure.eq, ((((i => o) => ((i => o) => o)) => (((i => o) => ((i => o) => o)) => o)) => ((((i => o) => ((i => o) => o)) => (((i => o) => ((i => o) => o)) => o)) => o)), args: [(((i => o) => ((i => o) => o)) => (((i => o) => ((i => o) => o)) => o)), (((i => o) => ((i => o) => o)) => (((i => o) => ((i => o) => o)) => o))])` | 1163 | 12.3% |
+| `isaConst(primitive Pure.eq, ((((i => o) => ((i => o) => o)) => o) => ((((i => o) => ((i => o) => o)) => o) => o)), args: [(((i => o) => ((i => o) => o)) => o), (((i => o) => ((i => o) => o)) => o)])` | 1163 | 12.3% |
+| `isaConst(primitive Pure.eq, ((((i => o) => (i => ((i => (i => (i => o))) => (i => (i => o))))) => (((i => o) => (i => ((i => (i => (i => o))) => (i => (i => o))))) => o)) => ((((i => o) => (i => ((i => (i => (i => o))) => (i => (i => o))))) => (((i => o) => (i => ((i => (i => (i => o))) => (i => (i => o))))) => o)) => o)), args: [(((i => o) => (i => ((i => (i => (i => o))) => (i => (i => o))))) => (((i => o) => (i => ((i => (i => (i => o))) => (i => (i => o))))) => o)), (((i => o) => (i => ((i => (i => (i => o))) => (i => (i => o))))) => (((i => o) => (i => ((i => (i => (i => o))) => (i => (i => o))))) => o))])` | 3 | 0.0% |
+| `isaConst(primitive Pure.eq, ((((i => o) => (i => ((i => (i => (i => o))) => (i => (i => o))))) => o) => ((((i => o) => (i => ((i => (i => (i => o))) => (i => (i => o))))) => o) => o)), args: [(((i => o) => (i => ((i => (i => (i => o))) => (i => (i => o))))) => o), (((i => o) => (i => ((i => (i => (i => o))) => (i => (i => o))))) => o)])` | 3 | 0.0% |
+| `isaConst(primitive Pure.eq, ((((i => o) => (i => ((i => (i => o)) => ((i => i) => o)))) => (((i => o) => (i => ((i => (i => o)) => ((i => i) => o)))) => o)) => ((((i => o) => (i => ((i => (i => o)) => ((i => i) => o)))) => (((i => o) => (i => ((i => (i => o)) => ((i => i) => o)))) => o)) => o)), args: [(((i => o) => (i => ((i => (i => o)) => ((i => i) => o)))) => (((i => o) => (i => ((i => (i => o)) => ((i => i) => o)))) => o)), (((i => o) => (i => ((i => (i => o)) => ((i => i) => o)))) => (((i => o) => (i => ((i => (i => o)) => ((i => i) => o)))) => o))])` | 44 | 0.5% |
+| `isaConst(primitive Pure.eq, ((((i => o) => (i => ((i => (i => o)) => ((i => i) => o)))) => o) => ((((i => o) => (i => ((i => (i => o)) => ((i => i) => o)))) => o) => o)), args: [(((i => o) => (i => ((i => (i => o)) => ((i => i) => o)))) => o), (((i => o) => (i => ((i => (i => o)) => ((i => i) => o)))) => o)])` | 44 | 0.5% |
+| `isaConst(primitive Pure.eq, ((((i => o) => (i => ((i => (i => o)) => (i => (i => o))))) => (((i => o) => (i => ((i => (i => o)) => (i => (i => o))))) => o)) => ((((i => o) => (i => ((i => (i => o)) => (i => (i => o))))) => (((i => o) => (i => ((i => (i => o)) => (i => (i => o))))) => o)) => o)), args: [(((i => o) => (i => ((i => (i => o)) => (i => (i => o))))) => (((i => o) => (i => ((i => (i => o)) => (i => (i => o))))) => o)), (((i => o) => (i => ((i => (i => o)) => (i => (i => o))))) => (((i => o) => (i => ((i => (i => o)) => (i => (i => o))))) => o))])` | 249 | 2.6% |
+| `isaConst(primitive Pure.eq, ((((i => o) => (i => ((i => (i => o)) => (i => (i => o))))) => o) => ((((i => o) => (i => ((i => (i => o)) => (i => (i => o))))) => o) => o)), args: [(((i => o) => (i => ((i => (i => o)) => (i => (i => o))))) => o), (((i => o) => (i => ((i => (i => o)) => (i => (i => o))))) => o)])` | 249 | 2.6% |
+| `isaConst(primitive Pure.eq, ((((i => o) => (i => ((i => (i => o)) => (i => o)))) => (((i => o) => (i => ((i => (i => o)) => (i => o)))) => o)) => ((((i => o) => (i => ((i => (i => o)) => (i => o)))) => (((i => o) => (i => ((i => (i => o)) => (i => o)))) => o)) => o)), args: [(((i => o) => (i => ((i => (i => o)) => (i => o)))) => (((i => o) => (i => ((i => (i => o)) => (i => o)))) => o)), (((i => o) => (i => ((i => (i => o)) => (i => o)))) => (((i => o) => (i => ((i => (i => o)) => (i => o)))) => o))])` | 96 | 1.0% |
+| `isaConst(primitive Pure.eq, ((((i => o) => (i => ((i => (i => o)) => (i => o)))) => o) => ((((i => o) => (i => ((i => (i => o)) => (i => o)))) => o) => o)), args: [(((i => o) => (i => ((i => (i => o)) => (i => o)))) => o), (((i => o) => (i => ((i => (i => o)) => (i => o)))) => o)])` | 96 | 1.0% |
+| `isaConst(primitive Pure.eq, ((((i => o) => (i => ((i => (i => o)) => o))) => (((i => o) => (i => ((i => (i => o)) => o))) => o)) => ((((i => o) => (i => ((i => (i => o)) => o))) => (((i => o) => (i => ((i => (i => o)) => o))) => o)) => o)), args: [(((i => o) => (i => ((i => (i => o)) => o))) => (((i => o) => (i => ((i => (i => o)) => o))) => o)), (((i => o) => (i => ((i => (i => o)) => o))) => (((i => o) => (i => ((i => (i => o)) => o))) => o))])` | 374 | 4.0% |
+| `isaConst(primitive Pure.eq, ((((i => o) => (i => ((i => (i => o)) => o))) => o) => ((((i => o) => (i => ((i => (i => o)) => o))) => o) => o)), args: [(((i => o) => (i => ((i => (i => o)) => o))) => o), (((i => o) => (i => ((i => (i => o)) => o))) => o)])` | 374 | 4.0% |
+| `isaConst(primitive Pure.eq, ((((i => o) => (i => ((i => o) => (i => o)))) => (((i => o) => (i => ((i => o) => (i => o)))) => o)) => ((((i => o) => (i => ((i => o) => (i => o)))) => (((i => o) => (i => ((i => o) => (i => o)))) => o)) => o)), args: [(((i => o) => (i => ((i => o) => (i => o)))) => (((i => o) => (i => ((i => o) => (i => o)))) => o)), (((i => o) => (i => ((i => o) => (i => o)))) => (((i => o) => (i => ((i => o) => (i => o)))) => o))])` | 46 | 0.5% |
+| `isaConst(primitive Pure.eq, ((((i => o) => (i => ((i => o) => (i => o)))) => o) => ((((i => o) => (i => ((i => o) => (i => o)))) => o) => o)), args: [(((i => o) => (i => ((i => o) => (i => o)))) => o), (((i => o) => (i => ((i => o) => (i => o)))) => o)])` | 46 | 0.5% |
+| `isaConst(primitive Pure.eq, ((((i => o) => (i => (i => ((i => (i => (i => o))) => ((i => (i => i)) => o))))) => (((i => o) => (i => (i => ((i => (i => (i => o))) => ((i => (i => i)) => o))))) => o)) => ((((i => o) => (i => (i => ((i => (i => (i => o))) => ((i => (i => i)) => o))))) => (((i => o) => (i => (i => ((i => (i => (i => o))) => ((i => (i => i)) => o))))) => o)) => o)), args: [(((i => o) => (i => (i => ((i => (i => (i => o))) => ((i => (i => i)) => o))))) => (((i => o) => (i => (i => ((i => (i => (i => o))) => ((i => (i => i)) => o))))) => o)), (((i => o) => (i => (i => ((i => (i => (i => o))) => ((i => (i => i)) => o))))) => (((i => o) => (i => (i => ((i => (i => (i => o))) => ((i => (i => i)) => o))))) => o))])` | 41 | 0.4% |
+| `isaConst(primitive Pure.eq, ((((i => o) => (i => (i => ((i => (i => (i => o))) => ((i => (i => i)) => o))))) => o) => ((((i => o) => (i => (i => ((i => (i => (i => o))) => ((i => (i => i)) => o))))) => o) => o)), args: [(((i => o) => (i => (i => ((i => (i => (i => o))) => ((i => (i => i)) => o))))) => o), (((i => o) => (i => (i => ((i => (i => (i => o))) => ((i => (i => i)) => o))))) => o)])` | 41 | 0.4% |
+| `isaConst(primitive Pure.eq, ((((i => o) => (i => (i => (i => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o)))))) => (((i => o) => (i => (i => (i => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o)))))) => o)) => ((((i => o) => (i => (i => (i => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o)))))) => (((i => o) => (i => (i => (i => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o)))))) => o)) => o)), args: [(((i => o) => (i => (i => (i => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o)))))) => (((i => o) => (i => (i => (i => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o)))))) => o)), (((i => o) => (i => (i => (i => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o)))))) => (((i => o) => (i => (i => (i => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o)))))) => o))])` | 1 | 0.0% |
+| `isaConst(primitive Pure.eq, ((((i => o) => (i => (i => (i => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o)))))) => o) => ((((i => o) => (i => (i => (i => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o)))))) => o) => o)), args: [(((i => o) => (i => (i => (i => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o)))))) => o), (((i => o) => (i => (i => (i => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o)))))) => o)])` | 1 | 0.0% |
+| `isaConst(primitive Pure.eq, ((((i => o) => (i => (i => (i => (i => (i => o)))))) => (((i => o) => (i => (i => (i => (i => (i => o)))))) => o)) => ((((i => o) => (i => (i => (i => (i => (i => o)))))) => (((i => o) => (i => (i => (i => (i => (i => o)))))) => o)) => o)), args: [(((i => o) => (i => (i => (i => (i => (i => o)))))) => (((i => o) => (i => (i => (i => (i => (i => o)))))) => o)), (((i => o) => (i => (i => (i => (i => (i => o)))))) => (((i => o) => (i => (i => (i => (i => (i => o)))))) => o))])` | 89 | 0.9% |
+| `isaConst(primitive Pure.eq, ((((i => o) => (i => (i => (i => (i => (i => o)))))) => o) => ((((i => o) => (i => (i => (i => (i => (i => o)))))) => o) => o)), args: [(((i => o) => (i => (i => (i => (i => (i => o)))))) => o), (((i => o) => (i => (i => (i => (i => (i => o)))))) => o)])` | 89 | 0.9% |
+| `isaConst(primitive Pure.eq, ((((i => o) => (i => (i => (i => (i => o))))) => (((i => o) => (i => (i => (i => (i => o))))) => o)) => ((((i => o) => (i => (i => (i => (i => o))))) => (((i => o) => (i => (i => (i => (i => o))))) => o)) => o)), args: [(((i => o) => (i => (i => (i => (i => o))))) => (((i => o) => (i => (i => (i => (i => o))))) => o)), (((i => o) => (i => (i => (i => (i => o))))) => (((i => o) => (i => (i => (i => (i => o))))) => o))])` | 117 | 1.2% |
+| `isaConst(primitive Pure.eq, ((((i => o) => (i => (i => (i => (i => o))))) => o) => ((((i => o) => (i => (i => (i => (i => o))))) => o) => o)), args: [(((i => o) => (i => (i => (i => (i => o))))) => o), (((i => o) => (i => (i => (i => (i => o))))) => o)])` | 117 | 1.2% |
+| `isaConst(primitive Pure.eq, ((((i => o) => (i => (i => (i => o)))) => (((i => o) => (i => (i => (i => o)))) => o)) => ((((i => o) => (i => (i => (i => o)))) => (((i => o) => (i => (i => (i => o)))) => o)) => o)), args: [(((i => o) => (i => (i => (i => o)))) => (((i => o) => (i => (i => (i => o)))) => o)), (((i => o) => (i => (i => (i => o)))) => (((i => o) => (i => (i => (i => o)))) => o))])` | 1025 | 10.9% |
+| `isaConst(primitive Pure.eq, ((((i => o) => (i => (i => (i => o)))) => o) => ((((i => o) => (i => (i => (i => o)))) => o) => o)), args: [(((i => o) => (i => (i => (i => o)))) => o), (((i => o) => (i => (i => (i => o)))) => o)])` | 1025 | 10.9% |
+| `isaConst(primitive Pure.eq, ((((i => o) => (i => (i => i))) => (((i => o) => (i => (i => i))) => o)) => ((((i => o) => (i => (i => i))) => (((i => o) => (i => (i => i))) => o)) => o)), args: [(((i => o) => (i => (i => i))) => (((i => o) => (i => (i => i))) => o)), (((i => o) => (i => (i => i))) => (((i => o) => (i => (i => i))) => o))])` | 44 | 0.5% |
+| `isaConst(primitive Pure.eq, ((((i => o) => (i => (i => i))) => o) => ((((i => o) => (i => (i => i))) => o) => o)), args: [(((i => o) => (i => (i => i))) => o), (((i => o) => (i => (i => i))) => o)])` | 44 | 0.5% |
+| `isaConst(primitive Pure.eq, ((((i => o) => (i => (i => o))) => (((i => o) => (i => (i => o))) => o)) => ((((i => o) => (i => (i => o))) => (((i => o) => (i => (i => o))) => o)) => o)), args: [(((i => o) => (i => (i => o))) => (((i => o) => (i => (i => o))) => o)), (((i => o) => (i => (i => o))) => (((i => o) => (i => (i => o))) => o))])` | 945 | 10.0% |
+| `isaConst(primitive Pure.eq, ((((i => o) => (i => (i => o))) => o) => ((((i => o) => (i => (i => o))) => o) => o)), args: [(((i => o) => (i => (i => o))) => o), (((i => o) => (i => (i => o))) => o)])` | 945 | 10.0% |
+| `isaConst(primitive Pure.eq, ((((i => o) => (i => i)) => (((i => o) => (i => i)) => o)) => ((((i => o) => (i => i)) => (((i => o) => (i => i)) => o)) => o)), args: [(((i => o) => (i => i)) => (((i => o) => (i => i)) => o)), (((i => o) => (i => i)) => (((i => o) => (i => i)) => o))])` | 2 | 0.0% |
+| `isaConst(primitive Pure.eq, ((((i => o) => (i => i)) => o) => ((((i => o) => (i => i)) => o) => o)), args: [(((i => o) => (i => i)) => o), (((i => o) => (i => i)) => o)])` | 2 | 0.0% |
+| `isaConst(primitive Pure.eq, ((((i => o) => (i => o)) => (((i => o) => (i => o)) => o)) => ((((i => o) => (i => o)) => (((i => o) => (i => o)) => o)) => o)), args: [(((i => o) => (i => o)) => (((i => o) => (i => o)) => o)), (((i => o) => (i => o)) => (((i => o) => (i => o)) => o))])` | 670 | 7.1% |
+| `isaConst(primitive Pure.eq, ((((i => o) => (i => o)) => o) => ((((i => o) => (i => o)) => o) => o)), args: [(((i => o) => (i => o)) => o), (((i => o) => (i => o)) => o)])` | 670 | 7.1% |
+| `isaConst(primitive Pure.eq, ((((i => o) => (o => (i => o))) => (((i => o) => (o => (i => o))) => o)) => ((((i => o) => (o => (i => o))) => (((i => o) => (o => (i => o))) => o)) => o)), args: [(((i => o) => (o => (i => o))) => (((i => o) => (o => (i => o))) => o)), (((i => o) => (o => (i => o))) => (((i => o) => (o => (i => o))) => o))])` | 92 | 1.0% |
+| `isaConst(primitive Pure.eq, ((((i => o) => (o => (i => o))) => o) => ((((i => o) => (o => (i => o))) => o) => o)), args: [(((i => o) => (o => (i => o))) => o), (((i => o) => (o => (i => o))) => o)])` | 92 | 1.0% |
+| `isaConst(primitive Pure.eq, ((((i => o) => i) => (((i => o) => i) => o)) => ((((i => o) => i) => (((i => o) => i) => o)) => o)), args: [(((i => o) => i) => (((i => o) => i) => o)), (((i => o) => i) => (((i => o) => i) => o))])` | 5274 | 56.0% |
+| `isaConst(primitive Pure.eq, ((((i => o) => i) => o) => ((((i => o) => i) => o) => o)), args: [(((i => o) => i) => o), (((i => o) => i) => o)])` | 5274 | 56.0% |
+| `isaConst(primitive Pure.eq, ((((i => o) => o) => (((i => o) => o) => o)) => ((((i => o) => o) => (((i => o) => o) => o)) => o)), args: [(((i => o) => o) => (((i => o) => o) => o)), (((i => o) => o) => (((i => o) => o) => o))])` | 4100 | 43.5% |
+| `isaConst(primitive Pure.eq, ((((i => o) => o) => o) => ((((i => o) => o) => o) => o)), args: [(((i => o) => o) => o), (((i => o) => o) => o)])` | 4102 | 43.5% |
+| `isaConst(primitive Pure.eq, (((i => 'a) => ((i => 'a) => o)) => (((i => 'a) => ((i => 'a) => o)) => o)), args: [((i => 'a) => ((i => 'a) => o)), ((i => 'a) => ((i => 'a) => o))])` | 2739 | 29.1% |
+| `isaConst(primitive Pure.eq, (((i => 'a) => o) => (((i => 'a) => o) => o)), args: [((i => 'a) => o), ((i => 'a) => o)])` | 2739 | 29.1% |
+| `isaConst(primitive Pure.eq, (((i => ((i => (i => (i => i))) => i)) => ((i => ((i => (i => (i => i))) => i)) => o)) => (((i => ((i => (i => (i => i))) => i)) => ((i => ((i => (i => (i => i))) => i)) => o)) => o)), args: [((i => ((i => (i => (i => i))) => i)) => ((i => ((i => (i => (i => i))) => i)) => o)), ((i => ((i => (i => (i => i))) => i)) => ((i => ((i => (i => (i => i))) => i)) => o))])` | 25 | 0.3% |
+| `isaConst(primitive Pure.eq, (((i => ((i => (i => (i => i))) => i)) => o) => (((i => ((i => (i => (i => i))) => i)) => o) => o)), args: [((i => ((i => (i => (i => i))) => i)) => o), ((i => ((i => (i => (i => i))) => i)) => o)])` | 25 | 0.3% |
+| `isaConst(primitive Pure.eq, (((i => ((i => (i => i)) => (i => (i => i)))) => ((i => ((i => (i => i)) => (i => (i => i)))) => o)) => (((i => ((i => (i => i)) => (i => (i => i)))) => ((i => ((i => (i => i)) => (i => (i => i)))) => o)) => o)), args: [((i => ((i => (i => i)) => (i => (i => i)))) => ((i => ((i => (i => i)) => (i => (i => i)))) => o)), ((i => ((i => (i => i)) => (i => (i => i)))) => ((i => ((i => (i => i)) => (i => (i => i)))) => o))])` | 53 | 0.6% |
+| `isaConst(primitive Pure.eq, (((i => ((i => (i => i)) => (i => (i => i)))) => o) => (((i => ((i => (i => i)) => (i => (i => i)))) => o) => o)), args: [((i => ((i => (i => i)) => (i => (i => i)))) => o), ((i => ((i => (i => i)) => (i => (i => i)))) => o)])` | 53 | 0.6% |
+| `isaConst(primitive Pure.eq, (((i => ((i => (i => i)) => (i => i))) => ((i => ((i => (i => i)) => (i => i))) => o)) => (((i => ((i => (i => i)) => (i => i))) => ((i => ((i => (i => i)) => (i => i))) => o)) => o)), args: [((i => ((i => (i => i)) => (i => i))) => ((i => ((i => (i => i)) => (i => i))) => o)), ((i => ((i => (i => i)) => (i => i))) => ((i => ((i => (i => i)) => (i => i))) => o))])` | 2044 | 21.7% |
+| `isaConst(primitive Pure.eq, (((i => ((i => (i => i)) => (i => i))) => o) => (((i => ((i => (i => i)) => (i => i))) => o) => o)), args: [((i => ((i => (i => i)) => (i => i))) => o), ((i => ((i => (i => i)) => (i => i))) => o)])` | 2044 | 21.7% |
+| `isaConst(primitive Pure.eq, (((i => ((i => (i => i)) => i)) => ((i => ((i => (i => i)) => i)) => o)) => (((i => ((i => (i => i)) => i)) => ((i => ((i => (i => i)) => i)) => o)) => o)), args: [((i => ((i => (i => i)) => i)) => ((i => ((i => (i => i)) => i)) => o)), ((i => ((i => (i => i)) => i)) => ((i => ((i => (i => i)) => i)) => o))])` | 3706 | 39.3% |
+| `isaConst(primitive Pure.eq, (((i => ((i => (i => i)) => i)) => o) => (((i => ((i => (i => i)) => i)) => o) => o)), args: [((i => ((i => (i => i)) => i)) => o), ((i => ((i => (i => i)) => i)) => o)])` | 3706 | 39.3% |
+| `isaConst(primitive Pure.eq, (((i => ((i => (i => o)) => i)) => ((i => ((i => (i => o)) => i)) => o)) => (((i => ((i => (i => o)) => i)) => ((i => ((i => (i => o)) => i)) => o)) => o)), args: [((i => ((i => (i => o)) => i)) => ((i => ((i => (i => o)) => i)) => o)), ((i => ((i => (i => o)) => i)) => ((i => ((i => (i => o)) => i)) => o))])` | 7313 | 77.6% |
+| `isaConst(primitive Pure.eq, (((i => ((i => (i => o)) => i)) => o) => (((i => ((i => (i => o)) => i)) => o) => o)), args: [((i => ((i => (i => o)) => i)) => o), ((i => ((i => (i => o)) => i)) => o)])` | 7313 | 77.6% |
+| `isaConst(primitive Pure.eq, (((i => ((i => i) => (i => i))) => ((i => ((i => i) => (i => i))) => o)) => (((i => ((i => i) => (i => i))) => ((i => ((i => i) => (i => i))) => o)) => o)), args: [((i => ((i => i) => (i => i))) => ((i => ((i => i) => (i => i))) => o)), ((i => ((i => i) => (i => i))) => ((i => ((i => i) => (i => i))) => o))])` | 3854 | 40.9% |
+| `isaConst(primitive Pure.eq, (((i => ((i => i) => (i => i))) => o) => (((i => ((i => i) => (i => i))) => o) => o)), args: [((i => ((i => i) => (i => i))) => o), ((i => ((i => i) => (i => i))) => o)])` | 3854 | 40.9% |
+| `isaConst(primitive Pure.eq, (((i => ((i => i) => i)) => ((i => ((i => i) => i)) => o)) => (((i => ((i => i) => i)) => ((i => ((i => i) => i)) => o)) => o)), args: [((i => ((i => i) => i)) => ((i => ((i => i) => i)) => o)), ((i => ((i => i) => i)) => ((i => ((i => i) => i)) => o))])` | 6215 | 66.0% |
+| `isaConst(primitive Pure.eq, (((i => ((i => i) => i)) => o) => (((i => ((i => i) => i)) => o) => o)), args: [((i => ((i => i) => i)) => o), ((i => ((i => i) => i)) => o)])` | 6215 | 66.0% |
+| `isaConst(primitive Pure.eq, (((i => ((i => i) => o)) => ((i => ((i => i) => o)) => o)) => (((i => ((i => i) => o)) => ((i => ((i => i) => o)) => o)) => o)), args: [((i => ((i => i) => o)) => ((i => ((i => i) => o)) => o)), ((i => ((i => i) => o)) => ((i => ((i => i) => o)) => o))])` | 4841 | 51.4% |
+| `isaConst(primitive Pure.eq, (((i => ((i => i) => o)) => o) => (((i => ((i => i) => o)) => o) => o)), args: [((i => ((i => i) => o)) => o), ((i => ((i => i) => o)) => o)])` | 4841 | 51.4% |
+| `isaConst(primitive Pure.eq, (((i => ((i => o) => i)) => ((i => ((i => o) => i)) => o)) => (((i => ((i => o) => i)) => ((i => ((i => o) => i)) => o)) => o)), args: [((i => ((i => o) => i)) => ((i => ((i => o) => i)) => o)), ((i => ((i => o) => i)) => ((i => ((i => o) => i)) => o))])` | 7247 | 76.9% |
+| `isaConst(primitive Pure.eq, (((i => ((i => o) => i)) => o) => (((i => ((i => o) => i)) => o) => o)), args: [((i => ((i => o) => i)) => o), ((i => ((i => o) => i)) => o)])` | 7247 | 76.9% |
+| `isaConst(primitive Pure.eq, (((i => ((i => o) => o)) => ((i => ((i => o) => o)) => o)) => (((i => ((i => o) => o)) => ((i => ((i => o) => o)) => o)) => o)), args: [((i => ((i => o) => o)) => ((i => ((i => o) => o)) => o)), ((i => ((i => o) => o)) => ((i => ((i => o) => o)) => o))])` | 7493 | 79.5% |
+| `isaConst(primitive Pure.eq, (((i => ((i => o) => o)) => o) => (((i => ((i => o) => o)) => o) => o)), args: [((i => ((i => o) => o)) => o), ((i => ((i => o) => o)) => o)])` | 7493 | 79.5% |
+| `isaConst(primitive Pure.eq, (((i => (i => 'a)) => (i => 'a)) => (((i => (i => 'a)) => (i => 'a)) => o)), args: [((i => (i => 'a)) => (i => 'a)), ((i => (i => 'a)) => (i => 'a))])` | 3297 | 35.0% |
+| `isaConst(primitive Pure.eq, (((i => (i => ((i => (i => i)) => ((i => (i => i)) => i)))) => ((i => (i => ((i => (i => i)) => ((i => (i => i)) => i)))) => o)) => (((i => (i => ((i => (i => i)) => ((i => (i => i)) => i)))) => ((i => (i => ((i => (i => i)) => ((i => (i => i)) => i)))) => o)) => o)), args: [((i => (i => ((i => (i => i)) => ((i => (i => i)) => i)))) => ((i => (i => ((i => (i => i)) => ((i => (i => i)) => i)))) => o)), ((i => (i => ((i => (i => i)) => ((i => (i => i)) => i)))) => ((i => (i => ((i => (i => i)) => ((i => (i => i)) => i)))) => o))])` | 8 | 0.1% |
+| `isaConst(primitive Pure.eq, (((i => (i => ((i => (i => i)) => ((i => (i => i)) => i)))) => o) => (((i => (i => ((i => (i => i)) => ((i => (i => i)) => i)))) => o) => o)), args: [((i => (i => ((i => (i => i)) => ((i => (i => i)) => i)))) => o), ((i => (i => ((i => (i => i)) => ((i => (i => i)) => i)))) => o)])` | 8 | 0.1% |
+| `isaConst(primitive Pure.eq, (((i => (i => ((i => (i => i)) => (i => o)))) => ((i => (i => ((i => (i => i)) => (i => o)))) => o)) => (((i => (i => ((i => (i => i)) => (i => o)))) => ((i => (i => ((i => (i => i)) => (i => o)))) => o)) => o)), args: [((i => (i => ((i => (i => i)) => (i => o)))) => ((i => (i => ((i => (i => i)) => (i => o)))) => o)), ((i => (i => ((i => (i => i)) => (i => o)))) => ((i => (i => ((i => (i => i)) => (i => o)))) => o))])` | 4068 | 43.2% |
+| `isaConst(primitive Pure.eq, (((i => (i => ((i => (i => i)) => (i => o)))) => o) => (((i => (i => ((i => (i => i)) => (i => o)))) => o) => o)), args: [((i => (i => ((i => (i => i)) => (i => o)))) => o), ((i => (i => ((i => (i => i)) => (i => o)))) => o)])` | 4068 | 43.2% |
+| `isaConst(primitive Pure.eq, (((i => (i => ((i => (i => i)) => i))) => ((i => (i => ((i => (i => i)) => i))) => o)) => (((i => (i => ((i => (i => i)) => i))) => ((i => (i => ((i => (i => i)) => i))) => o)) => o)), args: [((i => (i => ((i => (i => i)) => i))) => ((i => (i => ((i => (i => i)) => i))) => o)), ((i => (i => ((i => (i => i)) => i))) => ((i => (i => ((i => (i => i)) => i))) => o))])` | 4061 | 43.1% |
+| `isaConst(primitive Pure.eq, (((i => (i => ((i => (i => i)) => i))) => o) => (((i => (i => ((i => (i => i)) => i))) => o) => o)), args: [((i => (i => ((i => (i => i)) => i))) => o), ((i => (i => ((i => (i => i)) => i))) => o)])` | 4061 | 43.1% |
+| `isaConst(primitive Pure.eq, (((i => (i => ((i => (i => i)) => o))) => ((i => (i => ((i => (i => i)) => o))) => o)) => (((i => (i => ((i => (i => i)) => o))) => ((i => (i => ((i => (i => i)) => o))) => o)) => o)), args: [((i => (i => ((i => (i => i)) => o))) => ((i => (i => ((i => (i => i)) => o))) => o)), ((i => (i => ((i => (i => i)) => o))) => ((i => (i => ((i => (i => i)) => o))) => o))])` | 439 | 4.7% |
+| `isaConst(primitive Pure.eq, (((i => (i => ((i => (i => i)) => o))) => o) => (((i => (i => ((i => (i => i)) => o))) => o) => o)), args: [((i => (i => ((i => (i => i)) => o))) => o), ((i => (i => ((i => (i => i)) => o))) => o)])` | 439 | 4.7% |
+| `isaConst(primitive Pure.eq, (((i => (i => ((i => i) => ((i => i) => (i => o))))) => ((i => (i => ((i => i) => ((i => i) => (i => o))))) => o)) => (((i => (i => ((i => i) => ((i => i) => (i => o))))) => ((i => (i => ((i => i) => ((i => i) => (i => o))))) => o)) => o)), args: [((i => (i => ((i => i) => ((i => i) => (i => o))))) => ((i => (i => ((i => i) => ((i => i) => (i => o))))) => o)), ((i => (i => ((i => i) => ((i => i) => (i => o))))) => ((i => (i => ((i => i) => ((i => i) => (i => o))))) => o))])` | 7 | 0.1% |
+| `isaConst(primitive Pure.eq, (((i => (i => ((i => i) => ((i => i) => (i => o))))) => o) => (((i => (i => ((i => i) => ((i => i) => (i => o))))) => o) => o)), args: [((i => (i => ((i => i) => ((i => i) => (i => o))))) => o), ((i => (i => ((i => i) => ((i => i) => (i => o))))) => o)])` | 7 | 0.1% |
+| `isaConst(primitive Pure.eq, (((i => (i => (i => ((i => (i => i)) => i)))) => ((i => (i => (i => ((i => (i => i)) => i)))) => o)) => (((i => (i => (i => ((i => (i => i)) => i)))) => ((i => (i => (i => ((i => (i => i)) => i)))) => o)) => o)), args: [((i => (i => (i => ((i => (i => i)) => i)))) => ((i => (i => (i => ((i => (i => i)) => i)))) => o)), ((i => (i => (i => ((i => (i => i)) => i)))) => ((i => (i => (i => ((i => (i => i)) => i)))) => o))])` | 896 | 9.5% |
+| `isaConst(primitive Pure.eq, (((i => (i => (i => ((i => (i => i)) => i)))) => o) => (((i => (i => (i => ((i => (i => i)) => i)))) => o) => o)), args: [((i => (i => (i => ((i => (i => i)) => i)))) => o), ((i => (i => (i => ((i => (i => i)) => i)))) => o)])` | 896 | 9.5% |
+| `isaConst(primitive Pure.eq, (((i => (i => (i => ((i => i) => o)))) => ((i => (i => (i => ((i => i) => o)))) => o)) => (((i => (i => (i => ((i => i) => o)))) => ((i => (i => (i => ((i => i) => o)))) => o)) => o)), args: [((i => (i => (i => ((i => i) => o)))) => ((i => (i => (i => ((i => i) => o)))) => o)), ((i => (i => (i => ((i => i) => o)))) => ((i => (i => (i => ((i => i) => o)))) => o))])` | 21 | 0.2% |
+| `isaConst(primitive Pure.eq, (((i => (i => (i => ((i => i) => o)))) => o) => (((i => (i => (i => ((i => i) => o)))) => o) => o)), args: [((i => (i => (i => ((i => i) => o)))) => o), ((i => (i => (i => ((i => i) => o)))) => o)])` | 21 | 0.2% |
+| `isaConst(primitive Pure.eq, (((i => (i => (i => (i => (i => (i => i)))))) => ((i => (i => (i => (i => (i => (i => i)))))) => o)) => (((i => (i => (i => (i => (i => (i => i)))))) => ((i => (i => (i => (i => (i => (i => i)))))) => o)) => o)), args: [((i => (i => (i => (i => (i => (i => i)))))) => ((i => (i => (i => (i => (i => (i => i)))))) => o)), ((i => (i => (i => (i => (i => (i => i)))))) => ((i => (i => (i => (i => (i => (i => i)))))) => o))])` | 35 | 0.4% |
+| `isaConst(primitive Pure.eq, (((i => (i => (i => (i => (i => (i => i)))))) => o) => (((i => (i => (i => (i => (i => (i => i)))))) => o) => o)), args: [((i => (i => (i => (i => (i => (i => i)))))) => o), ((i => (i => (i => (i => (i => (i => i)))))) => o)])` | 35 | 0.4% |
+| `isaConst(primitive Pure.eq, (((i => (i => (i => (i => (i => i))))) => ((i => (i => (i => (i => (i => i))))) => o)) => (((i => (i => (i => (i => (i => i))))) => ((i => (i => (i => (i => (i => i))))) => o)) => o)), args: [((i => (i => (i => (i => (i => i))))) => ((i => (i => (i => (i => (i => i))))) => o)), ((i => (i => (i => (i => (i => i))))) => ((i => (i => (i => (i => (i => i))))) => o))])` | 187 | 2.0% |
+| `isaConst(primitive Pure.eq, (((i => (i => (i => (i => (i => i))))) => o) => (((i => (i => (i => (i => (i => i))))) => o) => o)), args: [((i => (i => (i => (i => (i => i))))) => o), ((i => (i => (i => (i => (i => i))))) => o)])` | 187 | 2.0% |
+| `isaConst(primitive Pure.eq, (((i => (i => (i => (i => (i => o))))) => ((i => (i => (i => (i => (i => o))))) => o)) => (((i => (i => (i => (i => (i => o))))) => ((i => (i => (i => (i => (i => o))))) => o)) => o)), args: [((i => (i => (i => (i => (i => o))))) => ((i => (i => (i => (i => (i => o))))) => o)), ((i => (i => (i => (i => (i => o))))) => ((i => (i => (i => (i => (i => o))))) => o))])` | 9 | 0.1% |
+| `isaConst(primitive Pure.eq, (((i => (i => (i => (i => (i => o))))) => ((i => (i => (i => (i => i)))) => o)) => (((i => (i => (i => (i => (i => o))))) => ((i => (i => (i => (i => i)))) => o)) => o)), args: [((i => (i => (i => (i => (i => o))))) => ((i => (i => (i => (i => i)))) => o)), ((i => (i => (i => (i => (i => o))))) => ((i => (i => (i => (i => i)))) => o))])` | 1 | 0.0% |
+| `isaConst(primitive Pure.eq, (((i => (i => (i => (i => (i => o))))) => o) => (((i => (i => (i => (i => (i => o))))) => o) => o)), args: [((i => (i => (i => (i => (i => o))))) => o), ((i => (i => (i => (i => (i => o))))) => o)])` | 9 | 0.1% |
+| `isaConst(primitive Pure.eq, (((i => (i => (i => (i => i)))) => ((i => (i => (i => (i => i)))) => o)) => (((i => (i => (i => (i => i)))) => ((i => (i => (i => (i => i)))) => o)) => o)), args: [((i => (i => (i => (i => i)))) => ((i => (i => (i => (i => i)))) => o)), ((i => (i => (i => (i => i)))) => ((i => (i => (i => (i => i)))) => o))])` | 1108 | 11.8% |
+| `isaConst(primitive Pure.eq, (((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => (i => i)))) => (((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => (i => i)))) => o)), args: [((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => (i => i)))), ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => (i => i))))])` | 38 | 0.4% |
+| `isaConst(primitive Pure.eq, (((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => i))) => (((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => i))) => o)), args: [((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => i))), ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => i)))])` | 24 | 0.3% |
+| `isaConst(primitive Pure.eq, (((i => (i => (i => (i => i)))) => o) => (((i => (i => (i => (i => i)))) => o) => o)), args: [((i => (i => (i => (i => i)))) => o), ((i => (i => (i => (i => i)))) => o)])` | 1109 | 11.8% |
+| `isaConst(primitive Pure.eq, (((i => (i => (i => (i => o)))) => ((i => (i => (i => (i => o)))) => o)) => (((i => (i => (i => (i => o)))) => ((i => (i => (i => (i => o)))) => o)) => o)), args: [((i => (i => (i => (i => o)))) => ((i => (i => (i => (i => o)))) => o)), ((i => (i => (i => (i => o)))) => ((i => (i => (i => (i => o)))) => o))])` | 114 | 1.2% |
+| `isaConst(primitive Pure.eq, (((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o)) => (((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o)) => o)), args: [((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o)), ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o))])` | 2 | 0.0% |
+| `isaConst(primitive Pure.eq, (((i => (i => (i => (i => o)))) => o) => (((i => (i => (i => (i => o)))) => o) => o)), args: [((i => (i => (i => (i => o)))) => o), ((i => (i => (i => (i => o)))) => o)])` | 114 | 1.2% |
+| `isaConst(primitive Pure.eq, (((i => (i => (i => i))) => ((i => (i => (i => i))) => o)) => (((i => (i => (i => i))) => ((i => (i => (i => i))) => o)) => o)), args: [((i => (i => (i => i))) => ((i => (i => (i => i))) => o)), ((i => (i => (i => i))) => ((i => (i => (i => i))) => o))])` | 3075 | 32.6% |
+| `isaConst(primitive Pure.eq, (((i => (i => (i => i))) => ((i => (i => i)) => (i => i))) => (((i => (i => (i => i))) => ((i => (i => i)) => (i => i))) => o)), args: [((i => (i => (i => i))) => ((i => (i => i)) => (i => i))), ((i => (i => (i => i))) => ((i => (i => i)) => (i => i)))])` | 10 | 0.1% |
+| `isaConst(primitive Pure.eq, (((i => (i => (i => i))) => (i => (i => i))) => (((i => (i => (i => i))) => (i => (i => i))) => o)), args: [((i => (i => (i => i))) => (i => (i => i))), ((i => (i => (i => i))) => (i => (i => i)))])` | 103 | 1.1% |
+| `isaConst(primitive Pure.eq, (((i => (i => (i => i))) => (i => i)) => (((i => (i => (i => i))) => (i => i)) => o)), args: [((i => (i => (i => i))) => (i => i)), ((i => (i => (i => i))) => (i => i))])` | 1097 | 11.6% |
+| `isaConst(primitive Pure.eq, (((i => (i => (i => i))) => i) => (((i => (i => (i => i))) => i) => o)), args: [((i => (i => (i => i))) => i), ((i => (i => (i => i))) => i)])` | 25 | 0.3% |
+| `isaConst(primitive Pure.eq, (((i => (i => (i => i))) => o) => (((i => (i => (i => i))) => o) => o)), args: [((i => (i => (i => i))) => o), ((i => (i => (i => i))) => o)])` | 3077 | 32.7% |
+| `isaConst(primitive Pure.eq, (((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => o)) => (i => (i => o)))))) => (((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => o)) => (i => (i => o)))))) => o)), args: [((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => o)) => (i => (i => o)))))), ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => o)) => (i => (i => o))))))])` | 70 | 0.7% |
+| `isaConst(primitive Pure.eq, (((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => o)) => (i => (i => o))))) => (((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => o)) => (i => (i => o))))) => o)), args: [((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => o)) => (i => (i => o))))), ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => o)) => (i => (i => o)))))])` | 70 | 0.7% |
+| `isaConst(primitive Pure.eq, (((i => (i => (i => o))) => ((i => (i => (i => o))) => o)) => (((i => (i => (i => o))) => ((i => (i => (i => o))) => o)) => o)), args: [((i => (i => (i => o))) => ((i => (i => (i => o))) => o)), ((i => (i => (i => o))) => ((i => (i => (i => o))) => o))])` | 284 | 3.0% |
+| `isaConst(primitive Pure.eq, (((i => (i => (i => o))) => ((i => (i => i)) => o)) => (((i => (i => (i => o))) => ((i => (i => i)) => o)) => o)), args: [((i => (i => (i => o))) => ((i => (i => i)) => o)), ((i => (i => (i => o))) => ((i => (i => i)) => o))])` | 185 | 2.0% |
+| `isaConst(primitive Pure.eq, (((i => (i => (i => o))) => ((i => (i => o)) => (i => (i => o)))) => (((i => (i => (i => o))) => ((i => (i => o)) => (i => (i => o)))) => o)), args: [((i => (i => (i => o))) => ((i => (i => o)) => (i => (i => o)))), ((i => (i => (i => o))) => ((i => (i => o)) => (i => (i => o))))])` | 70 | 0.7% |
+| `isaConst(primitive Pure.eq, (((i => (i => (i => o))) => (i => (i => (i => o)))) => (((i => (i => (i => o))) => (i => (i => (i => o)))) => o)), args: [((i => (i => (i => o))) => (i => (i => (i => o)))), ((i => (i => (i => o))) => (i => (i => (i => o))))])` | 318 | 3.4% |
+| `isaConst(primitive Pure.eq, (((i => (i => (i => o))) => (i => (i => o))) => (((i => (i => (i => o))) => (i => (i => o))) => o)), args: [((i => (i => (i => o))) => (i => (i => o))), ((i => (i => (i => o))) => (i => (i => o)))])` | 149 | 1.6% |
+| `isaConst(primitive Pure.eq, (((i => (i => (i => o))) => (i => o)) => (((i => (i => (i => o))) => (i => o)) => o)), args: [((i => (i => (i => o))) => (i => o)), ((i => (i => (i => o))) => (i => o))])` | 156 | 1.7% |
+| `isaConst(primitive Pure.eq, (((i => (i => (i => o))) => o) => (((i => (i => (i => o))) => o) => o)), args: [((i => (i => (i => o))) => o), ((i => (i => (i => o))) => o)])` | 284 | 3.0% |
+| `isaConst(primitive Pure.eq, (((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => (i => i))))) => (((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => (i => i))))) => o)), args: [((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => (i => i))))), ((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => (i => i)))))])` | 38 | 0.4% |
+| `isaConst(primitive Pure.eq, (((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => i)))) => (((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => i)))) => o)), args: [((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => i)))), ((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => i))))])` | 24 | 0.3% |
+| `isaConst(primitive Pure.eq, (((i => (i => i)) => ((i => (i => (i => i))) => ((i => (i => i)) => (i => i)))) => (((i => (i => i)) => ((i => (i => (i => i))) => ((i => (i => i)) => (i => i)))) => o)), args: [((i => (i => i)) => ((i => (i => (i => i))) => ((i => (i => i)) => (i => i)))), ((i => (i => i)) => ((i => (i => (i => i))) => ((i => (i => i)) => (i => i))))])` | 10 | 0.1% |
+| `isaConst(primitive Pure.eq, (((i => (i => i)) => ((i => (i => (i => i))) => (i => i))) => (((i => (i => i)) => ((i => (i => (i => i))) => (i => i))) => o)), args: [((i => (i => i)) => ((i => (i => (i => i))) => (i => i))), ((i => (i => i)) => ((i => (i => (i => i))) => (i => i)))])` | 37 | 0.4% |
+| `isaConst(primitive Pure.eq, (((i => (i => i)) => ((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => (i => i)))))) => (((i => (i => i)) => ((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => (i => i)))))) => o)), args: [((i => (i => i)) => ((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => (i => i)))))), ((i => (i => i)) => ((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => (i => i))))))])` | 55 | 0.6% |
+| `isaConst(primitive Pure.eq, (((i => (i => i)) => ((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => i))))) => (((i => (i => i)) => ((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => i))))) => o)), args: [((i => (i => i)) => ((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => i))))), ((i => (i => i)) => ((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => i)))))])` | 24 | 0.3% |
+| `isaConst(primitive Pure.eq, (((i => (i => i)) => ((i => (i => i)) => ((i => (i => (i => i))) => (i => i)))) => (((i => (i => i)) => ((i => (i => i)) => ((i => (i => (i => i))) => (i => i)))) => o)), args: [((i => (i => i)) => ((i => (i => i)) => ((i => (i => (i => i))) => (i => i)))), ((i => (i => i)) => ((i => (i => i)) => ((i => (i => (i => i))) => (i => i))))])` | 21 | 0.2% |
+| `isaConst(primitive Pure.eq, (((i => (i => i)) => ((i => (i => i)) => (i => i))) => (((i => (i => i)) => ((i => (i => i)) => (i => i))) => o)), args: [((i => (i => i)) => ((i => (i => i)) => (i => i))), ((i => (i => i)) => ((i => (i => i)) => (i => i)))])` | 23 | 0.2% |
+| `isaConst(primitive Pure.eq, (((i => (i => i)) => ((i => (i => i)) => i)) => (((i => (i => i)) => ((i => (i => i)) => i)) => o)), args: [((i => (i => i)) => ((i => (i => i)) => i)), ((i => (i => i)) => ((i => (i => i)) => i))])` | 8 | 0.1% |
+| `isaConst(primitive Pure.eq, (((i => (i => i)) => ((i => (i => i)) => o)) => (((i => (i => i)) => ((i => (i => i)) => o)) => o)), args: [((i => (i => i)) => ((i => (i => i)) => o)), ((i => (i => i)) => ((i => (i => i)) => o))])` | 6923 | 73.5% |
+| `isaConst(primitive Pure.eq, (((i => (i => i)) => ((i => i) => (i => i))) => (((i => (i => i)) => ((i => i) => (i => i))) => o)), args: [((i => (i => i)) => ((i => i) => (i => i))), ((i => (i => i)) => ((i => i) => (i => i)))])` | 965 | 10.2% |
+| `isaConst(primitive Pure.eq, (((i => (i => i)) => (i => ((i => (i => i)) => (i => i)))) => (((i => (i => i)) => (i => ((i => (i => i)) => (i => i)))) => o)), args: [((i => (i => i)) => (i => ((i => (i => i)) => (i => i)))), ((i => (i => i)) => (i => ((i => (i => i)) => (i => i))))])` | 35 | 0.4% |
+| `isaConst(primitive Pure.eq, (((i => (i => i)) => (i => (i => i))) => (((i => (i => i)) => (i => (i => i))) => o)), args: [((i => (i => i)) => (i => (i => i))), ((i => (i => i)) => (i => (i => i)))])` | 91 | 1.0% |
+| `isaConst(primitive Pure.eq, (((i => (i => i)) => (i => i)) => (((i => (i => i)) => (i => i)) => o)), args: [((i => (i => i)) => (i => i)), ((i => (i => i)) => (i => i))])` | 3429 | 36.4% |
+| `isaConst(primitive Pure.eq, (((i => (i => i)) => (i => o)) => (((i => (i => i)) => (i => o)) => o)), args: [((i => (i => i)) => (i => o)), ((i => (i => i)) => (i => o))])` | 4068 | 43.2% |
+| `isaConst(primitive Pure.eq, (((i => (i => i)) => i) => (((i => (i => i)) => i) => o)), args: [((i => (i => i)) => i), ((i => (i => i)) => i)])` | 4065 | 43.2% |
+| `isaConst(primitive Pure.eq, (((i => (i => i)) => o) => (((i => (i => i)) => o) => o)), args: [((i => (i => i)) => o), ((i => (i => i)) => o)])` | 6927 | 73.5% |
+| `isaConst(primitive Pure.eq, (((i => (i => o)) => ((i => (i => o)) => o)) => (((i => (i => o)) => ((i => (i => o)) => o)) => o)), args: [((i => (i => o)) => ((i => (i => o)) => o)), ((i => (i => o)) => ((i => (i => o)) => o))])` | 7387 | 78.4% |
+| `isaConst(primitive Pure.eq, (((i => (i => o)) => ((i => i) => o)) => (((i => (i => o)) => ((i => i) => o)) => o)), args: [((i => (i => o)) => ((i => i) => o)), ((i => (i => o)) => ((i => i) => o))])` | 132 | 1.4% |
+| `isaConst(primitive Pure.eq, (((i => (i => o)) => (i => (i => (i => (i => o))))) => (((i => (i => o)) => (i => (i => (i => (i => o))))) => o)), args: [((i => (i => o)) => (i => (i => (i => (i => o))))), ((i => (i => o)) => (i => (i => (i => (i => o)))))])` | 243 | 2.6% |
+| `isaConst(primitive Pure.eq, (((i => (i => o)) => (i => (i => (i => o)))) => (((i => (i => o)) => (i => (i => (i => o)))) => o)), args: [((i => (i => o)) => (i => (i => (i => o)))), ((i => (i => o)) => (i => (i => (i => o))))])` | 225 | 2.4% |
+| `isaConst(primitive Pure.eq, (((i => (i => o)) => (i => (i => o))) => (((i => (i => o)) => (i => (i => o))) => o)), args: [((i => (i => o)) => (i => (i => o))), ((i => (i => o)) => (i => (i => o)))])` | 250 | 2.7% |
+| `isaConst(primitive Pure.eq, (((i => (i => o)) => (i => o)) => (((i => (i => o)) => (i => o)) => o)), args: [((i => (i => o)) => (i => o)), ((i => (i => o)) => (i => o))])` | 344 | 3.7% |
+| `isaConst(primitive Pure.eq, (((i => (i => o)) => i) => (((i => (i => o)) => i) => o)), args: [((i => (i => o)) => i), ((i => (i => o)) => i)])` | 7313 | 77.6% |
+| `isaConst(primitive Pure.eq, (((i => (i => o)) => o) => (((i => (i => o)) => o) => o)), args: [((i => (i => o)) => o), ((i => (i => o)) => o)])` | 7404 | 78.6% |
+| `isaConst(primitive Pure.eq, (((i => i) => ((i => (i => (i => i))) => (i => i))) => (((i => i) => ((i => (i => (i => i))) => (i => i))) => o)), args: [((i => i) => ((i => (i => (i => i))) => (i => i))), ((i => i) => ((i => (i => (i => i))) => (i => i)))])` | 92 | 1.0% |
+| `isaConst(primitive Pure.eq, (((i => i) => ((i => (i => i)) => ((i => (i => i)) => (i => i)))) => (((i => i) => ((i => (i => i)) => ((i => (i => i)) => (i => i)))) => o)), args: [((i => i) => ((i => (i => i)) => ((i => (i => i)) => (i => i)))), ((i => i) => ((i => (i => i)) => ((i => (i => i)) => (i => i))))])` | 23 | 0.2% |
+| `isaConst(primitive Pure.eq, (((i => i) => ((i => i) => (i => i))) => (((i => i) => ((i => i) => (i => i))) => o)), args: [((i => i) => ((i => i) => (i => i))), ((i => i) => ((i => i) => (i => i)))])` | 2872 | 30.5% |
+| `isaConst(primitive Pure.eq, (((i => i) => ((i => i) => (i => o))) => (((i => i) => ((i => i) => (i => o))) => o)), args: [((i => i) => ((i => i) => (i => o))), ((i => i) => ((i => i) => (i => o)))])` | 7 | 0.1% |
+| `isaConst(primitive Pure.eq, (((i => i) => ((i => i) => o)) => (((i => i) => ((i => i) => o)) => o)), args: [((i => i) => ((i => i) => o)), ((i => i) => ((i => i) => o))])` | 6847 | 72.7% |
+| `isaConst(primitive Pure.eq, (((i => i) => (i => (i => i))) => (((i => i) => (i => (i => i))) => o)), args: [((i => i) => (i => (i => i))), ((i => i) => (i => (i => i)))])` | 442 | 4.7% |
+| `isaConst(primitive Pure.eq, (((i => i) => (i => i)) => (((i => i) => (i => i)) => o)), args: [((i => i) => (i => i)), ((i => i) => (i => i))])` | 4226 | 44.9% |
+| `isaConst(primitive Pure.eq, (((i => i) => (i => o)) => (((i => i) => (i => o)) => o)), args: [((i => i) => (i => o)), ((i => i) => (i => o))])` | 7 | 0.1% |
+| `isaConst(primitive Pure.eq, (((i => i) => i) => (((i => i) => i) => o)), args: [((i => i) => i), ((i => i) => i)])` | 6229 | 66.1% |
+| `isaConst(primitive Pure.eq, (((i => i) => o) => (((i => i) => o) => o)), args: [((i => i) => o), ((i => i) => o)])` | 6973 | 74.0% |
+| `isaConst(primitive Pure.eq, (((i => o) => ((i => (i => (i => (i => (i => o))))) => ((i => (i => (i => (i => i)))) => o))) => (((i => o) => ((i => (i => (i => (i => (i => o))))) => ((i => (i => (i => (i => i)))) => o))) => o)), args: [((i => o) => ((i => (i => (i => (i => (i => o))))) => ((i => (i => (i => (i => i)))) => o))), ((i => o) => ((i => (i => (i => (i => (i => o))))) => ((i => (i => (i => (i => i)))) => o)))])` | 1 | 0.0% |
+| `isaConst(primitive Pure.eq, (((i => o) => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o))) => (((i => o) => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o))) => o)), args: [((i => o) => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o))), ((i => o) => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o)))])` | 1 | 0.0% |
+| `isaConst(primitive Pure.eq, (((i => o) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => o)) => (i => (i => o))))))) => (((i => o) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => o)) => (i => (i => o))))))) => o)), args: [((i => o) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => o)) => (i => (i => o))))))), ((i => o) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => o)) => (i => (i => o)))))))])` | 136 | 1.4% |
+| `isaConst(primitive Pure.eq, (((i => o) => ((i => (i => (i => o))) => ((i => (i => i)) => o))) => (((i => o) => ((i => (i => (i => o))) => ((i => (i => i)) => o))) => o)), args: [((i => o) => ((i => (i => (i => o))) => ((i => (i => i)) => o))), ((i => o) => ((i => (i => (i => o))) => ((i => (i => i)) => o)))])` | 183 | 1.9% |
+| `isaConst(primitive Pure.eq, (((i => o) => ((i => (i => (i => o))) => (i => (i => (i => o))))) => (((i => o) => ((i => (i => (i => o))) => (i => (i => (i => o))))) => o)), args: [((i => o) => ((i => (i => (i => o))) => (i => (i => (i => o))))), ((i => o) => ((i => (i => (i => o))) => (i => (i => (i => o)))))])` | 441 | 4.7% |
+| `isaConst(primitive Pure.eq, (((i => o) => ((i => (i => (i => o))) => (i => (i => o)))) => (((i => o) => ((i => (i => (i => o))) => (i => (i => o)))) => o)), args: [((i => o) => ((i => (i => (i => o))) => (i => (i => o)))), ((i => o) => ((i => (i => (i => o))) => (i => (i => o))))])` | 75 | 0.8% |
+| `isaConst(primitive Pure.eq, (((i => o) => ((i => (i => (i => o))) => (i => o))) => (((i => o) => ((i => (i => (i => o))) => (i => o))) => o)), args: [((i => o) => ((i => (i => (i => o))) => (i => o))), ((i => o) => ((i => (i => (i => o))) => (i => o)))])` | 222 | 2.4% |
+| `isaConst(primitive Pure.eq, (((i => o) => ((i => (i => o)) => ((i => i) => o))) => (((i => o) => ((i => (i => o)) => ((i => i) => o))) => o)), args: [((i => o) => ((i => (i => o)) => ((i => i) => o))), ((i => o) => ((i => (i => o)) => ((i => i) => o)))])` | 128 | 1.4% |
+| `isaConst(primitive Pure.eq, (((i => o) => ((i => (i => o)) => (i => (i => (i => (i => o)))))) => (((i => o) => ((i => (i => o)) => (i => (i => (i => (i => o)))))) => o)), args: [((i => o) => ((i => (i => o)) => (i => (i => (i => (i => o)))))), ((i => o) => ((i => (i => o)) => (i => (i => (i => (i => o))))))])` | 341 | 3.6% |
+| `isaConst(primitive Pure.eq, (((i => o) => ((i => (i => o)) => (i => (i => (i => o))))) => (((i => o) => ((i => (i => o)) => (i => (i => (i => o))))) => o)), args: [((i => o) => ((i => (i => o)) => (i => (i => (i => o))))), ((i => o) => ((i => (i => o)) => (i => (i => (i => o)))))])` | 323 | 3.4% |
+| `isaConst(primitive Pure.eq, (((i => o) => ((i => (i => o)) => (i => o))) => (((i => o) => ((i => (i => o)) => (i => o))) => o)), args: [((i => o) => ((i => (i => o)) => (i => o))), ((i => o) => ((i => (i => o)) => (i => o)))])` | 201 | 2.1% |
+| `isaConst(primitive Pure.eq, (((i => o) => ((i => (i => o)) => o)) => (((i => o) => ((i => (i => o)) => o)) => o)), args: [((i => o) => ((i => (i => o)) => o)), ((i => o) => ((i => (i => o)) => o))])` | 821 | 8.7% |
+| `isaConst(primitive Pure.eq, (((i => o) => ((i => o) => ((i => (i => o)) => o))) => (((i => o) => ((i => o) => ((i => (i => o)) => o))) => o)), args: [((i => o) => ((i => o) => ((i => (i => o)) => o))), ((i => o) => ((i => o) => ((i => (i => o)) => o)))])` | 429 | 4.6% |
+| `isaConst(primitive Pure.eq, (((i => o) => ((i => o) => o)) => (((i => o) => ((i => o) => o)) => o)), args: [((i => o) => ((i => o) => o)), ((i => o) => ((i => o) => o))])` | 5713 | 60.6% |
+| `isaConst(primitive Pure.eq, (((i => o) => (i => ((i => (i => (i => o))) => (i => (i => o))))) => (((i => o) => (i => ((i => (i => (i => o))) => (i => (i => o))))) => o)), args: [((i => o) => (i => ((i => (i => (i => o))) => (i => (i => o))))), ((i => o) => (i => ((i => (i => (i => o))) => (i => (i => o)))))])` | 3 | 0.0% |
+| `isaConst(primitive Pure.eq, (((i => o) => (i => ((i => (i => o)) => ((i => i) => o)))) => (((i => o) => (i => ((i => (i => o)) => ((i => i) => o)))) => o)), args: [((i => o) => (i => ((i => (i => o)) => ((i => i) => o)))), ((i => o) => (i => ((i => (i => o)) => ((i => i) => o))))])` | 63 | 0.7% |
+| `isaConst(primitive Pure.eq, (((i => o) => (i => ((i => (i => o)) => (i => (i => o))))) => (((i => o) => (i => ((i => (i => o)) => (i => (i => o))))) => o)), args: [((i => o) => (i => ((i => (i => o)) => (i => (i => o))))), ((i => o) => (i => ((i => (i => o)) => (i => (i => o)))))])` | 348 | 3.7% |
+| `isaConst(primitive Pure.eq, (((i => o) => (i => ((i => (i => o)) => (i => o)))) => (((i => o) => (i => ((i => (i => o)) => (i => o)))) => o)), args: [((i => o) => (i => ((i => (i => o)) => (i => o)))), ((i => o) => (i => ((i => (i => o)) => (i => o))))])` | 162 | 1.7% |
+| `isaConst(primitive Pure.eq, (((i => o) => (i => ((i => (i => o)) => o))) => (((i => o) => (i => ((i => (i => o)) => o))) => o)), args: [((i => o) => (i => ((i => (i => o)) => o))), ((i => o) => (i => ((i => (i => o)) => o)))])` | 599 | 6.4% |
+| `isaConst(primitive Pure.eq, (((i => o) => (i => ((i => o) => (i => o)))) => (((i => o) => (i => ((i => o) => (i => o)))) => o)), args: [((i => o) => (i => ((i => o) => (i => o)))), ((i => o) => (i => ((i => o) => (i => o))))])` | 65 | 0.7% |
+| `isaConst(primitive Pure.eq, (((i => o) => (i => (i => ((i => (i => (i => o))) => ((i => (i => i)) => o))))) => (((i => o) => (i => (i => ((i => (i => (i => o))) => ((i => (i => i)) => o))))) => o)), args: [((i => o) => (i => (i => ((i => (i => (i => o))) => ((i => (i => i)) => o))))), ((i => o) => (i => (i => ((i => (i => (i => o))) => ((i => (i => i)) => o)))))])` | 60 | 0.6% |
+| `isaConst(primitive Pure.eq, (((i => o) => (i => (i => (i => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o)))))) => (((i => o) => (i => (i => (i => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o)))))) => o)), args: [((i => o) => (i => (i => (i => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o)))))), ((i => o) => (i => (i => (i => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o))))))])` | 1 | 0.0% |
+| `isaConst(primitive Pure.eq, (((i => o) => (i => (i => (i => (i => (i => o)))))) => (((i => o) => (i => (i => (i => (i => (i => o)))))) => o)), args: [((i => o) => (i => (i => (i => (i => (i => o)))))), ((i => o) => (i => (i => (i => (i => (i => o))))))])` | 186 | 2.0% |
+| `isaConst(primitive Pure.eq, (((i => o) => (i => (i => (i => (i => o))))) => (((i => o) => (i => (i => (i => (i => o))))) => o)), args: [((i => o) => (i => (i => (i => (i => o))))), ((i => o) => (i => (i => (i => (i => o)))))])` | 199 | 2.1% |
+| `isaConst(primitive Pure.eq, (((i => o) => (i => (i => (i => o)))) => (((i => o) => (i => (i => (i => o)))) => o)), args: [((i => o) => (i => (i => (i => o)))), ((i => o) => (i => (i => (i => o))))])` | 1248 | 13.2% |
+| `isaConst(primitive Pure.eq, (((i => o) => (i => (i => i))) => (((i => o) => (i => (i => i))) => o)), args: [((i => o) => (i => (i => i))), ((i => o) => (i => (i => i)))])` | 44 | 0.5% |
+| `isaConst(primitive Pure.eq, (((i => o) => (i => (i => o))) => (((i => o) => (i => (i => o))) => o)), args: [((i => o) => (i => (i => o))), ((i => o) => (i => (i => o)))])` | 1169 | 12.4% |
+| `isaConst(primitive Pure.eq, (((i => o) => (i => i)) => (((i => o) => (i => i)) => o)), args: [((i => o) => (i => i)), ((i => o) => (i => i))])` | 446 | 4.7% |
+| `isaConst(primitive Pure.eq, (((i => o) => (i => o)) => (((i => o) => (i => o)) => o)), args: [((i => o) => (i => o)), ((i => o) => (i => o))])` | 1019 | 10.8% |
+| `isaConst(primitive Pure.eq, (((i => o) => (o => (i => o))) => (((i => o) => (o => (i => o))) => o)), args: [((i => o) => (o => (i => o))), ((i => o) => (o => (i => o)))])` | 132 | 1.4% |
+| `isaConst(primitive Pure.eq, (((i => o) => i) => (((i => o) => i) => o)), args: [((i => o) => i), ((i => o) => i)])` | 8048 | 85.4% |
+| `isaConst(primitive Pure.eq, (((i => o) => o) => (((i => o) => o) => o)), args: [((i => o) => o), ((i => o) => o)])` | 7805 | 82.9% |
+| `isaConst(primitive Pure.eq, (((o => (i => (i => i))) => ((o => (i => (i => i))) => o)) => (((o => (i => (i => i))) => ((o => (i => (i => i))) => o)) => o)), args: [((o => (i => (i => i))) => ((o => (i => (i => i))) => o)), ((o => (i => (i => i))) => ((o => (i => (i => i))) => o))])` | 5018 | 53.3% |
+| `isaConst(primitive Pure.eq, (((o => (i => (i => i))) => o) => (((o => (i => (i => i))) => o) => o)), args: [((o => (i => (i => i))) => o), ((o => (i => (i => i))) => o)])` | 5018 | 53.3% |
+| `isaConst(primitive Pure.eq, (((o => (o => o)) => ((o => (o => o)) => o)) => (((o => (o => o)) => ((o => (o => o)) => o)) => o)), args: [((o => (o => o)) => ((o => (o => o)) => o)), ((o => (o => o)) => ((o => (o => o)) => o))])` | 7841 | 83.2% |
+| `isaConst(primitive Pure.eq, (((o => (o => o)) => o) => (((o => (o => o)) => o) => o)), args: [((o => (o => o)) => o), ((o => (o => o)) => o)])` | 7841 | 83.2% |
+| `isaConst(primitive Pure.eq, (((o => i) => ((o => i) => o)) => (((o => i) => ((o => i) => o)) => o)), args: [((o => i) => ((o => i) => o)), ((o => i) => ((o => i) => o))])` | 882 | 9.4% |
+| `isaConst(primitive Pure.eq, (((o => i) => o) => (((o => i) => o) => o)), args: [((o => i) => o), ((o => i) => o)])` | 882 | 9.4% |
+| `isaConst(primitive Pure.eq, (((o => o) => ((o => o) => o)) => (((o => o) => ((o => o) => o)) => o)), args: [((o => o) => ((o => o) => o)), ((o => o) => ((o => o) => o))])` | 7819 | 83.0% |
+| `isaConst(primitive Pure.eq, (((o => o) => o) => (((o => o) => o) => o)), args: [((o => o) => o), ((o => o) => o)])` | 7819 | 83.0% |
+| `isaConst(primitive Pure.eq, ((i => 'a) => ((i => 'a) => o)), args: [(i => 'a), (i => 'a)])` | 2773 | 29.4% |
+| `isaConst(primitive Pure.eq, ((i => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o))) => ((i => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o))) => o)), args: [(i => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o))), (i => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o)))])` | 1 | 0.0% |
+| `isaConst(primitive Pure.eq, ((i => ((i => (i => (i => i))) => i)) => ((i => ((i => (i => (i => i))) => i)) => o)), args: [(i => ((i => (i => (i => i))) => i)), (i => ((i => (i => (i => i))) => i))])` | 30 | 0.3% |
+| `isaConst(primitive Pure.eq, ((i => ((i => (i => (i => o))) => ((i => (i => i)) => o))) => ((i => ((i => (i => (i => o))) => ((i => (i => i)) => o))) => o)), args: [(i => ((i => (i => (i => o))) => ((i => (i => i)) => o))), (i => ((i => (i => (i => o))) => ((i => (i => i)) => o)))])` | 41 | 0.4% |
+| `isaConst(primitive Pure.eq, ((i => ((i => (i => (i => o))) => (i => (i => o)))) => ((i => ((i => (i => (i => o))) => (i => (i => o)))) => o)), args: [(i => ((i => (i => (i => o))) => (i => (i => o)))), (i => ((i => (i => (i => o))) => (i => (i => o))))])` | 3 | 0.0% |
+| `isaConst(primitive Pure.eq, ((i => ((i => (i => i)) => ((i => (i => i)) => i))) => ((i => ((i => (i => i)) => ((i => (i => i)) => i))) => o)), args: [(i => ((i => (i => i)) => ((i => (i => i)) => i))), (i => ((i => (i => i)) => ((i => (i => i)) => i)))])` | 8 | 0.1% |
+| `isaConst(primitive Pure.eq, ((i => ((i => (i => i)) => (i => (i => i)))) => ((i => ((i => (i => i)) => (i => (i => i)))) => o)), args: [(i => ((i => (i => i)) => (i => (i => i)))), (i => ((i => (i => i)) => (i => (i => i))))])` | 55 | 0.6% |
+| `isaConst(primitive Pure.eq, ((i => ((i => (i => i)) => (i => i))) => ((i => ((i => (i => i)) => (i => i))) => o)), args: [(i => ((i => (i => i)) => (i => i))), (i => ((i => (i => i)) => (i => i)))])` | 2493 | 26.5% |
+| `isaConst(primitive Pure.eq, ((i => ((i => (i => i)) => (i => o))) => ((i => ((i => (i => i)) => (i => o))) => o)), args: [(i => ((i => (i => i)) => (i => o))), (i => ((i => (i => i)) => (i => o)))])` | 4068 | 43.2% |
+| `isaConst(primitive Pure.eq, ((i => ((i => (i => i)) => i)) => ((i => ((i => (i => i)) => i)) => o)), args: [(i => ((i => (i => i)) => i)), (i => ((i => (i => i)) => i))])` | 4978 | 52.8% |
+| `isaConst(primitive Pure.eq, ((i => ((i => (i => i)) => o)) => ((i => ((i => (i => i)) => o)) => o)), args: [(i => ((i => (i => i)) => o)), (i => ((i => (i => i)) => o))])` | 439 | 4.7% |
+| `isaConst(primitive Pure.eq, ((i => ((i => (i => o)) => ((i => i) => o))) => ((i => ((i => (i => o)) => ((i => i) => o))) => o)), args: [(i => ((i => (i => o)) => ((i => i) => o))), (i => ((i => (i => o)) => ((i => i) => o)))])` | 44 | 0.5% |
+| `isaConst(primitive Pure.eq, ((i => ((i => (i => o)) => (i => (i => o)))) => ((i => ((i => (i => o)) => (i => (i => o)))) => o)), args: [(i => ((i => (i => o)) => (i => (i => o)))), (i => ((i => (i => o)) => (i => (i => o))))])` | 249 | 2.6% |
+| `isaConst(primitive Pure.eq, ((i => ((i => (i => o)) => (i => o))) => ((i => ((i => (i => o)) => (i => o))) => o)), args: [(i => ((i => (i => o)) => (i => o))), (i => ((i => (i => o)) => (i => o)))])` | 96 | 1.0% |
+| `isaConst(primitive Pure.eq, ((i => ((i => (i => o)) => i)) => ((i => ((i => (i => o)) => i)) => o)), args: [(i => ((i => (i => o)) => i)), (i => ((i => (i => o)) => i))])` | 8957 | 95.1% |
+| `isaConst(primitive Pure.eq, ((i => ((i => (i => o)) => o)) => ((i => ((i => (i => o)) => o)) => o)), args: [(i => ((i => (i => o)) => o)), (i => ((i => (i => o)) => o))])` | 374 | 4.0% |
+| `isaConst(primitive Pure.eq, ((i => ((i => i) => ((i => i) => (i => o)))) => ((i => ((i => i) => ((i => i) => (i => o)))) => o)), args: [(i => ((i => i) => ((i => i) => (i => o)))), (i => ((i => i) => ((i => i) => (i => o))))])` | 7 | 0.1% |
+| `isaConst(primitive Pure.eq, ((i => ((i => i) => (i => i))) => ((i => ((i => i) => (i => i))) => o)), args: [(i => ((i => i) => (i => i))), (i => ((i => i) => (i => i)))])` | 4781 | 50.8% |
+| `isaConst(primitive Pure.eq, ((i => ((i => i) => i)) => ((i => ((i => i) => i)) => o)), args: [(i => ((i => i) => i)), (i => ((i => i) => i))])` | 7209 | 76.5% |
+| `isaConst(primitive Pure.eq, ((i => ((i => i) => o)) => ((i => ((i => i) => o)) => o)), args: [(i => ((i => i) => o)), (i => ((i => i) => o))])` | 4846 | 51.4% |
+| `isaConst(primitive Pure.eq, ((i => ((i => o) => (i => o))) => ((i => ((i => o) => (i => o))) => o)), args: [(i => ((i => o) => (i => o))), (i => ((i => o) => (i => o)))])` | 46 | 0.5% |
+| `isaConst(primitive Pure.eq, ((i => ((i => o) => i)) => ((i => ((i => o) => i)) => o)), args: [(i => ((i => o) => i)), (i => ((i => o) => i))])` | 8137 | 86.4% |
+| `isaConst(primitive Pure.eq, ((i => ((i => o) => o)) => ((i => ((i => o) => o)) => o)), args: [(i => ((i => o) => o)), (i => ((i => o) => o))])` | 8395 | 89.1% |
+| `isaConst(primitive Pure.eq, ((i => (i => 'a)) => ((i => (i => 'a)) => o)), args: [(i => (i => 'a)), (i => (i => 'a))])` | 2773 | 29.4% |
+| `isaConst(primitive Pure.eq, ((i => (i => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o)))) => ((i => (i => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o)))) => o)), args: [(i => (i => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o)))), (i => (i => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o))))])` | 1 | 0.0% |
+| `isaConst(primitive Pure.eq, ((i => (i => ((i => (i => (i => o))) => ((i => (i => i)) => o)))) => ((i => (i => ((i => (i => (i => o))) => ((i => (i => i)) => o)))) => o)), args: [(i => (i => ((i => (i => (i => o))) => ((i => (i => i)) => o)))), (i => (i => ((i => (i => (i => o))) => ((i => (i => i)) => o))))])` | 41 | 0.4% |
+| `isaConst(primitive Pure.eq, ((i => (i => ((i => (i => i)) => ((i => (i => i)) => i)))) => ((i => (i => ((i => (i => i)) => ((i => (i => i)) => i)))) => o)), args: [(i => (i => ((i => (i => i)) => ((i => (i => i)) => i)))), (i => (i => ((i => (i => i)) => ((i => (i => i)) => i))))])` | 9 | 0.1% |
+| `isaConst(primitive Pure.eq, ((i => (i => ((i => (i => i)) => (i => i)))) => ((i => (i => ((i => (i => i)) => (i => i)))) => o)), args: [(i => (i => ((i => (i => i)) => (i => i)))), (i => (i => ((i => (i => i)) => (i => i))))])` | 13 | 0.1% |
+| `isaConst(primitive Pure.eq, ((i => (i => ((i => (i => i)) => (i => o)))) => ((i => (i => ((i => (i => i)) => (i => o)))) => o)), args: [(i => (i => ((i => (i => i)) => (i => o)))), (i => (i => ((i => (i => i)) => (i => o))))])` | 5033 | 53.4% |
+| `isaConst(primitive Pure.eq, ((i => (i => ((i => (i => i)) => i))) => ((i => (i => ((i => (i => i)) => i))) => o)), args: [(i => (i => ((i => (i => i)) => i))), (i => (i => ((i => (i => i)) => i)))])` | 5018 | 53.3% |
+| `isaConst(primitive Pure.eq, ((i => (i => ((i => (i => i)) => o))) => ((i => (i => ((i => (i => i)) => o))) => o)), args: [(i => (i => ((i => (i => i)) => o))), (i => (i => ((i => (i => i)) => o)))])` | 439 | 4.7% |
+| `isaConst(primitive Pure.eq, ((i => (i => ((i => i) => ((i => i) => (i => o))))) => ((i => (i => ((i => i) => ((i => i) => (i => o))))) => o)), args: [(i => (i => ((i => i) => ((i => i) => (i => o))))), (i => (i => ((i => i) => ((i => i) => (i => o)))))])` | 7 | 0.1% |
+| `isaConst(primitive Pure.eq, ((i => (i => ((i => i) => o))) => ((i => (i => ((i => i) => o))) => o)), args: [(i => (i => ((i => i) => o))), (i => (i => ((i => i) => o)))])` | 21 | 0.2% |
+| `isaConst(primitive Pure.eq, ((i => (i => (i => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o))))) => ((i => (i => (i => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o))))) => o)), args: [(i => (i => (i => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o))))), (i => (i => (i => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o)))))])` | 1 | 0.0% |
+| `isaConst(primitive Pure.eq, ((i => (i => (i => ((i => (i => i)) => i)))) => ((i => (i => (i => ((i => (i => i)) => i)))) => o)), args: [(i => (i => (i => ((i => (i => i)) => i)))), (i => (i => (i => ((i => (i => i)) => i))))])` | 947 | 10.1% |
+| `isaConst(primitive Pure.eq, ((i => (i => (i => ((i => i) => o)))) => ((i => (i => (i => ((i => i) => o)))) => o)), args: [(i => (i => (i => ((i => i) => o)))), (i => (i => (i => ((i => i) => o))))])` | 21 | 0.2% |
+| `isaConst(primitive Pure.eq, ((i => (i => (i => (i => (i => (i => i)))))) => ((i => (i => (i => (i => (i => (i => i)))))) => o)), args: [(i => (i => (i => (i => (i => (i => i)))))), (i => (i => (i => (i => (i => (i => i))))))])` | 39 | 0.4% |
+| `isaConst(primitive Pure.eq, ((i => (i => (i => (i => (i => i))))) => ((i => (i => (i => (i => (i => i))))) => o)), args: [(i => (i => (i => (i => (i => i))))), (i => (i => (i => (i => (i => i)))))])` | 210 | 2.2% |
+| `isaConst(primitive Pure.eq, ((i => (i => (i => (i => (i => o))))) => ((i => (i => (i => (i => (i => o))))) => o)), args: [(i => (i => (i => (i => (i => o))))), (i => (i => (i => (i => (i => o)))))])` | 104 | 1.1% |
+| `isaConst(primitive Pure.eq, ((i => (i => (i => (i => i)))) => ((i => (i => (i => (i => i)))) => o)), args: [(i => (i => (i => (i => i)))), (i => (i => (i => (i => i))))])` | 1305 | 13.9% |
+| `isaConst(primitive Pure.eq, ((i => (i => (i => (i => o)))) => ((i => (i => (i => (i => o)))) => o)), args: [(i => (i => (i => (i => o)))), (i => (i => (i => (i => o))))])` | 472 | 5.0% |
+| `isaConst(primitive Pure.eq, ((i => (i => (i => i))) => ((i => (i => (i => i))) => o)), args: [(i => (i => (i => i))), (i => (i => (i => i)))])` | 3944 | 41.9% |
+| `isaConst(primitive Pure.eq, ((i => (i => (i => o))) => ((i => (i => (i => o))) => o)), args: [(i => (i => (i => o))), (i => (i => (i => o)))])` | 1520 | 16.1% |
+| `isaConst(primitive Pure.eq, ((i => (i => i)) => ((i => (i => i)) => o)), args: [(i => (i => i)), (i => (i => i))])` | 8788 | 93.3% |
+| `isaConst(primitive Pure.eq, ((i => (i => o)) => ((i => (i => o)) => o)), args: [(i => (i => o)), (i => (i => o))])` | 8507 | 90.3% |
+| `isaConst(primitive Pure.eq, ((i => i) => ((i => i) => o)), args: [(i => i), (i => i)])` | 8812 | 93.5% |
+| `isaConst(primitive Pure.eq, ((i => o) => ((i => o) => o)), args: [(i => o), (i => o)])` | 8490 | 90.1% |
+| `isaConst(primitive Pure.eq, ((o => (i => (i => i))) => ((o => (i => (i => i))) => o)), args: [(o => (i => (i => i))), (o => (i => (i => i)))])` | 5590 | 59.3% |
+| `isaConst(primitive Pure.eq, ((o => (i => o)) => ((o => (i => o)) => o)), args: [(o => (i => o)), (o => (i => o))])` | 92 | 1.0% |
+| `isaConst(primitive Pure.eq, ((o => (o => o)) => ((o => (o => o)) => o)), args: [(o => (o => o)), (o => (o => o))])` | 8409 | 89.3% |
+| `isaConst(primitive Pure.eq, ((o => i) => ((o => i) => o)), args: [(o => i), (o => i)])` | 983 | 10.4% |
+| `isaConst(primitive Pure.eq, ((o => o) => ((o => o) => o)), args: [(o => o), (o => o)])` | 8817 | 93.6% |
+| `isaConst(primitive ZF_Base.Inf, i, args: [])` | 5262 | 55.9% |
+| `isaConst(primitive ZF_Base.Pow, (i => i), args: [i])` | 8809 | 93.5% |
+| `isaConst(primitive ZF_Base.PrimReplace, (i => ((i => (i => o)) => i)), args: [i, (i => (i => o))])` | 8958 | 95.1% |
+| `isaConst(primitive ZF_Base.Union, (i => i), args: [i])` | 8879 | 94.3% |
+| `isaConst(primitive ZF_Base.mem, (i => (i => o)), args: [i, i])` | 8617 | 91.5% |
+| `isaConst(primitive ZF_Base.zero, i, args: [])` | 8835 | 93.8% |
+| `isaFree('a)` | 7418 | 78.7% |
+| `isaFree(('a => o))` | 7417 | 78.7% |
+| `isaFree((('a => o) => (o => 'a)))` | 7290 | 77.4% |
+| `isaFree((i => (i => 'a)))` | 2 | 0.0% |
+| `isaFree((i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => i)))))))))))))))))))))))` | 10 | 0.1% |
+| `isaFree((i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => i))))))))))))))))))` | 185 | 2.0% |
+| `isaFree((i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => i))))))))))))))))` | 10 | 0.1% |
+| `isaFree((i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => i)))))))))))))` | 14 | 0.1% |
+| `isaFree((i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => i))))))))))))` | 16 | 0.2% |
+| `isaFree((i => (i => (i => (i => (i => (i => (i => (i => i)))))))))` | 2 | 0.0% |
+| `isaFree((i => (i => (i => (i => (i => (i => (i => i))))))))` | 16 | 0.2% |
+| `isaFree((i => (i => (i => (i => (i => (i => i)))))))` | 4124 | 43.8% |
+| `isaFree((i => (i => (i => (i => (i => i))))))` | 1259 | 13.4% |
+| `isaFree((i => (i => (i => (i => i)))))` | 4363 | 46.3% |
+| `isaFree((i => (i => (i => i))))` | 4944 | 52.5% |
+| `isaFree((i => (i => i)))` | 5182 | 55.0% |
+| `isaFree((i => (i => o)))` | 1488 | 15.8% |
+| `isaFree((i => i))` | 5611 | 59.6% |
+| `isaFree((i => o))` | 1362 | 14.5% |
+| `isaFree((o => 'a))` | 7417 | 78.7% |
+| `isaFree((o => (('a => o) => 'a)))` | 7290 | 77.4% |
+| `isaFree(i)` | 6969 | 74.0% |
+| `isaFree(o)` | 7085 | 75.2% |
+| `isaOfClass('a)` | 7973 | 84.6% |
+| `isaOfClass('b)` | 4634 | 49.2% |
+| `isaOfClass(i)` | 7965 | 84.6% |
+| `isaVarApp(head: ('a => 'b), args: ['a])` | 4655 | 49.4% |
+| `isaVarApp(head: ('a => ('a => o)), args: ['a, 'a])` | 7578 | 80.4% |
+| `isaVarApp(head: ('a => ('b => o)), args: ['a, 'b])` | 1195 | 12.7% |
+| `isaVarApp(head: ('a => o), args: ['a])` | 9167 | 97.3% |
+| `isaVarApp(head: ('b => 'a), args: ['b])` | 439 | 4.7% |
+| `isaVarApp(head: ('b => ('b => o)), args: ['b, 'b])` | 4626 | 49.1% |
+| `isaVarApp(head: ('b => (('b => 'a) => 'a)), args: ['b, ('b => 'a)])` | 439 | 4.7% |
+| `isaVarApp(head: ('b => o), args: ['b])` | 4634 | 49.2% |
+| `isaVarApp(head: (('a => o) => (o => 'a)), args: [('a => o), o])` | 7290 | 77.4% |
+| `isaVarApp(head: (('a => o) => o), args: [('a => o)])` | 7324 | 77.7% |
+| `isaVarApp(head: (('b => 'a) => 'a), args: [('b => 'a)])` | 439 | 4.7% |
+| `isaVarApp(head: (('b => (('b => 'a) => 'a)) => (('b => (('b => 'a) => 'a)) => o)), args: [('b => (('b => 'a) => 'a)), ('b => (('b => 'a) => 'a))])` | 439 | 4.7% |
+| `isaVarApp(head: (('b => (('b => 'a) => 'a)) => o), args: [('b => (('b => 'a) => 'a))])` | 439 | 4.7% |
+| `isaVarApp(head: ((('a => o) => o) => ((('a => o) => o) => o)), args: [(('a => o) => o), (('a => o) => o)])` | 7323 | 77.7% |
+| `isaVarApp(head: ((('a => o) => o) => o), args: [(('a => o) => o)])` | 7323 | 77.7% |
+| `isaVarApp(head: (((i => (i => 'a)) => (i => 'a)) => (((i => (i => 'a)) => (i => 'a)) => o)), args: [((i => (i => 'a)) => (i => 'a)), ((i => (i => 'a)) => (i => 'a))])` | 2773 | 29.4% |
+| `isaVarApp(head: (((i => (i => 'a)) => (i => 'a)) => o), args: [((i => (i => 'a)) => (i => 'a))])` | 2773 | 29.4% |
+| `isaVarApp(head: (((i => (i => (i => i))) => (i => i)) => (((i => (i => (i => i))) => (i => i)) => o)), args: [((i => (i => (i => i))) => (i => i)), ((i => (i => (i => i))) => (i => i))])` | 4 | 0.0% |
+| `isaVarApp(head: (((i => (i => (i => i))) => (i => i)) => o), args: [((i => (i => (i => i))) => (i => i))])` | 4 | 0.0% |
+| `isaVarApp(head: (((i => (i => i)) => ((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => (i => i)))))) => (((i => (i => i)) => ((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => (i => i)))))) => o)), args: [((i => (i => i)) => ((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => (i => i)))))), ((i => (i => i)) => ((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => (i => i))))))])` | 38 | 0.4% |
+| `isaVarApp(head: (((i => (i => i)) => ((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => (i => i)))))) => o), args: [((i => (i => i)) => ((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => (i => i))))))])` | 38 | 0.4% |
+| `isaVarApp(head: (((i => (i => i)) => (i => i)) => (((i => (i => i)) => (i => i)) => o)), args: [((i => (i => i)) => (i => i)), ((i => (i => i)) => (i => i))])` | 2760 | 29.3% |
+| `isaVarApp(head: (((i => (i => i)) => (i => i)) => o), args: [((i => (i => i)) => (i => i))])` | 2760 | 29.3% |
+| `isaVarApp(head: (((i => i) => ((i => i) => (i => i))) => (((i => i) => ((i => i) => (i => i))) => o)), args: [((i => i) => ((i => i) => (i => i))), ((i => i) => ((i => i) => (i => i)))])` | 2421 | 25.7% |
+| `isaVarApp(head: (((i => i) => ((i => i) => (i => i))) => o), args: [((i => i) => ((i => i) => (i => i)))])` | 2421 | 25.7% |
+| `isaVarApp(head: (((i => i) => (i => i)) => (((i => i) => (i => i)) => o)), args: [((i => i) => (i => i)), ((i => i) => (i => i))])` | 514 | 5.5% |
+| `isaVarApp(head: (((i => i) => (i => i)) => o), args: [((i => i) => (i => i))])` | 514 | 5.5% |
+| `isaVarApp(head: (((i => i) => o) => (((i => i) => o) => o)), args: [((i => i) => o), ((i => i) => o)])` | 531 | 5.6% |
+| `isaVarApp(head: (((i => i) => o) => o), args: [((i => i) => o)])` | 531 | 5.6% |
+| `isaVarApp(head: (((i => o) => ((i => (i => (i => (i => (i => o))))) => ((i => (i => (i => (i => i)))) => o))) => (((i => o) => ((i => (i => (i => (i => (i => o))))) => ((i => (i => (i => (i => i)))) => o))) => o)), args: [((i => o) => ((i => (i => (i => (i => (i => o))))) => ((i => (i => (i => (i => i)))) => o))), ((i => o) => ((i => (i => (i => (i => (i => o))))) => ((i => (i => (i => (i => i)))) => o)))])` | 1 | 0.0% |
+| `isaVarApp(head: (((i => o) => ((i => (i => (i => (i => (i => o))))) => ((i => (i => (i => (i => i)))) => o))) => o), args: [((i => o) => ((i => (i => (i => (i => (i => o))))) => ((i => (i => (i => (i => i)))) => o)))])` | 1 | 0.0% |
+| `isaVarApp(head: (((i => o) => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o))) => (((i => o) => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o))) => o)), args: [((i => o) => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o))), ((i => o) => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o)))])` | 1 | 0.0% |
+| `isaVarApp(head: (((i => o) => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o))) => o), args: [((i => o) => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o)))])` | 1 | 0.0% |
+| `isaVarApp(head: (((i => o) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => o)) => (i => (i => o))))))) => (((i => o) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => o)) => (i => (i => o))))))) => o)), args: [((i => o) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => o)) => (i => (i => o))))))), ((i => o) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => o)) => (i => (i => o)))))))])` | 70 | 0.7% |
+| `isaVarApp(head: (((i => o) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => o)) => (i => (i => o))))))) => o), args: [((i => o) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => o)) => (i => (i => o)))))))])` | 70 | 0.7% |
+| `isaVarApp(head: (((i => o) => ((i => (i => (i => o))) => ((i => (i => i)) => o))) => (((i => o) => ((i => (i => (i => o))) => ((i => (i => i)) => o))) => o)), args: [((i => o) => ((i => (i => (i => o))) => ((i => (i => i)) => o))), ((i => o) => ((i => (i => (i => o))) => ((i => (i => i)) => o)))])` | 183 | 1.9% |
+| `isaVarApp(head: (((i => o) => ((i => (i => (i => o))) => ((i => (i => i)) => o))) => o), args: [((i => o) => ((i => (i => (i => o))) => ((i => (i => i)) => o)))])` | 183 | 1.9% |
+| `isaVarApp(head: (((i => o) => ((i => (i => (i => o))) => (i => (i => (i => o))))) => (((i => o) => ((i => (i => (i => o))) => (i => (i => (i => o))))) => o)), args: [((i => o) => ((i => (i => (i => o))) => (i => (i => (i => o))))), ((i => o) => ((i => (i => (i => o))) => (i => (i => (i => o)))))])` | 318 | 3.4% |
+| `isaVarApp(head: (((i => o) => ((i => (i => (i => o))) => (i => (i => (i => o))))) => o), args: [((i => o) => ((i => (i => (i => o))) => (i => (i => (i => o)))))])` | 318 | 3.4% |
+| `isaVarApp(head: (((i => o) => ((i => (i => (i => o))) => (i => (i => o)))) => (((i => o) => ((i => (i => (i => o))) => (i => (i => o)))) => o)), args: [((i => o) => ((i => (i => (i => o))) => (i => (i => o)))), ((i => o) => ((i => (i => (i => o))) => (i => (i => o))))])` | 53 | 0.6% |
+| `isaVarApp(head: (((i => o) => ((i => (i => (i => o))) => (i => (i => o)))) => o), args: [((i => o) => ((i => (i => (i => o))) => (i => (i => o))))])` | 53 | 0.6% |
+| `isaVarApp(head: (((i => o) => ((i => (i => (i => o))) => (i => o))) => (((i => o) => ((i => (i => (i => o))) => (i => o))) => o)), args: [((i => o) => ((i => (i => (i => o))) => (i => o))), ((i => o) => ((i => (i => (i => o))) => (i => o)))])` | 155 | 1.6% |
+| `isaVarApp(head: (((i => o) => ((i => (i => (i => o))) => (i => o))) => o), args: [((i => o) => ((i => (i => (i => o))) => (i => o)))])` | 155 | 1.6% |
+| `isaVarApp(head: (((i => o) => ((i => (i => o)) => ((i => i) => o))) => (((i => o) => ((i => (i => o)) => ((i => i) => o))) => o)), args: [((i => o) => ((i => (i => o)) => ((i => i) => o))), ((i => o) => ((i => (i => o)) => ((i => i) => o)))])` | 128 | 1.4% |
+| `isaVarApp(head: (((i => o) => ((i => (i => o)) => ((i => i) => o))) => o), args: [((i => o) => ((i => (i => o)) => ((i => i) => o)))])` | 128 | 1.4% |
+| `isaVarApp(head: (((i => o) => ((i => (i => o)) => (i => (i => (i => (i => o)))))) => (((i => o) => ((i => (i => o)) => (i => (i => (i => (i => o)))))) => o)), args: [((i => o) => ((i => (i => o)) => (i => (i => (i => (i => o)))))), ((i => o) => ((i => (i => o)) => (i => (i => (i => (i => o))))))])` | 243 | 2.6% |
+| `isaVarApp(head: (((i => o) => ((i => (i => o)) => (i => (i => (i => (i => o)))))) => o), args: [((i => o) => ((i => (i => o)) => (i => (i => (i => (i => o))))))])` | 243 | 2.6% |
+| `isaVarApp(head: (((i => o) => ((i => (i => o)) => (i => (i => (i => o))))) => (((i => o) => ((i => (i => o)) => (i => (i => (i => o))))) => o)), args: [((i => o) => ((i => (i => o)) => (i => (i => (i => o))))), ((i => o) => ((i => (i => o)) => (i => (i => (i => o)))))])` | 225 | 2.4% |
+| `isaVarApp(head: (((i => o) => ((i => (i => o)) => (i => (i => (i => o))))) => o), args: [((i => o) => ((i => (i => o)) => (i => (i => (i => o)))))])` | 225 | 2.4% |
+| `isaVarApp(head: (((i => o) => ((i => (i => o)) => (i => o))) => (((i => o) => ((i => (i => o)) => (i => o))) => o)), args: [((i => o) => ((i => (i => o)) => (i => o))), ((i => o) => ((i => (i => o)) => (i => o)))])` | 141 | 1.5% |
+| `isaVarApp(head: (((i => o) => ((i => (i => o)) => (i => o))) => o), args: [((i => o) => ((i => (i => o)) => (i => o)))])` | 141 | 1.5% |
+| `isaVarApp(head: (((i => o) => ((i => (i => o)) => o)) => (((i => o) => ((i => (i => o)) => o)) => o)), args: [((i => o) => ((i => (i => o)) => o)), ((i => o) => ((i => (i => o)) => o))])` | 585 | 6.2% |
+| `isaVarApp(head: (((i => o) => ((i => (i => o)) => o)) => o), args: [((i => o) => ((i => (i => o)) => o))])` | 585 | 6.2% |
+| `isaVarApp(head: (((i => o) => ((i => o) => o)) => (((i => o) => ((i => o) => o)) => o)), args: [((i => o) => ((i => o) => o)), ((i => o) => ((i => o) => o))])` | 1163 | 12.3% |
+| `isaVarApp(head: (((i => o) => ((i => o) => o)) => o), args: [((i => o) => ((i => o) => o))])` | 1163 | 12.3% |
+| `isaVarApp(head: (((i => o) => (i => ((i => (i => (i => o))) => (i => (i => o))))) => (((i => o) => (i => ((i => (i => (i => o))) => (i => (i => o))))) => o)), args: [((i => o) => (i => ((i => (i => (i => o))) => (i => (i => o))))), ((i => o) => (i => ((i => (i => (i => o))) => (i => (i => o)))))])` | 3 | 0.0% |
+| `isaVarApp(head: (((i => o) => (i => ((i => (i => (i => o))) => (i => (i => o))))) => o), args: [((i => o) => (i => ((i => (i => (i => o))) => (i => (i => o)))))])` | 3 | 0.0% |
+| `isaVarApp(head: (((i => o) => (i => ((i => (i => o)) => ((i => i) => o)))) => (((i => o) => (i => ((i => (i => o)) => ((i => i) => o)))) => o)), args: [((i => o) => (i => ((i => (i => o)) => ((i => i) => o)))), ((i => o) => (i => ((i => (i => o)) => ((i => i) => o))))])` | 44 | 0.5% |
+| `isaVarApp(head: (((i => o) => (i => ((i => (i => o)) => ((i => i) => o)))) => o), args: [((i => o) => (i => ((i => (i => o)) => ((i => i) => o))))])` | 44 | 0.5% |
+| `isaVarApp(head: (((i => o) => (i => ((i => (i => o)) => (i => (i => o))))) => (((i => o) => (i => ((i => (i => o)) => (i => (i => o))))) => o)), args: [((i => o) => (i => ((i => (i => o)) => (i => (i => o))))), ((i => o) => (i => ((i => (i => o)) => (i => (i => o)))))])` | 249 | 2.6% |
+| `isaVarApp(head: (((i => o) => (i => ((i => (i => o)) => (i => (i => o))))) => o), args: [((i => o) => (i => ((i => (i => o)) => (i => (i => o)))))])` | 249 | 2.6% |
+| `isaVarApp(head: (((i => o) => (i => ((i => (i => o)) => (i => o)))) => (((i => o) => (i => ((i => (i => o)) => (i => o)))) => o)), args: [((i => o) => (i => ((i => (i => o)) => (i => o)))), ((i => o) => (i => ((i => (i => o)) => (i => o))))])` | 96 | 1.0% |
+| `isaVarApp(head: (((i => o) => (i => ((i => (i => o)) => (i => o)))) => o), args: [((i => o) => (i => ((i => (i => o)) => (i => o))))])` | 96 | 1.0% |
+| `isaVarApp(head: (((i => o) => (i => ((i => (i => o)) => o))) => (((i => o) => (i => ((i => (i => o)) => o))) => o)), args: [((i => o) => (i => ((i => (i => o)) => o))), ((i => o) => (i => ((i => (i => o)) => o)))])` | 374 | 4.0% |
+| `isaVarApp(head: (((i => o) => (i => ((i => (i => o)) => o))) => o), args: [((i => o) => (i => ((i => (i => o)) => o)))])` | 374 | 4.0% |
+| `isaVarApp(head: (((i => o) => (i => ((i => o) => (i => o)))) => (((i => o) => (i => ((i => o) => (i => o)))) => o)), args: [((i => o) => (i => ((i => o) => (i => o)))), ((i => o) => (i => ((i => o) => (i => o))))])` | 46 | 0.5% |
+| `isaVarApp(head: (((i => o) => (i => ((i => o) => (i => o)))) => o), args: [((i => o) => (i => ((i => o) => (i => o))))])` | 46 | 0.5% |
+| `isaVarApp(head: (((i => o) => (i => (i => ((i => (i => (i => o))) => ((i => (i => i)) => o))))) => (((i => o) => (i => (i => ((i => (i => (i => o))) => ((i => (i => i)) => o))))) => o)), args: [((i => o) => (i => (i => ((i => (i => (i => o))) => ((i => (i => i)) => o))))), ((i => o) => (i => (i => ((i => (i => (i => o))) => ((i => (i => i)) => o)))))])` | 41 | 0.4% |
+| `isaVarApp(head: (((i => o) => (i => (i => ((i => (i => (i => o))) => ((i => (i => i)) => o))))) => o), args: [((i => o) => (i => (i => ((i => (i => (i => o))) => ((i => (i => i)) => o)))))])` | 41 | 0.4% |
+| `isaVarApp(head: (((i => o) => (i => (i => (i => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o)))))) => (((i => o) => (i => (i => (i => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o)))))) => o)), args: [((i => o) => (i => (i => (i => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o)))))), ((i => o) => (i => (i => (i => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o))))))])` | 1 | 0.0% |
+| `isaVarApp(head: (((i => o) => (i => (i => (i => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o)))))) => o), args: [((i => o) => (i => (i => (i => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o))))))])` | 1 | 0.0% |
+| `isaVarApp(head: (((i => o) => (i => (i => (i => (i => (i => o)))))) => (((i => o) => (i => (i => (i => (i => (i => o)))))) => o)), args: [((i => o) => (i => (i => (i => (i => (i => o)))))), ((i => o) => (i => (i => (i => (i => (i => o))))))])` | 89 | 0.9% |
+| `isaVarApp(head: (((i => o) => (i => (i => (i => (i => (i => o)))))) => o), args: [((i => o) => (i => (i => (i => (i => (i => o))))))])` | 89 | 0.9% |
+| `isaVarApp(head: (((i => o) => (i => (i => (i => (i => o))))) => (((i => o) => (i => (i => (i => (i => o))))) => o)), args: [((i => o) => (i => (i => (i => (i => o))))), ((i => o) => (i => (i => (i => (i => o)))))])` | 117 | 1.2% |
+| `isaVarApp(head: (((i => o) => (i => (i => (i => (i => o))))) => o), args: [((i => o) => (i => (i => (i => (i => o)))))])` | 117 | 1.2% |
+| `isaVarApp(head: (((i => o) => (i => (i => (i => o)))) => (((i => o) => (i => (i => (i => o)))) => o)), args: [((i => o) => (i => (i => (i => o)))), ((i => o) => (i => (i => (i => o))))])` | 1025 | 10.9% |
+| `isaVarApp(head: (((i => o) => (i => (i => (i => o)))) => o), args: [((i => o) => (i => (i => (i => o))))])` | 1025 | 10.9% |
+| `isaVarApp(head: (((i => o) => (i => (i => i))) => (((i => o) => (i => (i => i))) => o)), args: [((i => o) => (i => (i => i))), ((i => o) => (i => (i => i)))])` | 44 | 0.5% |
+| `isaVarApp(head: (((i => o) => (i => (i => i))) => o), args: [((i => o) => (i => (i => i)))])` | 44 | 0.5% |
+| `isaVarApp(head: (((i => o) => (i => (i => o))) => (((i => o) => (i => (i => o))) => o)), args: [((i => o) => (i => (i => o))), ((i => o) => (i => (i => o)))])` | 945 | 10.0% |
+| `isaVarApp(head: (((i => o) => (i => (i => o))) => o), args: [((i => o) => (i => (i => o)))])` | 945 | 10.0% |
+| `isaVarApp(head: (((i => o) => (i => i)) => (((i => o) => (i => i)) => o)), args: [((i => o) => (i => i)), ((i => o) => (i => i))])` | 2 | 0.0% |
+| `isaVarApp(head: (((i => o) => (i => i)) => o), args: [((i => o) => (i => i))])` | 2 | 0.0% |
+| `isaVarApp(head: (((i => o) => (i => o)) => (((i => o) => (i => o)) => o)), args: [((i => o) => (i => o)), ((i => o) => (i => o))])` | 670 | 7.1% |
+| `isaVarApp(head: (((i => o) => (i => o)) => o), args: [((i => o) => (i => o))])` | 670 | 7.1% |
+| `isaVarApp(head: (((i => o) => (o => (i => o))) => (((i => o) => (o => (i => o))) => o)), args: [((i => o) => (o => (i => o))), ((i => o) => (o => (i => o)))])` | 92 | 1.0% |
+| `isaVarApp(head: (((i => o) => (o => (i => o))) => o), args: [((i => o) => (o => (i => o)))])` | 92 | 1.0% |
+| `isaVarApp(head: (((i => o) => i) => (((i => o) => i) => o)), args: [((i => o) => i), ((i => o) => i)])` | 5274 | 56.0% |
+| `isaVarApp(head: (((i => o) => i) => o), args: [((i => o) => i)])` | 5274 | 56.0% |
+| `isaVarApp(head: (((i => o) => o) => (((i => o) => o) => o)), args: [((i => o) => o), ((i => o) => o)])` | 4100 | 43.5% |
+| `isaVarApp(head: (((i => o) => o) => o), args: [((i => o) => o)])` | 4102 | 43.5% |
+| `isaVarApp(head: ((i => 'a) => ((i => 'a) => o)), args: [(i => 'a), (i => 'a)])` | 2739 | 29.1% |
+| `isaVarApp(head: ((i => 'a) => o), args: [(i => 'a)])` | 2739 | 29.1% |
+| `isaVarApp(head: ((i => ((i => (i => (i => i))) => i)) => ((i => ((i => (i => (i => i))) => i)) => o)), args: [(i => ((i => (i => (i => i))) => i)), (i => ((i => (i => (i => i))) => i))])` | 25 | 0.3% |
+| `isaVarApp(head: ((i => ((i => (i => (i => i))) => i)) => o), args: [(i => ((i => (i => (i => i))) => i))])` | 25 | 0.3% |
+| `isaVarApp(head: ((i => ((i => (i => i)) => (i => (i => i)))) => ((i => ((i => (i => i)) => (i => (i => i)))) => o)), args: [(i => ((i => (i => i)) => (i => (i => i)))), (i => ((i => (i => i)) => (i => (i => i))))])` | 53 | 0.6% |
+| `isaVarApp(head: ((i => ((i => (i => i)) => (i => (i => i)))) => o), args: [(i => ((i => (i => i)) => (i => (i => i))))])` | 53 | 0.6% |
+| `isaVarApp(head: ((i => ((i => (i => i)) => (i => i))) => ((i => ((i => (i => i)) => (i => i))) => o)), args: [(i => ((i => (i => i)) => (i => i))), (i => ((i => (i => i)) => (i => i)))])` | 2044 | 21.7% |
+| `isaVarApp(head: ((i => ((i => (i => i)) => (i => i))) => o), args: [(i => ((i => (i => i)) => (i => i)))])` | 2044 | 21.7% |
+| `isaVarApp(head: ((i => ((i => (i => i)) => i)) => ((i => ((i => (i => i)) => i)) => o)), args: [(i => ((i => (i => i)) => i)), (i => ((i => (i => i)) => i))])` | 3706 | 39.3% |
+| `isaVarApp(head: ((i => ((i => (i => i)) => i)) => o), args: [(i => ((i => (i => i)) => i))])` | 3706 | 39.3% |
+| `isaVarApp(head: ((i => ((i => (i => o)) => i)) => ((i => ((i => (i => o)) => i)) => o)), args: [(i => ((i => (i => o)) => i)), (i => ((i => (i => o)) => i))])` | 7313 | 77.6% |
+| `isaVarApp(head: ((i => ((i => (i => o)) => i)) => o), args: [(i => ((i => (i => o)) => i))])` | 7313 | 77.6% |
+| `isaVarApp(head: ((i => ((i => i) => (i => i))) => ((i => ((i => i) => (i => i))) => o)), args: [(i => ((i => i) => (i => i))), (i => ((i => i) => (i => i)))])` | 3854 | 40.9% |
+| `isaVarApp(head: ((i => ((i => i) => (i => i))) => o), args: [(i => ((i => i) => (i => i)))])` | 3854 | 40.9% |
+| `isaVarApp(head: ((i => ((i => i) => i)) => ((i => ((i => i) => i)) => o)), args: [(i => ((i => i) => i)), (i => ((i => i) => i))])` | 6215 | 66.0% |
+| `isaVarApp(head: ((i => ((i => i) => i)) => o), args: [(i => ((i => i) => i))])` | 6215 | 66.0% |
+| `isaVarApp(head: ((i => ((i => i) => o)) => ((i => ((i => i) => o)) => o)), args: [(i => ((i => i) => o)), (i => ((i => i) => o))])` | 4841 | 51.4% |
+| `isaVarApp(head: ((i => ((i => i) => o)) => o), args: [(i => ((i => i) => o))])` | 4841 | 51.4% |
+| `isaVarApp(head: ((i => ((i => o) => i)) => ((i => ((i => o) => i)) => o)), args: [(i => ((i => o) => i)), (i => ((i => o) => i))])` | 7247 | 76.9% |
+| `isaVarApp(head: ((i => ((i => o) => i)) => o), args: [(i => ((i => o) => i))])` | 7247 | 76.9% |
+| `isaVarApp(head: ((i => ((i => o) => o)) => ((i => ((i => o) => o)) => o)), args: [(i => ((i => o) => o)), (i => ((i => o) => o))])` | 7493 | 79.5% |
+| `isaVarApp(head: ((i => ((i => o) => o)) => o), args: [(i => ((i => o) => o))])` | 7493 | 79.5% |
+| `isaVarApp(head: ((i => (i => 'a)) => (i => 'a)), args: [(i => (i => 'a)), i])` | 2773 | 29.4% |
+| `isaVarApp(head: ((i => (i => ((i => (i => i)) => ((i => (i => i)) => i)))) => ((i => (i => ((i => (i => i)) => ((i => (i => i)) => i)))) => o)), args: [(i => (i => ((i => (i => i)) => ((i => (i => i)) => i)))), (i => (i => ((i => (i => i)) => ((i => (i => i)) => i))))])` | 8 | 0.1% |
+| `isaVarApp(head: ((i => (i => ((i => (i => i)) => ((i => (i => i)) => i)))) => o), args: [(i => (i => ((i => (i => i)) => ((i => (i => i)) => i))))])` | 8 | 0.1% |
+| `isaVarApp(head: ((i => (i => ((i => (i => i)) => (i => o)))) => ((i => (i => ((i => (i => i)) => (i => o)))) => o)), args: [(i => (i => ((i => (i => i)) => (i => o)))), (i => (i => ((i => (i => i)) => (i => o))))])` | 4068 | 43.2% |
+| `isaVarApp(head: ((i => (i => ((i => (i => i)) => (i => o)))) => o), args: [(i => (i => ((i => (i => i)) => (i => o))))])` | 4068 | 43.2% |
+| `isaVarApp(head: ((i => (i => ((i => (i => i)) => i))) => ((i => (i => ((i => (i => i)) => i))) => o)), args: [(i => (i => ((i => (i => i)) => i))), (i => (i => ((i => (i => i)) => i)))])` | 4061 | 43.1% |
+| `isaVarApp(head: ((i => (i => ((i => (i => i)) => i))) => o), args: [(i => (i => ((i => (i => i)) => i)))])` | 4061 | 43.1% |
+| `isaVarApp(head: ((i => (i => ((i => (i => i)) => o))) => ((i => (i => ((i => (i => i)) => o))) => o)), args: [(i => (i => ((i => (i => i)) => o))), (i => (i => ((i => (i => i)) => o)))])` | 439 | 4.7% |
+| `isaVarApp(head: ((i => (i => ((i => (i => i)) => o))) => o), args: [(i => (i => ((i => (i => i)) => o)))])` | 439 | 4.7% |
+| `isaVarApp(head: ((i => (i => ((i => i) => ((i => i) => (i => o))))) => ((i => (i => ((i => i) => ((i => i) => (i => o))))) => o)), args: [(i => (i => ((i => i) => ((i => i) => (i => o))))), (i => (i => ((i => i) => ((i => i) => (i => o)))))])` | 7 | 0.1% |
+| `isaVarApp(head: ((i => (i => ((i => i) => ((i => i) => (i => o))))) => o), args: [(i => (i => ((i => i) => ((i => i) => (i => o)))))])` | 7 | 0.1% |
+| `isaVarApp(head: ((i => (i => (i => ((i => (i => i)) => i)))) => ((i => (i => (i => ((i => (i => i)) => i)))) => o)), args: [(i => (i => (i => ((i => (i => i)) => i)))), (i => (i => (i => ((i => (i => i)) => i))))])` | 896 | 9.5% |
+| `isaVarApp(head: ((i => (i => (i => ((i => (i => i)) => i)))) => o), args: [(i => (i => (i => ((i => (i => i)) => i))))])` | 896 | 9.5% |
+| `isaVarApp(head: ((i => (i => (i => ((i => i) => o)))) => ((i => (i => (i => ((i => i) => o)))) => o)), args: [(i => (i => (i => ((i => i) => o)))), (i => (i => (i => ((i => i) => o))))])` | 21 | 0.2% |
+| `isaVarApp(head: ((i => (i => (i => ((i => i) => o)))) => o), args: [(i => (i => (i => ((i => i) => o))))])` | 21 | 0.2% |
+| `isaVarApp(head: ((i => (i => (i => (i => (i => (i => i)))))) => ((i => (i => (i => (i => (i => (i => i)))))) => o)), args: [(i => (i => (i => (i => (i => (i => i)))))), (i => (i => (i => (i => (i => (i => i))))))])` | 35 | 0.4% |
+| `isaVarApp(head: ((i => (i => (i => (i => (i => (i => i)))))) => o), args: [(i => (i => (i => (i => (i => (i => i))))))])` | 35 | 0.4% |
+| `isaVarApp(head: ((i => (i => (i => (i => (i => i))))) => ((i => (i => (i => (i => (i => i))))) => o)), args: [(i => (i => (i => (i => (i => i))))), (i => (i => (i => (i => (i => i)))))])` | 187 | 2.0% |
+| `isaVarApp(head: ((i => (i => (i => (i => (i => i))))) => o), args: [(i => (i => (i => (i => (i => i)))))])` | 187 | 2.0% |
+| `isaVarApp(head: ((i => (i => (i => (i => (i => o))))) => ((i => (i => (i => (i => (i => o))))) => o)), args: [(i => (i => (i => (i => (i => o))))), (i => (i => (i => (i => (i => o)))))])` | 9 | 0.1% |
+| `isaVarApp(head: ((i => (i => (i => (i => (i => o))))) => ((i => (i => (i => (i => i)))) => o)), args: [(i => (i => (i => (i => (i => o))))), (i => (i => (i => (i => i))))])` | 1 | 0.0% |
+| `isaVarApp(head: ((i => (i => (i => (i => (i => o))))) => o), args: [(i => (i => (i => (i => (i => o)))))])` | 9 | 0.1% |
+| `isaVarApp(head: ((i => (i => (i => (i => i)))) => ((i => (i => (i => (i => i)))) => o)), args: [(i => (i => (i => (i => i)))), (i => (i => (i => (i => i))))])` | 1108 | 11.8% |
+| `isaVarApp(head: ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => (i => i)))), args: [(i => (i => (i => (i => i)))), (i => (i => i)), i, i])` | 38 | 0.4% |
+| `isaVarApp(head: ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => i))), args: [(i => (i => (i => (i => i)))), (i => (i => i)), i])` | 24 | 0.3% |
+| `isaVarApp(head: ((i => (i => (i => (i => i)))) => o), args: [(i => (i => (i => (i => i))))])` | 1109 | 11.8% |
+| `isaVarApp(head: ((i => (i => (i => (i => o)))) => ((i => (i => (i => (i => o)))) => o)), args: [(i => (i => (i => (i => o)))), (i => (i => (i => (i => o))))])` | 114 | 1.2% |
+| `isaVarApp(head: ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o)), args: [(i => (i => (i => (i => o)))), (i => (i => (i => i)))])` | 2 | 0.0% |
+| `isaVarApp(head: ((i => (i => (i => (i => o)))) => o), args: [(i => (i => (i => (i => o))))])` | 114 | 1.2% |
+| `isaVarApp(head: ((i => (i => (i => i))) => ((i => (i => (i => i))) => o)), args: [(i => (i => (i => i))), (i => (i => (i => i)))])` | 3075 | 32.6% |
+| `isaVarApp(head: ((i => (i => (i => i))) => ((i => (i => i)) => (i => i))), args: [(i => (i => (i => i))), (i => (i => i)), i])` | 10 | 0.1% |
+| `isaVarApp(head: ((i => (i => (i => i))) => (i => (i => i))), args: [(i => (i => (i => i))), i, i])` | 103 | 1.1% |
+| `isaVarApp(head: ((i => (i => (i => i))) => (i => i)), args: [(i => (i => (i => i))), i])` | 1096 | 11.6% |
+| `isaVarApp(head: ((i => (i => (i => i))) => i), args: [(i => (i => (i => i)))])` | 25 | 0.3% |
+| `isaVarApp(head: ((i => (i => (i => i))) => o), args: [(i => (i => (i => i)))])` | 3077 | 32.7% |
+| `isaVarApp(head: ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => o)) => (i => (i => o)))))), args: [(i => (i => (i => o))), (i => (i => (i => o))), (i => (i => (i => o))), (i => (i => o)), i, i])` | 70 | 0.7% |
+| `isaVarApp(head: ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => o)) => (i => (i => o))))), args: [(i => (i => (i => o))), (i => (i => (i => o))), (i => (i => o)), i, i])` | 70 | 0.7% |
+| `isaVarApp(head: ((i => (i => (i => o))) => ((i => (i => (i => o))) => o)), args: [(i => (i => (i => o))), (i => (i => (i => o)))])` | 284 | 3.0% |
+| `isaVarApp(head: ((i => (i => (i => o))) => ((i => (i => i)) => o)), args: [(i => (i => (i => o))), (i => (i => i))])` | 185 | 2.0% |
+| `isaVarApp(head: ((i => (i => (i => o))) => ((i => (i => o)) => (i => (i => o)))), args: [(i => (i => (i => o))), (i => (i => o)), i, i])` | 70 | 0.7% |
+| `isaVarApp(head: ((i => (i => (i => o))) => (i => (i => (i => o)))), args: [(i => (i => (i => o))), i, i, i])` | 318 | 3.4% |
+| `isaVarApp(head: ((i => (i => (i => o))) => (i => (i => o))), args: [(i => (i => (i => o))), i, i])` | 149 | 1.6% |
+| `isaVarApp(head: ((i => (i => (i => o))) => (i => o)), args: [(i => (i => (i => o))), i])` | 156 | 1.7% |
+| `isaVarApp(head: ((i => (i => (i => o))) => o), args: [(i => (i => (i => o)))])` | 284 | 3.0% |
+| `isaVarApp(head: ((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => (i => i))))), args: [(i => (i => i)), (i => (i => (i => (i => i)))), (i => (i => i)), i, i])` | 38 | 0.4% |
+| `isaVarApp(head: ((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => i)))), args: [(i => (i => i)), (i => (i => (i => (i => i)))), (i => (i => i)), i])` | 24 | 0.3% |
+| `isaVarApp(head: ((i => (i => i)) => ((i => (i => (i => i))) => ((i => (i => i)) => (i => i)))), args: [(i => (i => i)), (i => (i => (i => i))), (i => (i => i)), i])` | 10 | 0.1% |
+| `isaVarApp(head: ((i => (i => i)) => ((i => (i => (i => i))) => (i => i))), args: [(i => (i => i)), (i => (i => (i => i))), i])` | 37 | 0.4% |
+| `isaVarApp(head: ((i => (i => i)) => ((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => (i => i)))))), args: [(i => (i => i)), (i => (i => i)), (i => (i => (i => (i => i)))), (i => (i => i)), i, i])` | 38 | 0.4% |
+| `isaVarApp(head: ((i => (i => i)) => ((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => i))))), args: [(i => (i => i)), (i => (i => i)), (i => (i => (i => (i => i)))), (i => (i => i)), i])` | 24 | 0.3% |
+| `isaVarApp(head: ((i => (i => i)) => ((i => (i => i)) => ((i => (i => (i => i))) => (i => i)))), args: [(i => (i => i)), (i => (i => i)), (i => (i => (i => i))), i])` | 21 | 0.2% |
+| `isaVarApp(head: ((i => (i => i)) => ((i => (i => i)) => (i => i))), args: [(i => (i => i)), (i => (i => i)), i])` | 23 | 0.2% |
+| `isaVarApp(head: ((i => (i => i)) => ((i => (i => i)) => i)), args: [(i => (i => i)), (i => (i => i))])` | 8 | 0.1% |
+| `isaVarApp(head: ((i => (i => i)) => ((i => (i => i)) => o)), args: [(i => (i => i)), (i => (i => i))])` | 6923 | 73.5% |
+| `isaVarApp(head: ((i => (i => i)) => ((i => i) => (i => i))), args: [(i => (i => i)), (i => i), i])` | 965 | 10.2% |
+| `isaVarApp(head: ((i => (i => i)) => (i => ((i => (i => i)) => (i => i)))), args: [(i => (i => i)), i, (i => (i => i)), i])` | 35 | 0.4% |
+| `isaVarApp(head: ((i => (i => i)) => (i => (i => i))), args: [(i => (i => i)), i, i])` | 91 | 1.0% |
+| `isaVarApp(head: ((i => (i => i)) => (i => i)), args: [(i => (i => i)), i])` | 2884 | 30.6% |
+| `isaVarApp(head: ((i => (i => i)) => (i => o)), args: [(i => (i => i)), i])` | 4068 | 43.2% |
+| `isaVarApp(head: ((i => (i => i)) => i), args: [(i => (i => i))])` | 4065 | 43.2% |
+| `isaVarApp(head: ((i => (i => i)) => o), args: [(i => (i => i))])` | 6927 | 73.5% |
+| `isaVarApp(head: ((i => (i => o)) => ((i => (i => o)) => o)), args: [(i => (i => o)), (i => (i => o))])` | 7387 | 78.4% |
+| `isaVarApp(head: ((i => (i => o)) => ((i => i) => o)), args: [(i => (i => o)), (i => i)])` | 132 | 1.4% |
+| `isaVarApp(head: ((i => (i => o)) => (i => (i => (i => (i => o))))), args: [(i => (i => o)), i, i, i, i])` | 243 | 2.6% |
+| `isaVarApp(head: ((i => (i => o)) => (i => (i => (i => o)))), args: [(i => (i => o)), i, i, i])` | 225 | 2.4% |
+| `isaVarApp(head: ((i => (i => o)) => (i => (i => o))), args: [(i => (i => o)), i, i])` | 250 | 2.7% |
+| `isaVarApp(head: ((i => (i => o)) => (i => o)), args: [(i => (i => o)), i])` | 344 | 3.7% |
+| `isaVarApp(head: ((i => (i => o)) => i), args: [(i => (i => o))])` | 7313 | 77.6% |
+| `isaVarApp(head: ((i => (i => o)) => o), args: [(i => (i => o))])` | 7404 | 78.6% |
+| `isaVarApp(head: ((i => i) => ((i => (i => (i => i))) => (i => i))), args: [(i => i), (i => (i => (i => i))), i])` | 92 | 1.0% |
+| `isaVarApp(head: ((i => i) => ((i => (i => i)) => ((i => (i => i)) => (i => i)))), args: [(i => i), (i => (i => i)), (i => (i => i)), i])` | 23 | 0.2% |
+| `isaVarApp(head: ((i => i) => ((i => i) => (i => i))), args: [(i => i), (i => i), i])` | 2421 | 25.7% |
+| `isaVarApp(head: ((i => i) => ((i => i) => (i => o))), args: [(i => i), (i => i), i])` | 7 | 0.1% |
+| `isaVarApp(head: ((i => i) => ((i => i) => o)), args: [(i => i), (i => i)])` | 6847 | 72.7% |
+| `isaVarApp(head: ((i => i) => (i => (i => i))), args: [(i => i), i, i])` | 442 | 4.7% |
+| `isaVarApp(head: ((i => i) => (i => i)), args: [(i => i), i])` | 4223 | 44.8% |
+| `isaVarApp(head: ((i => i) => (i => o)), args: [(i => i), i])` | 7 | 0.1% |
+| `isaVarApp(head: ((i => i) => i), args: [(i => i)])` | 6229 | 66.1% |
+| `isaVarApp(head: ((i => i) => o), args: [(i => i)])` | 6955 | 73.8% |
+| `isaVarApp(head: ((i => o) => ((i => (i => (i => (i => (i => o))))) => ((i => (i => (i => (i => i)))) => o))), args: [(i => o), (i => (i => (i => (i => (i => o))))), (i => (i => (i => (i => i))))])` | 1 | 0.0% |
+| `isaVarApp(head: ((i => o) => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o))), args: [(i => o), (i => (i => (i => (i => o)))), (i => (i => (i => i)))])` | 1 | 0.0% |
+| `isaVarApp(head: ((i => o) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => o)) => (i => (i => o))))))), args: [(i => o), (i => (i => (i => o))), (i => (i => (i => o))), (i => (i => (i => o))), (i => (i => o)), i, i])` | 70 | 0.7% |
+| `isaVarApp(head: ((i => o) => ((i => (i => (i => o))) => ((i => (i => i)) => o))), args: [(i => o), (i => (i => (i => o))), (i => (i => i))])` | 183 | 1.9% |
+| `isaVarApp(head: ((i => o) => ((i => (i => (i => o))) => (i => (i => (i => o))))), args: [(i => o), (i => (i => (i => o))), i, i, i])` | 318 | 3.4% |
+| `isaVarApp(head: ((i => o) => ((i => (i => (i => o))) => (i => (i => o)))), args: [(i => o), (i => (i => (i => o))), i, i])` | 53 | 0.6% |
+| `isaVarApp(head: ((i => o) => ((i => (i => (i => o))) => (i => o))), args: [(i => o), (i => (i => (i => o))), i])` | 155 | 1.6% |
+| `isaVarApp(head: ((i => o) => ((i => (i => o)) => ((i => i) => o))), args: [(i => o), (i => (i => o)), (i => i)])` | 128 | 1.4% |
+| `isaVarApp(head: ((i => o) => ((i => (i => o)) => (i => (i => (i => (i => o)))))), args: [(i => o), (i => (i => o)), i, i, i, i])` | 243 | 2.6% |
+| `isaVarApp(head: ((i => o) => ((i => (i => o)) => (i => (i => (i => o))))), args: [(i => o), (i => (i => o)), i, i, i])` | 225 | 2.4% |
+| `isaVarApp(head: ((i => o) => ((i => (i => o)) => (i => o))), args: [(i => o), (i => (i => o)), i])` | 141 | 1.5% |
+| `isaVarApp(head: ((i => o) => ((i => (i => o)) => o)), args: [(i => o), (i => (i => o))])` | 597 | 6.3% |
+| `isaVarApp(head: ((i => o) => ((i => o) => ((i => (i => o)) => o))), args: [(i => o), (i => o), (i => (i => o))])` | 429 | 4.6% |
+| `isaVarApp(head: ((i => o) => ((i => o) => o)), args: [(i => o), (i => o)])` | 5453 | 57.9% |
+| `isaVarApp(head: ((i => o) => (i => ((i => (i => (i => o))) => (i => (i => o))))), args: [(i => o), i, (i => (i => (i => o))), i, i])` | 3 | 0.0% |
+| `isaVarApp(head: ((i => o) => (i => ((i => (i => o)) => ((i => i) => o)))), args: [(i => o), i, (i => (i => o)), (i => i)])` | 44 | 0.5% |
+| `isaVarApp(head: ((i => o) => (i => ((i => (i => o)) => (i => (i => o))))), args: [(i => o), i, (i => (i => o)), i, i])` | 249 | 2.6% |
+| `isaVarApp(head: ((i => o) => (i => ((i => (i => o)) => (i => o)))), args: [(i => o), i, (i => (i => o)), i])` | 96 | 1.0% |
+| `isaVarApp(head: ((i => o) => (i => ((i => (i => o)) => o))), args: [(i => o), i, (i => (i => o))])` | 374 | 4.0% |
+| `isaVarApp(head: ((i => o) => (i => ((i => o) => (i => o)))), args: [(i => o), i, (i => o), i])` | 46 | 0.5% |
+| `isaVarApp(head: ((i => o) => (i => (i => ((i => (i => (i => o))) => ((i => (i => i)) => o))))), args: [(i => o), i, i, (i => (i => (i => o))), (i => (i => i))])` | 41 | 0.4% |
+| `isaVarApp(head: ((i => o) => (i => (i => (i => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o)))))), args: [(i => o), i, i, i, (i => (i => (i => (i => o)))), (i => (i => (i => i)))])` | 1 | 0.0% |
+| `isaVarApp(head: ((i => o) => (i => (i => (i => (i => (i => o)))))), args: [(i => o), i, i, i, i, i])` | 89 | 0.9% |
+| `isaVarApp(head: ((i => o) => (i => (i => (i => (i => o))))), args: [(i => o), i, i, i, i])` | 225 | 2.4% |
+| `isaVarApp(head: ((i => o) => (i => (i => (i => o)))), args: [(i => o), i, i, i])` | 1026 | 10.9% |
+| `isaVarApp(head: ((i => o) => (i => (i => i))), args: [(i => o), i, i])` | 44 | 0.5% |
+| `isaVarApp(head: ((i => o) => (i => (i => o))), args: [(i => o), i, i])` | 946 | 10.0% |
+| `isaVarApp(head: ((i => o) => (i => i)), args: [(i => o), i])` | 445 | 4.7% |
+| `isaVarApp(head: ((i => o) => (i => o)), args: [(i => o), i])` | 838 | 8.9% |
+| `isaVarApp(head: ((i => o) => (o => (i => o))), args: [(i => o), o, i])` | 92 | 1.0% |
+| `isaVarApp(head: ((i => o) => i), args: [(i => o)])` | 7257 | 77.0% |
+| `isaVarApp(head: ((i => o) => o), args: [(i => o)])` | 7746 | 82.2% |
+| `isaVarApp(head: ((o => (i => (i => i))) => ((o => (i => (i => i))) => o)), args: [(o => (i => (i => i))), (o => (i => (i => i)))])` | 5018 | 53.3% |
+| `isaVarApp(head: ((o => (i => (i => i))) => o), args: [(o => (i => (i => i)))])` | 5018 | 53.3% |
+| `isaVarApp(head: ((o => (o => o)) => ((o => (o => o)) => o)), args: [(o => (o => o)), (o => (o => o))])` | 7841 | 83.2% |
+| `isaVarApp(head: ((o => (o => o)) => o), args: [(o => (o => o))])` | 7841 | 83.2% |
+| `isaVarApp(head: ((o => i) => ((o => i) => o)), args: [(o => i), (o => i)])` | 882 | 9.4% |
+| `isaVarApp(head: ((o => i) => o), args: [(o => i)])` | 882 | 9.4% |
+| `isaVarApp(head: ((o => o) => ((o => o) => o)), args: [(o => o), (o => o)])` | 7819 | 83.0% |
+| `isaVarApp(head: ((o => o) => o), args: [(o => o)])` | 7819 | 83.0% |
+| `isaVarApp(head: (i => 'a), args: [i])` | 2773 | 29.4% |
+| `isaVarApp(head: (i => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o))), args: [i, (i => (i => (i => (i => o)))), (i => (i => (i => i)))])` | 1 | 0.0% |
+| `isaVarApp(head: (i => ((i => (i => (i => i))) => i)), args: [i, (i => (i => (i => i)))])` | 25 | 0.3% |
+| `isaVarApp(head: (i => ((i => (i => (i => o))) => ((i => (i => i)) => o))), args: [i, (i => (i => (i => o))), (i => (i => i))])` | 41 | 0.4% |
+| `isaVarApp(head: (i => ((i => (i => (i => o))) => (i => (i => o)))), args: [i, (i => (i => (i => o))), i, i])` | 3 | 0.0% |
+| `isaVarApp(head: (i => ((i => (i => i)) => ((i => (i => i)) => i))), args: [i, (i => (i => i)), (i => (i => i))])` | 8 | 0.1% |
+| `isaVarApp(head: (i => ((i => (i => i)) => (i => (i => i)))), args: [i, (i => (i => i)), i, i])` | 53 | 0.6% |
+| `isaVarApp(head: (i => ((i => (i => i)) => (i => i))), args: [i, (i => (i => i)), i])` | 2100 | 22.3% |
+| `isaVarApp(head: (i => ((i => (i => i)) => (i => o))), args: [i, (i => (i => i)), i])` | 4068 | 43.2% |
+| `isaVarApp(head: (i => ((i => (i => i)) => i)), args: [i, (i => (i => i))])` | 4064 | 43.1% |
+| `isaVarApp(head: (i => ((i => (i => i)) => o)), args: [i, (i => (i => i))])` | 439 | 4.7% |
+| `isaVarApp(head: (i => ((i => (i => o)) => ((i => i) => o))), args: [i, (i => (i => o)), (i => i)])` | 44 | 0.5% |
+| `isaVarApp(head: (i => ((i => (i => o)) => (i => (i => o)))), args: [i, (i => (i => o)), i, i])` | 249 | 2.6% |
+| `isaVarApp(head: (i => ((i => (i => o)) => (i => o))), args: [i, (i => (i => o)), i])` | 96 | 1.0% |
+| `isaVarApp(head: (i => ((i => (i => o)) => i)), args: [i, (i => (i => o))])` | 7313 | 77.6% |
+| `isaVarApp(head: (i => ((i => (i => o)) => o)), args: [i, (i => (i => o))])` | 374 | 4.0% |
+| `isaVarApp(head: (i => ((i => i) => ((i => i) => (i => o)))), args: [i, (i => i), (i => i), i])` | 7 | 0.1% |
+| `isaVarApp(head: (i => ((i => i) => (i => i))), args: [i, (i => i), i])` | 3854 | 40.9% |
+| `isaVarApp(head: (i => ((i => i) => i)), args: [i, (i => i)])` | 6226 | 66.1% |
+| `isaVarApp(head: (i => ((i => i) => o)), args: [i, (i => i)])` | 4845 | 51.4% |
+| `isaVarApp(head: (i => ((i => o) => (i => o))), args: [i, (i => o), i])` | 46 | 0.5% |
+| `isaVarApp(head: (i => ((i => o) => i)), args: [i, (i => o)])` | 7247 | 76.9% |
+| `isaVarApp(head: (i => ((i => o) => o)), args: [i, (i => o)])` | 7494 | 79.6% |
+| `isaVarApp(head: (i => (i => 'a)), args: [i, i])` | 3299 | 35.0% |
+| `isaVarApp(head: (i => (i => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o)))), args: [i, i, (i => (i => (i => (i => o)))), (i => (i => (i => i)))])` | 1 | 0.0% |
+| `isaVarApp(head: (i => (i => ((i => (i => (i => o))) => ((i => (i => i)) => o)))), args: [i, i, (i => (i => (i => o))), (i => (i => i))])` | 41 | 0.4% |
+| `isaVarApp(head: (i => (i => ((i => (i => i)) => ((i => (i => i)) => i)))), args: [i, i, (i => (i => i)), (i => (i => i))])` | 8 | 0.1% |
+| `isaVarApp(head: (i => (i => ((i => (i => i)) => (i => i)))), args: [i, i, (i => (i => i)), i])` | 13 | 0.1% |
+| `isaVarApp(head: (i => (i => ((i => (i => i)) => (i => o)))), args: [i, i, (i => (i => i)), i])` | 4068 | 43.2% |
+| `isaVarApp(head: (i => (i => ((i => (i => i)) => i))), args: [i, i, (i => (i => i))])` | 4062 | 43.1% |
+| `isaVarApp(head: (i => (i => ((i => (i => i)) => o))), args: [i, i, (i => (i => i))])` | 439 | 4.7% |
+| `isaVarApp(head: (i => (i => ((i => i) => ((i => i) => (i => o))))), args: [i, i, (i => i), (i => i), i])` | 7 | 0.1% |
+| `isaVarApp(head: (i => (i => ((i => i) => o))), args: [i, i, (i => i)])` | 21 | 0.2% |
+| `isaVarApp(head: (i => (i => (i => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o))))), args: [i, i, i, (i => (i => (i => (i => o)))), (i => (i => (i => i)))])` | 1 | 0.0% |
+| `isaVarApp(head: (i => (i => (i => ((i => (i => i)) => i)))), args: [i, i, i, (i => (i => i))])` | 896 | 9.5% |
+| `isaVarApp(head: (i => (i => (i => ((i => i) => o)))), args: [i, i, i, (i => i)])` | 21 | 0.2% |
+| `isaVarApp(head: (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => i)))))))))))))))))))))), args: [i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i])` | 10 | 0.1% |
+| `isaVarApp(head: (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => i))))))))))))))))), args: [i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i])` | 185 | 2.0% |
+| `isaVarApp(head: (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => i))))))))))))))), args: [i, i, i, i, i, i, i, i, i, i, i, i, i, i, i])` | 10 | 0.1% |
+| `isaVarApp(head: (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => i)))))))))))), args: [i, i, i, i, i, i, i, i, i, i, i, i])` | 14 | 0.1% |
+| `isaVarApp(head: (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => i))))))))))), args: [i, i, i, i, i, i, i, i, i, i, i])` | 16 | 0.2% |
+| `isaVarApp(head: (i => (i => (i => (i => (i => (i => (i => (i => i)))))))), args: [i, i, i, i, i, i, i, i])` | 2 | 0.0% |
+| `isaVarApp(head: (i => (i => (i => (i => (i => (i => (i => i))))))), args: [i, i, i, i, i, i, i])` | 16 | 0.2% |
+| `isaVarApp(head: (i => (i => (i => (i => (i => (i => i)))))), args: [i, i, i, i, i, i])` | 4125 | 43.8% |
+| `isaVarApp(head: (i => (i => (i => (i => (i => i))))), args: [i, i, i, i, i])` | 1646 | 17.5% |
+| `isaVarApp(head: (i => (i => (i => (i => (i => o))))), args: [i, i, i, i, i])` | 99 | 1.1% |
+| `isaVarApp(head: (i => (i => (i => (i => i)))), args: [i, i, i, i])` | 4580 | 48.6% |
+| `isaVarApp(head: (i => (i => (i => (i => o)))), args: [i, i, i, i])` | 435 | 4.6% |
+| `isaVarApp(head: (i => (i => (i => i))), args: [i, i, i])` | 5745 | 61.0% |
+| `isaVarApp(head: (i => (i => (i => o))), args: [i, i, i])` | 1561 | 16.6% |
+| `isaVarApp(head: (i => (i => i)), args: [i, i])` | 7752 | 82.3% |
+| `isaVarApp(head: (i => (i => o)), args: [i, i])` | 9170 | 97.3% |
+| `isaVarApp(head: (i => i), args: [i])` | 8261 | 87.7% |
+| `isaVarApp(head: (i => o), args: [i])` | 8838 | 93.8% |
+| `isaVarApp(head: (o => 'a), args: [o])` | 7417 | 78.7% |
+| `isaVarApp(head: (o => (('a => o) => 'a)), args: [o, ('a => o)])` | 7290 | 77.4% |
+| `isaVarApp(head: (o => (i => (i => i))), args: [o, i, i])` | 5020 | 53.3% |
+| `isaVarApp(head: (o => (i => o)), args: [o, i])` | 92 | 1.0% |
+| `isaVarApp(head: (o => (o => o)), args: [o, o])` | 8323 | 88.4% |
+| `isaVarApp(head: (o => i), args: [o])` | 883 | 9.4% |
+| `isaVarApp(head: (o => o), args: [o])` | 8432 | 89.5% |
+| `use(axiom AC.AC, [], o)` | 51 | 0.5% |
+| `use(axiom FOL.classical, [], o)` | 7756 | 82.3% |
+| `use(axiom IFOL.FalseE, [], o)` | 7820 | 83.0% |
+| `use(axiom IFOL.allI, ['a], o)` | 7610 | 80.8% |
+| `use(axiom IFOL.conjI, [], o)` | 8042 | 85.4% |
+| `use(axiom IFOL.conjunct1, [], o)` | 7893 | 83.8% |
+| `use(axiom IFOL.conjunct2, [], o)` | 7759 | 82.4% |
+| `use(axiom IFOL.disjE, [], o)` | 7496 | 79.6% |
+| `use(axiom IFOL.disjI1, [], o)` | 7496 | 79.6% |
+| `use(axiom IFOL.disjI2, [], o)` | 7496 | 79.6% |
+| `use(axiom IFOL.eq_reflection, ['a], o)` | 7751 | 82.3% |
+| `use(axiom IFOL.exE, ['a], o)` | 7495 | 79.6% |
+| `use(axiom IFOL.exI, ['a], o)` | 7497 | 79.6% |
+| `use(axiom IFOL.iff_reflection, [], o)` | 7572 | 80.4% |
+| `use(axiom IFOL.impI, [], o)` | 8047 | 85.4% |
+| `use(axiom IFOL.mp, [], o)` | 7960 | 84.5% |
+| `use(axiom IFOL.refl, ['a], o)` | 7767 | 82.5% |
+| `use(axiom IFOL.spec, ['a], o)` | 7668 | 81.4% |
+| `use(axiom IFOL.subst, ['a], o)` | 7607 | 80.8% |
+| `use(axiom Pure.abstract_rule, ['a, o], o)` | 3067 | 32.6% |
+| `use(axiom Pure.abstract_rule, [(i => (i => o)), o], o)` | 429 | 4.6% |
+| `use(axiom Pure.abstract_rule, [(i => o), ((i => (i => o)) => o)], o)` | 429 | 4.6% |
+| `use(axiom Pure.abstract_rule, [(i => o), ((i => o) => ((i => (i => o)) => o))], o)` | 429 | 4.6% |
+| `use(axiom Pure.abstract_rule, [(i => o), (i => (i => (i => (i => o))))], o)` | 26 | 0.3% |
+| `use(axiom Pure.abstract_rule, [(i => o), (i => i)], o)` | 436 | 4.6% |
+| `use(axiom Pure.abstract_rule, [(i => o), (i => o)], o)` | 430 | 4.6% |
+| `use(axiom Pure.abstract_rule, [(i => o), o], o)` | 435 | 4.6% |
+| `use(axiom Pure.abstract_rule, [i, (i => (i => (i => o)))], o)` | 26 | 0.3% |
+| `use(axiom Pure.abstract_rule, [i, (i => (i => i))], o)` | 1205 | 12.8% |
+| `use(axiom Pure.abstract_rule, [i, (i => (i => o))], o)` | 156 | 1.7% |
+| `use(axiom Pure.abstract_rule, [i, (i => i)], o)` | 3034 | 32.2% |
+| `use(axiom Pure.abstract_rule, [i, (i => o)], o)` | 654 | 6.9% |
+| `use(axiom Pure.abstract_rule, [i, i], o)` | 4562 | 48.4% |
+| `use(axiom Pure.abstract_rule, [i, o], o)` | 7626 | 81.0% |
+| `use(axiom Pure.combination, ['a, 'b], o)` | 4626 | 49.1% |
+| `use(axiom Pure.combination, ['a, ('a => o)], o)` | 7578 | 80.4% |
+| `use(axiom Pure.combination, ['a, o], o)` | 7724 | 82.0% |
+| `use(axiom Pure.combination, ['b, ('b => o)], o)` | 4626 | 49.1% |
+| `use(axiom Pure.combination, ['b, (('b => 'a) => 'a)], o)` | 439 | 4.7% |
+| `use(axiom Pure.combination, ['b, o], o)` | 4626 | 49.1% |
+| `use(axiom Pure.combination, [('a => o), o], o)` | 7324 | 77.7% |
+| `use(axiom Pure.combination, [('b => 'a), 'a], o)` | 439 | 4.7% |
+| `use(axiom Pure.combination, [('b => (('b => 'a) => 'a)), (('b => (('b => 'a) => 'a)) => o)], o)` | 439 | 4.7% |
+| `use(axiom Pure.combination, [('b => (('b => 'a) => 'a)), o], o)` | 439 | 4.7% |
+| `use(axiom Pure.combination, [(('a => o) => o), ((('a => o) => o) => o)], o)` | 7323 | 77.7% |
+| `use(axiom Pure.combination, [(('a => o) => o), o], o)` | 7323 | 77.7% |
+| `use(axiom Pure.combination, [((i => (i => 'a)) => (i => 'a)), (((i => (i => 'a)) => (i => 'a)) => o)], o)` | 2773 | 29.4% |
+| `use(axiom Pure.combination, [((i => (i => 'a)) => (i => 'a)), o], o)` | 2773 | 29.4% |
+| `use(axiom Pure.combination, [((i => (i => (i => i))) => (i => i)), (((i => (i => (i => i))) => (i => i)) => o)], o)` | 4 | 0.0% |
+| `use(axiom Pure.combination, [((i => (i => (i => i))) => (i => i)), o], o)` | 4 | 0.0% |
+| `use(axiom Pure.combination, [((i => (i => i)) => ((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => (i => i)))))), (((i => (i => i)) => ((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => (i => i)))))) => o)], o)` | 38 | 0.4% |
+| `use(axiom Pure.combination, [((i => (i => i)) => ((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => (i => i)))))), o], o)` | 38 | 0.4% |
+| `use(axiom Pure.combination, [((i => (i => i)) => (i => i)), (((i => (i => i)) => (i => i)) => o)], o)` | 2760 | 29.3% |
+| `use(axiom Pure.combination, [((i => (i => i)) => (i => i)), o], o)` | 2760 | 29.3% |
+| `use(axiom Pure.combination, [((i => i) => ((i => i) => (i => i))), (((i => i) => ((i => i) => (i => i))) => o)], o)` | 2421 | 25.7% |
+| `use(axiom Pure.combination, [((i => i) => ((i => i) => (i => i))), o], o)` | 2421 | 25.7% |
+| `use(axiom Pure.combination, [((i => i) => (i => i)), (((i => i) => (i => i)) => o)], o)` | 514 | 5.5% |
+| `use(axiom Pure.combination, [((i => i) => (i => i)), o], o)` | 514 | 5.5% |
+| `use(axiom Pure.combination, [((i => i) => o), (((i => i) => o) => o)], o)` | 531 | 5.6% |
+| `use(axiom Pure.combination, [((i => i) => o), o], o)` | 531 | 5.6% |
+| `use(axiom Pure.combination, [((i => o) => ((i => (i => (i => (i => (i => o))))) => ((i => (i => (i => (i => i)))) => o))), (((i => o) => ((i => (i => (i => (i => (i => o))))) => ((i => (i => (i => (i => i)))) => o))) => o)], o)` | 1 | 0.0% |
+| `use(axiom Pure.combination, [((i => o) => ((i => (i => (i => (i => (i => o))))) => ((i => (i => (i => (i => i)))) => o))), o], o)` | 1 | 0.0% |
+| `use(axiom Pure.combination, [((i => o) => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o))), (((i => o) => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o))) => o)], o)` | 1 | 0.0% |
+| `use(axiom Pure.combination, [((i => o) => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o))), o], o)` | 1 | 0.0% |
+| `use(axiom Pure.combination, [((i => o) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => o)) => (i => (i => o))))))), (((i => o) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => o)) => (i => (i => o))))))) => o)], o)` | 70 | 0.7% |
+| `use(axiom Pure.combination, [((i => o) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => o)) => (i => (i => o))))))), o], o)` | 70 | 0.7% |
+| `use(axiom Pure.combination, [((i => o) => ((i => (i => (i => o))) => ((i => (i => i)) => o))), (((i => o) => ((i => (i => (i => o))) => ((i => (i => i)) => o))) => o)], o)` | 183 | 1.9% |
+| `use(axiom Pure.combination, [((i => o) => ((i => (i => (i => o))) => ((i => (i => i)) => o))), o], o)` | 183 | 1.9% |
+| `use(axiom Pure.combination, [((i => o) => ((i => (i => (i => o))) => (i => (i => (i => o))))), (((i => o) => ((i => (i => (i => o))) => (i => (i => (i => o))))) => o)], o)` | 318 | 3.4% |
+| `use(axiom Pure.combination, [((i => o) => ((i => (i => (i => o))) => (i => (i => (i => o))))), o], o)` | 318 | 3.4% |
+| `use(axiom Pure.combination, [((i => o) => ((i => (i => (i => o))) => (i => (i => o)))), (((i => o) => ((i => (i => (i => o))) => (i => (i => o)))) => o)], o)` | 53 | 0.6% |
+| `use(axiom Pure.combination, [((i => o) => ((i => (i => (i => o))) => (i => (i => o)))), o], o)` | 53 | 0.6% |
+| `use(axiom Pure.combination, [((i => o) => ((i => (i => (i => o))) => (i => o))), (((i => o) => ((i => (i => (i => o))) => (i => o))) => o)], o)` | 155 | 1.6% |
+| `use(axiom Pure.combination, [((i => o) => ((i => (i => (i => o))) => (i => o))), o], o)` | 155 | 1.6% |
+| `use(axiom Pure.combination, [((i => o) => ((i => (i => o)) => ((i => i) => o))), (((i => o) => ((i => (i => o)) => ((i => i) => o))) => o)], o)` | 128 | 1.4% |
+| `use(axiom Pure.combination, [((i => o) => ((i => (i => o)) => ((i => i) => o))), o], o)` | 128 | 1.4% |
+| `use(axiom Pure.combination, [((i => o) => ((i => (i => o)) => (i => (i => (i => (i => o)))))), (((i => o) => ((i => (i => o)) => (i => (i => (i => (i => o)))))) => o)], o)` | 243 | 2.6% |
+| `use(axiom Pure.combination, [((i => o) => ((i => (i => o)) => (i => (i => (i => (i => o)))))), o], o)` | 243 | 2.6% |
+| `use(axiom Pure.combination, [((i => o) => ((i => (i => o)) => (i => (i => (i => o))))), (((i => o) => ((i => (i => o)) => (i => (i => (i => o))))) => o)], o)` | 225 | 2.4% |
+| `use(axiom Pure.combination, [((i => o) => ((i => (i => o)) => (i => (i => (i => o))))), o], o)` | 225 | 2.4% |
+| `use(axiom Pure.combination, [((i => o) => ((i => (i => o)) => (i => o))), (((i => o) => ((i => (i => o)) => (i => o))) => o)], o)` | 141 | 1.5% |
+| `use(axiom Pure.combination, [((i => o) => ((i => (i => o)) => (i => o))), o], o)` | 141 | 1.5% |
+| `use(axiom Pure.combination, [((i => o) => ((i => (i => o)) => o)), (((i => o) => ((i => (i => o)) => o)) => o)], o)` | 585 | 6.2% |
+| `use(axiom Pure.combination, [((i => o) => ((i => (i => o)) => o)), o], o)` | 585 | 6.2% |
+| `use(axiom Pure.combination, [((i => o) => ((i => o) => o)), (((i => o) => ((i => o) => o)) => o)], o)` | 1163 | 12.3% |
+| `use(axiom Pure.combination, [((i => o) => ((i => o) => o)), o], o)` | 1163 | 12.3% |
+| `use(axiom Pure.combination, [((i => o) => (i => ((i => (i => (i => o))) => (i => (i => o))))), (((i => o) => (i => ((i => (i => (i => o))) => (i => (i => o))))) => o)], o)` | 3 | 0.0% |
+| `use(axiom Pure.combination, [((i => o) => (i => ((i => (i => (i => o))) => (i => (i => o))))), o], o)` | 3 | 0.0% |
+| `use(axiom Pure.combination, [((i => o) => (i => ((i => (i => o)) => ((i => i) => o)))), (((i => o) => (i => ((i => (i => o)) => ((i => i) => o)))) => o)], o)` | 44 | 0.5% |
+| `use(axiom Pure.combination, [((i => o) => (i => ((i => (i => o)) => ((i => i) => o)))), o], o)` | 44 | 0.5% |
+| `use(axiom Pure.combination, [((i => o) => (i => ((i => (i => o)) => (i => (i => o))))), (((i => o) => (i => ((i => (i => o)) => (i => (i => o))))) => o)], o)` | 249 | 2.6% |
+| `use(axiom Pure.combination, [((i => o) => (i => ((i => (i => o)) => (i => (i => o))))), o], o)` | 249 | 2.6% |
+| `use(axiom Pure.combination, [((i => o) => (i => ((i => (i => o)) => (i => o)))), (((i => o) => (i => ((i => (i => o)) => (i => o)))) => o)], o)` | 96 | 1.0% |
+| `use(axiom Pure.combination, [((i => o) => (i => ((i => (i => o)) => (i => o)))), o], o)` | 96 | 1.0% |
+| `use(axiom Pure.combination, [((i => o) => (i => ((i => (i => o)) => o))), (((i => o) => (i => ((i => (i => o)) => o))) => o)], o)` | 374 | 4.0% |
+| `use(axiom Pure.combination, [((i => o) => (i => ((i => (i => o)) => o))), o], o)` | 374 | 4.0% |
+| `use(axiom Pure.combination, [((i => o) => (i => ((i => o) => (i => o)))), (((i => o) => (i => ((i => o) => (i => o)))) => o)], o)` | 46 | 0.5% |
+| `use(axiom Pure.combination, [((i => o) => (i => ((i => o) => (i => o)))), o], o)` | 46 | 0.5% |
+| `use(axiom Pure.combination, [((i => o) => (i => (i => ((i => (i => (i => o))) => ((i => (i => i)) => o))))), (((i => o) => (i => (i => ((i => (i => (i => o))) => ((i => (i => i)) => o))))) => o)], o)` | 41 | 0.4% |
+| `use(axiom Pure.combination, [((i => o) => (i => (i => ((i => (i => (i => o))) => ((i => (i => i)) => o))))), o], o)` | 41 | 0.4% |
+| `use(axiom Pure.combination, [((i => o) => (i => (i => (i => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o)))))), (((i => o) => (i => (i => (i => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o)))))) => o)], o)` | 1 | 0.0% |
+| `use(axiom Pure.combination, [((i => o) => (i => (i => (i => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o)))))), o], o)` | 1 | 0.0% |
+| `use(axiom Pure.combination, [((i => o) => (i => (i => (i => (i => (i => o)))))), (((i => o) => (i => (i => (i => (i => (i => o)))))) => o)], o)` | 89 | 0.9% |
+| `use(axiom Pure.combination, [((i => o) => (i => (i => (i => (i => (i => o)))))), o], o)` | 89 | 0.9% |
+| `use(axiom Pure.combination, [((i => o) => (i => (i => (i => (i => o))))), (((i => o) => (i => (i => (i => (i => o))))) => o)], o)` | 117 | 1.2% |
+| `use(axiom Pure.combination, [((i => o) => (i => (i => (i => (i => o))))), o], o)` | 117 | 1.2% |
+| `use(axiom Pure.combination, [((i => o) => (i => (i => (i => o)))), (((i => o) => (i => (i => (i => o)))) => o)], o)` | 1025 | 10.9% |
+| `use(axiom Pure.combination, [((i => o) => (i => (i => (i => o)))), o], o)` | 1025 | 10.9% |
+| `use(axiom Pure.combination, [((i => o) => (i => (i => i))), (((i => o) => (i => (i => i))) => o)], o)` | 44 | 0.5% |
+| `use(axiom Pure.combination, [((i => o) => (i => (i => i))), o], o)` | 44 | 0.5% |
+| `use(axiom Pure.combination, [((i => o) => (i => (i => o))), (((i => o) => (i => (i => o))) => o)], o)` | 945 | 10.0% |
+| `use(axiom Pure.combination, [((i => o) => (i => (i => o))), o], o)` | 945 | 10.0% |
+| `use(axiom Pure.combination, [((i => o) => (i => i)), (((i => o) => (i => i)) => o)], o)` | 2 | 0.0% |
+| `use(axiom Pure.combination, [((i => o) => (i => i)), o], o)` | 2 | 0.0% |
+| `use(axiom Pure.combination, [((i => o) => (i => o)), (((i => o) => (i => o)) => o)], o)` | 670 | 7.1% |
+| `use(axiom Pure.combination, [((i => o) => (i => o)), o], o)` | 670 | 7.1% |
+| `use(axiom Pure.combination, [((i => o) => (o => (i => o))), (((i => o) => (o => (i => o))) => o)], o)` | 92 | 1.0% |
+| `use(axiom Pure.combination, [((i => o) => (o => (i => o))), o], o)` | 92 | 1.0% |
+| `use(axiom Pure.combination, [((i => o) => i), (((i => o) => i) => o)], o)` | 5274 | 56.0% |
+| `use(axiom Pure.combination, [((i => o) => i), o], o)` | 5274 | 56.0% |
+| `use(axiom Pure.combination, [((i => o) => o), (((i => o) => o) => o)], o)` | 4100 | 43.5% |
+| `use(axiom Pure.combination, [((i => o) => o), o], o)` | 4102 | 43.5% |
+| `use(axiom Pure.combination, [(i => 'a), ((i => 'a) => o)], o)` | 2739 | 29.1% |
+| `use(axiom Pure.combination, [(i => 'a), o], o)` | 2739 | 29.1% |
+| `use(axiom Pure.combination, [(i => ((i => (i => (i => i))) => i)), ((i => ((i => (i => (i => i))) => i)) => o)], o)` | 25 | 0.3% |
+| `use(axiom Pure.combination, [(i => ((i => (i => (i => i))) => i)), o], o)` | 25 | 0.3% |
+| `use(axiom Pure.combination, [(i => ((i => (i => i)) => (i => (i => i)))), ((i => ((i => (i => i)) => (i => (i => i)))) => o)], o)` | 53 | 0.6% |
+| `use(axiom Pure.combination, [(i => ((i => (i => i)) => (i => (i => i)))), o], o)` | 53 | 0.6% |
+| `use(axiom Pure.combination, [(i => ((i => (i => i)) => (i => i))), ((i => ((i => (i => i)) => (i => i))) => o)], o)` | 2044 | 21.7% |
+| `use(axiom Pure.combination, [(i => ((i => (i => i)) => (i => i))), o], o)` | 2044 | 21.7% |
+| `use(axiom Pure.combination, [(i => ((i => (i => i)) => i)), ((i => ((i => (i => i)) => i)) => o)], o)` | 3706 | 39.3% |
+| `use(axiom Pure.combination, [(i => ((i => (i => i)) => i)), o], o)` | 3706 | 39.3% |
+| `use(axiom Pure.combination, [(i => ((i => (i => o)) => i)), ((i => ((i => (i => o)) => i)) => o)], o)` | 7313 | 77.6% |
+| `use(axiom Pure.combination, [(i => ((i => (i => o)) => i)), o], o)` | 7313 | 77.6% |
+| `use(axiom Pure.combination, [(i => ((i => i) => (i => i))), ((i => ((i => i) => (i => i))) => o)], o)` | 3854 | 40.9% |
+| `use(axiom Pure.combination, [(i => ((i => i) => (i => i))), o], o)` | 3854 | 40.9% |
+| `use(axiom Pure.combination, [(i => ((i => i) => i)), ((i => ((i => i) => i)) => o)], o)` | 6215 | 66.0% |
+| `use(axiom Pure.combination, [(i => ((i => i) => i)), o], o)` | 6215 | 66.0% |
+| `use(axiom Pure.combination, [(i => ((i => i) => o)), ((i => ((i => i) => o)) => o)], o)` | 4841 | 51.4% |
+| `use(axiom Pure.combination, [(i => ((i => i) => o)), o], o)` | 4841 | 51.4% |
+| `use(axiom Pure.combination, [(i => ((i => o) => i)), ((i => ((i => o) => i)) => o)], o)` | 7247 | 76.9% |
+| `use(axiom Pure.combination, [(i => ((i => o) => i)), o], o)` | 7247 | 76.9% |
+| `use(axiom Pure.combination, [(i => ((i => o) => o)), ((i => ((i => o) => o)) => o)], o)` | 7493 | 79.5% |
+| `use(axiom Pure.combination, [(i => ((i => o) => o)), o], o)` | 7493 | 79.5% |
+| `use(axiom Pure.combination, [(i => (i => 'a)), (i => 'a)], o)` | 2773 | 29.4% |
+| `use(axiom Pure.combination, [(i => (i => ((i => (i => i)) => ((i => (i => i)) => i)))), ((i => (i => ((i => (i => i)) => ((i => (i => i)) => i)))) => o)], o)` | 8 | 0.1% |
+| `use(axiom Pure.combination, [(i => (i => ((i => (i => i)) => ((i => (i => i)) => i)))), o], o)` | 8 | 0.1% |
+| `use(axiom Pure.combination, [(i => (i => ((i => (i => i)) => (i => o)))), ((i => (i => ((i => (i => i)) => (i => o)))) => o)], o)` | 4068 | 43.2% |
+| `use(axiom Pure.combination, [(i => (i => ((i => (i => i)) => (i => o)))), o], o)` | 4068 | 43.2% |
+| `use(axiom Pure.combination, [(i => (i => ((i => (i => i)) => i))), ((i => (i => ((i => (i => i)) => i))) => o)], o)` | 4061 | 43.1% |
+| `use(axiom Pure.combination, [(i => (i => ((i => (i => i)) => i))), o], o)` | 4061 | 43.1% |
+| `use(axiom Pure.combination, [(i => (i => ((i => (i => i)) => o))), ((i => (i => ((i => (i => i)) => o))) => o)], o)` | 439 | 4.7% |
+| `use(axiom Pure.combination, [(i => (i => ((i => (i => i)) => o))), o], o)` | 439 | 4.7% |
+| `use(axiom Pure.combination, [(i => (i => ((i => i) => ((i => i) => (i => o))))), ((i => (i => ((i => i) => ((i => i) => (i => o))))) => o)], o)` | 7 | 0.1% |
+| `use(axiom Pure.combination, [(i => (i => ((i => i) => ((i => i) => (i => o))))), o], o)` | 7 | 0.1% |
+| `use(axiom Pure.combination, [(i => (i => (i => ((i => (i => i)) => i)))), ((i => (i => (i => ((i => (i => i)) => i)))) => o)], o)` | 896 | 9.5% |
+| `use(axiom Pure.combination, [(i => (i => (i => ((i => (i => i)) => i)))), o], o)` | 896 | 9.5% |
+| `use(axiom Pure.combination, [(i => (i => (i => ((i => i) => o)))), ((i => (i => (i => ((i => i) => o)))) => o)], o)` | 21 | 0.2% |
+| `use(axiom Pure.combination, [(i => (i => (i => ((i => i) => o)))), o], o)` | 21 | 0.2% |
+| `use(axiom Pure.combination, [(i => (i => (i => (i => (i => (i => i)))))), ((i => (i => (i => (i => (i => (i => i)))))) => o)], o)` | 35 | 0.4% |
+| `use(axiom Pure.combination, [(i => (i => (i => (i => (i => (i => i)))))), o], o)` | 35 | 0.4% |
+| `use(axiom Pure.combination, [(i => (i => (i => (i => (i => i))))), ((i => (i => (i => (i => (i => i))))) => o)], o)` | 187 | 2.0% |
+| `use(axiom Pure.combination, [(i => (i => (i => (i => (i => i))))), o], o)` | 187 | 2.0% |
+| `use(axiom Pure.combination, [(i => (i => (i => (i => (i => o))))), ((i => (i => (i => (i => (i => o))))) => o)], o)` | 9 | 0.1% |
+| `use(axiom Pure.combination, [(i => (i => (i => (i => (i => o))))), ((i => (i => (i => (i => i)))) => o)], o)` | 1 | 0.0% |
+| `use(axiom Pure.combination, [(i => (i => (i => (i => (i => o))))), o], o)` | 9 | 0.1% |
+| `use(axiom Pure.combination, [(i => (i => (i => (i => i)))), ((i => (i => (i => (i => i)))) => o)], o)` | 1108 | 11.8% |
+| `use(axiom Pure.combination, [(i => (i => (i => (i => i)))), ((i => (i => i)) => (i => (i => i)))], o)` | 38 | 0.4% |
+| `use(axiom Pure.combination, [(i => (i => (i => (i => i)))), ((i => (i => i)) => (i => i))], o)` | 24 | 0.3% |
+| `use(axiom Pure.combination, [(i => (i => (i => (i => i)))), o], o)` | 1109 | 11.8% |
+| `use(axiom Pure.combination, [(i => (i => (i => (i => o)))), ((i => (i => (i => (i => o)))) => o)], o)` | 114 | 1.2% |
+| `use(axiom Pure.combination, [(i => (i => (i => (i => o)))), ((i => (i => (i => i))) => o)], o)` | 2 | 0.0% |
+| `use(axiom Pure.combination, [(i => (i => (i => (i => o)))), o], o)` | 114 | 1.2% |
+| `use(axiom Pure.combination, [(i => (i => (i => i))), ((i => (i => (i => i))) => o)], o)` | 3075 | 32.6% |
+| `use(axiom Pure.combination, [(i => (i => (i => i))), ((i => (i => i)) => (i => i))], o)` | 10 | 0.1% |
+| `use(axiom Pure.combination, [(i => (i => (i => i))), (i => (i => i))], o)` | 103 | 1.1% |
+| `use(axiom Pure.combination, [(i => (i => (i => i))), (i => i)], o)` | 1096 | 11.6% |
+| `use(axiom Pure.combination, [(i => (i => (i => i))), i], o)` | 25 | 0.3% |
+| `use(axiom Pure.combination, [(i => (i => (i => i))), o], o)` | 3077 | 32.7% |
+| `use(axiom Pure.combination, [(i => (i => (i => o))), ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => o)) => (i => (i => o)))))], o)` | 70 | 0.7% |
+| `use(axiom Pure.combination, [(i => (i => (i => o))), ((i => (i => (i => o))) => ((i => (i => o)) => (i => (i => o))))], o)` | 70 | 0.7% |
+| `use(axiom Pure.combination, [(i => (i => (i => o))), ((i => (i => (i => o))) => o)], o)` | 284 | 3.0% |
+| `use(axiom Pure.combination, [(i => (i => (i => o))), ((i => (i => i)) => o)], o)` | 185 | 2.0% |
+| `use(axiom Pure.combination, [(i => (i => (i => o))), ((i => (i => o)) => (i => (i => o)))], o)` | 70 | 0.7% |
+| `use(axiom Pure.combination, [(i => (i => (i => o))), (i => (i => (i => o)))], o)` | 318 | 3.4% |
+| `use(axiom Pure.combination, [(i => (i => (i => o))), (i => (i => o))], o)` | 149 | 1.6% |
+| `use(axiom Pure.combination, [(i => (i => (i => o))), (i => o)], o)` | 156 | 1.7% |
+| `use(axiom Pure.combination, [(i => (i => (i => o))), o], o)` | 284 | 3.0% |
+| `use(axiom Pure.combination, [(i => (i => i)), ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => (i => i))))], o)` | 38 | 0.4% |
+| `use(axiom Pure.combination, [(i => (i => i)), ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => i)))], o)` | 24 | 0.3% |
+| `use(axiom Pure.combination, [(i => (i => i)), ((i => (i => (i => i))) => ((i => (i => i)) => (i => i)))], o)` | 10 | 0.1% |
+| `use(axiom Pure.combination, [(i => (i => i)), ((i => (i => (i => i))) => (i => i))], o)` | 37 | 0.4% |
+| `use(axiom Pure.combination, [(i => (i => i)), ((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => (i => i)))))], o)` | 38 | 0.4% |
+| `use(axiom Pure.combination, [(i => (i => i)), ((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => i))))], o)` | 24 | 0.3% |
+| `use(axiom Pure.combination, [(i => (i => i)), ((i => (i => i)) => ((i => (i => (i => i))) => (i => i)))], o)` | 21 | 0.2% |
+| `use(axiom Pure.combination, [(i => (i => i)), ((i => (i => i)) => (i => i))], o)` | 23 | 0.2% |
+| `use(axiom Pure.combination, [(i => (i => i)), ((i => (i => i)) => i)], o)` | 8 | 0.1% |
+| `use(axiom Pure.combination, [(i => (i => i)), ((i => (i => i)) => o)], o)` | 6923 | 73.5% |
+| `use(axiom Pure.combination, [(i => (i => i)), ((i => i) => (i => i))], o)` | 965 | 10.2% |
+| `use(axiom Pure.combination, [(i => (i => i)), (i => ((i => (i => i)) => (i => i)))], o)` | 35 | 0.4% |
+| `use(axiom Pure.combination, [(i => (i => i)), (i => (i => i))], o)` | 91 | 1.0% |
+| `use(axiom Pure.combination, [(i => (i => i)), (i => i)], o)` | 2884 | 30.6% |
+| `use(axiom Pure.combination, [(i => (i => i)), (i => o)], o)` | 4068 | 43.2% |
+| `use(axiom Pure.combination, [(i => (i => i)), i], o)` | 4065 | 43.2% |
+| `use(axiom Pure.combination, [(i => (i => i)), o], o)` | 6927 | 73.5% |
+| `use(axiom Pure.combination, [(i => (i => o)), ((i => (i => o)) => o)], o)` | 7387 | 78.4% |
+| `use(axiom Pure.combination, [(i => (i => o)), ((i => i) => o)], o)` | 132 | 1.4% |
+| `use(axiom Pure.combination, [(i => (i => o)), (i => (i => (i => (i => o))))], o)` | 243 | 2.6% |
+| `use(axiom Pure.combination, [(i => (i => o)), (i => (i => (i => o)))], o)` | 225 | 2.4% |
+| `use(axiom Pure.combination, [(i => (i => o)), (i => (i => o))], o)` | 250 | 2.7% |
+| `use(axiom Pure.combination, [(i => (i => o)), (i => o)], o)` | 344 | 3.7% |
+| `use(axiom Pure.combination, [(i => (i => o)), i], o)` | 7313 | 77.6% |
+| `use(axiom Pure.combination, [(i => (i => o)), o], o)` | 7404 | 78.6% |
+| `use(axiom Pure.combination, [(i => i), ((i => (i => (i => i))) => (i => i))], o)` | 92 | 1.0% |
+| `use(axiom Pure.combination, [(i => i), ((i => (i => i)) => ((i => (i => i)) => (i => i)))], o)` | 23 | 0.2% |
+| `use(axiom Pure.combination, [(i => i), ((i => i) => (i => i))], o)` | 2421 | 25.7% |
+| `use(axiom Pure.combination, [(i => i), ((i => i) => (i => o))], o)` | 7 | 0.1% |
+| `use(axiom Pure.combination, [(i => i), ((i => i) => o)], o)` | 6847 | 72.7% |
+| `use(axiom Pure.combination, [(i => i), (i => (i => i))], o)` | 442 | 4.7% |
+| `use(axiom Pure.combination, [(i => i), (i => i)], o)` | 4223 | 44.8% |
+| `use(axiom Pure.combination, [(i => i), (i => o)], o)` | 7 | 0.1% |
+| `use(axiom Pure.combination, [(i => i), i], o)` | 6229 | 66.1% |
+| `use(axiom Pure.combination, [(i => i), o], o)` | 6955 | 73.8% |
+| `use(axiom Pure.combination, [(i => o), ((i => (i => (i => (i => (i => o))))) => ((i => (i => (i => (i => i)))) => o))], o)` | 1 | 0.0% |
+| `use(axiom Pure.combination, [(i => o), ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o))], o)` | 1 | 0.0% |
+| `use(axiom Pure.combination, [(i => o), ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => o)) => (i => (i => o))))))], o)` | 70 | 0.7% |
+| `use(axiom Pure.combination, [(i => o), ((i => (i => (i => o))) => ((i => (i => i)) => o))], o)` | 183 | 1.9% |
+| `use(axiom Pure.combination, [(i => o), ((i => (i => (i => o))) => (i => (i => (i => o))))], o)` | 318 | 3.4% |
+| `use(axiom Pure.combination, [(i => o), ((i => (i => (i => o))) => (i => (i => o)))], o)` | 53 | 0.6% |
+| `use(axiom Pure.combination, [(i => o), ((i => (i => (i => o))) => (i => o))], o)` | 155 | 1.6% |
+| `use(axiom Pure.combination, [(i => o), ((i => (i => o)) => ((i => i) => o))], o)` | 128 | 1.4% |
+| `use(axiom Pure.combination, [(i => o), ((i => (i => o)) => (i => (i => (i => (i => o)))))], o)` | 243 | 2.6% |
+| `use(axiom Pure.combination, [(i => o), ((i => (i => o)) => (i => (i => (i => o))))], o)` | 225 | 2.4% |
+| `use(axiom Pure.combination, [(i => o), ((i => (i => o)) => (i => o))], o)` | 141 | 1.5% |
+| `use(axiom Pure.combination, [(i => o), ((i => (i => o)) => o)], o)` | 597 | 6.3% |
+| `use(axiom Pure.combination, [(i => o), ((i => o) => ((i => (i => o)) => o))], o)` | 429 | 4.6% |
+| `use(axiom Pure.combination, [(i => o), ((i => o) => o)], o)` | 5453 | 57.9% |
+| `use(axiom Pure.combination, [(i => o), (i => ((i => (i => (i => o))) => (i => (i => o))))], o)` | 3 | 0.0% |
+| `use(axiom Pure.combination, [(i => o), (i => ((i => (i => o)) => ((i => i) => o)))], o)` | 44 | 0.5% |
+| `use(axiom Pure.combination, [(i => o), (i => ((i => (i => o)) => (i => (i => o))))], o)` | 249 | 2.6% |
+| `use(axiom Pure.combination, [(i => o), (i => ((i => (i => o)) => (i => o)))], o)` | 96 | 1.0% |
+| `use(axiom Pure.combination, [(i => o), (i => ((i => (i => o)) => o))], o)` | 374 | 4.0% |
+| `use(axiom Pure.combination, [(i => o), (i => ((i => o) => (i => o)))], o)` | 46 | 0.5% |
+| `use(axiom Pure.combination, [(i => o), (i => (i => ((i => (i => (i => o))) => ((i => (i => i)) => o))))], o)` | 41 | 0.4% |
+| `use(axiom Pure.combination, [(i => o), (i => (i => (i => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o)))))], o)` | 1 | 0.0% |
+| `use(axiom Pure.combination, [(i => o), (i => (i => (i => (i => (i => o)))))], o)` | 89 | 0.9% |
+| `use(axiom Pure.combination, [(i => o), (i => (i => (i => (i => o))))], o)` | 116 | 1.2% |
+| `use(axiom Pure.combination, [(i => o), (i => (i => (i => o)))], o)` | 1025 | 10.9% |
+| `use(axiom Pure.combination, [(i => o), (i => (i => i))], o)` | 44 | 0.5% |
+| `use(axiom Pure.combination, [(i => o), (i => (i => o))], o)` | 945 | 10.0% |
+| `use(axiom Pure.combination, [(i => o), (i => i)], o)` | 445 | 4.7% |
+| `use(axiom Pure.combination, [(i => o), (i => o)], o)` | 838 | 8.9% |
+| `use(axiom Pure.combination, [(i => o), (o => (i => o))], o)` | 92 | 1.0% |
+| `use(axiom Pure.combination, [(i => o), i], o)` | 7257 | 77.0% |
+| `use(axiom Pure.combination, [(i => o), o], o)` | 7746 | 82.2% |
+| `use(axiom Pure.combination, [(o => (i => (i => i))), ((o => (i => (i => i))) => o)], o)` | 5018 | 53.3% |
+| `use(axiom Pure.combination, [(o => (i => (i => i))), o], o)` | 5018 | 53.3% |
+| `use(axiom Pure.combination, [(o => (o => o)), ((o => (o => o)) => o)], o)` | 7841 | 83.2% |
+| `use(axiom Pure.combination, [(o => (o => o)), o], o)` | 7841 | 83.2% |
+| `use(axiom Pure.combination, [(o => i), ((o => i) => o)], o)` | 882 | 9.4% |
+| `use(axiom Pure.combination, [(o => i), o], o)` | 882 | 9.4% |
+| `use(axiom Pure.combination, [(o => o), ((o => o) => o)], o)` | 7819 | 83.0% |
+| `use(axiom Pure.combination, [(o => o), o], o)` | 7819 | 83.0% |
+| `use(axiom Pure.combination, [i, 'a], o)` | 1905 | 20.2% |
+| `use(axiom Pure.combination, [i, ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o))], o)` | 1 | 0.0% |
+| `use(axiom Pure.combination, [i, ((i => (i => (i => i))) => i)], o)` | 25 | 0.3% |
+| `use(axiom Pure.combination, [i, ((i => (i => (i => o))) => ((i => (i => i)) => o))], o)` | 41 | 0.4% |
+| `use(axiom Pure.combination, [i, ((i => (i => (i => o))) => (i => (i => o)))], o)` | 3 | 0.0% |
+| `use(axiom Pure.combination, [i, ((i => (i => i)) => ((i => (i => i)) => i))], o)` | 8 | 0.1% |
+| `use(axiom Pure.combination, [i, ((i => (i => i)) => (i => (i => i)))], o)` | 53 | 0.6% |
+| `use(axiom Pure.combination, [i, ((i => (i => i)) => (i => i))], o)` | 2100 | 22.3% |
+| `use(axiom Pure.combination, [i, ((i => (i => i)) => (i => o))], o)` | 4068 | 43.2% |
+| `use(axiom Pure.combination, [i, ((i => (i => i)) => i)], o)` | 4064 | 43.1% |
+| `use(axiom Pure.combination, [i, ((i => (i => i)) => o)], o)` | 439 | 4.7% |
+| `use(axiom Pure.combination, [i, ((i => (i => o)) => ((i => i) => o))], o)` | 44 | 0.5% |
+| `use(axiom Pure.combination, [i, ((i => (i => o)) => (i => (i => o)))], o)` | 249 | 2.6% |
+| `use(axiom Pure.combination, [i, ((i => (i => o)) => (i => o))], o)` | 96 | 1.0% |
+| `use(axiom Pure.combination, [i, ((i => (i => o)) => i)], o)` | 7313 | 77.6% |
+| `use(axiom Pure.combination, [i, ((i => (i => o)) => o)], o)` | 374 | 4.0% |
+| `use(axiom Pure.combination, [i, ((i => i) => ((i => i) => (i => o)))], o)` | 7 | 0.1% |
+| `use(axiom Pure.combination, [i, ((i => i) => (i => i))], o)` | 3854 | 40.9% |
+| `use(axiom Pure.combination, [i, ((i => i) => i)], o)` | 6226 | 66.1% |
+| `use(axiom Pure.combination, [i, ((i => i) => o)], o)` | 4845 | 51.4% |
+| `use(axiom Pure.combination, [i, ((i => o) => (i => o))], o)` | 46 | 0.5% |
+| `use(axiom Pure.combination, [i, ((i => o) => i)], o)` | 7247 | 76.9% |
+| `use(axiom Pure.combination, [i, ((i => o) => o)], o)` | 7494 | 79.6% |
+| `use(axiom Pure.combination, [i, (i => 'a)], o)` | 1879 | 19.9% |
+| `use(axiom Pure.combination, [i, (i => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o)))], o)` | 1 | 0.0% |
+| `use(axiom Pure.combination, [i, (i => ((i => (i => (i => o))) => ((i => (i => i)) => o)))], o)` | 41 | 0.4% |
+| `use(axiom Pure.combination, [i, (i => ((i => (i => i)) => ((i => (i => i)) => i)))], o)` | 8 | 0.1% |
+| `use(axiom Pure.combination, [i, (i => ((i => (i => i)) => (i => i)))], o)` | 13 | 0.1% |
+| `use(axiom Pure.combination, [i, (i => ((i => (i => i)) => (i => o)))], o)` | 4068 | 43.2% |
+| `use(axiom Pure.combination, [i, (i => ((i => (i => i)) => i))], o)` | 4062 | 43.1% |
+| `use(axiom Pure.combination, [i, (i => ((i => (i => i)) => o))], o)` | 439 | 4.7% |
+| `use(axiom Pure.combination, [i, (i => ((i => i) => ((i => i) => (i => o))))], o)` | 7 | 0.1% |
+| `use(axiom Pure.combination, [i, (i => ((i => i) => o))], o)` | 21 | 0.2% |
+| `use(axiom Pure.combination, [i, (i => (i => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o))))], o)` | 1 | 0.0% |
+| `use(axiom Pure.combination, [i, (i => (i => ((i => (i => i)) => i)))], o)` | 896 | 9.5% |
+| `use(axiom Pure.combination, [i, (i => (i => ((i => i) => o)))], o)` | 21 | 0.2% |
+| `use(axiom Pure.combination, [i, (i => (i => (i => (i => (i => i)))))], o)` | 35 | 0.4% |
+| `use(axiom Pure.combination, [i, (i => (i => (i => (i => i))))], o)` | 188 | 2.0% |
+| `use(axiom Pure.combination, [i, (i => (i => (i => (i => o))))], o)` | 98 | 1.0% |
+| `use(axiom Pure.combination, [i, (i => (i => (i => i)))], o)` | 1214 | 12.9% |
+| `use(axiom Pure.combination, [i, (i => (i => (i => o)))], o)` | 416 | 4.4% |
+| `use(axiom Pure.combination, [i, (i => (i => i))], o)` | 3205 | 34.0% |
+| `use(axiom Pure.combination, [i, (i => (i => o))], o)` | 1390 | 14.8% |
+| `use(axiom Pure.combination, [i, (i => i)], o)` | 7036 | 74.7% |
+| `use(axiom Pure.combination, [i, (i => o)], o)` | 7984 | 84.8% |
+| `use(axiom Pure.combination, [i, i], o)` | 7446 | 79.0% |
+| `use(axiom Pure.combination, [i, o], o)` | 8099 | 86.0% |
+| `use(axiom Pure.combination, [o, (i => (i => i))], o)` | 5020 | 53.3% |
+| `use(axiom Pure.combination, [o, (i => o)], o)` | 92 | 1.0% |
+| `use(axiom Pure.combination, [o, (o => o)], o)` | 8323 | 88.4% |
+| `use(axiom Pure.combination, [o, i], o)` | 883 | 9.4% |
+| `use(axiom Pure.combination, [o, o], o)` | 8432 | 89.5% |
+| `use(axiom Pure.equal_elim, [], o)` | 8832 | 93.8% |
+| `use(axiom Pure.equal_intr, [], o)` | 7981 | 84.7% |
+| `use(axiom Pure.reflexive, ['a], o)` | 7581 | 80.5% |
+| `use(axiom Pure.reflexive, ['b], o)` | 4628 | 49.1% |
+| `use(axiom Pure.reflexive, [('a => 'b)], o)` | 4362 | 46.3% |
+| `use(axiom Pure.reflexive, [('a => ('a => o))], o)` | 7578 | 80.4% |
+| `use(axiom Pure.reflexive, [('a => o)], o)` | 7423 | 78.8% |
+| `use(axiom Pure.reflexive, [('b => 'a)], o)` | 439 | 4.7% |
+| `use(axiom Pure.reflexive, [('b => ('b => o))], o)` | 4626 | 49.1% |
+| `use(axiom Pure.reflexive, [('b => (('b => 'a) => 'a))], o)` | 439 | 4.7% |
+| `use(axiom Pure.reflexive, [(('a => o) => o)], o)` | 7324 | 77.7% |
+| `use(axiom Pure.reflexive, [(('b => (('b => 'a) => 'a)) => (('b => (('b => 'a) => 'a)) => o))], o)` | 439 | 4.7% |
+| `use(axiom Pure.reflexive, [((('a => o) => o) => ((('a => o) => o) => o))], o)` | 7323 | 77.7% |
+| `use(axiom Pure.reflexive, [(((i => (i => 'a)) => (i => 'a)) => (((i => (i => 'a)) => (i => 'a)) => o))], o)` | 2773 | 29.4% |
+| `use(axiom Pure.reflexive, [(((i => (i => (i => i))) => (i => i)) => (((i => (i => (i => i))) => (i => i)) => o))], o)` | 4 | 0.0% |
+| `use(axiom Pure.reflexive, [(((i => (i => i)) => ((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => (i => i)))))) => (((i => (i => i)) => ((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => (i => i)))))) => o))], o)` | 38 | 0.4% |
+| `use(axiom Pure.reflexive, [(((i => (i => i)) => (i => i)) => (((i => (i => i)) => (i => i)) => o))], o)` | 2760 | 29.3% |
+| `use(axiom Pure.reflexive, [(((i => i) => ((i => i) => (i => i))) => (((i => i) => ((i => i) => (i => i))) => o))], o)` | 2421 | 25.7% |
+| `use(axiom Pure.reflexive, [(((i => i) => (i => i)) => (((i => i) => (i => i)) => o))], o)` | 514 | 5.5% |
+| `use(axiom Pure.reflexive, [(((i => i) => o) => (((i => i) => o) => o))], o)` | 531 | 5.6% |
+| `use(axiom Pure.reflexive, [(((i => o) => ((i => (i => (i => (i => (i => o))))) => ((i => (i => (i => (i => i)))) => o))) => (((i => o) => ((i => (i => (i => (i => (i => o))))) => ((i => (i => (i => (i => i)))) => o))) => o))], o)` | 1 | 0.0% |
+| `use(axiom Pure.reflexive, [(((i => o) => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o))) => (((i => o) => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o))) => o))], o)` | 1 | 0.0% |
+| `use(axiom Pure.reflexive, [(((i => o) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => o)) => (i => (i => o))))))) => (((i => o) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => o)) => (i => (i => o))))))) => o))], o)` | 70 | 0.7% |
+| `use(axiom Pure.reflexive, [(((i => o) => ((i => (i => (i => o))) => ((i => (i => i)) => o))) => (((i => o) => ((i => (i => (i => o))) => ((i => (i => i)) => o))) => o))], o)` | 183 | 1.9% |
+| `use(axiom Pure.reflexive, [(((i => o) => ((i => (i => (i => o))) => (i => (i => (i => o))))) => (((i => o) => ((i => (i => (i => o))) => (i => (i => (i => o))))) => o))], o)` | 318 | 3.4% |
+| `use(axiom Pure.reflexive, [(((i => o) => ((i => (i => (i => o))) => (i => (i => o)))) => (((i => o) => ((i => (i => (i => o))) => (i => (i => o)))) => o))], o)` | 53 | 0.6% |
+| `use(axiom Pure.reflexive, [(((i => o) => ((i => (i => (i => o))) => (i => o))) => (((i => o) => ((i => (i => (i => o))) => (i => o))) => o))], o)` | 155 | 1.6% |
+| `use(axiom Pure.reflexive, [(((i => o) => ((i => (i => o)) => ((i => i) => o))) => (((i => o) => ((i => (i => o)) => ((i => i) => o))) => o))], o)` | 128 | 1.4% |
+| `use(axiom Pure.reflexive, [(((i => o) => ((i => (i => o)) => (i => (i => (i => (i => o)))))) => (((i => o) => ((i => (i => o)) => (i => (i => (i => (i => o)))))) => o))], o)` | 243 | 2.6% |
+| `use(axiom Pure.reflexive, [(((i => o) => ((i => (i => o)) => (i => (i => (i => o))))) => (((i => o) => ((i => (i => o)) => (i => (i => (i => o))))) => o))], o)` | 225 | 2.4% |
+| `use(axiom Pure.reflexive, [(((i => o) => ((i => (i => o)) => (i => o))) => (((i => o) => ((i => (i => o)) => (i => o))) => o))], o)` | 141 | 1.5% |
+| `use(axiom Pure.reflexive, [(((i => o) => ((i => (i => o)) => o)) => (((i => o) => ((i => (i => o)) => o)) => o))], o)` | 585 | 6.2% |
+| `use(axiom Pure.reflexive, [(((i => o) => ((i => o) => o)) => (((i => o) => ((i => o) => o)) => o))], o)` | 1163 | 12.3% |
+| `use(axiom Pure.reflexive, [(((i => o) => (i => ((i => (i => (i => o))) => (i => (i => o))))) => (((i => o) => (i => ((i => (i => (i => o))) => (i => (i => o))))) => o))], o)` | 3 | 0.0% |
+| `use(axiom Pure.reflexive, [(((i => o) => (i => ((i => (i => o)) => ((i => i) => o)))) => (((i => o) => (i => ((i => (i => o)) => ((i => i) => o)))) => o))], o)` | 44 | 0.5% |
+| `use(axiom Pure.reflexive, [(((i => o) => (i => ((i => (i => o)) => (i => (i => o))))) => (((i => o) => (i => ((i => (i => o)) => (i => (i => o))))) => o))], o)` | 249 | 2.6% |
+| `use(axiom Pure.reflexive, [(((i => o) => (i => ((i => (i => o)) => (i => o)))) => (((i => o) => (i => ((i => (i => o)) => (i => o)))) => o))], o)` | 96 | 1.0% |
+| `use(axiom Pure.reflexive, [(((i => o) => (i => ((i => (i => o)) => o))) => (((i => o) => (i => ((i => (i => o)) => o))) => o))], o)` | 374 | 4.0% |
+| `use(axiom Pure.reflexive, [(((i => o) => (i => ((i => o) => (i => o)))) => (((i => o) => (i => ((i => o) => (i => o)))) => o))], o)` | 46 | 0.5% |
+| `use(axiom Pure.reflexive, [(((i => o) => (i => (i => ((i => (i => (i => o))) => ((i => (i => i)) => o))))) => (((i => o) => (i => (i => ((i => (i => (i => o))) => ((i => (i => i)) => o))))) => o))], o)` | 41 | 0.4% |
+| `use(axiom Pure.reflexive, [(((i => o) => (i => (i => (i => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o)))))) => (((i => o) => (i => (i => (i => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o)))))) => o))], o)` | 1 | 0.0% |
+| `use(axiom Pure.reflexive, [(((i => o) => (i => (i => (i => (i => (i => o)))))) => (((i => o) => (i => (i => (i => (i => (i => o)))))) => o))], o)` | 89 | 0.9% |
+| `use(axiom Pure.reflexive, [(((i => o) => (i => (i => (i => (i => o))))) => (((i => o) => (i => (i => (i => (i => o))))) => o))], o)` | 117 | 1.2% |
+| `use(axiom Pure.reflexive, [(((i => o) => (i => (i => (i => o)))) => (((i => o) => (i => (i => (i => o)))) => o))], o)` | 1025 | 10.9% |
+| `use(axiom Pure.reflexive, [(((i => o) => (i => (i => i))) => (((i => o) => (i => (i => i))) => o))], o)` | 44 | 0.5% |
+| `use(axiom Pure.reflexive, [(((i => o) => (i => (i => o))) => (((i => o) => (i => (i => o))) => o))], o)` | 945 | 10.0% |
+| `use(axiom Pure.reflexive, [(((i => o) => (i => i)) => (((i => o) => (i => i)) => o))], o)` | 2 | 0.0% |
+| `use(axiom Pure.reflexive, [(((i => o) => (i => o)) => (((i => o) => (i => o)) => o))], o)` | 670 | 7.1% |
+| `use(axiom Pure.reflexive, [(((i => o) => (o => (i => o))) => (((i => o) => (o => (i => o))) => o))], o)` | 92 | 1.0% |
+| `use(axiom Pure.reflexive, [(((i => o) => i) => (((i => o) => i) => o))], o)` | 5274 | 56.0% |
+| `use(axiom Pure.reflexive, [(((i => o) => o) => (((i => o) => o) => o))], o)` | 4100 | 43.5% |
+| `use(axiom Pure.reflexive, [(((i => o) => o) => o)], o)` | 435 | 4.6% |
+| `use(axiom Pure.reflexive, [((i => 'a) => ((i => 'a) => o))], o)` | 2739 | 29.1% |
+| `use(axiom Pure.reflexive, [((i => ((i => (i => (i => i))) => i)) => ((i => ((i => (i => (i => i))) => i)) => o))], o)` | 25 | 0.3% |
+| `use(axiom Pure.reflexive, [((i => ((i => (i => i)) => (i => (i => i)))) => ((i => ((i => (i => i)) => (i => (i => i)))) => o))], o)` | 53 | 0.6% |
+| `use(axiom Pure.reflexive, [((i => ((i => (i => i)) => (i => i))) => ((i => ((i => (i => i)) => (i => i))) => o))], o)` | 2044 | 21.7% |
+| `use(axiom Pure.reflexive, [((i => ((i => (i => i)) => i)) => ((i => ((i => (i => i)) => i)) => o))], o)` | 3706 | 39.3% |
+| `use(axiom Pure.reflexive, [((i => ((i => (i => o)) => i)) => ((i => ((i => (i => o)) => i)) => o))], o)` | 7313 | 77.6% |
+| `use(axiom Pure.reflexive, [((i => ((i => i) => (i => i))) => ((i => ((i => i) => (i => i))) => o))], o)` | 3854 | 40.9% |
+| `use(axiom Pure.reflexive, [((i => ((i => i) => i)) => ((i => ((i => i) => i)) => o))], o)` | 6215 | 66.0% |
+| `use(axiom Pure.reflexive, [((i => ((i => i) => o)) => ((i => ((i => i) => o)) => o))], o)` | 4841 | 51.4% |
+| `use(axiom Pure.reflexive, [((i => ((i => o) => i)) => ((i => ((i => o) => i)) => o))], o)` | 7247 | 76.9% |
+| `use(axiom Pure.reflexive, [((i => ((i => o) => o)) => ((i => ((i => o) => o)) => o))], o)` | 7493 | 79.5% |
+| `use(axiom Pure.reflexive, [((i => (i => 'a)) => (i => 'a))], o)` | 2773 | 29.4% |
+| `use(axiom Pure.reflexive, [((i => (i => ((i => (i => i)) => ((i => (i => i)) => i)))) => ((i => (i => ((i => (i => i)) => ((i => (i => i)) => i)))) => o))], o)` | 8 | 0.1% |
+| `use(axiom Pure.reflexive, [((i => (i => ((i => (i => i)) => (i => o)))) => ((i => (i => ((i => (i => i)) => (i => o)))) => o))], o)` | 4068 | 43.2% |
+| `use(axiom Pure.reflexive, [((i => (i => ((i => (i => i)) => i))) => ((i => (i => ((i => (i => i)) => i))) => o))], o)` | 4061 | 43.1% |
+| `use(axiom Pure.reflexive, [((i => (i => ((i => (i => i)) => o))) => ((i => (i => ((i => (i => i)) => o))) => o))], o)` | 439 | 4.7% |
+| `use(axiom Pure.reflexive, [((i => (i => ((i => i) => ((i => i) => (i => o))))) => ((i => (i => ((i => i) => ((i => i) => (i => o))))) => o))], o)` | 7 | 0.1% |
+| `use(axiom Pure.reflexive, [((i => (i => (i => ((i => (i => i)) => i)))) => ((i => (i => (i => ((i => (i => i)) => i)))) => o))], o)` | 896 | 9.5% |
+| `use(axiom Pure.reflexive, [((i => (i => (i => ((i => i) => o)))) => ((i => (i => (i => ((i => i) => o)))) => o))], o)` | 21 | 0.2% |
+| `use(axiom Pure.reflexive, [((i => (i => (i => (i => (i => (i => i)))))) => ((i => (i => (i => (i => (i => (i => i)))))) => o))], o)` | 35 | 0.4% |
+| `use(axiom Pure.reflexive, [((i => (i => (i => (i => (i => i))))) => ((i => (i => (i => (i => (i => i))))) => o))], o)` | 187 | 2.0% |
+| `use(axiom Pure.reflexive, [((i => (i => (i => (i => (i => o))))) => ((i => (i => (i => (i => (i => o))))) => o))], o)` | 9 | 0.1% |
+| `use(axiom Pure.reflexive, [((i => (i => (i => (i => i)))) => ((i => (i => (i => (i => i)))) => o))], o)` | 1108 | 11.8% |
+| `use(axiom Pure.reflexive, [((i => (i => (i => (i => o)))) => ((i => (i => (i => (i => o)))) => o))], o)` | 114 | 1.2% |
+| `use(axiom Pure.reflexive, [((i => (i => (i => i))) => ((i => (i => (i => i))) => o))], o)` | 3075 | 32.6% |
+| `use(axiom Pure.reflexive, [((i => (i => (i => i))) => (i => (i => i)))], o)` | 103 | 1.1% |
+| `use(axiom Pure.reflexive, [((i => (i => (i => i))) => (i => i))], o)` | 981 | 10.4% |
+| `use(axiom Pure.reflexive, [((i => (i => (i => o))) => ((i => (i => (i => o))) => o))], o)` | 284 | 3.0% |
+| `use(axiom Pure.reflexive, [((i => (i => (i => o))) => ((i => (i => i)) => o))], o)` | 34 | 0.4% |
+| `use(axiom Pure.reflexive, [((i => (i => (i => o))) => (i => (i => (i => o))))], o)` | 7 | 0.1% |
+| `use(axiom Pure.reflexive, [((i => (i => (i => o))) => (i => (i => o)))], o)` | 114 | 1.2% |
+| `use(axiom Pure.reflexive, [((i => (i => (i => o))) => (i => o))], o)` | 31 | 0.3% |
+| `use(axiom Pure.reflexive, [((i => (i => i)) => ((i => (i => (i => i))) => ((i => (i => i)) => (i => i))))], o)` | 10 | 0.1% |
+| `use(axiom Pure.reflexive, [((i => (i => i)) => ((i => (i => (i => i))) => (i => i)))], o)` | 19 | 0.2% |
+| `use(axiom Pure.reflexive, [((i => (i => i)) => ((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => (i => i))))))], o)` | 38 | 0.4% |
+| `use(axiom Pure.reflexive, [((i => (i => i)) => ((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => i)))))], o)` | 24 | 0.3% |
+| `use(axiom Pure.reflexive, [((i => (i => i)) => ((i => (i => i)) => ((i => (i => (i => i))) => (i => i))))], o)` | 21 | 0.2% |
+| `use(axiom Pure.reflexive, [((i => (i => i)) => ((i => (i => i)) => o))], o)` | 6923 | 73.5% |
+| `use(axiom Pure.reflexive, [((i => (i => i)) => ((i => i) => (i => i)))], o)` | 965 | 10.2% |
+| `use(axiom Pure.reflexive, [((i => (i => i)) => (i => ((i => (i => i)) => (i => i))))], o)` | 35 | 0.4% |
+| `use(axiom Pure.reflexive, [((i => (i => i)) => (i => i))], o)` | 2760 | 29.3% |
+| `use(axiom Pure.reflexive, [((i => (i => i)) => (i => o))], o)` | 2 | 0.0% |
+| `use(axiom Pure.reflexive, [((i => (i => i)) => i)], o)` | 3009 | 31.9% |
+| `use(axiom Pure.reflexive, [((i => (i => i)) => o)], o)` | 29 | 0.3% |
+| `use(axiom Pure.reflexive, [((i => (i => o)) => ((i => (i => o)) => o))], o)` | 7387 | 78.4% |
+| `use(axiom Pure.reflexive, [((i => (i => o)) => ((i => i) => o))], o)` | 29 | 0.3% |
+| `use(axiom Pure.reflexive, [((i => (i => o)) => (i => (i => o)))], o)` | 123 | 1.3% |
+| `use(axiom Pure.reflexive, [((i => (i => o)) => (i => o))], o)` | 159 | 1.7% |
+| `use(axiom Pure.reflexive, [((i => (i => o)) => o)], o)` | 8 | 0.1% |
+| `use(axiom Pure.reflexive, [((i => i) => ((i => (i => (i => i))) => (i => i)))], o)` | 92 | 1.0% |
+| `use(axiom Pure.reflexive, [((i => i) => ((i => (i => i)) => ((i => (i => i)) => (i => i))))], o)` | 23 | 0.2% |
+| `use(axiom Pure.reflexive, [((i => i) => ((i => i) => (i => i)))], o)` | 2421 | 25.7% |
+| `use(axiom Pure.reflexive, [((i => i) => ((i => i) => o))], o)` | 6847 | 72.7% |
+| `use(axiom Pure.reflexive, [((i => i) => (i => (i => i)))], o)` | 442 | 4.7% |
+| `use(axiom Pure.reflexive, [((i => i) => (i => i))], o)` | 3837 | 40.7% |
+| `use(axiom Pure.reflexive, [((i => i) => i)], o)` | 4239 | 45.0% |
+| `use(axiom Pure.reflexive, [((i => i) => o)], o)` | 2832 | 30.1% |
+| `use(axiom Pure.reflexive, [((i => o) => ((i => (i => (i => (i => (i => o))))) => ((i => (i => (i => (i => i)))) => o)))], o)` | 1 | 0.0% |
+| `use(axiom Pure.reflexive, [((i => o) => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o)))], o)` | 1 | 0.0% |
+| `use(axiom Pure.reflexive, [((i => o) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => o)) => (i => (i => o)))))))], o)` | 70 | 0.7% |
+| `use(axiom Pure.reflexive, [((i => o) => ((i => (i => (i => o))) => ((i => (i => i)) => o)))], o)` | 183 | 1.9% |
+| `use(axiom Pure.reflexive, [((i => o) => ((i => (i => (i => o))) => (i => (i => (i => o)))))], o)` | 318 | 3.4% |
+| `use(axiom Pure.reflexive, [((i => o) => ((i => (i => (i => o))) => (i => (i => o))))], o)` | 53 | 0.6% |
+| `use(axiom Pure.reflexive, [((i => o) => ((i => (i => (i => o))) => (i => o)))], o)` | 155 | 1.6% |
+| `use(axiom Pure.reflexive, [((i => o) => ((i => (i => o)) => ((i => i) => o)))], o)` | 128 | 1.4% |
+| `use(axiom Pure.reflexive, [((i => o) => ((i => (i => o)) => (i => (i => (i => (i => o))))))], o)` | 243 | 2.6% |
+| `use(axiom Pure.reflexive, [((i => o) => ((i => (i => o)) => (i => (i => (i => o)))))], o)` | 225 | 2.4% |
+| `use(axiom Pure.reflexive, [((i => o) => ((i => (i => o)) => (i => o)))], o)` | 141 | 1.5% |
+| `use(axiom Pure.reflexive, [((i => o) => ((i => (i => o)) => o))], o)` | 590 | 6.3% |
+| `use(axiom Pure.reflexive, [((i => o) => ((i => o) => o))], o)` | 5453 | 57.9% |
+| `use(axiom Pure.reflexive, [((i => o) => (i => ((i => (i => (i => o))) => (i => (i => o)))))], o)` | 3 | 0.0% |
+| `use(axiom Pure.reflexive, [((i => o) => (i => ((i => (i => o)) => ((i => i) => o))))], o)` | 44 | 0.5% |
+| `use(axiom Pure.reflexive, [((i => o) => (i => ((i => (i => o)) => (i => (i => o)))))], o)` | 249 | 2.6% |
+| `use(axiom Pure.reflexive, [((i => o) => (i => ((i => (i => o)) => (i => o))))], o)` | 96 | 1.0% |
+| `use(axiom Pure.reflexive, [((i => o) => (i => ((i => (i => o)) => o)))], o)` | 374 | 4.0% |
+| `use(axiom Pure.reflexive, [((i => o) => (i => ((i => o) => (i => o))))], o)` | 46 | 0.5% |
+| `use(axiom Pure.reflexive, [((i => o) => (i => (i => ((i => (i => (i => o))) => ((i => (i => i)) => o)))))], o)` | 41 | 0.4% |
+| `use(axiom Pure.reflexive, [((i => o) => (i => (i => (i => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o))))))], o)` | 1 | 0.0% |
+| `use(axiom Pure.reflexive, [((i => o) => (i => (i => (i => (i => (i => o))))))], o)` | 89 | 0.9% |
+| `use(axiom Pure.reflexive, [((i => o) => (i => (i => (i => (i => o)))))], o)` | 117 | 1.2% |
+| `use(axiom Pure.reflexive, [((i => o) => (i => (i => (i => o))))], o)` | 1025 | 10.9% |
+| `use(axiom Pure.reflexive, [((i => o) => (i => (i => i)))], o)` | 44 | 0.5% |
+| `use(axiom Pure.reflexive, [((i => o) => (i => (i => o)))], o)` | 945 | 10.0% |
+| `use(axiom Pure.reflexive, [((i => o) => (i => i))], o)` | 9 | 0.1% |
+| `use(axiom Pure.reflexive, [((i => o) => (i => o))], o)` | 670 | 7.1% |
+| `use(axiom Pure.reflexive, [((i => o) => (o => (i => o)))], o)` | 92 | 1.0% |
+| `use(axiom Pure.reflexive, [((i => o) => i)], o)` | 5323 | 56.5% |
+| `use(axiom Pure.reflexive, [((i => o) => o)], o)` | 7632 | 81.0% |
+| `use(axiom Pure.reflexive, [((o => (i => (i => i))) => ((o => (i => (i => i))) => o))], o)` | 5018 | 53.3% |
+| `use(axiom Pure.reflexive, [((o => (o => o)) => ((o => (o => o)) => o))], o)` | 7841 | 83.2% |
+| `use(axiom Pure.reflexive, [((o => i) => ((o => i) => o))], o)` | 882 | 9.4% |
+| `use(axiom Pure.reflexive, [((o => o) => ((o => o) => o))], o)` | 7819 | 83.0% |
+| `use(axiom Pure.reflexive, [(i => 'a)], o)` | 2739 | 29.1% |
+| `use(axiom Pure.reflexive, [(i => ((i => (i => (i => i))) => i))], o)` | 25 | 0.3% |
+| `use(axiom Pure.reflexive, [(i => ((i => (i => i)) => (i => (i => i))))], o)` | 53 | 0.6% |
+| `use(axiom Pure.reflexive, [(i => ((i => (i => i)) => (i => i)))], o)` | 2064 | 21.9% |
+| `use(axiom Pure.reflexive, [(i => ((i => (i => i)) => (i => o)))], o)` | 24 | 0.3% |
+| `use(axiom Pure.reflexive, [(i => ((i => (i => i)) => i))], o)` | 3706 | 39.3% |
+| `use(axiom Pure.reflexive, [(i => ((i => (i => o)) => (i => (i => o))))], o)` | 125 | 1.3% |
+| `use(axiom Pure.reflexive, [(i => ((i => (i => o)) => (i => o)))], o)` | 71 | 0.8% |
+| `use(axiom Pure.reflexive, [(i => ((i => (i => o)) => i))], o)` | 7313 | 77.6% |
+| `use(axiom Pure.reflexive, [(i => ((i => (i => o)) => o))], o)` | 368 | 3.9% |
+| `use(axiom Pure.reflexive, [(i => ((i => i) => (i => i)))], o)` | 3854 | 40.9% |
+| `use(axiom Pure.reflexive, [(i => ((i => i) => i))], o)` | 6226 | 66.1% |
+| `use(axiom Pure.reflexive, [(i => ((i => i) => o))], o)` | 4841 | 51.4% |
+| `use(axiom Pure.reflexive, [(i => ((i => o) => (i => o)))], o)` | 10 | 0.1% |
+| `use(axiom Pure.reflexive, [(i => ((i => o) => i))], o)` | 7247 | 76.9% |
+| `use(axiom Pure.reflexive, [(i => ((i => o) => o))], o)` | 7494 | 79.6% |
+| `use(axiom Pure.reflexive, [(i => (i => 'a))], o)` | 2773 | 29.4% |
+| `use(axiom Pure.reflexive, [(i => (i => ((i => (i => i)) => ((i => (i => i)) => i))))], o)` | 8 | 0.1% |
+| `use(axiom Pure.reflexive, [(i => (i => ((i => (i => i)) => (i => i))))], o)` | 13 | 0.1% |
+| `use(axiom Pure.reflexive, [(i => (i => ((i => (i => i)) => (i => o))))], o)` | 4068 | 43.2% |
+| `use(axiom Pure.reflexive, [(i => (i => ((i => (i => i)) => i)))], o)` | 4061 | 43.1% |
+| `use(axiom Pure.reflexive, [(i => (i => ((i => (i => i)) => o)))], o)` | 439 | 4.7% |
+| `use(axiom Pure.reflexive, [(i => (i => ((i => i) => ((i => i) => (i => o)))))], o)` | 7 | 0.1% |
+| `use(axiom Pure.reflexive, [(i => (i => (i => ((i => (i => i)) => i))))], o)` | 896 | 9.5% |
+| `use(axiom Pure.reflexive, [(i => (i => (i => ((i => i) => o))))], o)` | 21 | 0.2% |
+| `use(axiom Pure.reflexive, [(i => (i => (i => (i => (i => (i => i))))))], o)` | 35 | 0.4% |
+| `use(axiom Pure.reflexive, [(i => (i => (i => (i => (i => i)))))], o)` | 187 | 2.0% |
+| `use(axiom Pure.reflexive, [(i => (i => (i => (i => (i => o)))))], o)` | 55 | 0.6% |
+| `use(axiom Pure.reflexive, [(i => (i => (i => (i => i))))], o)` | 1217 | 12.9% |
+| `use(axiom Pure.reflexive, [(i => (i => (i => (i => o))))], o)` | 246 | 2.6% |
+| `use(axiom Pure.reflexive, [(i => (i => (i => i)))], o)` | 3093 | 32.8% |
+| `use(axiom Pure.reflexive, [(i => (i => (i => o)))], o)` | 1090 | 11.6% |
+| `use(axiom Pure.reflexive, [(i => (i => i))], o)` | 6953 | 73.8% |
+| `use(axiom Pure.reflexive, [(i => (i => o))], o)` | 7894 | 83.8% |
+| `use(axiom Pure.reflexive, [(i => i)], o)` | 7140 | 75.8% |
+| `use(axiom Pure.reflexive, [(i => o)], o)` | 7781 | 82.6% |
+| `use(axiom Pure.reflexive, [(o => (i => (i => i)))], o)` | 5020 | 53.3% |
+| `use(axiom Pure.reflexive, [(o => (i => o))], o)` | 67 | 0.7% |
+| `use(axiom Pure.reflexive, [(o => (o => o))], o)` | 8323 | 88.4% |
+| `use(axiom Pure.reflexive, [(o => i)], o)` | 883 | 9.4% |
+| `use(axiom Pure.reflexive, [(o => o)], o)` | 8170 | 86.7% |
+| `use(axiom Pure.reflexive, [i], o)` | 8188 | 86.9% |
+| `use(axiom Pure.reflexive, [o], o)` | 8334 | 88.5% |
+| `use(axiom Pure.symmetric, ['a], o)` | 7417 | 78.7% |
+| `use(axiom Pure.symmetric, [i], o)` | 7250 | 77.0% |
+| `use(axiom Pure.symmetric, [o], o)` | 8832 | 93.8% |
+| `use(axiom Pure.transitive, ['a], o)` | 1877 | 19.9% |
+| `use(axiom Pure.transitive, ['b], o)` | 2237 | 23.7% |
+| `use(axiom Pure.transitive, [('b => (('b => 'a) => 'a))], o)` | 439 | 4.7% |
+| `use(axiom Pure.transitive, [(('a => o) => o)], o)` | 7323 | 77.7% |
+| `use(axiom Pure.transitive, [((i => (i => 'a)) => (i => 'a))], o)` | 2773 | 29.4% |
+| `use(axiom Pure.transitive, [((i => (i => (i => i))) => (i => i))], o)` | 4 | 0.0% |
+| `use(axiom Pure.transitive, [((i => (i => i)) => ((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => (i => i))))))], o)` | 38 | 0.4% |
+| `use(axiom Pure.transitive, [((i => (i => i)) => (i => i))], o)` | 2760 | 29.3% |
+| `use(axiom Pure.transitive, [((i => (i => o)) => o)], o)` | 422 | 4.5% |
+| `use(axiom Pure.transitive, [((i => i) => ((i => i) => (i => i)))], o)` | 2421 | 25.7% |
+| `use(axiom Pure.transitive, [((i => i) => (i => i))], o)` | 514 | 5.5% |
+| `use(axiom Pure.transitive, [((i => i) => o)], o)` | 531 | 5.6% |
+| `use(axiom Pure.transitive, [((i => o) => ((i => (i => (i => (i => (i => o))))) => ((i => (i => (i => (i => i)))) => o)))], o)` | 1 | 0.0% |
+| `use(axiom Pure.transitive, [((i => o) => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o)))], o)` | 1 | 0.0% |
+| `use(axiom Pure.transitive, [((i => o) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => o)) => (i => (i => o)))))))], o)` | 70 | 0.7% |
+| `use(axiom Pure.transitive, [((i => o) => ((i => (i => (i => o))) => ((i => (i => i)) => o)))], o)` | 183 | 1.9% |
+| `use(axiom Pure.transitive, [((i => o) => ((i => (i => (i => o))) => (i => (i => (i => o)))))], o)` | 318 | 3.4% |
+| `use(axiom Pure.transitive, [((i => o) => ((i => (i => (i => o))) => (i => (i => o))))], o)` | 53 | 0.6% |
+| `use(axiom Pure.transitive, [((i => o) => ((i => (i => (i => o))) => (i => o)))], o)` | 155 | 1.6% |
+| `use(axiom Pure.transitive, [((i => o) => ((i => (i => o)) => ((i => i) => o)))], o)` | 128 | 1.4% |
+| `use(axiom Pure.transitive, [((i => o) => ((i => (i => o)) => (i => (i => (i => (i => o))))))], o)` | 243 | 2.6% |
+| `use(axiom Pure.transitive, [((i => o) => ((i => (i => o)) => (i => (i => (i => o)))))], o)` | 225 | 2.4% |
+| `use(axiom Pure.transitive, [((i => o) => ((i => (i => o)) => (i => o)))], o)` | 141 | 1.5% |
+| `use(axiom Pure.transitive, [((i => o) => ((i => (i => o)) => o))], o)` | 590 | 6.3% |
+| `use(axiom Pure.transitive, [((i => o) => ((i => o) => o))], o)` | 1163 | 12.3% |
+| `use(axiom Pure.transitive, [((i => o) => (i => ((i => (i => (i => o))) => (i => (i => o)))))], o)` | 3 | 0.0% |
+| `use(axiom Pure.transitive, [((i => o) => (i => ((i => (i => o)) => ((i => i) => o))))], o)` | 44 | 0.5% |
+| `use(axiom Pure.transitive, [((i => o) => (i => ((i => (i => o)) => (i => (i => o)))))], o)` | 249 | 2.6% |
+| `use(axiom Pure.transitive, [((i => o) => (i => ((i => (i => o)) => (i => o))))], o)` | 96 | 1.0% |
+| `use(axiom Pure.transitive, [((i => o) => (i => ((i => (i => o)) => o)))], o)` | 374 | 4.0% |
+| `use(axiom Pure.transitive, [((i => o) => (i => ((i => o) => (i => o))))], o)` | 46 | 0.5% |
+| `use(axiom Pure.transitive, [((i => o) => (i => (i => ((i => (i => (i => o))) => ((i => (i => i)) => o)))))], o)` | 41 | 0.4% |
+| `use(axiom Pure.transitive, [((i => o) => (i => (i => (i => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o))))))], o)` | 1 | 0.0% |
+| `use(axiom Pure.transitive, [((i => o) => (i => (i => (i => (i => (i => o))))))], o)` | 89 | 0.9% |
+| `use(axiom Pure.transitive, [((i => o) => (i => (i => (i => (i => o)))))], o)` | 117 | 1.2% |
+| `use(axiom Pure.transitive, [((i => o) => (i => (i => (i => o))))], o)` | 1025 | 10.9% |
+| `use(axiom Pure.transitive, [((i => o) => (i => (i => i)))], o)` | 44 | 0.5% |
+| `use(axiom Pure.transitive, [((i => o) => (i => (i => o)))], o)` | 945 | 10.0% |
+| `use(axiom Pure.transitive, [((i => o) => (i => i))], o)` | 438 | 4.6% |
+| `use(axiom Pure.transitive, [((i => o) => (i => o))], o)` | 827 | 8.8% |
+| `use(axiom Pure.transitive, [((i => o) => (o => (i => o)))], o)` | 92 | 1.0% |
+| `use(axiom Pure.transitive, [((i => o) => i)], o)` | 5274 | 56.0% |
+| `use(axiom Pure.transitive, [((i => o) => o)], o)` | 4100 | 43.5% |
+| `use(axiom Pure.transitive, [(i => ((i => (i => (i => i))) => i))], o)` | 25 | 0.3% |
+| `use(axiom Pure.transitive, [(i => ((i => (i => i)) => (i => (i => i))))], o)` | 53 | 0.6% |
+| `use(axiom Pure.transitive, [(i => ((i => (i => i)) => (i => i)))], o)` | 2044 | 21.7% |
+| `use(axiom Pure.transitive, [(i => ((i => (i => i)) => i))], o)` | 3706 | 39.3% |
+| `use(axiom Pure.transitive, [(i => ((i => (i => o)) => i))], o)` | 7313 | 77.6% |
+| `use(axiom Pure.transitive, [(i => ((i => i) => (i => i)))], o)` | 3854 | 40.9% |
+| `use(axiom Pure.transitive, [(i => ((i => i) => i))], o)` | 6215 | 66.0% |
+| `use(axiom Pure.transitive, [(i => ((i => i) => o))], o)` | 4841 | 51.4% |
+| `use(axiom Pure.transitive, [(i => ((i => o) => i))], o)` | 7247 | 76.9% |
+| `use(axiom Pure.transitive, [(i => ((i => o) => o))], o)` | 7493 | 79.5% |
+| `use(axiom Pure.transitive, [(i => (i => ((i => (i => i)) => ((i => (i => i)) => i))))], o)` | 8 | 0.1% |
+| `use(axiom Pure.transitive, [(i => (i => ((i => (i => i)) => (i => o))))], o)` | 4068 | 43.2% |
+| `use(axiom Pure.transitive, [(i => (i => ((i => (i => i)) => i)))], o)` | 4061 | 43.1% |
+| `use(axiom Pure.transitive, [(i => (i => ((i => (i => i)) => o)))], o)` | 439 | 4.7% |
+| `use(axiom Pure.transitive, [(i => (i => ((i => i) => ((i => i) => (i => o)))))], o)` | 7 | 0.1% |
+| `use(axiom Pure.transitive, [(i => (i => (i => ((i => (i => i)) => i))))], o)` | 896 | 9.5% |
+| `use(axiom Pure.transitive, [(i => (i => (i => ((i => i) => o))))], o)` | 21 | 0.2% |
+| `use(axiom Pure.transitive, [(i => (i => (i => (i => (i => (i => i))))))], o)` | 35 | 0.4% |
+| `use(axiom Pure.transitive, [(i => (i => (i => (i => (i => i)))))], o)` | 187 | 2.0% |
+| `use(axiom Pure.transitive, [(i => (i => (i => (i => (i => o)))))], o)` | 9 | 0.1% |
+| `use(axiom Pure.transitive, [(i => (i => (i => (i => i))))], o)` | 1082 | 11.5% |
+| `use(axiom Pure.transitive, [(i => (i => (i => (i => o))))], o)` | 140 | 1.5% |
+| `use(axiom Pure.transitive, [(i => (i => (i => i)))], o)` | 3075 | 32.6% |
+| `use(axiom Pure.transitive, [(i => (i => (i => o)))], o)` | 266 | 2.8% |
+| `use(axiom Pure.transitive, [(i => (i => i))], o)` | 6918 | 73.4% |
+| `use(axiom Pure.transitive, [(i => (i => o))], o)` | 7384 | 78.4% |
+| `use(axiom Pure.transitive, [(i => i)], o)` | 6838 | 72.6% |
+| `use(axiom Pure.transitive, [(i => o)], o)` | 5277 | 56.0% |
+| `use(axiom Pure.transitive, [(o => (i => (i => i)))], o)` | 5018 | 53.3% |
+| `use(axiom Pure.transitive, [(o => (o => o))], o)` | 7841 | 83.2% |
+| `use(axiom Pure.transitive, [(o => i)], o)` | 882 | 9.4% |
+| `use(axiom Pure.transitive, [(o => o)], o)` | 7819 | 83.0% |
+| `use(axiom Pure.transitive, [i], o)` | 6003 | 63.7% |
+| `use(axiom Pure.transitive, [o], o)` | 7762 | 82.4% |
+| `use(axiom ZF_Base.Pow_iff, [], o)` | 7023 | 74.6% |
+| `use(axiom ZF_Base.Union_iff, [], o)` | 7069 | 75.0% |
+| `use(axiom ZF_Base.extension, [], o)` | 7048 | 74.8% |
+| `use(axiom ZF_Base.foundation, [], o)` | 6969 | 74.0% |
+| `use(axiom ZF_Base.infinity, [], o)` | 4129 | 43.8% |
+| `use(axiom ZF_Base.replacement, [], o)` | 7313 | 77.6% |
+| `use(definition fol, [], o)` | 4022 | 42.7% |
+| `use(definition fol, [i], o)` | 3947 | 41.9% |
+| `use(definition ifol, ['a], o)` | 7966 | 84.6% |
+| `use(definition ifol, ['b, 'a], o)` | 439 | 4.7% |
+| `use(definition ifol, [], o)` | 7940 | 84.3% |
+| `use(definition pure, ['a], o)` | 28 | 0.3% |
+| `use(definition pure, [], o)` | 8174 | 86.8% |
+| `use(definition zf, ['a], o)` | 2791 | 29.6% |
+| `use(definition zf, [], o)` | 9303 | 98.8% |
+| `use(theorem, ['a], o)` | 7974 | 84.6% |
+| `use(theorem, ['b], o)` | 4634 | 49.2% |
+| `use(theorem, [(i => i)], o)` | 128 | 1.4% |
+| `use(theorem, [(i => o)], o)` | 741 | 7.9% |
+| `use(theorem, [], o)` | 8346 | 88.6% |
+| `use(theorem, [dummy], o)` | 28 | 0.3% |
+| `use(theorem, [i, i], o)` | 4635 | 49.2% |
+| `use(theorem, [i], o)` | 7965 | 84.6% |
+| `use(theorem, [o], o)` | 345 | 3.7% |
+| `use(theory axiom, [], o)` | 20 | 0.2% |

@@ -11,6 +11,9 @@ import IR
     case notAnEntity(tag: String)
     case duplicateConstant(String)
     case undeclaredConstant(String)
+    case constantsOutsideTheFamilies(theory: String)
+    case definedLeaf(String)
+    case duplicateDefinition(String)
     case schemeVariables(constant: String)
     case typeArgumentCount(constant: String, declared: Int, found: Int)
     case constructorArity(String, Int)
@@ -35,4 +38,10 @@ import IR
     case freeHypothesis
     case unboundHypothesis(Int)
     case unproved(statement: NodeID, conclusion: NodeID?)
+    case cyclicClosure(String)
+}
+
+@frozen public enum DialectGap: Error, Equatable, Sendable {
+    case leaf(String)
+    case axiom(String)
 }

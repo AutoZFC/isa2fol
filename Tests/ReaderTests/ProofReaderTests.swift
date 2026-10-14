@@ -30,25 +30,22 @@ private let dummy = typeT("dummy")
 ///   T.polyNamed  OFCLASS('a, term) ⟹ y = y   as box 80, read as stated; cited by T.usesPoly at i
 ///   T.defax      axiom with a typed free: A ∈ A;   T.useDef  a ∈ a   T.defax % a
 ///   T.vacAx      axiom (⋀h::'a. Q) ⟹ Q;          T.hidden  Q ⟹ Q   λH. vacAx[dummy] % Q %% (⋀h::dummy. H)
+///   T.hiddenTerm (⋀x::i. Q) ⟹ Q                λH. H % dummy_pattern::i   a variable only the proof uses
+///   IFOL.not_def_raw  a definition;  T.useNotDef cites it.   IFOL.bogus  an unlisted IFOL axiom;  T.useBogus cites it
 ///   T.sortAlgebra  OFCLASS(i, term) by ZClassp — 0 in the export, refused
 ///   T.nop, T.oracle, T.wrong, T.freeHyp, T.unbound, T.notAll, T.undeclared, T.header
+private let notDef = app(const("Pure.eq", fn(o, o)), const("IFOL.Not"),
+                         lam("P", o, app(const("IFOL.imp"), bound(0), const("IFOL.False"))))
+
 private func miniReader() throws -> Reader {
-    let root = FileManager.default.temporaryDirectory.appendingPathComponent("isa2fol-proofs-\(UUID())").path
-    defer { try? FileManager.default.removeItem(atPath: root) }
-    func write(_ path: String, _ text: String) throws {
-        let full = "\(root)/\(path)"
-        try FileManager.default.createDirectory(atPath: (full as NSString).deletingLastPathComponent, withIntermediateDirectories: true)
-        try text.write(toFile: full, atomically: true, encoding: .utf8)
-    }
-    try write("Pure/theory/consts", constsFile)
-    try write("IFOL/theory/classes", classesFile)
-    try write("IFOL/theory/axioms", axiomEntity("IFOL.refl", tfrees: ["'a"],
-                                                prop: imp(termClass(typeA), all("a", typeA, eq(typeA, bound(0))))))
-    try write("ZF.T/theory/axioms", axiomEntity("T.defax", frees: [("A", i)],
-                                                prop: mem(tagged(1, ["A"], [i]), tagged(1, ["A"], [i])))
-              + axiomEntity("T.vacAx", tfrees: ["'a"], frees: [("Q", o)], prop: imp(all("h", typeA, Q), Q))
-              + axiomEntity("T.termI", prop: termClass(i)))
-    let files: [(String?, Int, String)] = [
+    var files: [String: String] = [
+        "IFOL/theory/axioms": axiomEntity("IFOL.refl", tfrees: ["'a"], prop: imp(termClass(typeA), all("a", typeA, eq(typeA, bound(0)))))
+            + axiomEntity("IFOL.not_def_raw", prop: notDef) + axiomEntity("IFOL.bogus", prop: falsum),
+        "ZF.T/theory/axioms": axiomEntity("T.defax", frees: [("A", i)], prop: mem(tagged(1, ["A"], [i]), tagged(1, ["A"], [i])))
+            + axiomEntity("T.vacAx", tfrees: ["'a"], frees: [("Q", o)], prop: imp(all("h", typeA, Q), Q))
+            + axiomEntity("T.termI", prop: termClass(i)),
+    ]
+    let theorems: [(String?, Int, String)] = [
         ("T.imp", 10, proofFile(frees: [("P", o)], prop: imp(P, P), proof: pabsp("H", P, pbound(0)))),
         ("T.fix", 20, proofFile(frees: [("A", i)], prop: all("x", i, imp(mem(bound(0), free("A")), mem(bound(0), free("A")))),
                                 proof: pabst("x", i, pabsp("H", mem(bound(0), free("A")), pbound(0))))),
@@ -74,6 +71,12 @@ private func miniReader() throws -> Reader {
         ("T.useDef", 125, proofFile(frees: [("a", i)], prop: mem(free("a"), free("a")), proof: pappt(paxiom("T.defax"), free("a")))),
         ("T.hidden", 127, proofFile(frees: [("Q", o)], prop: imp(Q, Q), proof: pabsp("H", Q,
             pappp(pappt(paxiom("T.vacAx", dummy), free("Q")), pabst("h", dummy, pbound(0)))))),
+        ("T.hiddenTerm", 128, proofFile(frees: [("Q", o)], prop: imp(all("x", i, Q), Q),
+            proof: pabsp("H", all("x", i, Q), pappt(pbound(0), const("Pure.dummy_pattern", i))))),
+        ("T.useNotDef", 129, proofFile(frees: [], prop: notDef, proof: paxiom("IFOL.not_def_raw"))),
+        ("T.useBogus", 131, proofFile(frees: [], prop: falsum, proof: paxiom("IFOL.bogus"))),
+        ("T.unboundType", 132, proofFile(frees: [("Q", o)], prop: imp(Q, Q), proof: pabsp("H", Q,
+            pappp(pappt(paxiom("T.vacAx", tfree("'b")), free("Q")), pabst("h", tfree("'b"), pbound(0)))))),
         ("T.nop", 130, proofFile(frees: [], prop: falsum, proof: pnop)),
         ("T.oracle", 140, proofFile(frees: [], prop: falsum, proof: poracle("skip_proof"))),
         ("T.wrong", 150, proofFile(frees: [("Q", o), ("P", o)], prop: imp(Q, P), proof: pabsp("H", Q, pbound(0)))),
@@ -86,8 +89,10 @@ private func miniReader() throws -> Reader {
         ("T.header", 210, proofFile(frees: [("A", i), ("a", i)], prop: mem(free("a"), free("A")), proof: pnop)),
         ("T.simps(2)", 220, proofFile(frees: [("P", o)], prop: imp(P, P), proof: pabsp("H", P, pbound(0)))),
     ]
-    try write("ZF.T/theory/thms", thmsFile(files.compactMap { f in f.0.map { ($0, f.1) } }))
-    for (_, serial, text) in files { try write("ZF.T/proofs/\(serial)", text) }
+    files["ZF.T/theory/thms"] = thmsFile(theorems.compactMap { f in f.0.map { ($0, f.1) } })
+    for (_, serial, text) in theorems { files["ZF.T/proofs/\(serial)"] = text }
+    let root = try writeExport(files)
+    defer { try? FileManager.default.removeItem(atPath: root) }
     return try Reader(try Export(root: root))
 }
 
@@ -108,14 +113,14 @@ private func uses(_ root: NodeID, _ t: Table) -> Set<String> {
     var seen: Set<NodeID> = [], names: Set<String> = [], work = [root]
     while let n = work.popLast() {
         guard seen.insert(n).inserted else { continue }
-        if case let .use(name, _, _) = t[n] { names.insert(name) }
+        if case let .use(cited, _, _) = t[n] { names.insert(cited.name) }
         t[n].forEachChild { c, _ in work.append(c) }
     }
     return names
 }
 
 private struct Citation: Hashable {
-    let name: String
+    let cited: Cited
     let types: [IRType]
 }
 
@@ -123,11 +128,13 @@ private func citations(_ root: NodeID, _ t: Table) -> Set<Citation> {
     var seen: Set<NodeID> = [], found: Set<Citation> = [], work = [root]
     while let n = work.popLast() {
         guard seen.insert(n).inserted else { continue }
-        if case let .use(name, types, _) = t[n] { found.insert(Citation(name: name, types: types)) }
+        if case let .use(cited, types, _) = t[n] { found.insert(Citation(cited: cited, types: types)) }
         t[n].forEachChild { c, _ in work.append(c) }
     }
     return found
 }
+
+private let refl = Cited.axiom(.ifol(.refl))
 
 private func failure(_ r: inout Reader, _ name: String) throws -> ReadFailure? {
     do {
@@ -194,7 +201,7 @@ private func failure(_ r: inout Reader, _ name: String) throws -> ReadFailure? {
 @Test func aClassDischargeIsAnOrdinaryPremise() throws {
     var r = try miniReader()
     guard let (_, proof) = try proved(&r, "T.axiom") else { return }
-    #expect(citations(proof, r.table) == [Citation(name: "IFOL.refl", types: [.i]), Citation(name: "T.arity", types: [])])
+    #expect(citations(proof, r.table) == [Citation(cited: refl, types: [.i]), Citation(cited: .theorem("T.arity"), types: [])])
 }
 
 @Test func anAxiomsFreesCloseLikeATheoremsAndItsTypedVariablesAgree() throws {
@@ -207,7 +214,7 @@ private func failure(_ r: inout Reader, _ name: String) throws -> ReadFailure? {
 @Test func aPolymorphicBoxIsInlinedAtTheInstanceItIsCitedAt() throws {
     var r = try miniReader()
     guard let (_, proof) = try proved(&r, "T.poly") else { return }
-    #expect(citations(proof, r.table) == [Citation(name: "IFOL.refl", types: [.i]), Citation(name: "T.arity", types: [])])
+    #expect(citations(proof, r.table) == [Citation(cited: refl, types: [.i]), Citation(cited: .theorem("T.arity"), types: [])])
 }
 
 @Test func aPolymorphicNamedTheoremIsReadAsStated() throws {
@@ -217,7 +224,7 @@ private func failure(_ r: inout Reader, _ name: String) throws -> ReadFailure? {
     let a = IRType.variable("'a")
     let y = try t.intern(.isaBound(0, a))
     let member = try t.intern(.isaOfClass(a, "IFOL.term"))
-    let eq = try t.intern(.isaConst("IFOL.eq", .fn(a, .fn(a, .o)), args: [y, y]))
+    let eq = try t.intern(.isaConst(.primitive(.ifol(.eq)), .fn(a, .fn(a, .o)), args: [y, y]))
     #expect(statement == (try t.intern(.ifolAll(a, body: try t.intern(.folImplies(member, eq))))))
 }
 
@@ -225,15 +232,58 @@ private func failure(_ r: inout Reader, _ name: String) throws -> ReadFailure? {
 @Test func aCitationCarriesItsTypes() throws {
     var r = try miniReader()
     guard let (_, generic) = try proved(&r, "T.polyNamed"), let (_, ground) = try proved(&r, "T.usesPoly") else { return }
-    #expect(citations(generic, r.table) == [Citation(name: "IFOL.refl", types: [.variable("'a")])])
-    #expect(citations(ground, r.table) == [Citation(name: "T.polyNamed", types: [.i]), Citation(name: "T.arity", types: [])])
+    #expect(citations(generic, r.table) == [Citation(cited: refl, types: [.variable("'a")])])
+    #expect(citations(ground, r.table) == [Citation(cited: .theorem("T.polyNamed"), types: [.i]), Citation(cited: .theorem("T.arity"), types: [])])
 }
 
 /// A ground theorem whose proof uses a type only inside: Isabelle writes it `dummy`.
 @Test func aHiddenProofTypeIsATypeVariable() throws {
     var r = try miniReader()
     guard let (_, proof) = try proved(&r, "T.hidden") else { return }
-    #expect(citations(proof, r.table) == [Citation(name: "T.vacAx", types: [.variable("dummy")])])
+    #expect(citations(proof, r.table) == [Citation(cited: .theoryAxiom("T.vacAx"), types: [.variable("dummy")])])
+}
+
+/// The exporter writes the variable only the proof uses as `dummy_pattern` (`standard_hidden_terms`): it reads as the
+/// hidden variable, inside the proof and never in its statement.
+@Test func aVariableOnlyTheProofUsesIsTheHiddenVariable() throws {
+    var r = try miniReader()
+    guard let (statement, proof) = try proved(&r, "T.hiddenTerm") else { return }
+    var t = r.table
+    let hidden = try t.intern(.isaFree(.hidden, .i))
+    #expect(!reaches(statement, hidden, t))
+    #expect(reaches(proof, hidden, t))
+}
+
+/// A cited axiom is typed by what it is: an axiom of the foundation, a definition, or a theory's own axiom.
+@Test func aCitedAxiomIsTypedByWhatItIs() throws {
+    var r = try miniReader()
+    guard let (_, notDef) = try proved(&r, "T.useNotDef"), let (_, defax) = try proved(&r, "T.useDef") else { return }
+    #expect(citations(notDef, r.table) == [Citation(cited: .isaDefinition("IFOL.not_def_raw", of: Defined(.ifol, "IFOL.Not")), types: [])])
+    #expect(citations(defax, r.table) == [Citation(cited: .theoryAxiom("T.defax"), types: [])])
+}
+
+/// An axiom of the foundation that the dialect does not list is a gap: the read stops, it refuses nothing.
+/// Every instance is determined by its citer: a citation at a type variable the citing proof does not bind is malformed.
+@Test func aCitationAtATypeVariableTheProofDoesNotBindStopsTheRead() throws {
+    var r = try miniReader()
+    guard let f = try failure(&r, "T.unboundType") else { return }
+    #expect(f.error as? MalformedExport == .undeclaredTypeVariable("'b"))
+}
+
+@Test func anUnlistedAxiomOfTheFoundationStopsTheRead() throws {
+    var r = try miniReader()
+    guard let f = try failure(&r, "T.useBogus") else { return }
+    #expect(f.error as? DialectGap == .axiom("IFOL.bogus"))
+}
+
+private func reaches(_ root: NodeID, _ target: NodeID, _ t: Table) -> Bool {
+    var seen: Set<NodeID> = [], work = [root]
+    while let n = work.popLast() {
+        guard seen.insert(n).inserted else { continue }
+        if n == target { return true }
+        t[n].forEachChild { c, _ in work.append(c) }
+    }
+    return false
 }
 
 /// The reader's output is the isa dialect (DESIGN §4.3a 4): no kind only fol-zfc has.
@@ -243,7 +293,7 @@ private func failure(_ r: inout Reader, _ name: String) throws -> ReadFailure? {
     for theorem in r.population {
         if case let .proved(statement, proof)? = try? r.read(theorem) { roots += [statement, proof] }
     }
-    #expect(roots.count == 26)
+    #expect(roots.count == 30)
     var seen: Set<NodeID> = [], work = roots
     while let n = work.popLast() {
         guard seen.insert(n).inserted else { continue }
@@ -257,7 +307,7 @@ private func failure(_ r: inout Reader, _ name: String) throws -> ReadFailure? {
     guard let (statement, proof) = try proved(&r, "T.arity") else { return }
     var t = r.table
     #expect(statement == (try t.intern(.isaOfClass(.i, "IFOL.term"))))
-    #expect(citations(proof, r.table) == [Citation(name: "T.termI", types: [])])
+    #expect(citations(proof, r.table) == [Citation(cited: .theoryAxiom("T.termI"), types: [])])
 }
 
 @Test func anOmittedProofAndAnOracleAreRefused() throws {

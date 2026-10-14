@@ -22,12 +22,18 @@ public struct Binds: Hashable, Sendable {
     case fol
 }
 
+@frozen public enum Free: Hashable, Sendable {
+    case named(String)
+    case hidden
+}
+
 @frozen public enum Node: Hashable, Sendable {
-    // THE READER'S OUTPUT is the next two groups and nothing else (DESIGN §4.3a 4).
+    // THE READER'S OUTPUT is the next two groups and nothing else (DESIGN §4.3b).
     // Isa only: lowering must replace each; `legalize` refuses them.
     case ifolAll(IRType, body: NodeID)
     case ifolEx(IRType, body: NodeID)
-    case isaConst(String, IRType, args: [NodeID])
+    case isaConst(Constant, IRType, args: [NodeID])
+    case isaFree(Free, IRType)
     case isaBound(Int, IRType)
     case isaVarApp(head: NodeID, args: [NodeID])
     case isaAbs(IRType, body: NodeID)
@@ -40,14 +46,14 @@ public struct Binds: Hashable, Sendable {
     case folAnd(NodeID, NodeID)
     case folOr(NodeID, NodeID)
     case folIff(NodeID, NodeID)
-    case folNot(NodeID)
     case folBottom
     case folImpliesIntro(NodeID, body: NodeID)
     case folImpliesElim(NodeID, NodeID)
-    case use(String, [IRType], NodeID)
+    case use(Cited, [IRType], NodeID)
     case hyp(Int, NodeID)
 
     // Fol-zfc only: lowering produces these; the reader never does.
+    case folNot(NodeID)
     case folBound(Int)
     case folPred(String, args: [NodeID])
     case folForall(body: NodeID)
@@ -70,19 +76,14 @@ public struct Binds: Hashable, Sendable {
     case folBottomElim(NodeID, NodeID)
     case folClassicalAbsurd(NodeID, body: NodeID)
 
-    // No dialect: nothing produces it (STATE §6 item 6).
-    case isaFree(String, IRType)
-
     public var dialects: Set<Dialect> {
         switch self {
-        case .isaFree:
-            return []
-        case .ifolAll, .ifolEx, .isaConst, .isaBound, .isaVarApp, .isaAbs, .isaOfClass, .isaAllIntro, .isaAllElim:
+        case .ifolAll, .ifolEx, .isaConst, .isaFree, .isaBound, .isaVarApp, .isaAbs, .isaOfClass, .isaAllIntro,
+             .isaAllElim:
             return [.isa]
-        case .folImplies, .folAnd, .folOr, .folIff, .folNot, .folBottom, .folImpliesIntro, .folImpliesElim,
-             .use, .hyp:
+        case .folImplies, .folAnd, .folOr, .folIff, .folBottom, .folImpliesIntro, .folImpliesElim, .use, .hyp:
             return [.isa, .fol]
-        case .folBound, .folPred, .folForall, .folExists, .folAndIntro, .folAndElimL, .folAndElimR,
+        case .folNot, .folBound, .folPred, .folForall, .folExists, .folAndIntro, .folAndElimL, .folAndElimR,
              .folOrIntroL, .folOrIntroR, .folOrElim, .folNotIntro, .folNotElim, .folIffIntro, .folIffElimL,
              .folIffElimR, .folForallIntro, .folForallElim, .folExistsIntro, .folExistsElim, .folBottomElim,
              .folClassicalAbsurd:

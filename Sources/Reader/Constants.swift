@@ -1,16 +1,42 @@
+import IR
 import YXML
+
+enum Reading: Equatable {
+    case erased
+    case implies, and, or, bottom
+    case all, ex
+    case metaEquality
+    case hidden
+    case constant(Constant)
+}
+
+private let leaves: [String: Reading] = [
+    "IFOL.Trueprop": .erased,
+    "Pure.imp": .implies, "IFOL.imp": .implies, "IFOL.conj": .and, "IFOL.disj": .or, "IFOL.False": .bottom,
+    "Pure.all": .all, "IFOL.All": .all, "IFOL.Ex": .ex,
+    "Pure.eq": .metaEquality,
+    "Pure.dummy_pattern": .hidden,
+]
+
+private let primitives = Dictionary(uniqueKeysWithValues: Primitive.all.map { ($0.name, $0) })
 
 struct Constants {
     struct Declaration: Equatable {
         let parameters: [String]
         let scheme: IsaType
+        let family: Family
+        let foundation: Bool
+        var definition: String? = nil
     }
 
     private var declarations: [String: Declaration] = [:]
+    private var definitions: [String: Defined] = [:]
 
     subscript(_ name: String) -> Declaration? { declarations[name] }
 
-    mutating func load(_ body: [Ref], in forest: Forest) throws {
+    func defined(byAxiom axiom: String) -> Defined? { definitions[axiom] }
+
+    mutating func load(_ body: [Ref], family: Family, foundation: Bool, in forest: Forest) throws {
         let d = Decode(forest: forest)
         for r in body {
             guard case let .element(entity) = forest[r], entity.tag == "entity" else {
@@ -25,8 +51,26 @@ struct Constants {
                 throw MalformedExport.schemeVariables(constant: name)
             }
             guard declarations[name] == nil else { throw MalformedExport.duplicateConstant(name) }
-            declarations[name] = Declaration(parameters: parameters, scheme: scheme)
+            declarations[name] = Declaration(parameters: parameters, scheme: scheme, family: family, foundation: foundation)
         }
+    }
+
+    mutating func define(_ constant: String, by axiom: String) throws {
+        guard var d = declarations[constant] else { throw MalformedExport.undeclaredConstant(constant) }
+        guard leaves[constant] == nil, primitives[constant] == nil else { throw MalformedExport.definedLeaf(constant) }
+        guard d.definition == nil, definitions[axiom] == nil else { throw MalformedExport.duplicateDefinition(constant) }
+        d.definition = axiom
+        declarations[constant] = d
+        definitions[axiom] = Defined(d.family, constant)
+    }
+
+    func reading(_ name: String) throws -> Reading {
+        if let r = leaves[name] { return r }
+        guard let d = declarations[name] else { throw MalformedExport.undeclaredConstant(name) }
+        if d.definition != nil { return .constant(.defined(Defined(d.family, name))) }
+        if let p = primitives[name] { return .constant(.primitive(p)) }
+        guard !d.foundation else { throw DialectGap.leaf(name) }
+        return .constant(.declared(name))
     }
 
     func instantiate(_ name: String, _ arguments: [IsaType]) throws -> IsaType {
