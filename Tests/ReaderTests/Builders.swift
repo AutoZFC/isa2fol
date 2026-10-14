@@ -102,7 +102,7 @@ private let fixtureTheories = [
                      ("EquivClass.congruent", "EquivClass.congruent_def")]),
 ]
 
-func defined(_ family: Family, _ name: String) -> Constant { .defined(Defined(family, name)) }
+func defined(_ family: Family, _ name: String, _ level: Level) -> Constant { .defined(Defined(family, name, level)) }
 
 func constdefsFile(_ pairs: [(String, String)]) -> String {
     pairs.map { node(node($0.0), node($0.1)) }.joined()

@@ -12,6 +12,13 @@ indirect enum IsaType: Hashable, Sendable {
         }
     }
 
+    var level: Level {
+        switch self {
+        case let .type(name, args): return name == "prop" || args.contains { $0.level == .meta } ? .meta : .object
+        case .tfree, .tvar: return .meta
+        }
+    }
+
     func substituting(_ s: [String: IsaType]) -> IsaType {
         switch self {
         case let .type(name, args): return .type(name, args.map { $0.substituting(s) })

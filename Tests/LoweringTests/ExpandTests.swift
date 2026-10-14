@@ -1,0 +1,148 @@
+import Testing
+import IR
+import Lowering
+
+private let i = IRType.i
+private let o = IRType.o
+private func fn(_ a: IRType, _ b: IRType) -> IRType { .fn(a, b) }
+
+/// Expand alone, each proof checked to conclude its statement BY ID, as the pipeline checks it.
+private func expanded(_ l: LogicTable, _ statements: [Statement], _ definitions: [Definition]) throws -> Unit {
+    var t = l.t
+    let out = try Expand().run(statements.flatMap { [$0.root, $0.proof!] }, definitions, in: &t)
+    let expanded = statements.indices.map { k in Statement(name: statements[k].name, root: out[2 * k], proof: out[2 * k + 1]) }
+    for s in expanded { #expect(t.conclusion(of: s.proof!) == s.root, "\(s.name)") }
+    return Unit(table: t, statements: expanded)
+}
+
+/// `¬C ⟹ ¬C` by its hypothesis: `¬` unfolds by `Not ≡ λP. P ⟶ ⊥` in the statement and the proof alike.
+@Test func aDefinedConstantOfTheLogicUnfoldsInAStatementAndItsProof() throws {
+    var l = LogicTable()
+    let not = try l.not()
+    let c = try l.const(.declared("C"), o)
+    let notC = try l.const(.defined(not.constant), fn(o, o), c)
+    let proof = try l.t.intern(.folImpliesIntro(notC, body: try l.t.intern(.hyp(0, notC))))
+    let unit = try expanded(l, [Statement(name: "thm", root: try l.imp(notC, notC), proof: proof)], [not])
+    var m = LogicTable(t: unit.table)
+    let unfolded = try m.imp(c, try m.bottom())
+    #expect(unit.statements[0].root == (try m.imp(unfolded, unfolded)))
+    #expect(unit.statements[0].proof == (try m.t.intern(.folImpliesIntro(unfolded, body: try m.t.intern(.hyp(0, unfolded))))))
+}
+
+/// `∃!x. x ∈ A`: the `λ` reduces into `Ex1`'s body. `True`, of no arguments, is its definiens.
+@Test func anArgumentAtAFunctionTypeReducesIntoTheBodyAndAConstantOfNoArgumentsIsItsDefiniens() throws {
+    var l = LogicTable()
+    let ex1 = try l.ex1(), truth = try l.truth()
+    let a = try l.const(.declared("A"), i)
+    let inA = try l.lam(i, try l.mem(try l.bound(0, i), a))
+    let unique = try l.const(.defined(ex1.constant), fn(fn(i, o), o), inA)
+    let isTrue = try l.const(.defined(truth.constant), o)
+    let out = try Expand().run([unique, isTrue], [ex1, truth], in: &l.t)
+    let x = try l.bound(1, i), y = try l.bound(0, i)
+    let only = try l.all(i, try l.imp(try l.mem(y, a), try l.equal(i, y, x)))
+    let exists = try l.t.intern(.ifolEx(i, body: try l.and(try l.mem(try l.bound(0, i), a), only)))
+    #expect(out == [exists, try l.imp(try l.bottom(), try l.bottom())])
+}
+
+/// `nand(C, C)`, `nand ≡ λP Q. ¬(P ∧ Q)` using `¬`: both unfold, whichever definition comes first.
+@Test func aDefinitionUsingAnotherUnfoldsThroughBoth() throws {
+    var l = LogicTable()
+    let not = try l.not()
+    let nandConstant = Defined(.ifol, "IFOL.nand", .object)
+    let both = try l.and(try l.bound(1, o), try l.bound(0, o))
+    let body = try l.const(.defined(not.constant), fn(o, o), both)
+    let nand = try l.definition(nandConstant, fn(o, fn(o, o)), try l.lam(o, try l.lam(o, body)))
+    let c = try l.const(.declared("C"), o)
+    let used = try l.const(.defined(nandConstant), fn(o, fn(o, o)), c, c)
+    #expect(try Expand().run([used], [nand, not], in: &l.t) == [try l.imp(try l.and(c, c), try l.bottom())])
+}
+
+/// `Not ≡ λP. P ⟶ ⊥`, cited: unfolded it says `(λP. P ⟶ ⊥) ≡ (λP. P ⟶ ⊥)`, `Pure.reflexive` at `o ⇒ o`, instantiated
+/// at the definiens.
+@Test func aCitationOfADefinitionBecomesPureReflexiveAtItsDefiniens() throws {
+    var l = LogicTable()
+    let not = try l.not()
+    let applied = try l.lam(o, try l.const(.defined(not.constant), fn(o, o), try l.bound(0, o)))
+    let root = try l.equal(fn(o, o), applied, not.definiens)
+    let proof = try l.t.intern(.use(.isaDefinition("IFOL.not_def_raw", of: not.constant), [], root))
+    let unit = try expanded(l, [Statement(name: "IFOL.not_def", root: root, proof: proof)], [not])
+    var m = LogicTable(t: unit.table)
+    let reflexive = try m.t.intern(.use(.axiom(.pure(.reflexive)), [fn(o, o)], not.reflexive))
+    #expect(unit.statements[0].root == (try m.equal(fn(o, o), not.definiens, not.definiens)))
+    #expect(unit.statements[0].proof == (try m.t.intern(.isaAllElim(reflexive, not.definiens))))
+}
+
+/// `⋀A B. conjunction(A, B) ≡ b`, Pure's applied form, cited: unfolded it says `⋀A B. b ≡ b`, `Pure.reflexive` at
+/// `o`, at `b`, under a `⋀`-intro at each parameter.
+@Test func aCitationOfAnAppliedDefinitionIsReflexivityUnderItsParameters() throws {
+    var l = LogicTable()
+    let conjunction = try l.conjunction()
+    let body = try l.conjunctionBody()
+    let applied = try l.const(.defined(conjunction.constant), fn(o, fn(o, o)), try l.bound(1, o), try l.bound(0, o))
+    let root = try l.all(o, try l.all(o, try l.equal(o, applied, body)))
+    let proof = try l.t.intern(.use(.isaDefinition("Pure.conjunction_def", of: conjunction.constant), [], root))
+    let unit = try expanded(l, [Statement(name: "Pure.conjunction_def", root: root, proof: proof)], [conjunction])
+    var m = LogicTable(t: unit.table)
+    let reflexive = try m.t.intern(.use(.axiom(.pure(.reflexive)), [o], conjunction.reflexive))
+    let instance = try m.t.intern(.isaAllElim(reflexive, body))
+    #expect(unit.statements[0].root == (try m.all(o, try m.all(o, try m.equal(o, body, body)))))
+    #expect(unit.statements[0].proof == (try m.t.intern(.isaAllIntro(o, body: try m.t.intern(.isaAllIntro(o, body: instance))))))
+}
+
+/// The walk unfolds every citation's statement: a cited theorem's stays the theorem's own statement, one node, and
+/// the axiom `iff_reflection`, `(P ↔ Q) ⟹ (P ≡ Q)`, is cited at its statement with `↔` unfolded.
+@Test func aCitationsStatementUnfoldsAsEveryFormula() throws {
+    var l = LogicTable()
+    let not = try l.not(), iff = try l.iff()
+    let c = try l.const(.declared("C"), o)
+    let notC = try l.const(.defined(not.constant), fn(o, o), c)
+    let lemRoot = try l.imp(notC, notC)
+    let lem = Statement(name: "lem", root: lemRoot, proof: try l.t.intern(.folImpliesIntro(notC, body: try l.t.intern(.hyp(0, notC)))))
+    let thm = Statement(name: "thm", root: lemRoot, proof: try l.t.intern(.use(.theorem("lem"), [], lemRoot)))
+    let p = try l.bound(1, o), q = try l.bound(0, o)
+    let pIffQ = try l.const(.defined(iff.constant), fn(o, fn(o, o)), p, q)
+    let reflection = try l.all(o, try l.all(o, try l.imp(pIffQ, try l.equal(o, p, q))))
+    let cites = Statement(name: "cites", root: reflection, proof: try l.t.intern(.use(.axiom(.ifol(.iffReflection)), [], reflection)))
+    let unit = try expanded(l, [lem, thm, cites], [not, iff])
+    var m = LogicTable(t: unit.table)
+    #expect(unit.statements[1].proof == (try m.t.intern(.use(.theorem("lem"), [], unit.statements[0].root))))
+    let unfolded = try m.all(o, try m.all(o, try m.imp(try m.and(try m.imp(p, q), try m.imp(q, p)), try m.equal(o, p, q))))
+    #expect(unit.statements[2].proof == (try m.t.intern(.use(.axiom(.ifol(.iffReflection)), [], unfolded))))
+}
+
+/// A constant Expand owns, with no definition handed: the reader or the pipeline broke its row, and the run stops.
+@Test func aConstantWithNoDefinitionStopsTheRun() throws {
+    var l = LogicTable()
+    let c = try l.const(.declared("C"), o)
+    let not = Constant.defined(Defined(.ifol, "IFOL.Not", .object))
+    let notC = try l.const(not, fn(o, o), c)
+    #expect(throws: ExpandError.noDefinition(.isaConst(not, fn(o, o), args: [c]))) {
+        _ = try Expand().run([notC], [], in: &l.t)
+    }
+}
+
+/// FOUNDATION S1: `split ≡ λc p. c(p, p)`, declared at `'a`, is a meta-level definition, unfolded as the logic's are:
+/// `split(λx y. x ∈ y, A)` at `'a := o` is `A ∈ A`, and a citation of its definition at `[o]` is `Pure.reflexive`. An
+/// object-level ZF constant is Reify's, and Expand leaves it.
+@Test func aZFDefinitionAtTheMetaLevelUnfoldsAsTheLogicsDo() throws {
+    var l = LogicTable()
+    let F = fn(i, fn(i, o)), T = fn(F, fn(i, o))
+    let applied = try l.t.intern(.isaVarApp(head: try l.bound(1, F), args: [try l.bound(0, i), try l.bound(0, i)]))
+    let split = try l.definition(Defined(.zf, "ZF_Base.split", .meta), T, axiomTypes: [o], try l.lam(F, try l.lam(i, applied)))
+    let a = try l.const(.declared("A"), i)
+    let member = try l.lam(i, try l.lam(i, try l.mem(try l.bound(1, i), try l.bound(0, i))))
+    let used = try l.const(.defined(split.constant), T, member, a)
+    let ball = try l.const(.defined(Defined(.zf, "ZF_Base.Ball", .object)), fn(i, fn(fn(i, o), o)), a,
+                           try l.lam(i, try l.mem(try l.bound(0, i), a)))
+    #expect(try Expand().run([used, ball], [split], in: &l.t) == [try l.mem(a, a), ball])
+
+    let c = try l.t.intern(.isaVarApp(head: try l.bound(3, F), args: [try l.bound(1, i), try l.bound(0, i)]))
+    let eta = try l.lam(F, try l.lam(i, try l.const(.defined(split.constant), T, try l.lam(i, try l.lam(i, c)), try l.bound(0, i))))
+    let root = try l.equal(T, eta, split.definiens)
+    let proof = try l.t.intern(.use(.isaDefinition("ZF_Base.split_def_raw", of: split.constant), [o], root))
+    let unit = try expanded(l, [Statement(name: "ZF_Base.split_def", root: root, proof: proof)], [split])
+    var m = LogicTable(t: unit.table)
+    let reflexive = try m.t.intern(.use(.axiom(.pure(.reflexive)), [T], split.reflexive))
+    #expect(unit.statements[0].root == (try m.equal(T, split.definiens, split.definiens)))
+    #expect(unit.statements[0].proof == (try m.t.intern(.isaAllElim(reflexive, split.definiens))))
+}

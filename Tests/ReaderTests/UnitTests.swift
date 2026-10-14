@@ -37,6 +37,8 @@ private func readUnit() throws -> IR.Unit {
         ("T.X", 50, proofFile(frees: [("a", i)], prop: imp(inlInInl, inlInInl), proof: pabsp("H", inlInInl, pbound(0)))),
     ]
     var files: [String: String] = [
+        "Pure/theory/axioms": axiomEntity("Pure.reflexive", tfrees: ["'a"], frees: [("x", typeA)],
+                                          prop: app(const("Pure.eq", typeA), free("x"), free("x"))),
         "IFOL/theory/axioms": axiomEntity("IFOL.iff_def_raw", prop: iffDef) + axiomEntity("IFOL.not_def_raw", prop: notDef),
         "ZF.ZF_Base/theory/axioms": axiomEntity("ZF_Base.split_def_raw", tfrees: ["'a"], prop: splitDef),
         "ZF.T/theory/axioms": axiomEntity("Sum.Inl_def", frees: [("a", i)], prop: app(const("Pure.eq", i), inlA, free("a"))),
@@ -78,4 +80,24 @@ private func readUnit() throws -> IR.Unit {
     let applied = try unit.table.intern(.isaVarApp(head: c, args: [q, q]))
     let splitDefiniens = try unit.table.intern(.isaAbs(.fn(.i, .fn(.i, .o)), body: try unit.table.intern(.isaAbs(.i, body: applied))))
     #expect(unit.definitions.first { $0.constant.name == "ZF_Base.split" }?.definiens == splitDefiniens)
+}
+
+/// `IFOL.Not ≡ λP. P ⟶ ⊥` names no argument, and its equation is at `o ⇒ o`; `Inl(a) ≡ a` names one, at `i`; `split`'s
+/// definition is cited at `'a := o`. `Pure.reflexive` comes read at each equation's type.
+@Test func aDefinitionCarriesItsAxiomsTypeArgumentsItsParametersAndPureReflexiveAtItsEquation() throws {
+    var unit = try readUnit()
+    let definition = { (name: String) in try #require(unit.definitions.first { $0.constant.name == name }) }
+    let not = try definition("IFOL.Not"), inl = try definition("Sum.Inl"), split = try definition("ZF_Base.split")
+    #expect([not.axiomTypes, inl.axiomTypes, split.axiomTypes] == [[], [], [IRType.o]])
+    #expect([not.parameters, inl.parameters, split.parameters] == [0, 1, 0] as [Int])
+    let oo = IRType.fn(.o, .o)
+    let f = try unit.table.intern(.isaAbs(.o, body: try unit.table.intern(
+        .isaVarApp(head: try unit.table.intern(.isaBound(1, oo)), args: [try unit.table.intern(.isaBound(0, .o))]))))
+    let atFunction = try unit.table.intern(.ifolAll(oo, body: try unit.table.intern(
+        .isaConst(.primitive(.pure(.eq)), .fn(oo, .fn(oo, .o)), args: [f, f]))))
+    let x = try unit.table.intern(.isaBound(0, .i))
+    let atI = try unit.table.intern(.ifolAll(.i, body: try unit.table.intern(
+        .isaConst(.primitive(.ifol(.eq)), .fn(.i, .fn(.i, .o)), args: [x, x]))))
+    #expect(not.reflexive == atFunction)
+    #expect(inl.reflexive == atI)
 }

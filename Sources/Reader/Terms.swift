@@ -304,9 +304,4 @@ extension IRType {
             return T
         }
     }
-
-    var domains: [IRType] {
-        guard case let .fn(T, rest) = self else { return [] }
-        return [T] + rest.domains
-    }
 }

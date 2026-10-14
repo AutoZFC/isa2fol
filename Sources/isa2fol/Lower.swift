@@ -26,17 +26,18 @@ func lower(_ root: String) {
     print("  and \(unit.statements.count - lowered.count) of the theorems cited outside and lemmas")
     print("definitions read by the pass owning their constant: \(unit.definitions.count) of \(definitions)")
     print("refused, named: \(unit.refused.filter { named.contains($0.name) }.count)")
-    var statements: [String: Int] = [:], held: [String: [Pattern: Int]] = [:]
+    var statements: [String: Int] = [:], held: [String: [String: Int]] = [:], nouns: [String: String] = [:]
     for r in unit.refused where named.contains(r.name) {
-        let (group, found): (String, [Pattern])
+        let (group, noun, found): (String, String, [String])
         switch r.refusal {
-        case let .noOwner(ps): (group, found) = ("no owner", ps)
-        case let .unbuilt(pass, ps): (group, found) = ("\(pass), unbuilt", ps)
-        case .lemmaUnbuilt: (group, found) = ("registry, unbuilt", [])
-        case .cites: (group, found) = ("cites a refused statement", [])
-        case .unread: (group, found) = ("not read", [])
+        case let .noOwner(ps): (group, noun, found) = ("no owner", "patterns", ps.map { "\($0)" })
+        case let .unbuilt(pass, ps): (group, noun, found) = ("\(pass), unbuilt", "patterns", ps.map { "\($0)" })
+        case .lemmaUnbuilt: (group, noun, found) = ("registry, unbuilt", "", [])
+        case let .cites(cited): (group, noun, found) = ("cites a refused statement", "statements", [cited])
+        case .unread: (group, noun, found) = ("not read", "", [])
         }
         statements[group, default: 0] += 1
+        nouns[group] = noun
         for p in found { held[group, default: [:]][p, default: 0] += 1 }
     }
     let groups = ["no owner"] + pipeline.passes.map { "\($0.name), unbuilt" }
@@ -44,8 +45,8 @@ func lower(_ root: String) {
     for group in groups {
         guard let n = statements[group] else { continue }
         let counts = held[group] ?? [:]
-        print("  \(group): \(n)" + (counts.isEmpty ? "" : ", naming \(counts.count) patterns"))
-        let ranked = counts.keys.sorted { (counts[$0]!, "\($1)") > (counts[$1]!, "\($0)") }
+        print("  \(group): \(n)" + (counts.isEmpty ? "" : ", naming \(counts.count) \(nouns[group]!)"))
+        let ranked = counts.keys.sorted { (counts[$0]!, $1) > (counts[$1]!, $0) }
         for p in ranked.prefix(10) { print("    \(counts[p]!)\t\(p)") }
         if ranked.count > 10 { print("    … \(ranked.count - 10) more") }
     }

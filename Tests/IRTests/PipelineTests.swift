@@ -293,6 +293,13 @@ private func refusals(_ unit: Unit) -> [String: PipelineRefusal] {
     #expect(refusals(unit) == ["L": .lemmaUnbuilt, "S": .cites("L")])
 }
 
+/// `⋀f::i ⇒ i. f ≡ f`, `f` η-long: `Pure.reflexive` as the reader reads it at `i ⇒ i`.
+private func reflexiveAtFunction(_ t: inout Table) throws -> NodeID {
+    let T = IRType.fn(i, i)
+    let f = try t.intern(.isaAbs(i, body: try t.intern(.isaVarApp(head: try t.intern(.isaBound(1, T)), args: [try t.intern(.isaBound(0, i))]))))
+    return try t.intern(.ifolAll(T, body: try t.intern(.isaConst(.primitive(.pure(.eq)), .fn(T, .fn(T, o)), args: [f, f]))))
+}
+
 /// `T.d ≡ λx. K(x ∈ x)`: `elem` lowers it before `reading`, which owns `T.d`, reads it; nothing lowers it after.
 @Test func aPassReadsTheDefinitionsOfTheConstantsItOwnsAsTheyStandAtItsInput() throws {
     var t = Table()
@@ -300,15 +307,18 @@ private func refusals(_ unit: Unit) -> [String: PipelineRefusal] {
     let k = { (a: NodeID, t: inout Table) in try t.intern(.isaConst(.declared("K"), .fn(o, i), args: [a])) }
     let m = try t.intern(.isaConst(.primitive(.zf(.mem)), memT, args: [x, x]))
     let definiens = try t.intern(.isaAbs(i, body: try k(m, &t)))
-    let d = Defined(.zf, "T.d")
-    var unit = Unit(table: t, statements: [], definitions: [Definition(constant: d, type: .fn(i, i), definiens: definiens)])
+    let reflexive = try reflexiveAtFunction(&t)
+    let d = Defined(.zf, "T.d", .object)
+    let read = Definition(constant: d, type: .fn(i, i), axiomTypes: [], parameters: 0, definiens: definiens, reflexive: reflexive)
+    var unit = Unit(table: t, statements: [], definitions: [read])
     let reading = Reading(owned: [
-        .isaConst(.defined(.zf), .fn(i, i), args: [i]): .unbuilt, .isaAbs(i, body: i): .unbuilt,
+        .isaConst(.defined(.zf, .object), .fn(i, i), args: [i]): .unbuilt, .isaAbs(i, body: i): .unbuilt,
         .isaConst(.declared, .fn(o, i), args: [o]): .unbuilt, .isaBound(i): .unbuilt,
     ])
     try Pipeline(passes: [elem, reading]).run(&unit)
     let e = try unit.table.intern(.folPred("elem", args: [x, x]))
-    let lowered = Definition(constant: d, type: .fn(i, i), definiens: try unit.table.intern(.isaAbs(i, body: try k(e, &unit.table))))
+    var lowered = read
+    lowered.definiens = try unit.table.intern(.isaAbs(i, body: try k(e, &unit.table)))
     #expect(reading.received == [lowered])
     #expect(unit.definitions == [lowered])
 }

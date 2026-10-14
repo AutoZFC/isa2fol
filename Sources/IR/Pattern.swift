@@ -52,13 +52,13 @@
 
     @frozen public enum ConstantKind: Hashable, Sendable, CustomStringConvertible {
         case primitive(Primitive)
-        case defined(Family)
+        case defined(Family, Level)
         case declared
 
         init(_ c: Constant) {
             switch c {
             case let .primitive(p): self = .primitive(p)
-            case let .defined(d): self = .defined(d.family)
+            case let .defined(d): self = .defined(d.family, d.level)
             case .declared: self = .declared
             }
         }
@@ -66,7 +66,7 @@
         public var description: String {
             switch self {
             case let .primitive(p): return "primitive \(p)"
-            case let .defined(f): return "defined \(f)"
+            case let .defined(f, level): return "defined \(f) \(level)"
             case .declared: return "declared"
             }
         }
@@ -74,7 +74,7 @@
 
     @frozen public enum CitedKind: Hashable, Sendable, CustomStringConvertible {
         case theorem
-        case isaDefinition(Family)
+        case isaDefinition(Family, Level)
         case axiom(Axiom)
         case theoryAxiom
         case lemma
@@ -82,7 +82,7 @@
         init(_ c: Cited) {
             switch c {
             case .theorem: self = .theorem
-            case let .isaDefinition(_, d): self = .isaDefinition(d.family)
+            case let .isaDefinition(_, d): self = .isaDefinition(d.family, d.level)
             case let .axiom(a): self = .axiom(a)
             case .theoryAxiom: self = .theoryAxiom
             case .lemma: self = .lemma
@@ -92,7 +92,7 @@
         public var description: String {
             switch self {
             case .theorem: return "theorem"
-            case let .isaDefinition(f): return "definition \(f)"
+            case let .isaDefinition(f, level): return "definition \(f) \(level)"
             case let .axiom(a): return "axiom \(a)"
             case .theoryAxiom: return "theory axiom"
             case .lemma: return "lemma"

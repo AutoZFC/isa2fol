@@ -218,8 +218,12 @@ public struct Reader {
                 return U
             }
             var terms = try Terms(decode: decode, constants: constants, classes: classes, file: e, at: instance)
-            let body = try terms.term(sides[1], try terms.irType(types[0]), terms.closure, in: &table)
-            return Definition(constant: d, type: T, definiens: try terms.close(body, Node.isaAbs, in: &table))
+            let equation = try terms.irType(types[0])
+            let body = try terms.term(sides[1], equation, terms.closure, in: &table)
+            let definiens = try terms.close(body, Node.isaAbs, in: &table)
+            let reflexive = try statement(Instance(source: .axiom(Axiom.pure(.reflexive).name), types: [equation]))
+            return Definition(constant: d, type: T, axiomTypes: instance, parameters: names.count, definiens: definiens,
+                              reflexive: reflexive)
         }
     }
 

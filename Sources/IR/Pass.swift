@@ -42,12 +42,18 @@ public protocol Registry {
 public struct Definition: Hashable, Sendable {
     public let constant: Defined
     public let type: IRType
+    public let axiomTypes: [IRType]
+    public let parameters: Int
     public var definiens: NodeID
+    public let reflexive: NodeID
 
-    public init(constant: Defined, type: IRType, definiens: NodeID) {
+    public init(constant: Defined, type: IRType, axiomTypes: [IRType], parameters: Int, definiens: NodeID, reflexive: NodeID) {
         self.constant = constant
         self.type = type
+        self.axiomTypes = axiomTypes
+        self.parameters = parameters
         self.definiens = definiens
+        self.reflexive = reflexive
     }
 }
 
@@ -160,7 +166,7 @@ private struct Run {
             if unowned.isEmpty { live.append(Live(statement: s, held: held)) } else { self.unit.refuse(s.name, .noOwner(named(unowned))) }
         }
         for d in unit.definitions {
-            let constant = Pattern.isaConst(.init(.defined(d.constant)), d.type, args: domains(d.type))
+            let constant = Pattern.isaConst(.init(.defined(d.constant)), d.type, args: d.type.domains)
             guard let k = owner(of: constant) else { continue }
             let held = try check(patterns(under: [d.definiens], in: unit.table))
             guard held.allSatisfy({ $0.dialects.contains(.fol) || owner(of: $0) != nil }) else { continue }
@@ -338,11 +344,6 @@ private struct Run {
             }
         }
     }
-}
-
-private func domains(_ T: IRType) -> [IRType] {
-    guard case let .fn(a, b) = T else { return [] }
-    return [a] + domains(b)
 }
 
 private func scan(_ roots: [NodeID], _ t: Table) -> (Set<Pattern>, [(Lemma, NodeID)]) {

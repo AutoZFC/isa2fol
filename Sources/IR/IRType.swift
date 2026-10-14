@@ -12,4 +12,9 @@
         case let .variable(name): return name
         }
     }
+
+    public var domains: [IRType] {
+        guard case let .fn(T, rest) = self else { return [] }
+        return [T] + rest.domains
+    }
 }

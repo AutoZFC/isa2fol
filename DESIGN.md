@@ -455,7 +455,8 @@ these two mechanisms and those formers, and nothing else. If every pattern is tr
 - **The reading** (§4.3a 4). A leaf that FOL has is read as FOL's node. `⋀`/`∀`, `⟹`/`⟶` and `≡`/`↔` at `o` are one
   node each, so no proof bridges Pure and IFOL. A defined constant is read as defined (IFOL's since `21937219`).
 - **Constants and axioms are typed values, by layer**, under the reference's names: `Constant`, `Primitive`, `Family`,
-  `Axiom`, `Cited`. `meta` and `lambda` are dropped, because they are lowering's.
+  `Axiom`, `Cited`. `meta` and `lambda` are dropped, because they are lowering's. A defined constant keeps its declared
+  level instead (§4a "Expand", point 6): a fact of its declaration, which lowering decides by, never a family.
 - **A theory's family comes from its ancestry** (`theory/parents`). A definition of a listed leaf is malformed.
 - **`Pattern` is built by one rule over every node kind** (point 4).
 - **A proof's conclusion is its statement, by ID.**
@@ -486,7 +487,8 @@ SPELLING (which name is which leaf, what `theory/constdefs` defines) lives in th
 enum Family    { case pure, ifol, fol, zf }
 enum Primitive { case pure(Pure), ifol(IFOL), zf(ZF) }     // the leaves the target lacks
 //   pure: eq · ifol: eq · zf: mem zero Pow Union PrimReplace Inf
-struct Defined { let family: Family; let name: String }
+enum Level     { case object, meta }                      // meta: the declared type mentions `prop` or a type variable
+struct Defined { let family: Family; let name: String; let level: Level }
 enum Constant  { case primitive(Primitive), defined(Defined), declared(String) }
 enum Axiom     { case pure(Pure), ifol(IFOL), fol(FOL), zf(ZF) }
 //   pure: reflexive symmetric transitive combination abstract_rule equal_intr equal_elim
@@ -520,7 +522,7 @@ other theory's family is `zf` when it descends from `ZF.ZF_Base`.
 | `Pure.eq` at `i` | `isaConst(.primitive(.ifol(.eq)))` |
 | a `Primitive` | `isaConst(.primitive(p))` |
 | `Pure.dummy_pattern` | `isaFree(.hidden, T)` |
-| a constant `theory/constdefs` defines: IFOL's `↔ ¬ ∃! True`, Pure's `PROP &&& TERM`, and every ZF definition | `isaConst(.defined(Defined(family, name)))` |
+| a constant `theory/constdefs` defines: IFOL's `↔ ¬ ∃! True`, Pure's `PROP &&& TERM`, and every ZF definition | `isaConst(.defined(Defined(family, name, level)))` |
 | an undefined constant of a theory outside the foundation | `isaConst(.declared(name))` |
 | an undefined constant of the foundation, none of the above | the read STOPS: `DialectGap.leaf(name)` |
 
@@ -561,8 +563,8 @@ decides by a type switches over `IRType`'s own constructors and recurses into `f
 **Every pattern is built by ONE rule, the reference's** (`kinds-proposal:Sources/IR/Pattern.swift`). Take the node and
 replace each child by its type (a proof step by `o`), and a list of children by the list of their types. Replace a
 constant or a citation by its kind. Drop names, de Bruijn indices and class names (D1: a rule never keys on a name, the
-primitives excepted). A constant's kind is `primitive(p)`, `defined(family)` or `declared`. A citation's kind is
-`theorem`, `isaDefinition(family)`, `axiom(a)` or `theoryAxiom`. For example:
+primitives excepted). A constant's kind is `primitive(p)`, `defined(family, level)` or `declared`. A citation's kind is
+`theorem`, `isaDefinition(family, level)`, `axiom(a)` or `theoryAxiom`. For example:
 - `isaConst(c, T, xs)` gives `isaConst(kind, T, args: types of xs)`;
 - `isaAllElim(p, x)` gives `isaAllElim(o, type of x)`;
 - `use(c, Ts, r)` gives `use(kind, Ts, o)`;
@@ -619,7 +621,7 @@ operation:
 | operation | at bound `k`, at depth `d` | at named `x` | used by |
 |---|---|---|---|
 | `shift(φ, δ)` — a binder was added above | `k ≥ d` → `k + δ` | — | S1 wrapping `∀r` around an atom |
-| `instantiate(body, t)` — a binder was removed | `k = d` → `t` shifted by `d`; `k > d` → `k − 1` | — | `forall_elim`, `exists_elim`, β-reduction (S4) |
+| `instantiate(body, t)` — a binder was removed | `k = d` → `t` shifted by `d`; `k > d` → `k − 1` | — | `forall_elim`, `exists_elim`, β-reduction: `beta(f, args)`, one `instantiate` per argument |
 | `abstract(φ, x)` — close over a name | `k ≥ d` → `k + 1` | `x` → `d` | closing a statement over its frees |
 
 The guard needs none: `∀. body` → `∀. (set(0) → body)` leaves the body at its depth.
@@ -949,13 +951,14 @@ and the proof must be built against the changed one.
 ⋀x. (mem(x,y) ⟹ mem(x,y))     →     ∀x. (set(x) → (mem(x,y) → mem(x,y)))
 ```
 
-**The passes.** Fol has rules for binders and variables at `i`; the rest are declared, unbuilt ("Lowering's
-components", below).
+**The passes.** Expand has its rules, and Fol has rules for binders and variables at `i`; the rest are declared,
+unbuilt ("Lowering's components", below).
 
 | # | pass | FOUNDATION | status |
 |---|---|---|---|
-| — | **fol** — the binders and variables at `i`: a guard on each binder, fol-zfc's variables | R3, S6's enforceable form | BUILT, below: the only pass with rules |
-| — | **expand**, **logic**, **reify**, the rest of **fol** — the meta level lowered onto FOUNDATION §1a; each component's business in "Lowering's components", below | S1, S3, S4, S5, R3 | DECIDED, below; not built |
+| — | **expand** — the logic's defined constants unfolded, a citation of their definitions as `Pure.reflexive` | — | BUILT, below |
+| — | **fol** — the binders and variables at `i`: a guard on each binder, fol-zfc's variables | R3, S6's enforceable form | BUILT, below |
+| — | **logic**, **reify**, the rest of **fol** — the meta level lowered onto FOUNDATION §1a; each component's business in "Lowering's components", below | S1, S3, S4, S5, R3 | DECIDED, below; not built |
 
 ### Lowering's components  **[DIVISION DECIDED 2026-10-13 (user), TYPING A REGISTRY 2026-10-14 (user); THE INTERFACE AGREED AND BUILT 2026-10-13 — `Sources/IR/Pass.swift`, `Sources/Lowering`]**
 
@@ -1013,17 +1016,18 @@ own rows exactly.
 
 | patterns | owner |
 |---|---|
-| a Pure, IFOL or FOL defined constant; a citation of its definition | Logic, `expand` |
+| a Pure, IFOL or FOL defined constant, or a ZF one at the meta level ("Expand", point 6); a citation of its definition | Logic, `expand` |
 | a citation of a Pure, IFOL or FOL axiom; Pure's `≡` at a function type; a binder or an instance at any other type than Typing's (`o`, a function of propositions) | Logic |
-| an applied constant (a ZF primitive or definition, a declared constant, `IFOL.eq`); an applied variable; a `λ`, through Lambda | Reify |
+| an applied constant (a ZF primitive, a ZF definition at the object level, a declared constant, `IFOL.eq`); an applied variable; a `λ`, through Lambda | Reify |
 | a binder, an instance, a variable or the guard of a variable at `i`, `iⁿ ⇒ i` or `iⁿ ⇒ o` | Fol, with the guard Typing gives the type |
 | a bound variable at another type | Fol, unbuilt: no such variable outlives its binder's owner |
 | the both dialect's connectives, ⟹-intro and ⟹-elim, a hypothesis, and a theorem or a lemma cited at no type arguments | none: fol-zfc has them |
-| a type variable, `OFCLASS` or a theorem cited at type arguments (decision 4); the hidden variable; a citation of a ZF axiom, a theory axiom or a ZF definition | **no owner yet**: each is its component's design question, and is refused before the first pass |
+| a type variable, `OFCLASS` or a theorem cited at type arguments (decision 4); the hidden variable; a citation of a ZF axiom, a theory axiom or a ZF definition at the object level | **no owner yet**: each is its component's design question, and is refused before the first pass |
 
 **Built.** `Lowering.plan` is the four passes in order — expand, logic, reify, fol — and `Lowering.pipeline` adds
-Typing's registry, proving after reify. Expand, Logic and Reify are unbuilt: a switch over `Pattern` stating their rows,
-and no rule. Fol has the rules for binders, instances, variables and guards of variables at `i`. `Pattern.dialects`
+Typing's registry, proving after reify. Logic and Reify are unbuilt: a switch over `Pattern` stating their rows, and no
+rule. Expand has its rules ("Expand", below). Fol has the rules for binders, instances, variables and guards of
+variables at `i`. `Pattern.dialects`
 replaces `Node.dialects` and `legalize` reads it. `RulePass` is gone: no rule writes a pattern its pass owns, so one
 walk is the whole pass. `forall_elim` takes an isa variable of any type but `o`, as `folPred` does. `lower` counts a
 statement only when it reaches fol-zfc.
@@ -1067,7 +1071,8 @@ its type. The guard pass's rules are Fol's ("Fol — binders, guards and variabl
   a Pure, IFOL or FOL definition as read, to unfold its constant; Reify's prover reads a ZF definition as expand and
   logic left it, to prove EX and UNIQ (point 4). A pattern that a pass before the owner has not built stops the
   definition there, and a lemma whose proof needs it is refused at the registry.
-- An axiom needs no provision: a citation carries its statement at its types (§4.7).
+- An axiom a proof cites needs no provision: the citation carries its statement at its types (§4.7). The one Expand
+  cites, `Pure.reflexive` at each definition's equation type, comes with the definition ("Expand", point 4).
 - Replaces the reference's driver loop, which asked `Expand.instances` and `Reify.constantsToDefine` what to read, then
   expanded, compiled and guarded each ZF definition outside the pipeline.
 
@@ -1153,7 +1158,7 @@ definitions and the guard of a variable.
 
 | | provides | assumes |
 |---|---|---|
-| Reader | each named theorem of the ZF sessions and each theorem they cite at no type arguments, `(statement, proof)`; each definition they reach, at every type | an export of one build |
+| Reader | each named theorem of the ZF sessions and each theorem they cite at no type arguments, `(statement, proof)`; each definition they reach, at every type, with what Expand cites it by ("Expand", point 4) | an export of one build |
 | the pipeline | each pass's input; each definition, as it stands at its owner's input, to that pass and to the provers; each cited lemma added once; the registry asked after reify; every citation linked, every refusal carried to its citers | each pass's `owns`; one registry |
 | a citer | `use(.lemma(r), [], root)`, `root` the owner's statement of `r` | the registry proves `r`, or refuses it there |
 | Typing's registry | each lemma handed to the one prover that owns its request | the plan's provers |
@@ -1189,7 +1194,203 @@ sessions at no type arguments, and 1,004 definitions they reach; 892 of these re
 The refusals are unchanged: no owner 7,178, expand 1,048, logic 133, reify 1,061; none reaches Fol, and no lemma is
 cited. Read 61.9 s, lowered 17.0 s.
 
-**Then Expand**, against point 1: its owner rows and contract in its own step.
+**Then Expand**, against point 1: the next section.
+
+### Expand — the logic's defined constants, unfolded  **[AGREED AND BUILT 2026-10-14 — `Sources/Lowering/Expand.swift`]**
+
+**Expand replaces each defined constant of Pure, IFOL and FOL, and each ZF one at the meta level (6), by its
+definition, and each citation of such a definition by `Pure.reflexive`.** It is the Logic component's first pass
+("Lowering's components"): after it nothing of the logic is left but its leaves and binders, and Logic's rules meet no
+defined constant. Before it was built, 1,048 named theorems stopped there (`isa2fol lower data/zf_export`).
+
+**1. Expand owns two patterns**, by ONE switch over `Pattern` that also dispatches its rules:
+
+| pattern | answer |
+|---|---|
+| `isaConst(defined pure · ifol · fol at either level, or zf at meta, T, args)`, no type variable in `T` | a rule: unfold (2) |
+| `use(isaDefinition(the same), types, o)`, no type variable in `types` | a rule: `Pure.reflexive` (3) |
+| every other pattern | not its own |
+
+At a type variable both have no owner: decision 4's, refused before the plan. The constants are those `theory/constdefs`
+lists for Pure, IFOL and FOL (§4.3b): Pure's `PROP &&& TERM`, IFOL's `↔ ¬ True ∃! Uniq Let`, FOL's `induct_*`; and the
+five ZF ones at the meta level (6).
+`IFOL.term_class_def` defines `OFCLASS`, which the reader reads as `isaOfClass`, never as a constant: a citation of it
+holds `isaOfClass`, which no pass owns, so it never reaches Expand.
+
+**2. A constant unfolds by its definition at its own type.** `c(a⃗)` at `T` becomes `c`'s definiens at `T`, `λx⃗. b`,
+applied to the rewritten `a⃗` and β-reduced: `b[a⃗/x⃗]`. An argument at a function type is a `λ`, and reduces into the
+body as `instantiate` reduces an applied variable whose head becomes a `λ` (§4.4).
+
+```
+Isabelle          read as                  after Expand
+¬A                Not(A)                   A ⟶ ⊥
+∃!x. x ∈ A        Ex1(λx. x ∈ A)           ∃x. x ∈ A ∧ (∀y. y ∈ A ⟶ y = x)
+True              True                     ⊥ ⟶ ⊥
+PROP A            prop(A)                  A
+A &&& B           conjunction(A, B)        ⋀C. (A ⟹ B ⟹ C) ⟹ C
+```
+
+- **Every formula unfolds, a citation's statement included.** A cited theorem's statement and the theorem's own stay
+  one node. An axiom's statement arrives unfolded: of the logic's, `iff_reflection`'s `↔` and `classical`'s `¬`, the
+  only two; of ZF's, the `↔` of `extension`, `Pow_iff`, `Union_iff` and `replacement`, and `foundation`'s `¬`. A step's
+  conclusion is computed from its unfolded premises, so each proof still concludes its statement, by ID.
+- **The definitions are unfolded among themselves first**, walk after walk until a walk changes nothing: a definiens
+  may use an earlier constant (S3), and a rule never writes a pattern its pass owns.
+- **The rule needs no context**: a node unfolds alike under any binders, so the walk rewrites each node once.
+
+**3. A citation of a definition becomes `Pure.reflexive`.** IFOL and FOL state a definition `c ≡ λx⃗. b`: unfolded it
+says `λx⃗. b ≡ λx⃗. b`, `Pure.reflexive` at `c`'s type, instantiated at the definiens. Pure states its own applied,
+`prop(A) ≡ A`, closed over its parameters (§4.4): unfolded it says `⋀x⃗. b ≡ b`, `Pure.reflexive` at `b`'s type under a
+`⋀`-intro at each parameter.
+
+```
+read as                                after Expand
+use IFOL.not_def_raw                   isaAllElim(use Pure.reflexive [o ⇒ o], λP. P ⟶ ⊥)
+  ⊢ Not ≡ λP. P ⟶ ⊥                      ⊢ (λP. P ⟶ ⊥) ≡ (λP. P ⟶ ⊥)
+use Pure.prop_def                      isaAllIntro(o, isaAllElim(use Pure.reflexive [o], A))
+  ⊢ ⋀A. prop(A) ≡ A                      ⊢ ⋀A. A ≡ A
+```
+
+The proof is built from the definition, never by reading the citation's statement back (I1); the pipeline checks that
+it concludes the unfolded statement, by ID. `Pure.reflexive`'s statement comes from the reader, as the export states
+it, never a shape built by hand, as point 6 of "The unit and its citations" rules for base's claims.
+
+**4. The reader adds three things to a definition.** A citation names a definition by its axiom's type arguments, not by
+its constant's type; Pure's applied form must be told from `c ≡ λx⃗. b`; and `Pure.reflexive` is needed at a type no
+proof may cite it at.
+
+```swift
+public struct Definition {
+    public let constant: Defined
+    public let type: IRType            // c's type at this instance
+    public let axiomTypes: [IRType]    // new: the axiom's type arguments here, as a citation of it carries them
+    public let parameters: Int         // new: n for c(x1 … xn) ≡ b, 0 for c ≡ λx⃗. b
+    public var definiens: NodeID       // λx⃗. b
+    public let reflexive: NodeID       // new: Pure.reflexive read at the type of the axiom's equation, b's
+}
+```
+
+`definition(of:at:)` already computes the first two; the third is one more statement read. Expand finds a constant's
+definition by `(constant, type)` and a citation's by `(constant, axiomTypes)`. An axiom a proof cites needs no
+provision; the one Expand cites comes with each definition (point 1 of "The unit and its citations").
+
+**5. IR exports β.** `instantiate`'s reduction of an applied `λ` becomes `beta(f, args)`, public: `instantiate` calls it
+and Expand unfolds by it, one home (D3, rule 4).
+
+**6. A ZF definition at the meta level is Expand's too.**  **[AGREED AND BUILT 2026-10-14]**
+
+Five ZF constants are declared at Pure's level: their declared type mentions `prop` or a type variable.
+
+| constant | declared type |
+|---|---|
+| `ZF_Base.split`, `QPair.qsplit` | `(i ⇒ i ⇒ 'a) ⇒ i ⇒ 'a` |
+| `MetaExists.ex` | `('a ⇒ prop) ⇒ prop` |
+| `L_axioms.L_Reflects` | `(i ⇒ o) ⇒ (i ⇒ i ⇒ o) ⇒ prop` |
+| `AC_Equiv.AC18` | `prop` |
+
+None can be named. `split` is one constant at several types, which one name cannot denote; `AC18` as a class would
+quantify over classes. So each has one translation, unfolding, and Expand has its two rules: the definition at the
+use's type, and a citation of it as `Pure.reflexive` (D1). Today they read as `defined zf`, so Reify owns them at a
+concrete type, and Reify only names; owning them, it would hold a second copy of Expand's rule (rule 4). At a type
+variable they have no owner, decision 4's, like every constant of the logic.
+
+**The reading loses what tells them apart.** `prop` reads as `o`, and a use instantiates `'a`:
+
+```
+AC18 :: prop                                     isaConst(defined zf, o, [])            AC1 :: o reads the same
+MetaExists.ex :: ('a ⇒ prop) ⇒ prop, at i        isaConst(defined zf, (i ⇒ o) ⇒ o, …)   as an object-level constant
+```
+
+So a defined constant keeps its declared level, a typed value the reader builds from the declared type (I1, rule 3):
+
+```swift
+enum Level { case object, meta }              // meta: the declared type mentions `prop` or a type variable
+struct Defined { let family: Family; let name: String; let level: Level }   // was (family, name)
+// Pattern: ConstantKind.defined(Family, Level), CitedKind.isaDefinition(Family, Level)
+```
+
+The level is no family. A family is the theory layer a constant comes from (§4.3b); the level is a fact of its
+declaration, which the reader states and lowering decides by. The logic's constants carry theirs too (`¬` at
+`object`, `∃!` at `meta`) and unfold whatever it is.
+
+**The border is one function**, `unfolds(family, level)` in `Plan.swift`, which Expand's switch and Reify's both read:
+
+| a defined constant, or a citation of its definition | owner |
+|---|---|
+| Pure, IFOL, FOL, at either level | Expand |
+| ZF, at `meta` | Expand, by its two rules unchanged |
+| ZF, at `object` | Reify; a citation of its definition has no owner yet (decision 5) |
+
+Every defined constant's pattern now shows its level, so `docs/SOURCE_SURFACE.md` is regenerated. Unfolding `ex` puts
+a `⋀Q::o` inside a premise: Logic's `ifolAll(o, …)`, as `&&&` unfolded already gives.
+
+**FOUNDATION first.** FOUNDATION carries the border: §2's "A constant is named only at the object level", R5's note
+that unfolding a meta-level constant is not the inlining R5 forbids, and R6's "`split` is no longer one of the two",
+all three the reference's own text. Two adaptations: `AC18`'s class is argued without the reference's class of the
+empty tuple, which this branch's S4 lacks, and Pure's constants unfold by family with IFOL's and FOL's.
+
+**Tests, written first.** `ConstantsTests`: a defined constant declared over `i`, `o` and `⇒` reads at `object`
+(`ZF_Base.Ball`, `IFOL.Not`); one declared with `prop` or a type variable at `meta` (`ZF_Base.split`, `Pure.prop`).
+`PlanTests`: `defined(zf, meta)` and a citation of its definition are Expand's, `defined(zf, object)` Reify's, and no
+pattern has two owners. `ExpandTests`: `split(λx y. x ∈ y, A)` at `'a := o` unfolds by `split`'s definition, and a
+citation of that definition at `[o]` becomes `Pure.reflexive`.
+
+**Built.** `Level` and `Defined.level` in IR, the reader's `IsaType.level`; `ConstantKind.defined(Family, Level)` and
+`CitedKind.isaDefinition(Family, Level)`; `unfolds(_:_:)` in `Plan.swift`, read by Expand and Reify.
+
+**Measured** (`isa2fol lower data/zf_export`): Reify owns no `defined zf meta` pattern, so none stops there. Refused at
+no owner 7,176, logic 1,078, reify 1,115, and 51 still fall citing `IFOL.TrueI`: 62 statements move from reify to
+logic, and 2 that only a meta-level definition's citation held leave no owner. 1,000 of the 1,004 definitions reach
+their owner. The surface holds 2,597 patterns, against 2,592: a level splits five (`isa2fol surface data/zf_export`).
+Read 65.8 s, lowered 20.6 s.
+
+**Kept from the reference, and changed.** Kept: unfolding at the use's type, applied and β-reduced; the definitions
+unfolded among themselves to a fixpoint; a citation as `Pure.reflexive` at its type, whose statement the reader reads
+(the reference's driver called `reader.axiom(reflexive, at: [T])`). Changed:
+- Pure's `PROP &&& TERM` unfold like IFOL's; the reference left `Pure.prop` pending (D1).
+- The citation's proof comes from the definition; the reference read the citation's statement back (`sides`,
+  `notReflexive`), against I1.
+- Pure's applied form is reflexivity under its parameters; the reference, with Pure pending, never met it.
+- The definitions and `Pure.reflexive` come with the unit; the reference's driver asked `Expand.instances` and kept a
+  `reflexive[T]` of its own.
+
+**The contracts (D2):**
+
+| | provides | assumes |
+|---|---|---|
+| Reader | each definition at each type, with `axiomTypes`, `parameters` and `reflexive` | an export of one build |
+| the pipeline | each Pure, IFOL and FOL definition the unit holds at a type with no type variable, handed to Expand as read | each pass's `owns` |
+| Expand | every statement, proof and definition it walks free of its two patterns, each proof still concluding its statement by ID; every axiom's statement unfolded; a definition's citation as `Pure.reflexive` at its equation's type | the definition of each constant it owns at each type it meets it |
+
+A constant or a citation Expand owns with no definition handed stops the run (`ExpandError.noDefinition`): the reader or
+the pipeline broke its row. That is no refusal; a built rule never refuses. Logic's step assumes Expand's row.
+
+**Tests, written first.**
+- `ExpandTests`, Expand run alone, each proof checked to conclude its statement by ID: `¬A` unfolds in a statement and
+  its proof; `∃!x. x ∈ A` unfolds, its `λ` reduced into the body; `True`, of no arguments; a definition using another,
+  through both; a citation of `not_def_raw` becomes `Pure.reflexive` at `o ⇒ o`, instantiated at the definiens; one of
+  the applied `prop_def`, a `⋀`-intro over `Pure.reflexive` at `o`; a cited theorem's statement and the theorem's own
+  stay one node, and `iff_reflection`'s statement unfolds; a constant with no definition stops the run.
+- `PlanTests`: Expand answers `.rule` for its two rows; a ZF definition holding `¬` reaches Reify unfolded.
+- `UnitTests`: a definition carries its axiom's type arguments, its parameters and `Pure.reflexive` at its equation's
+  type: `IFOL.Not` (0 parameters, at `o ⇒ o`), `Sum.Inl` (applied, 1, at `i`), `split` at `o` (`axiomTypes` `[o]`).
+- `IndexTests`: `beta` applies a `λ` argument by argument.
+
+**Built.**
+- IR: `beta(f, args)`, which `instantiate` calls; `IRType.domains`, one home for the reader's and the pipeline's
+  copies; `Definition` carries `axiomTypes`, `parameters` and `reflexive`.
+- Reader: `definition(of:at:)` fills them, reading `Pure.reflexive` at the equation's type.
+- Lowering: `Expand` owns its two rows with a rule each, unfolds the definitions it is handed to a fixpoint, and walks
+  with no context. A missing definition throws `ExpandError.noDefinition(node)`.
+- ⚠ **`reflexive` IS NEVER LOWERED**: the pipeline lowers a definition's `definiens` alone. Only Expand, the first
+  pass, reads `reflexive`, so it reads it as the reader wrote it.
+- `lower` names, for a statement that falls with one it cites, the statement it cites.
+
+**Measured** (`isa2fol lower data/zf_export`): none stops at expand. Of the 1,048 that did, the refusals move on: no
+owner 7,178, logic 1,014, reify 1,177. 51 named theorems pass every pass, the first to, and fall because each cites
+`IFOL.TrueI`, which stops at logic (a scratch print, not kept: `lower` reports only the named theorems' refusals). 999
+of the 1,004 definitions reach the pass that owns their constant, against 892: a ZF definition holding a logic constant
+now passes Expand. Read 61.1 s, lowered 19.2 s.
 
 ### Fol — binders, guards and variables  **[BUILT 2026-09-28 as the guard; Fol's 2026-10-14 — `Sources/Lowering/Fol.swift`]**
 

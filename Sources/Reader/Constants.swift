@@ -61,13 +61,13 @@ struct Constants {
         guard d.definition == nil, definitions[axiom] == nil else { throw MalformedExport.duplicateDefinition(constant) }
         d.definition = axiom
         declarations[constant] = d
-        definitions[axiom] = Defined(d.family, constant)
+        definitions[axiom] = Defined(d.family, constant, d.scheme.level)
     }
 
     func reading(_ name: String) throws -> Reading {
         if let r = leaves[name] { return r }
         guard let d = declarations[name] else { throw MalformedExport.undeclaredConstant(name) }
-        if d.definition != nil { return .constant(.defined(Defined(d.family, name))) }
+        if d.definition != nil { return .constant(.defined(Defined(d.family, name, d.scheme.level))) }
         if let p = primitives[name] { return .constant(.primitive(p)) }
         guard !d.foundation else { throw DialectGap.leaf(name) }
         return .constant(.declared(name))

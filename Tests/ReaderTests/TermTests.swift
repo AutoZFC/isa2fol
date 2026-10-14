@@ -67,8 +67,8 @@ private let mem = Constant.primitive(.zf(.mem))
                                     app(const("IFOL.iff"), free("Q"), app(const("IFOL.Not"), free("P")))))))
     let got = try r.proposition(prop, frees: pq)
     let P = try r.free("P", oT), Q = try r.free("Q", oT)
-    let not = try r.const(defined(.ifol, "IFOL.Not"), fnT(oT, oT), P)
-    let iff = try r.const(defined(.ifol, "IFOL.iff"), fnT(oT, fnT(oT, oT)), Q, not)
+    let not = try r.const(defined(.ifol, "IFOL.Not", .object), fnT(oT, oT), P)
+    let iff = try r.const(defined(.ifol, "IFOL.iff", .object), fnT(oT, fnT(oT, oT)), Q, not)
     #expect(got == (try r.n(.folAnd(P, try r.n(.folOr(Q, try r.n(.folImplies(P, iff))))))))
 }
 
@@ -76,7 +76,7 @@ private let mem = Constant.primitive(.zf(.mem))
 @Test func truepropIsErasedAndPropIsADefinedConstant() throws {
     var r = try Reading()
     let got = try r.proposition(app(const("Pure.prop"), trueprop(free("P"))), frees: [("P", o)])
-    #expect(got == (try r.const(defined(.pure, "Pure.prop"), fnT(oT, oT), try r.free("P", oT))))
+    #expect(got == (try r.const(defined(.pure, "Pure.prop", .meta), fnT(oT, oT), try r.free("P", oT))))
 }
 
 /// The exporter writes a variable only the proof uses as `dummy_pattern` (`standard_hidden_terms`): the hidden variable.
@@ -139,7 +139,7 @@ private let mem = Constant.primitive(.zf(.mem))
                                 frees: [("F", fn(i, i))])
     let ii = fnT(iT, iT)
     let lhs = try r.abs(iT, try r.varApp(try r.free("F", ii, under: 1), try r.bound(0)))
-    let rhs = try r.abs(iT, try r.const(defined(.zf, "Sum.Inl"), ii, try r.bound(0)))
+    let rhs = try r.abs(iT, try r.const(defined(.zf, "Sum.Inl", .object), ii, try r.bound(0)))
     #expect(got == (try r.const(.primitive(.pure(.eq)), fnT(ii, fnT(ii, oT)), lhs, rhs)))
 }
 
@@ -194,7 +194,7 @@ private let mem = Constant.primitive(.zf(.mem))
     let long = try r.proposition(trueprop(app(const("ZF_Base.Ball"), free("A"), lam("x", i, app(free("P"), bound(0))))), frees: frees)
     #expect(short == long)
     let P = try r.abs(iT, try r.varApp(try r.free("P", fnT(iT, oT), under: 1), try r.bound(0)))
-    #expect(short == (try r.const(defined(.zf, "ZF_Base.Ball"), fnT(iT, fnT(fnT(iT, oT), oT)), try r.free("A", iT), P)))
+    #expect(short == (try r.const(defined(.zf, "ZF_Base.Ball", .object), fnT(iT, fnT(fnT(iT, oT), oT)), try r.free("A", iT), P)))
 }
 
 @Test func aConstantArgumentReadsAsItsEtaExpansion() throws {
@@ -211,8 +211,8 @@ private let mem = Constant.primitive(.zf(.mem))
                                 frees: [("r", i), ("f", fn(i, fn(i, i)))])
     let iii = fnT(iT, fnT(iT, iT))
     let f = try r.abs(iT, try r.abs(iT, try r.varApp(try r.free("f", iii, under: 3), try r.bound(1), try r.bound(0))))
-    let split = try r.abs(iT, try r.const(defined(.zf, "ZF_Base.split"), fnT(iii, fnT(iT, iT)), f, try r.bound(0)))
-    #expect(got == (try r.const(defined(.zf, "EquivClass.congruent"), fnT(iT, fnT(fnT(iT, iT), oT)), try r.free("r", iT), split)))
+    let split = try r.abs(iT, try r.const(defined(.zf, "ZF_Base.split", .meta), fnT(iii, fnT(iT, iT)), f, try r.bound(0)))
+    #expect(got == (try r.const(defined(.zf, "EquivClass.congruent", .object), fnT(iT, fnT(fnT(iT, iT), oT)), try r.free("r", iT), split)))
 }
 
 @Test func aPartlyEtaReducedLambdaIsCompleted() throws {
@@ -263,10 +263,10 @@ private let mem = Constant.primitive(.zf(.mem))
 @Test func aPureInternalConstantReadsAsAConstant() throws {
     var r = try Reading()
     let term = try r.proposition(app(const("Pure.term", i), free("a")), frees: [("a", i)])
-    #expect(term == (try r.const(defined(.pure, "Pure.term"), fnT(iT, oT), try r.free("a", iT))))
+    #expect(term == (try r.const(defined(.pure, "Pure.term", .meta), fnT(iT, oT), try r.free("a", iT))))
     let conjunction = try r.proposition(app(const("Pure.conjunction"), trueprop(const("IFOL.False")), trueprop(const("IFOL.False"))))
     let bottom = try r.n(.folBottom)
-    #expect(conjunction == (try r.const(defined(.pure, "Pure.conjunction"), fnT(oT, fnT(oT, oT)), bottom, bottom)))
+    #expect(conjunction == (try r.const(defined(.pure, "Pure.conjunction", .meta), fnT(oT, fnT(oT, oT)), bottom, bottom)))
 }
 
 @Test func aBetaRedexIsRefused() throws {

@@ -35,13 +35,21 @@
     public var description: String { name }
 }
 
+@frozen public enum Level: String, Hashable, Sendable, CustomStringConvertible {
+    case object, meta
+
+    public var description: String { rawValue }
+}
+
 public struct Defined: Hashable, Sendable {
     public let family: Family
     public let name: String
+    public let level: Level
 
-    public init(_ family: Family, _ name: String) {
+    public init(_ family: Family, _ name: String, _ level: Level) {
         self.family = family
         self.name = name
+        self.level = level
     }
 }
 

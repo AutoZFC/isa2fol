@@ -258,7 +258,7 @@ private func failure(_ r: inout Reader, _ name: String) throws -> ReadFailure? {
 @Test func aCitedAxiomIsTypedByWhatItIs() throws {
     var r = try miniReader()
     guard let (_, notDef) = try proved(&r, "T.useNotDef"), let (_, defax) = try proved(&r, "T.useDef") else { return }
-    #expect(citations(notDef, r.table) == [Citation(cited: .isaDefinition("IFOL.not_def_raw", of: Defined(.ifol, "IFOL.Not")), types: [])])
+    #expect(citations(notDef, r.table) == [Citation(cited: .isaDefinition("IFOL.not_def_raw", of: Defined(.ifol, "IFOL.Not", .object)), types: [])])
     #expect(citations(defax, r.table) == [Citation(cited: .theoryAxiom("T.defax"), types: [])])
 }
 

@@ -9,9 +9,11 @@ public struct Reify: Pass {
         switch p {
         case let .isaConst(kind, T, _):
             switch kind {
-            case .primitive(.zf), .primitive(.ifol), .defined(.zf), .declared:
+            case .primitive(.zf), .primitive(.ifol), .declared:
                 return mentionsTypeVariable(T) ? nil : .unbuilt
-            case .primitive(.pure), .defined(.pure), .defined(.ifol), .defined(.fol):
+            case let .defined(f, level):
+                return unfolds(f, level) || mentionsTypeVariable(T) ? nil : .unbuilt
+            case .primitive(.pure):
                 return nil
             }
         case let .isaVarApp(head: T, _):

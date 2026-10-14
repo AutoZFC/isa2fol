@@ -29,7 +29,7 @@ private struct Gen {
         case 1: return try t.intern(.isaBound(rng.next(depth + 2), i))
         default:
             let a = try term(&t, depth, size - 1), b = try term(&t, depth, size - 1)
-            return try t.intern(.isaConst(.defined(Defined(.zf, "QPair.QPair")), pairT, args: [a, b]))
+            return try t.intern(.isaConst(.defined(Defined(.zf, "QPair.QPair", .object)), pairT, args: [a, b]))
         }
     }
 
@@ -46,7 +46,7 @@ private struct Gen {
             let body = try term(&t, depth + 1, size - 1)
             let abs = try t.intern(.isaAbs(i, body: body))
             let a = try term(&t, depth, size - 1)
-            let repfun = try t.intern(.isaConst(.defined(Defined(.zf, "ZF_Base.RepFun")), fn(i, fn(fn(i, i), i)), args: [a, abs]))
+            let repfun = try t.intern(.isaConst(.defined(Defined(.zf, "ZF_Base.RepFun", .object)), fn(i, fn(fn(i, i), i)), args: [a, abs]))
             return try t.intern(.isaConst(.primitive(.zf(.mem)), memT, args: [a, repfun]))
         }
     }
@@ -165,6 +165,16 @@ private func memOf(_ a: NodeID, _ b: NodeID, _ t: inout Table) throws -> NodeID 
     let body = try t.intern(.isaVarApp(head: try t.intern(.isaBound(0, fn(fn(i, o), o))), args: [argument]))
     let applyToA = try t.intern(.isaAbs(fn(i, o), body: try t.intern(.isaVarApp(head: try t.intern(.isaBound(0, fn(i, o))), args: [a]))))
     #expect(try instantiate(body, with: applyToA, in: &t) == (try memOf(a, A, &t)))
+}
+
+/// `(λx y. mem(x, y))` at `a, A`, one argument at a time; at none, the `λ` itself.
+@Test func betaAppliesALambdaArgumentByArgument() throws {
+    var t = Table()
+    let a = try t.intern(.isaFree(.named("a"), i)), A = try t.intern(.isaFree(.named("A"), i))
+    let b0 = try t.intern(.isaBound(0, i)), b1 = try t.intern(.isaBound(1, i))
+    let lambda = try t.intern(.isaAbs(i, body: try t.intern(.isaAbs(i, body: try memOf(b1, b0, &t)))))
+    #expect(try beta(lambda, [a, A], in: &t) == (try memOf(a, A, &t)))
+    #expect(try beta(lambda, [], in: &t) == lambda)
 }
 
 /// `∀y. P(y)` with P := `λx. mem(x, z)`, z bound outside: z moves under y, x becomes y.

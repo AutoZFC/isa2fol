@@ -101,6 +101,8 @@ complement of `∅` is the class of all objects → collapse.
 > with every class a parameter** — earlier constants' graphs, and the constant's
 > own internal class — **never by unfolding those bodies inline.** A class
 > binder is *opened* before the compiler sees the formula, never compiled.
+> A meta-level constant (S1, "named only at the object level") has no graph: it is
+> unfolded where it stands, which is not the inlining forbidden here.
 >
 > **R6 — The ceiling is 195 of 197.** Two constants violate S5 in their own
 > definition and are permanent refusals, not gaps.
@@ -359,6 +361,11 @@ this one survives it.
 > *A refusal attributed to mathematics stops enquiry; that is why this one cost
 > two constants of ceiling for a session.*
 
+> **⚠ `split` IS NO LONGER ONE OF THE TWO** (2026-10-11). Its value is a meta-function
+> because its declared value type is a type variable: it is a meta-level definition,
+> unfolded (S1, "named only at the object level"), and refuses nothing. The ceiling
+> below is this section's original count.
+
 *Consequence.* Report **195** as the ceiling. Translating either of the two would
 be translating a *different* constant, which is §4's failure mode.
 
@@ -473,6 +480,50 @@ formula recursion, which is the kernel's own `iff` and quantifier rules, and the
 atom base case, which is S2's CONG — bounded by R7 at two positions per
 constant, with the fixed part proved in `base/tiers/cong`. Retiring `eq_subst`
 therefore shrinks the trusted base without relocating the work.
+
+**A constant is named only at the object level** (decided 2026-10-11). Isabelle/ZF
+has two levels. The object level is ZF's: its types are built from `i` and `o`
+with `⇒`. The meta level is Pure's: `prop`, and a type variable of the empty sort,
+which ranges over every type, `prop` included. Nothing leads back from `prop` to
+`o` — `Trueprop :: o ⇒ prop` is the only crossing. A ZF constant whose declared
+type stays at the object level denotes something in NBG: a set, a function or a
+predicate on sets, given its class arguments (R4). It is NAMED — its graph, S2's
+obligations, its body stated once and cited. A ZF constant whose declared type
+mentions `prop` or a type variable is a META-LEVEL DEFINITION and is UNFOLDED from
+its own definition at the use's type, as the logic's constants are. Two facts make
+this the border rather than a choice:
+
+- **No class position can hold one.** A class is owed where a predicate or a
+  proposition is an argument, and no object-level constant has a `prop` domain. A
+  type variable's constant is ONE constant at several types — `split` at `i`, at
+  `o`, at `i ⇒ o` — which one name cannot denote.
+- **Unfolding is sound for any definition; naming also needs the constant to
+  denote a class, and a meta-level one need not.** `AC18 :: prop` closes its claim
+  over class functions `B`, `X` with Pure's `⋀`; a class standing for it would be
+  given by a comprehension quantifying over classes, which §3 does not compile.
+  Unfolded, the claim is a plain statement: `∀A. set(A) → ∀B. … ∀X. …`, a class
+  binder the target already has.
+
+In the corpus the meta-level ZF constants are five: `split`, `qsplit` (declared
+"for pattern-matching"), `MetaExists.ex` ("yields a proposition rather than a FOL
+formula"), `L_Reflects` and the locale predicate `AC18` ("cannot be expressed
+within the object-logic"). The export carries no sorts, so the declared type is
+the evidence; within ZF a type variable is always of the empty sort, since ZF
+writes `i` for its objects. The logic's constants (Pure, IFOL, FOL) are unfolded
+by family whatever their type.
+
+> **⚠ "UNFOLD WHAT TAKES A PREDICATE" IS NOT THIS BORDER, AND IT IS EXPONENTIAL.**
+> A constant taking a class passes it on to others that take it again —
+> ZF-Constructible's relativized `is_X(M, …)` pass `M` several times per level,
+> the recursion combinators their `H` — so unfolding them multiplies copies along
+> the definitional depth: one definition of five nodes became 260 million in a
+> scan of the export's definitions (2026-10-11, no live handle). A name is what
+> R5 buys; it is owed wherever a constant can be named.
+
+> **⚠ UNFOLDING `ex` IN A PREMISE BINDS A PROPOSITION THERE.** `ex(P) ≡
+> ⋀Q. (⋀x. P(x) ⟹ Q) ⟹ Q`, so a premise `REFLECTS[P,Q]` unfolds to a `⋀Q::prop`
+> inside a premise — not a schema (§2 S4). That is Pure's `⋀` over `prop`, not
+> this border: in a conclusion the same unfolding is a schema.
 
 **S2 — Every constant carries EX, UNIQ, and — when it takes arguments — CONG.**
 The three are claims about an `F` **that encodes a function** `f`, `F(x⃗,r)`

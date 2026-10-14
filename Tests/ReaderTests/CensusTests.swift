@@ -66,7 +66,7 @@ private let ballType = IRType.fn(.i, .fn(.fn(.i, .o), .o))
     #expect(c.citations[.theoryAxiom("T.onlyInM")] == 2, "M, and N through the named M")
     #expect(c.citations[.axiom(.ifol(.refl))] == 2, "Q at i, P at 'a")
     #expect(c.citations[.theoryAxiom("T.termI")] == 1, "Q, through the unnamed box 30")
-    #expect(c.citations[.isaDefinition("ZF_Base.Ball_def_raw", of: Defined(.zf, "ZF_Base.Ball"))] == 1,
+    #expect(c.citations[.isaDefinition("ZF_Base.Ball_def_raw", of: Defined(.zf, "ZF_Base.Ball", .object))] == 1,
             "D cites the definition; B only uses the constant")
 }
 
@@ -76,7 +76,7 @@ private let ballType = IRType.fn(.i, .fn(.fn(.i, .o), .o))
     #expect(c.patterns[.isaOfClass(.i)] == 1, "box 30's statement, part of Q's proof")
     #expect(c.patterns[.use(.axiom(.ifol(.refl)), [.i], .o)] == 1)
     #expect(c.patterns[.use(.axiom(.ifol(.refl)), [.variable("'a")], .o)] == 1, "an instance is its own pattern")
-    let ball = Pattern.isaConst(.defined(.zf), ballType, args: [.i, .fn(.i, .o)])
+    let ball = Pattern.isaConst(.defined(.zf, .object), ballType, args: [.i, .fn(.i, .o)])
     #expect(c.patterns[ball] == 2, "B's statement and D's")
     let definitionEquality = Pattern.isaConst(.primitive(.pure(.eq)), .fn(ballType, .fn(ballType, .o)), args: [ballType, ballType])
     #expect(c.patterns[definitionEquality] == 2, "D's statement, and B through Ball's definition")

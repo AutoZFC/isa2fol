@@ -94,7 +94,7 @@ private func memOf(_ a: NodeID, _ b: NodeID, _ t: inout Table) throws -> NodeID 
     let a = try t.intern(.isaFree(.named("a"), i))
     let x = try t.intern(.isaBound(0, i))
     let inner = try t.intern(.isaAbs(i, body: x))
-    let collect = try t.intern(.isaConst(.defined(Defined(.zf, "ZF_Base.RepFun")), fn(i, fn(fn(i, i), i)), args: [x, inner]))
+    let collect = try t.intern(.isaConst(.defined(Defined(.zf, "ZF_Base.RepFun", .object)), fn(i, fn(fn(i, i), i)), args: [x, inner]))
     let root = try t.intern(.ifolAll(i, body: try memOf(collect, a, &t)))
     let log = DepthLog()
     _ = try transform(root, log, in: &t)

@@ -102,9 +102,9 @@ private func fnT(_ x: IsaType, _ y: IsaType) -> IsaType { .type("fun", [x, y]) }
     #expect(try c.reading("Pure.dummy_pattern") == .hidden)
     #expect(try c.reading("ZF_Base.mem") == .constant(.primitive(.zf(.mem))))
     #expect(try c.reading("IFOL.eq") == .constant(.primitive(.ifol(.eq))))
-    #expect(try c.reading("IFOL.iff") == .constant(defined(.ifol, "IFOL.iff")))
-    #expect(try c.reading("Pure.prop") == .constant(defined(.pure, "Pure.prop")))
-    #expect(try c.reading("Sum.Inl") == .constant(defined(.zf, "Sum.Inl")))
+    #expect(try c.reading("IFOL.iff") == .constant(defined(.ifol, "IFOL.iff", .object)))
+    #expect(try c.reading("Pure.prop") == .constant(defined(.pure, "Pure.prop", .meta)))
+    #expect(try c.reading("Sum.Inl") == .constant(defined(.zf, "Sum.Inl", .object)))
     #expect(try c.reading("T.claim") == .constant(.declared("T.claim")))
     #expect(throws: DialectGap.leaf("ZF_Base.not_mem")) { try c.reading("ZF_Base.not_mem") }
 }
@@ -119,7 +119,7 @@ private func fnT(_ x: IsaType, _ y: IsaType) -> IsaType { .type("fun", [x, y]) }
     var c = try testConstants()
     #expect(throws: MalformedExport.duplicateDefinition("IFOL.iff")) { try c.define("IFOL.iff", by: "IFOL.iff_again") }
     #expect(throws: MalformedExport.duplicateDefinition("T.f")) { try c.define("T.f", by: "IFOL.iff_def_raw") }
-    #expect(c.defined(byAxiom: "IFOL.iff_def_raw") == Defined(.ifol, "IFOL.iff"))
+    #expect(c.defined(byAxiom: "IFOL.iff_def_raw") == Defined(.ifol, "IFOL.iff", .object))
 }
 
 private func realExport() throws -> Export? {
@@ -139,10 +139,21 @@ private func realExport() throws -> Export? {
     #expect(try c.instantiate("ZF_Base.mem", []).irType() == .fn(.i, .fn(.i, .o)))
     #expect(try c.instantiate("Pure.eq", [iT]).irType() == .fn(.i, .fn(.i, .o)))
     #expect(try c.reading("ZF_Base.mem") == .constant(.primitive(.zf(.mem))))
-    #expect(try c.reading("IFOL.iff") == .constant(defined(.ifol, "IFOL.iff")))
-    #expect(try c.reading("FOL.induct_implies") == .constant(defined(.fol, "FOL.induct_implies")))
-    #expect(try c.reading("ZF_Base.Ball") == .constant(defined(.zf, "ZF_Base.Ball")))
+    #expect(try c.reading("IFOL.iff") == .constant(defined(.ifol, "IFOL.iff", .object)))
+    #expect(try c.reading("FOL.induct_implies") == .constant(defined(.fol, "FOL.induct_implies", .object)))
+    #expect(try c.reading("ZF_Base.Ball") == .constant(defined(.zf, "ZF_Base.Ball", .object)))
     #expect(try c.reading("Language.Const") == .constant(.declared("Language.Const")))
     #expect(try c.reading("Com.loc") == .constant(.declared("Com.loc")))
     #expect(throws: DialectGap.leaf("IFOL.not_equal")) { try c.reading("IFOL.not_equal") }
+}
+
+/// FOUNDATION S1: a constant declared over `i`, `o` and `⇒` is at the object level; one whose declared type mentions
+/// `prop` or a type variable is at the meta level, whatever its family.
+@Test func aDefinedConstantKeepsItsDeclaredLevel() throws {
+    let c = try testConstants()
+    #expect(try c.reading("ZF_Base.Ball") == .constant(defined(.zf, "ZF_Base.Ball", .object)))
+    #expect(try c.reading("ZF_Base.split") == .constant(defined(.zf, "ZF_Base.split", .meta)))
+    #expect(try c.reading("IFOL.Not") == .constant(defined(.ifol, "IFOL.Not", .object)))
+    #expect(try c.reading("Pure.prop") == .constant(defined(.pure, "Pure.prop", .meta)))
+    #expect(c.defined(byAxiom: "ZF_Base.split_def_raw") == Defined(.zf, "ZF_Base.split", .meta))
 }

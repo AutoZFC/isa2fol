@@ -27,7 +27,7 @@ primitive at its type (`DESIGN.md` §4.3b). With one rule per pattern, every the
 
 The reader refuses none of them, nor any theorem they cite.
 
-## Patterns (2592)
+## Patterns (2597)
 
 | pattern | theorems | % |
 |---|---:|---:|
@@ -1276,133 +1276,137 @@ The reader refuses none of them, nor any theorem they cite.
 | `isaConst(declared, (i => (i => o)), args: [i, i])` | 50 | 0.5% |
 | `isaConst(declared, (i => i), args: [i])` | 6 | 0.1% |
 | `isaConst(declared, i, args: [])` | 275 | 2.9% |
-| `isaConst(defined fol, ('a => ('a => o)), args: ['a, 'a])` | 105 | 1.1% |
-| `isaConst(defined fol, (('a => o) => o), args: [('a => o)])` | 3947 | 41.9% |
-| `isaConst(defined fol, ((i => o) => o), args: [(i => o)])` | 3947 | 41.9% |
-| `isaConst(defined fol, (i => (i => o)), args: [i, i])` | 105 | 1.1% |
-| `isaConst(defined fol, (o => (o => o)), args: [o, o])` | 4022 | 42.7% |
-| `isaConst(defined ifol, ('a => (('a => 'b) => 'b)), args: ['a, ('a => 'b)])` | 508 | 5.4% |
-| `isaConst(defined ifol, ('b => (('b => 'a) => 'a)), args: ['b, ('b => 'a)])` | 439 | 4.7% |
-| `isaConst(defined ifol, (('a => o) => o), args: [('a => o)])` | 8959 | 95.1% |
-| `isaConst(defined ifol, ((i => o) => o), args: [(i => o)])` | 8958 | 95.1% |
-| `isaConst(defined ifol, (i => ((i => i) => i)), args: [i, (i => i)])` | 508 | 5.4% |
-| `isaConst(defined ifol, (o => (o => o)), args: [o, o])` | 8099 | 86.0% |
-| `isaConst(defined ifol, (o => o), args: [o])` | 8473 | 89.9% |
-| `isaConst(defined ifol, o, args: [])` | 7619 | 80.9% |
-| `isaConst(defined pure, ('a => o), args: ['a])` | 28 | 0.3% |
-| `isaConst(defined pure, (i => o), args: [i])` | 28 | 0.3% |
-| `isaConst(defined pure, (o => (o => o)), args: [o, o])` | 7700 | 81.7% |
-| `isaConst(defined pure, (o => o), args: [o])` | 8174 | 86.8% |
-| `isaConst(defined zf, (('a => o) => o), args: [('a => o)])` | 439 | 4.7% |
-| `isaConst(defined zf, (((i => o) => o) => o), args: [((i => o) => o)])` | 436 | 4.6% |
-| `isaConst(defined zf, ((i => (i => 'a)) => (i => 'a)), args: [(i => (i => 'a)), i])` | 3297 | 35.0% |
-| `isaConst(defined zf, ((i => (i => (i => i))) => (i => ((i => (i => (i => (i => i)))) => (i => i)))), args: [(i => (i => (i => i))), i, (i => (i => (i => (i => i)))), i])` | 41 | 0.4% |
-| `isaConst(defined zf, ((i => (i => (i => i))) => (i => (i => i))), args: [(i => (i => (i => i))), i, i])` | 146 | 1.5% |
-| `isaConst(defined zf, ((i => (i => (i => i))) => (i => i)), args: [(i => (i => (i => i))), i])` | 5 | 0.1% |
-| `isaConst(defined zf, ((i => (i => (i => o))) => (i => (i => o))), args: [(i => (i => (i => o))), i, i])` | 108 | 1.1% |
-| `isaConst(defined zf, ((i => (i => i)) => ((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => (i => i)))))), args: [(i => (i => i)), (i => (i => i)), (i => (i => (i => (i => i)))), (i => (i => i)), i, i])` | 55 | 0.6% |
-| `isaConst(defined zf, ((i => (i => i)) => ((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => i))))), args: [(i => (i => i)), (i => (i => i)), (i => (i => (i => (i => i)))), (i => (i => i)), i])` | 1058 | 11.2% |
-| `isaConst(defined zf, ((i => (i => i)) => ((i => (i => i)) => ((i => (i => i)) => ((i => i) => (i => i))))), args: [(i => (i => i)), (i => (i => i)), (i => (i => i)), (i => i), i])` | 1070 | 11.4% |
-| `isaConst(defined zf, ((i => (i => i)) => (i => ((i => (i => i)) => (i => i)))), args: [(i => (i => i)), i, (i => (i => i)), i])` | 49 | 0.5% |
-| `isaConst(defined zf, ((i => (i => i)) => (i => i)), args: [(i => (i => i)), i])` | 3857 | 40.9% |
-| `isaConst(defined zf, ((i => (i => o)) => (i => o)), args: [(i => (i => o)), i])` | 849 | 9.0% |
-| `isaConst(defined zf, ((i => i) => ((i => (i => (i => (i => i)))) => (i => i))), args: [(i => i), (i => (i => (i => (i => i)))), i])` | 5 | 0.1% |
-| `isaConst(defined zf, ((i => i) => ((i => (i => (i => i))) => ((i => i) => (i => i)))), args: [(i => i), (i => (i => (i => i))), (i => i), i])` | 65 | 0.7% |
-| `isaConst(defined zf, ((i => i) => ((i => (i => i)) => ((i => (i => (i => (i => (i => i))))) => (i => i)))), args: [(i => i), (i => (i => i)), (i => (i => (i => (i => (i => i))))), i])` | 207 | 2.2% |
-| `isaConst(defined zf, ((i => i) => ((i => (i => i)) => (i => i))), args: [(i => i), (i => (i => i)), i])` | 11 | 0.1% |
-| `isaConst(defined zf, ((i => i) => ((i => i) => ((i => (i => (i => i))) => ((i => (i => (i => (i => (i => i))))) => (i => i))))), args: [(i => i), (i => i), (i => (i => (i => i))), (i => (i => (i => (i => (i => i))))), i])` | 39 | 0.4% |
-| `isaConst(defined zf, ((i => i) => ((i => i) => ((i => (i => (i => i))) => ((i => (i => (i => (i => i)))) => ((i => (i => (i => (i => i)))) => (i => i)))))), args: [(i => i), (i => i), (i => (i => (i => i))), (i => (i => (i => (i => i)))), (i => (i => (i => (i => i)))), i])` | 11 | 0.1% |
-| `isaConst(defined zf, ((i => i) => ((i => i) => ((i => (i => (i => i))) => (i => i)))), args: [(i => i), (i => i), (i => (i => (i => i))), i])` | 215 | 2.3% |
-| `isaConst(defined zf, ((i => i) => ((i => i) => ((i => (i => i)) => ((i => (i => (i => i))) => ((i => (i => i)) => (i => i)))))), args: [(i => i), (i => i), (i => (i => i)), (i => (i => (i => i))), (i => (i => i)), i])` | 23 | 0.2% |
-| `isaConst(defined zf, ((i => i) => ((i => i) => ((i => (i => i)) => ((i => (i => (i => i))) => (i => i))))), args: [(i => i), (i => i), (i => (i => i)), (i => (i => (i => i))), i])` | 49 | 0.5% |
-| `isaConst(defined zf, ((i => i) => ((i => i) => (i => i))), args: [(i => i), (i => i), i])` | 2872 | 30.5% |
-| `isaConst(defined zf, ((i => i) => ((i => o) => ((i => (i => o)) => ((i => o) => o)))), args: [(i => i), (i => o), (i => (i => o)), (i => o)])` | 436 | 4.6% |
-| `isaConst(defined zf, ((i => i) => (i => (i => i))), args: [(i => i), i, i])` | 692 | 7.3% |
-| `isaConst(defined zf, ((i => i) => (i => i)), args: [(i => i), i])` | 641 | 6.8% |
-| `isaConst(defined zf, ((i => i) => o), args: [(i => i)])` | 557 | 5.9% |
-| `isaConst(defined zf, ((i => o) => ((i => (i => (i => (i => (i => o))))) => ((i => (i => (i => (i => i)))) => o))), args: [(i => o), (i => (i => (i => (i => (i => o))))), (i => (i => (i => (i => i))))])` | 1 | 0.0% |
-| `isaConst(defined zf, ((i => o) => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o))), args: [(i => o), (i => (i => (i => (i => o)))), (i => (i => (i => i)))])` | 1 | 0.0% |
-| `isaConst(defined zf, ((i => o) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => o)) => (i => (i => o))))))), args: [(i => o), (i => (i => (i => o))), (i => (i => (i => o))), (i => (i => (i => o))), (i => (i => o)), i, i])` | 136 | 1.4% |
-| `isaConst(defined zf, ((i => o) => ((i => (i => (i => o))) => ((i => (i => i)) => o))), args: [(i => o), (i => (i => (i => o))), (i => (i => i))])` | 183 | 1.9% |
-| `isaConst(defined zf, ((i => o) => ((i => (i => (i => o))) => (i => (i => (i => o))))), args: [(i => o), (i => (i => (i => o))), i, i, i])` | 441 | 4.7% |
-| `isaConst(defined zf, ((i => o) => ((i => (i => (i => o))) => (i => (i => o)))), args: [(i => o), (i => (i => (i => o))), i, i])` | 75 | 0.8% |
-| `isaConst(defined zf, ((i => o) => ((i => (i => (i => o))) => (i => o))), args: [(i => o), (i => (i => (i => o))), i])` | 222 | 2.4% |
-| `isaConst(defined zf, ((i => o) => ((i => (i => i)) => ((i => (i => (i => o))) => ((i => (i => i)) => ((i => (i => (i => o))) => ((i => (i => (i => (i => i)))) => ((i => (i => (i => (i => o)))) => ((i => (i => i)) => ((i => (i => (i => o))) => o))))))))), args: [(i => o), (i => (i => i)), (i => (i => (i => o))), (i => (i => i)), (i => (i => (i => o))), (i => (i => (i => (i => i)))), (i => (i => (i => (i => o)))), (i => (i => i)), (i => (i => (i => o)))])` | 50 | 0.5% |
-| `isaConst(defined zf, ((i => o) => ((i => (i => o)) => ((i => i) => o))), args: [(i => o), (i => (i => o)), (i => i)])` | 128 | 1.4% |
-| `isaConst(defined zf, ((i => o) => ((i => (i => o)) => (i => (i => (i => (i => o)))))), args: [(i => o), (i => (i => o)), i, i, i, i])` | 341 | 3.6% |
-| `isaConst(defined zf, ((i => o) => ((i => (i => o)) => (i => (i => (i => o))))), args: [(i => o), (i => (i => o)), i, i, i])` | 323 | 3.4% |
-| `isaConst(defined zf, ((i => o) => ((i => (i => o)) => (i => o))), args: [(i => o), (i => (i => o)), i])` | 201 | 2.1% |
-| `isaConst(defined zf, ((i => o) => ((i => (i => o)) => o)), args: [(i => o), (i => (i => o))])` | 809 | 8.6% |
-| `isaConst(defined zf, ((i => o) => ((i => o) => o)), args: [(i => o), (i => o)])` | 1427 | 15.1% |
-| `isaConst(defined zf, ((i => o) => (i => ((i => (i => (i => o))) => (i => (i => o))))), args: [(i => o), i, (i => (i => (i => o))), i, i])` | 3 | 0.0% |
-| `isaConst(defined zf, ((i => o) => (i => ((i => (i => o)) => ((i => i) => o)))), args: [(i => o), i, (i => (i => o)), (i => i)])` | 63 | 0.7% |
-| `isaConst(defined zf, ((i => o) => (i => ((i => (i => o)) => (i => (i => o))))), args: [(i => o), i, (i => (i => o)), i, i])` | 348 | 3.7% |
-| `isaConst(defined zf, ((i => o) => (i => ((i => (i => o)) => (i => o)))), args: [(i => o), i, (i => (i => o)), i])` | 162 | 1.7% |
-| `isaConst(defined zf, ((i => o) => (i => ((i => (i => o)) => o))), args: [(i => o), i, (i => (i => o))])` | 599 | 6.4% |
-| `isaConst(defined zf, ((i => o) => (i => ((i => o) => (i => o)))), args: [(i => o), i, (i => o), i])` | 65 | 0.7% |
-| `isaConst(defined zf, ((i => o) => (i => (i => ((i => (i => (i => o))) => ((i => (i => i)) => o))))), args: [(i => o), i, i, (i => (i => (i => o))), (i => (i => i))])` | 60 | 0.6% |
-| `isaConst(defined zf, ((i => o) => (i => (i => (i => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o)))))), args: [(i => o), i, i, i, (i => (i => (i => (i => o)))), (i => (i => (i => i)))])` | 1 | 0.0% |
-| `isaConst(defined zf, ((i => o) => (i => (i => (i => (i => (i => o)))))), args: [(i => o), i, i, i, i, i])` | 186 | 2.0% |
-| `isaConst(defined zf, ((i => o) => (i => (i => (i => (i => o))))), args: [(i => o), i, i, i, i])` | 199 | 2.1% |
-| `isaConst(defined zf, ((i => o) => (i => (i => (i => o)))), args: [(i => o), i, i, i])` | 1248 | 13.2% |
-| `isaConst(defined zf, ((i => o) => (i => (i => i))), args: [(i => o), i, i])` | 44 | 0.5% |
-| `isaConst(defined zf, ((i => o) => (i => (i => o))), args: [(i => o), i, i])` | 1169 | 12.4% |
-| `isaConst(defined zf, ((i => o) => (i => i)), args: [(i => o), i])` | 22 | 0.2% |
-| `isaConst(defined zf, ((i => o) => (i => o)), args: [(i => o), i])` | 851 | 9.0% |
-| `isaConst(defined zf, ((i => o) => (o => (i => o))), args: [(i => o), o, i])` | 132 | 1.4% |
-| `isaConst(defined zf, ((i => o) => i), args: [(i => o)])` | 6527 | 69.3% |
-| `isaConst(defined zf, ((i => o) => o), args: [(i => o)])` | 1071 | 11.4% |
-| `isaConst(defined zf, (i => ((i => (i => (i => (i => (i => i))))) => (i => i))), args: [i, (i => (i => (i => (i => (i => i))))), i])` | 26 | 0.3% |
-| `isaConst(defined zf, (i => ((i => (i => (i => (i => i)))) => (i => i))), args: [i, (i => (i => (i => (i => i)))), i])` | 64 | 0.7% |
-| `isaConst(defined zf, (i => ((i => (i => (i => i))) => (i => i))), args: [i, (i => (i => (i => i))), i])` | 1436 | 15.2% |
-| `isaConst(defined zf, (i => ((i => (i => (i => i))) => i)), args: [i, (i => (i => (i => i)))])` | 30 | 0.3% |
-| `isaConst(defined zf, (i => ((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => (i => i))) => ((i => (i => (i => (i => (i => i))))) => (i => i)))))), args: [i, (i => (i => i)), (i => (i => (i => (i => i)))), (i => (i => (i => i))), (i => (i => (i => (i => (i => i))))), i])` | 23 | 0.2% |
-| `isaConst(defined zf, (i => ((i => (i => i)) => ((i => (i => i)) => ((i => (i => i)) => ((i => (i => (i => i))) => (i => i)))))), args: [i, (i => (i => i)), (i => (i => i)), (i => (i => i)), (i => (i => (i => i))), i])` | 35 | 0.4% |
-| `isaConst(defined zf, (i => ((i => (i => i)) => ((i => i) => (i => i)))), args: [i, (i => (i => i)), (i => i), i])` | 7 | 0.1% |
-| `isaConst(defined zf, (i => ((i => (i => i)) => (i => (i => i)))), args: [i, (i => (i => i)), i, i])` | 55 | 0.6% |
-| `isaConst(defined zf, (i => ((i => (i => i)) => (i => i))), args: [i, (i => (i => i)), i])` | 2961 | 31.4% |
-| `isaConst(defined zf, (i => ((i => (i => i)) => i)), args: [i, (i => (i => i))])` | 4630 | 49.2% |
-| `isaConst(defined zf, (i => ((i => (i => o)) => i)), args: [i, (i => (i => o))])` | 8957 | 95.1% |
-| `isaConst(defined zf, (i => ((i => i) => ((i => (i => (i => (i => i)))) => (i => i)))), args: [i, (i => i), (i => (i => (i => (i => i)))), i])` | 31 | 0.3% |
-| `isaConst(defined zf, (i => ((i => i) => ((i => (i => i)) => ((i => (i => (i => (i => i)))) => (i => i))))), args: [i, (i => i), (i => (i => i)), (i => (i => (i => (i => i)))), i])` | 9 | 0.1% |
-| `isaConst(defined zf, (i => ((i => i) => ((i => (i => i)) => ((i => (i => (i => i))) => (i => i))))), args: [i, (i => i), (i => (i => i)), (i => (i => (i => i))), i])` | 19 | 0.2% |
-| `isaConst(defined zf, (i => ((i => i) => ((i => (i => i)) => (i => i)))), args: [i, (i => i), (i => (i => i)), i])` | 39 | 0.4% |
-| `isaConst(defined zf, (i => ((i => i) => ((i => i) => (i => i)))), args: [i, (i => i), (i => i), i])` | 15 | 0.2% |
-| `isaConst(defined zf, (i => ((i => i) => (i => i))), args: [i, (i => i), i])` | 4781 | 50.8% |
-| `isaConst(defined zf, (i => ((i => i) => i)), args: [i, (i => i)])` | 7209 | 76.5% |
-| `isaConst(defined zf, (i => ((i => i) => o)), args: [i, (i => i)])` | 4842 | 51.4% |
-| `isaConst(defined zf, (i => ((i => o) => i)), args: [i, (i => o)])` | 8137 | 86.4% |
-| `isaConst(defined zf, (i => ((i => o) => o)), args: [i, (i => o)])` | 8395 | 89.1% |
-| `isaConst(defined zf, (i => (i => ((i => (i => (i => (i => i)))) => (i => i)))), args: [i, i, (i => (i => (i => (i => i)))), i])` | 7 | 0.1% |
-| `isaConst(defined zf, (i => (i => ((i => (i => (i => i))) => ((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => (i => (i => i)))) => (i => i))))))), args: [i, i, (i => (i => (i => i))), (i => (i => i)), (i => (i => (i => (i => i)))), (i => (i => (i => (i => i)))), i])` | 36 | 0.4% |
-| `isaConst(defined zf, (i => (i => ((i => (i => (i => i))) => ((i => i) => ((i => (i => i)) => ((i => (i => i)) => (i => i))))))), args: [i, i, (i => (i => (i => i))), (i => i), (i => (i => i)), (i => (i => i)), i])` | 50 | 0.5% |
-| `isaConst(defined zf, (i => (i => ((i => (i => (i => i))) => (i => i)))), args: [i, i, (i => (i => (i => i))), i])` | 475 | 5.0% |
-| `isaConst(defined zf, (i => (i => ((i => (i => i)) => ((i => (i => i)) => i)))), args: [i, i, (i => (i => i)), (i => (i => i))])` | 9 | 0.1% |
-| `isaConst(defined zf, (i => (i => ((i => (i => i)) => (i => i)))), args: [i, i, (i => (i => i)), i])` | 529 | 5.6% |
-| `isaConst(defined zf, (i => (i => ((i => (i => i)) => (i => o)))), args: [i, i, (i => (i => i)), i])` | 5033 | 53.4% |
-| `isaConst(defined zf, (i => (i => ((i => (i => i)) => i))), args: [i, i, (i => (i => i))])` | 5018 | 53.3% |
-| `isaConst(defined zf, (i => (i => ((i => (i => i)) => o))), args: [i, i, (i => (i => i))])` | 439 | 4.7% |
-| `isaConst(defined zf, (i => (i => ((i => i) => ((i => i) => (i => o))))), args: [i, i, (i => i), (i => i), i])` | 7 | 0.1% |
-| `isaConst(defined zf, (i => (i => (i => ((i => (i => i)) => i)))), args: [i, i, i, (i => (i => i))])` | 947 | 10.1% |
-| `isaConst(defined zf, (i => (i => (i => ((i => (i => i)) => o)))), args: [i, i, i, (i => (i => i))])` | 57 | 0.6% |
-| `isaConst(defined zf, (i => (i => (i => ((i => i) => o)))), args: [i, i, i, (i => i)])` | 21 | 0.2% |
-| `isaConst(defined zf, (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => i))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))), args: [i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i])` | 122 | 1.3% |
-| `isaConst(defined zf, (i => (i => (i => (i => (i => (i => i)))))), args: [i, i, i, i, i, i])` | 39 | 0.4% |
-| `isaConst(defined zf, (i => (i => (i => (i => (i => (i => o)))))), args: [i, i, i, i, i, i])` | 52 | 0.6% |
-| `isaConst(defined zf, (i => (i => (i => (i => (i => i))))), args: [i, i, i, i, i])` | 210 | 2.2% |
-| `isaConst(defined zf, (i => (i => (i => (i => (i => o))))), args: [i, i, i, i, i])` | 14 | 0.1% |
-| `isaConst(defined zf, (i => (i => (i => (i => i)))), args: [i, i, i, i])` | 1164 | 12.4% |
-| `isaConst(defined zf, (i => (i => (i => (i => o)))), args: [i, i, i, i])` | 177 | 1.9% |
-| `isaConst(defined zf, (i => (i => (i => i))), args: [i, i, i])` | 4125 | 43.8% |
-| `isaConst(defined zf, (i => (i => (i => o))), args: [i, i, i])` | 372 | 3.9% |
-| `isaConst(defined zf, (i => (i => i)), args: [i, i])` | 8785 | 93.3% |
-| `isaConst(defined zf, (i => (i => o)), args: [i, i])` | 8196 | 87.0% |
-| `isaConst(defined zf, (i => i), args: [i])` | 8467 | 89.9% |
-| `isaConst(defined zf, (i => o), args: [i])` | 6111 | 64.9% |
-| `isaConst(defined zf, (o => (i => (i => i))), args: [o, i, i])` | 5590 | 59.3% |
-| `isaConst(defined zf, (o => i), args: [o])` | 983 | 10.4% |
-| `isaConst(defined zf, i, args: [])` | 5761 | 61.2% |
-| `isaConst(defined zf, o, args: [])` | 90 | 1.0% |
+| `isaConst(defined fol meta, ('a => ('a => o)), args: ['a, 'a])` | 105 | 1.1% |
+| `isaConst(defined fol meta, (('a => o) => o), args: [('a => o)])` | 3947 | 41.9% |
+| `isaConst(defined fol meta, ((i => o) => o), args: [(i => o)])` | 3947 | 41.9% |
+| `isaConst(defined fol meta, (i => (i => o)), args: [i, i])` | 105 | 1.1% |
+| `isaConst(defined fol object, (o => (o => o)), args: [o, o])` | 4022 | 42.7% |
+| `isaConst(defined ifol meta, ('a => (('a => 'b) => 'b)), args: ['a, ('a => 'b)])` | 508 | 5.4% |
+| `isaConst(defined ifol meta, ('b => (('b => 'a) => 'a)), args: ['b, ('b => 'a)])` | 439 | 4.7% |
+| `isaConst(defined ifol meta, (('a => o) => o), args: [('a => o)])` | 8959 | 95.1% |
+| `isaConst(defined ifol meta, ((i => o) => o), args: [(i => o)])` | 8958 | 95.1% |
+| `isaConst(defined ifol meta, (i => ((i => i) => i)), args: [i, (i => i)])` | 508 | 5.4% |
+| `isaConst(defined ifol object, (o => (o => o)), args: [o, o])` | 8099 | 86.0% |
+| `isaConst(defined ifol object, (o => o), args: [o])` | 8473 | 89.9% |
+| `isaConst(defined ifol object, o, args: [])` | 7619 | 80.9% |
+| `isaConst(defined pure meta, ('a => o), args: ['a])` | 28 | 0.3% |
+| `isaConst(defined pure meta, (i => o), args: [i])` | 28 | 0.3% |
+| `isaConst(defined pure meta, (o => (o => o)), args: [o, o])` | 7700 | 81.7% |
+| `isaConst(defined pure meta, (o => o), args: [o])` | 8174 | 86.8% |
+| `isaConst(defined zf meta, (('a => o) => o), args: [('a => o)])` | 439 | 4.7% |
+| `isaConst(defined zf meta, (((i => o) => o) => o), args: [((i => o) => o)])` | 436 | 4.6% |
+| `isaConst(defined zf meta, ((i => (i => 'a)) => (i => 'a)), args: [(i => (i => 'a)), i])` | 3297 | 35.0% |
+| `isaConst(defined zf meta, ((i => (i => (i => i))) => (i => (i => i))), args: [(i => (i => (i => i))), i, i])` | 146 | 1.5% |
+| `isaConst(defined zf meta, ((i => (i => (i => o))) => (i => (i => o))), args: [(i => (i => (i => o))), i, i])` | 108 | 1.1% |
+| `isaConst(defined zf meta, ((i => (i => i)) => (i => i)), args: [(i => (i => i)), i])` | 3169 | 33.6% |
+| `isaConst(defined zf meta, ((i => (i => o)) => (i => o)), args: [(i => (i => o)), i])` | 391 | 4.2% |
+| `isaConst(defined zf meta, ((i => o) => ((i => (i => o)) => o)), args: [(i => o), (i => (i => o))])` | 436 | 4.6% |
+| `isaConst(defined zf meta, o, args: [])` | 4 | 0.0% |
+| `isaConst(defined zf object, ((i => (i => (i => i))) => (i => ((i => (i => (i => (i => i)))) => (i => i)))), args: [(i => (i => (i => i))), i, (i => (i => (i => (i => i)))), i])` | 41 | 0.4% |
+| `isaConst(defined zf object, ((i => (i => (i => i))) => (i => i)), args: [(i => (i => (i => i))), i])` | 5 | 0.1% |
+| `isaConst(defined zf object, ((i => (i => i)) => ((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => (i => i)))))), args: [(i => (i => i)), (i => (i => i)), (i => (i => (i => (i => i)))), (i => (i => i)), i, i])` | 55 | 0.6% |
+| `isaConst(defined zf object, ((i => (i => i)) => ((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => i))))), args: [(i => (i => i)), (i => (i => i)), (i => (i => (i => (i => i)))), (i => (i => i)), i])` | 1058 | 11.2% |
+| `isaConst(defined zf object, ((i => (i => i)) => ((i => (i => i)) => ((i => (i => i)) => ((i => i) => (i => i))))), args: [(i => (i => i)), (i => (i => i)), (i => (i => i)), (i => i), i])` | 1070 | 11.4% |
+| `isaConst(defined zf object, ((i => (i => i)) => (i => ((i => (i => i)) => (i => i)))), args: [(i => (i => i)), i, (i => (i => i)), i])` | 49 | 0.5% |
+| `isaConst(defined zf object, ((i => (i => i)) => (i => i)), args: [(i => (i => i)), i])` | 3354 | 35.6% |
+| `isaConst(defined zf object, ((i => (i => o)) => (i => o)), args: [(i => (i => o)), i])` | 458 | 4.9% |
+| `isaConst(defined zf object, ((i => i) => ((i => (i => (i => (i => i)))) => (i => i))), args: [(i => i), (i => (i => (i => (i => i)))), i])` | 5 | 0.1% |
+| `isaConst(defined zf object, ((i => i) => ((i => (i => (i => i))) => ((i => i) => (i => i)))), args: [(i => i), (i => (i => (i => i))), (i => i), i])` | 65 | 0.7% |
+| `isaConst(defined zf object, ((i => i) => ((i => (i => i)) => ((i => (i => (i => (i => (i => i))))) => (i => i)))), args: [(i => i), (i => (i => i)), (i => (i => (i => (i => (i => i))))), i])` | 207 | 2.2% |
+| `isaConst(defined zf object, ((i => i) => ((i => (i => i)) => (i => i))), args: [(i => i), (i => (i => i)), i])` | 11 | 0.1% |
+| `isaConst(defined zf object, ((i => i) => ((i => i) => ((i => (i => (i => i))) => ((i => (i => (i => (i => (i => i))))) => (i => i))))), args: [(i => i), (i => i), (i => (i => (i => i))), (i => (i => (i => (i => (i => i))))), i])` | 39 | 0.4% |
+| `isaConst(defined zf object, ((i => i) => ((i => i) => ((i => (i => (i => i))) => ((i => (i => (i => (i => i)))) => ((i => (i => (i => (i => i)))) => (i => i)))))), args: [(i => i), (i => i), (i => (i => (i => i))), (i => (i => (i => (i => i)))), (i => (i => (i => (i => i)))), i])` | 11 | 0.1% |
+| `isaConst(defined zf object, ((i => i) => ((i => i) => ((i => (i => (i => i))) => (i => i)))), args: [(i => i), (i => i), (i => (i => (i => i))), i])` | 215 | 2.3% |
+| `isaConst(defined zf object, ((i => i) => ((i => i) => ((i => (i => i)) => ((i => (i => (i => i))) => ((i => (i => i)) => (i => i)))))), args: [(i => i), (i => i), (i => (i => i)), (i => (i => (i => i))), (i => (i => i)), i])` | 23 | 0.2% |
+| `isaConst(defined zf object, ((i => i) => ((i => i) => ((i => (i => i)) => ((i => (i => (i => i))) => (i => i))))), args: [(i => i), (i => i), (i => (i => i)), (i => (i => (i => i))), i])` | 49 | 0.5% |
+| `isaConst(defined zf object, ((i => i) => ((i => i) => (i => i))), args: [(i => i), (i => i), i])` | 2872 | 30.5% |
+| `isaConst(defined zf object, ((i => i) => ((i => o) => ((i => (i => o)) => ((i => o) => o)))), args: [(i => i), (i => o), (i => (i => o)), (i => o)])` | 436 | 4.6% |
+| `isaConst(defined zf object, ((i => i) => (i => (i => i))), args: [(i => i), i, i])` | 692 | 7.3% |
+| `isaConst(defined zf object, ((i => i) => (i => i)), args: [(i => i), i])` | 641 | 6.8% |
+| `isaConst(defined zf object, ((i => i) => o), args: [(i => i)])` | 557 | 5.9% |
+| `isaConst(defined zf object, ((i => o) => ((i => (i => (i => (i => (i => o))))) => ((i => (i => (i => (i => i)))) => o))), args: [(i => o), (i => (i => (i => (i => (i => o))))), (i => (i => (i => (i => i))))])` | 1 | 0.0% |
+| `isaConst(defined zf object, ((i => o) => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o))), args: [(i => o), (i => (i => (i => (i => o)))), (i => (i => (i => i)))])` | 1 | 0.0% |
+| `isaConst(defined zf object, ((i => o) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => (i => o))) => ((i => (i => o)) => (i => (i => o))))))), args: [(i => o), (i => (i => (i => o))), (i => (i => (i => o))), (i => (i => (i => o))), (i => (i => o)), i, i])` | 136 | 1.4% |
+| `isaConst(defined zf object, ((i => o) => ((i => (i => (i => o))) => ((i => (i => i)) => o))), args: [(i => o), (i => (i => (i => o))), (i => (i => i))])` | 183 | 1.9% |
+| `isaConst(defined zf object, ((i => o) => ((i => (i => (i => o))) => (i => (i => (i => o))))), args: [(i => o), (i => (i => (i => o))), i, i, i])` | 441 | 4.7% |
+| `isaConst(defined zf object, ((i => o) => ((i => (i => (i => o))) => (i => (i => o)))), args: [(i => o), (i => (i => (i => o))), i, i])` | 75 | 0.8% |
+| `isaConst(defined zf object, ((i => o) => ((i => (i => (i => o))) => (i => o))), args: [(i => o), (i => (i => (i => o))), i])` | 222 | 2.4% |
+| `isaConst(defined zf object, ((i => o) => ((i => (i => i)) => ((i => (i => (i => o))) => ((i => (i => i)) => ((i => (i => (i => o))) => ((i => (i => (i => (i => i)))) => ((i => (i => (i => (i => o)))) => ((i => (i => i)) => ((i => (i => (i => o))) => o))))))))), args: [(i => o), (i => (i => i)), (i => (i => (i => o))), (i => (i => i)), (i => (i => (i => o))), (i => (i => (i => (i => i)))), (i => (i => (i => (i => o)))), (i => (i => i)), (i => (i => (i => o)))])` | 50 | 0.5% |
+| `isaConst(defined zf object, ((i => o) => ((i => (i => o)) => ((i => i) => o))), args: [(i => o), (i => (i => o)), (i => i)])` | 128 | 1.4% |
+| `isaConst(defined zf object, ((i => o) => ((i => (i => o)) => (i => (i => (i => (i => o)))))), args: [(i => o), (i => (i => o)), i, i, i, i])` | 341 | 3.6% |
+| `isaConst(defined zf object, ((i => o) => ((i => (i => o)) => (i => (i => (i => o))))), args: [(i => o), (i => (i => o)), i, i, i])` | 323 | 3.4% |
+| `isaConst(defined zf object, ((i => o) => ((i => (i => o)) => (i => o))), args: [(i => o), (i => (i => o)), i])` | 201 | 2.1% |
+| `isaConst(defined zf object, ((i => o) => ((i => (i => o)) => o)), args: [(i => o), (i => (i => o))])` | 588 | 6.2% |
+| `isaConst(defined zf object, ((i => o) => ((i => o) => o)), args: [(i => o), (i => o)])` | 1427 | 15.1% |
+| `isaConst(defined zf object, ((i => o) => (i => ((i => (i => (i => o))) => (i => (i => o))))), args: [(i => o), i, (i => (i => (i => o))), i, i])` | 3 | 0.0% |
+| `isaConst(defined zf object, ((i => o) => (i => ((i => (i => o)) => ((i => i) => o)))), args: [(i => o), i, (i => (i => o)), (i => i)])` | 63 | 0.7% |
+| `isaConst(defined zf object, ((i => o) => (i => ((i => (i => o)) => (i => (i => o))))), args: [(i => o), i, (i => (i => o)), i, i])` | 348 | 3.7% |
+| `isaConst(defined zf object, ((i => o) => (i => ((i => (i => o)) => (i => o)))), args: [(i => o), i, (i => (i => o)), i])` | 162 | 1.7% |
+| `isaConst(defined zf object, ((i => o) => (i => ((i => (i => o)) => o))), args: [(i => o), i, (i => (i => o))])` | 599 | 6.4% |
+| `isaConst(defined zf object, ((i => o) => (i => ((i => o) => (i => o)))), args: [(i => o), i, (i => o), i])` | 65 | 0.7% |
+| `isaConst(defined zf object, ((i => o) => (i => (i => ((i => (i => (i => o))) => ((i => (i => i)) => o))))), args: [(i => o), i, i, (i => (i => (i => o))), (i => (i => i))])` | 60 | 0.6% |
+| `isaConst(defined zf object, ((i => o) => (i => (i => (i => ((i => (i => (i => (i => o)))) => ((i => (i => (i => i))) => o)))))), args: [(i => o), i, i, i, (i => (i => (i => (i => o)))), (i => (i => (i => i)))])` | 1 | 0.0% |
+| `isaConst(defined zf object, ((i => o) => (i => (i => (i => (i => (i => o)))))), args: [(i => o), i, i, i, i, i])` | 186 | 2.0% |
+| `isaConst(defined zf object, ((i => o) => (i => (i => (i => (i => o))))), args: [(i => o), i, i, i, i])` | 199 | 2.1% |
+| `isaConst(defined zf object, ((i => o) => (i => (i => (i => o)))), args: [(i => o), i, i, i])` | 1248 | 13.2% |
+| `isaConst(defined zf object, ((i => o) => (i => (i => i))), args: [(i => o), i, i])` | 44 | 0.5% |
+| `isaConst(defined zf object, ((i => o) => (i => (i => o))), args: [(i => o), i, i])` | 1169 | 12.4% |
+| `isaConst(defined zf object, ((i => o) => (i => i)), args: [(i => o), i])` | 22 | 0.2% |
+| `isaConst(defined zf object, ((i => o) => (i => o)), args: [(i => o), i])` | 851 | 9.0% |
+| `isaConst(defined zf object, ((i => o) => (o => (i => o))), args: [(i => o), o, i])` | 132 | 1.4% |
+| `isaConst(defined zf object, ((i => o) => i), args: [(i => o)])` | 6527 | 69.3% |
+| `isaConst(defined zf object, ((i => o) => o), args: [(i => o)])` | 1071 | 11.4% |
+| `isaConst(defined zf object, (i => ((i => (i => (i => (i => (i => i))))) => (i => i))), args: [i, (i => (i => (i => (i => (i => i))))), i])` | 26 | 0.3% |
+| `isaConst(defined zf object, (i => ((i => (i => (i => (i => i)))) => (i => i))), args: [i, (i => (i => (i => (i => i)))), i])` | 64 | 0.7% |
+| `isaConst(defined zf object, (i => ((i => (i => (i => i))) => (i => i))), args: [i, (i => (i => (i => i))), i])` | 1436 | 15.2% |
+| `isaConst(defined zf object, (i => ((i => (i => (i => i))) => i)), args: [i, (i => (i => (i => i)))])` | 30 | 0.3% |
+| `isaConst(defined zf object, (i => ((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => (i => i))) => ((i => (i => (i => (i => (i => i))))) => (i => i)))))), args: [i, (i => (i => i)), (i => (i => (i => (i => i)))), (i => (i => (i => i))), (i => (i => (i => (i => (i => i))))), i])` | 23 | 0.2% |
+| `isaConst(defined zf object, (i => ((i => (i => i)) => ((i => (i => i)) => ((i => (i => i)) => ((i => (i => (i => i))) => (i => i)))))), args: [i, (i => (i => i)), (i => (i => i)), (i => (i => i)), (i => (i => (i => i))), i])` | 35 | 0.4% |
+| `isaConst(defined zf object, (i => ((i => (i => i)) => ((i => i) => (i => i)))), args: [i, (i => (i => i)), (i => i), i])` | 7 | 0.1% |
+| `isaConst(defined zf object, (i => ((i => (i => i)) => (i => (i => i)))), args: [i, (i => (i => i)), i, i])` | 55 | 0.6% |
+| `isaConst(defined zf object, (i => ((i => (i => i)) => (i => i))), args: [i, (i => (i => i)), i])` | 2961 | 31.4% |
+| `isaConst(defined zf object, (i => ((i => (i => i)) => i)), args: [i, (i => (i => i))])` | 4630 | 49.2% |
+| `isaConst(defined zf object, (i => ((i => (i => o)) => i)), args: [i, (i => (i => o))])` | 8957 | 95.1% |
+| `isaConst(defined zf object, (i => ((i => i) => ((i => (i => (i => (i => i)))) => (i => i)))), args: [i, (i => i), (i => (i => (i => (i => i)))), i])` | 31 | 0.3% |
+| `isaConst(defined zf object, (i => ((i => i) => ((i => (i => i)) => ((i => (i => (i => (i => i)))) => (i => i))))), args: [i, (i => i), (i => (i => i)), (i => (i => (i => (i => i)))), i])` | 9 | 0.1% |
+| `isaConst(defined zf object, (i => ((i => i) => ((i => (i => i)) => ((i => (i => (i => i))) => (i => i))))), args: [i, (i => i), (i => (i => i)), (i => (i => (i => i))), i])` | 19 | 0.2% |
+| `isaConst(defined zf object, (i => ((i => i) => ((i => (i => i)) => (i => i)))), args: [i, (i => i), (i => (i => i)), i])` | 39 | 0.4% |
+| `isaConst(defined zf object, (i => ((i => i) => ((i => i) => (i => i)))), args: [i, (i => i), (i => i), i])` | 15 | 0.2% |
+| `isaConst(defined zf object, (i => ((i => i) => (i => i))), args: [i, (i => i), i])` | 4781 | 50.8% |
+| `isaConst(defined zf object, (i => ((i => i) => i)), args: [i, (i => i)])` | 7209 | 76.5% |
+| `isaConst(defined zf object, (i => ((i => i) => o)), args: [i, (i => i)])` | 4842 | 51.4% |
+| `isaConst(defined zf object, (i => ((i => o) => i)), args: [i, (i => o)])` | 8137 | 86.4% |
+| `isaConst(defined zf object, (i => ((i => o) => o)), args: [i, (i => o)])` | 8395 | 89.1% |
+| `isaConst(defined zf object, (i => (i => ((i => (i => (i => (i => i)))) => (i => i)))), args: [i, i, (i => (i => (i => (i => i)))), i])` | 7 | 0.1% |
+| `isaConst(defined zf object, (i => (i => ((i => (i => (i => i))) => ((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => (i => (i => i)))) => (i => i))))))), args: [i, i, (i => (i => (i => i))), (i => (i => i)), (i => (i => (i => (i => i)))), (i => (i => (i => (i => i)))), i])` | 36 | 0.4% |
+| `isaConst(defined zf object, (i => (i => ((i => (i => (i => i))) => ((i => i) => ((i => (i => i)) => ((i => (i => i)) => (i => i))))))), args: [i, i, (i => (i => (i => i))), (i => i), (i => (i => i)), (i => (i => i)), i])` | 50 | 0.5% |
+| `isaConst(defined zf object, (i => (i => ((i => (i => (i => i))) => (i => i)))), args: [i, i, (i => (i => (i => i))), i])` | 475 | 5.0% |
+| `isaConst(defined zf object, (i => (i => ((i => (i => i)) => ((i => (i => i)) => i)))), args: [i, i, (i => (i => i)), (i => (i => i))])` | 9 | 0.1% |
+| `isaConst(defined zf object, (i => (i => ((i => (i => i)) => (i => i)))), args: [i, i, (i => (i => i)), i])` | 529 | 5.6% |
+| `isaConst(defined zf object, (i => (i => ((i => (i => i)) => (i => o)))), args: [i, i, (i => (i => i)), i])` | 5033 | 53.4% |
+| `isaConst(defined zf object, (i => (i => ((i => (i => i)) => i))), args: [i, i, (i => (i => i))])` | 5018 | 53.3% |
+| `isaConst(defined zf object, (i => (i => ((i => (i => i)) => o))), args: [i, i, (i => (i => i))])` | 439 | 4.7% |
+| `isaConst(defined zf object, (i => (i => ((i => i) => ((i => i) => (i => o))))), args: [i, i, (i => i), (i => i), i])` | 7 | 0.1% |
+| `isaConst(defined zf object, (i => (i => (i => ((i => (i => i)) => i)))), args: [i, i, i, (i => (i => i))])` | 947 | 10.1% |
+| `isaConst(defined zf object, (i => (i => (i => ((i => (i => i)) => o)))), args: [i, i, i, (i => (i => i))])` | 57 | 0.6% |
+| `isaConst(defined zf object, (i => (i => (i => ((i => i) => o)))), args: [i, i, i, (i => i)])` | 21 | 0.2% |
+| `isaConst(defined zf object, (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => i))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))), args: [i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i])` | 122 | 1.3% |
+| `isaConst(defined zf object, (i => (i => (i => (i => (i => (i => i)))))), args: [i, i, i, i, i, i])` | 39 | 0.4% |
+| `isaConst(defined zf object, (i => (i => (i => (i => (i => (i => o)))))), args: [i, i, i, i, i, i])` | 52 | 0.6% |
+| `isaConst(defined zf object, (i => (i => (i => (i => (i => i))))), args: [i, i, i, i, i])` | 210 | 2.2% |
+| `isaConst(defined zf object, (i => (i => (i => (i => (i => o))))), args: [i, i, i, i, i])` | 14 | 0.1% |
+| `isaConst(defined zf object, (i => (i => (i => (i => i)))), args: [i, i, i, i])` | 1164 | 12.4% |
+| `isaConst(defined zf object, (i => (i => (i => (i => o)))), args: [i, i, i, i])` | 177 | 1.9% |
+| `isaConst(defined zf object, (i => (i => (i => i))), args: [i, i, i])` | 4125 | 43.8% |
+| `isaConst(defined zf object, (i => (i => (i => o))), args: [i, i, i])` | 372 | 3.9% |
+| `isaConst(defined zf object, (i => (i => i)), args: [i, i])` | 8785 | 93.3% |
+| `isaConst(defined zf object, (i => (i => o)), args: [i, i])` | 8196 | 87.0% |
+| `isaConst(defined zf object, (i => i), args: [i])` | 8467 | 89.9% |
+| `isaConst(defined zf object, (i => o), args: [i])` | 6111 | 64.9% |
+| `isaConst(defined zf object, (o => (i => (i => i))), args: [o, i, i])` | 5590 | 59.3% |
+| `isaConst(defined zf object, (o => i), args: [o])` | 983 | 10.4% |
+| `isaConst(defined zf object, i, args: [])` | 5761 | 61.2% |
+| `isaConst(defined zf object, o, args: [])` | 87 | 0.9% |
 | `isaConst(primitive IFOL.eq, ('a => ('a => o)), args: ['a, 'a])` | 9096 | 96.6% |
 | `isaConst(primitive IFOL.eq, ('b => ('b => o)), args: ['b, 'b])` | 4626 | 49.1% |
 | `isaConst(primitive IFOL.eq, (i => (i => o)), args: [i, i])` | 9284 | 98.6% |
@@ -2604,15 +2608,16 @@ The reader refuses none of them, nor any theorem they cite.
 | `use(axiom ZF_Base.foundation, [], o)` | 6969 | 74.0% |
 | `use(axiom ZF_Base.infinity, [], o)` | 4129 | 43.8% |
 | `use(axiom ZF_Base.replacement, [], o)` | 7313 | 77.6% |
-| `use(definition fol, [], o)` | 4022 | 42.7% |
-| `use(definition fol, [i], o)` | 3947 | 41.9% |
-| `use(definition ifol, ['a], o)` | 7966 | 84.6% |
-| `use(definition ifol, ['b, 'a], o)` | 439 | 4.7% |
-| `use(definition ifol, [], o)` | 7940 | 84.3% |
-| `use(definition pure, ['a], o)` | 28 | 0.3% |
-| `use(definition pure, [], o)` | 8174 | 86.8% |
-| `use(definition zf, ['a], o)` | 2791 | 29.6% |
-| `use(definition zf, [], o)` | 9303 | 98.8% |
+| `use(definition fol meta, [i], o)` | 3947 | 41.9% |
+| `use(definition fol object, [], o)` | 4022 | 42.7% |
+| `use(definition ifol meta, ['a], o)` | 7966 | 84.6% |
+| `use(definition ifol meta, ['b, 'a], o)` | 439 | 4.7% |
+| `use(definition ifol object, [], o)` | 7940 | 84.3% |
+| `use(definition pure meta, ['a], o)` | 28 | 0.3% |
+| `use(definition pure meta, [], o)` | 8174 | 86.8% |
+| `use(definition zf meta, ['a], o)` | 2791 | 29.6% |
+| `use(definition zf meta, [], o)` | 440 | 4.7% |
+| `use(definition zf object, [], o)` | 9299 | 98.7% |
 | `use(theorem, ['a], o)` | 7974 | 84.6% |
 | `use(theorem, ['b], o)` | 4634 | 49.2% |
 | `use(theorem, [(i => i)], o)` | 128 | 1.4% |

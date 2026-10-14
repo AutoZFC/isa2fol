@@ -5,9 +5,9 @@ private let i = IRType.i
 private let o = IRType.o
 private func fn(_ a: IRType, _ b: IRType) -> IRType { .fn(a, b) }
 
-private let qpair = Constant.defined(Defined(.zf, "QPair.QPair"))
+private let qpair = Constant.defined(Defined(.zf, "QPair.QPair", .object))
 private let mem = Constant.primitive(.zf(.mem))
-private let collect = Constant.defined(Defined(.zf, "ZF_Base.Collect"))
+private let collect = Constant.defined(Defined(.zf, "ZF_Base.Collect", .object))
 
 @Test func equalContentIsTheSameNode() throws {
     var t = Table()

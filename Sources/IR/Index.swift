@@ -14,6 +14,15 @@ public func instantiate(_ body: NodeID, with replacement: NodeID, in t: inout Ta
     return try transform(body, Instantiate(replacement: replacement, type: found), in: &t)
 }
 
+public func beta(_ f: NodeID, _ args: [NodeID], in t: inout Table) throws -> NodeID {
+    var reduced = f
+    for a in args {
+        guard case let .isaAbs(_, body) = t[reduced] else { throw TableError.varAppHeadNotVariable(reduced) }
+        reduced = try instantiate(body, with: a, in: &t)
+    }
+    return reduced
+}
+
 public func abstract(_ id: NodeID, over frees: [NodeID], in t: inout Table) throws -> NodeID {
     var position: [NodeID: Int] = [:]
     for (p, x) in frees.enumerated() {
@@ -59,12 +68,7 @@ private struct Instantiate: Rule {
 
     func after(_ n: Node, context depth: Depth, in t: inout Table) throws -> NodeID? {
         guard case let .isaVarApp(head, args) = n, case .isaAbs = t[head] else { return nil }
-        var reduced = head
-        for a in args {
-            guard case let .isaAbs(_, body) = t[reduced] else { throw TableError.varAppHeadNotVariable(reduced) }
-            reduced = try instantiate(body, with: a, in: &t)
-        }
-        return reduced
+        return try beta(head, args, in: &t)
     }
 }
 

@@ -19,8 +19,8 @@ private let memT = IRType.fn(.i, .fn(.i, .o))
     let atom = try t.intern(.isaConst(.primitive(.zf(.mem)), memT, args: [x, y]))
     #expect(Pattern(t[atom], in: t) == .isaConst(.primitive(.zf(.mem)), memT, args: [.i, .i]))
     #expect(Pattern(t[x], in: t) == Pattern(t[y], in: t), "an index is no part of a pattern")
-    let a = try t.intern(.isaConst(.defined(Defined(.zf, "T.a")), .i, args: []))
-    let b = try t.intern(.isaConst(.defined(Defined(.zf, "T.b")), .i, args: []))
+    let a = try t.intern(.isaConst(.defined(Defined(.zf, "T.a", .object)), .i, args: []))
+    let b = try t.intern(.isaConst(.defined(Defined(.zf, "T.b", .object)), .i, args: []))
     #expect(Pattern(t[a], in: t) == Pattern(t[b], in: t), "nor a name")
     let hidden = try t.intern(.isaFree(.hidden, .i)), named = try t.intern(.isaFree(.named("v"), .i))
     #expect(Pattern(t[hidden], in: t) == Pattern(t[named], in: t))
@@ -55,7 +55,7 @@ private let memT = IRType.fn(.i, .fn(.i, .o))
     #expect(Pattern.use(.theorem, [], .o).dialects == [.isa, .fol])
     #expect(Pattern.use(.theorem, [.i], .o).dialects == [.isa])
     #expect(Pattern.use(.axiom(.pure(.combination)), [.i, .i], .o).dialects == [.isa])
-    #expect(Pattern.use(.isaDefinition(.zf), [], .o).dialects == [.isa])
+    #expect(Pattern.use(.isaDefinition(.zf, .object), [], .o).dialects == [.isa])
     #expect(Pattern.use(.theoryAxiom, [], .o).dialects == [.isa])
     #expect(Pattern.use(.lemma, [], .o).dialects == [.isa, .fol])
     #expect(Pattern.isaGuard(.i, .o).dialects == [.isa])
@@ -63,10 +63,10 @@ private let memT = IRType.fn(.i, .fn(.i, .o))
 
 @Test func aPatternPrintsDeterministically() {
     #expect("\(Pattern.use(.axiom(.pure(.combination)), [.i, .o], .o))" == "use(axiom Pure.combination, [i, o], o)")
-    #expect("\(Pattern.isaConst(.defined(.zf), .fn(.i, .i), args: [.i]))" == "isaConst(defined zf, (i => i), args: [i])")
+    #expect("\(Pattern.isaConst(.defined(.zf, .object), .fn(.i, .i), args: [.i]))" == "isaConst(defined zf object, (i => i), args: [i])")
     #expect("\(Pattern.isaConst(.primitive(.zf(.mem)), memT, args: [.i, .i]))"
             == "isaConst(primitive ZF_Base.mem, (i => (i => o)), args: [i, i])")
-    #expect("\(Pattern.use(.isaDefinition(.ifol), [], .o))" == "use(definition ifol, [], o)")
+    #expect("\(Pattern.use(.isaDefinition(.ifol, .meta), [], .o))" == "use(definition ifol meta, [], o)")
 }
 
 @Test func thePatternsUnderRootsAreTheOnesTheyReach() throws {

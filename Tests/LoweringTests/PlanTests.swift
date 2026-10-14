@@ -26,9 +26,11 @@ private func lowered(_ t: Table, _ statements: [Statement]) throws -> Unit {
 /// one at most. A pattern at a type variable, the hidden variable and a citation fol-zfc lacks have none yet.
 @Test func eachPatternHasTheOwnerTheDivisionGivesIt() {
     let expected: [(Pattern, String?, Owned?)] = [
-        (.isaConst(.defined(.ifol), fn(o, fn(o, o)), args: [o, o]), "expand", .unbuilt),
-        (.isaConst(.defined(.pure), fn(o, o), args: [o]), "expand", .unbuilt),
-        (.use(.isaDefinition(.fol), [], o), "expand", .unbuilt),
+        (.isaConst(.defined(.ifol, .object), fn(o, fn(o, o)), args: [o, o]), "expand", .rule),
+        (.isaConst(.defined(.pure, .meta), fn(o, o), args: [o]), "expand", .rule),
+        (.use(.isaDefinition(.fol, .object), [], o), "expand", .rule),
+        (.isaConst(.defined(.zf, .meta), fn(fn(i, fn(i, o)), fn(i, o)), args: [fn(i, fn(i, o)), i]), "expand", .rule),
+        (.use(.isaDefinition(.zf, .meta), [o], o), "expand", .rule),
         (.use(.axiom(.pure(.combination)), [i, o], o), "logic", .unbuilt),
         (.use(.axiom(.ifol(.spec)), [i], o), "logic", .unbuilt),
         (.isaConst(.primitive(.pure(.eq)), fn(fn(i, i), fn(fn(i, i), o)), args: [fn(i, i), fn(i, i)]), "logic", .unbuilt),
@@ -36,7 +38,7 @@ private func lowered(_ t: Table, _ statements: [Statement]) throws -> Unit {
         (.isaAllElim(o, fn(o, o)), "logic", .unbuilt),
         (.isaConst(.primitive(.zf(.mem)), fn(i, fn(i, o)), args: [i, i]), "reify", .unbuilt),
         (.isaConst(.primitive(.ifol(.eq)), fn(i, fn(i, o)), args: [i, i]), "reify", .unbuilt),
-        (.isaConst(.defined(.zf), fn(i, i), args: [i]), "reify", .unbuilt),
+        (.isaConst(.defined(.zf, .object), fn(i, i), args: [i]), "reify", .unbuilt),
         (.isaConst(.declared, i, args: []), "reify", .unbuilt),
         (.isaVarApp(head: fn(i, o), args: [i]), "reify", .unbuilt),
         (.isaAbs(i, body: o), "reify", .unbuilt),
@@ -56,14 +58,15 @@ private func lowered(_ t: Table, _ statements: [Statement]) throws -> Unit {
         (.use(.theorem, [], o), nil, nil),
         (.ifolAll(a, body: o), nil, nil),
         (.isaBound(a), nil, nil),
-        (.isaConst(.defined(.zf), fn(a, a), args: [a]), nil, nil),
+        (.isaConst(.defined(.zf, .object), fn(a, a), args: [a]), nil, nil),
+        (.isaConst(.defined(.zf, .meta), fn(a, a), args: [a]), nil, nil),
         (.use(.axiom(.pure(.reflexive)), [a], o), nil, nil),
         (.isaOfClass(i), nil, nil),
         (.isaFree(i), nil, nil),
         (.use(.theorem, [i], o), nil, nil),
         (.use(.axiom(.zf(.replacement)), [], o), nil, nil),
         (.use(.theoryAxiom, [], o), nil, nil),
-        (.use(.isaDefinition(.zf), [], o), nil, nil),
+        (.use(.isaDefinition(.zf, .object), [], o), nil, nil),
     ]
     for (p, owner, owned) in expected {
         #expect(owners(p) == (owner.map { [$0] } ?? []), "\(p)")
@@ -107,4 +110,34 @@ private func lowered(_ t: Table, _ statements: [Statement]) throws -> Unit {
     let proof = try t.intern(.isaAllElim(try t.intern(.use(.theorem("lem"), [], try t.intern(.ifolAll(i, body: root)))), hidden))
     let unit = try lowered(t, [Statement(name: "thm", root: root, proof: proof)])
     #expect(unit.refused.map(\.refusal) == [.noOwner([.isaFree(i)])])
+}
+
+/// `¬⊥ ⟹ ¬⊥` by its hypothesis: once Expand unfolds `¬`, nothing is left that fol-zfc lacks, and the plan lowers it
+/// whole.
+@Test func aStatementWhoseOnlyIsaPieceIsALogicConstantIsLoweredWhole() throws {
+    var l = LogicTable()
+    let not = try l.not()
+    let bottom = try l.bottom()
+    let notBottom = try l.const(.defined(not.constant), fn(o, o), bottom)
+    let proof = try l.t.intern(.folImpliesIntro(notBottom, body: try l.t.intern(.hyp(0, notBottom))))
+    let statement = Statement(name: "thm", root: try l.imp(notBottom, notBottom), proof: proof)
+    var unit = Unit(table: l.t, statements: [statement], definitions: [not])
+    try pipeline.run(&unit)
+    let unfolded = try unit.table.intern(.folImplies(bottom, bottom))
+    #expect(unit.refused.isEmpty)
+    #expect(unit.statements.map(\.root) == [try unit.table.intern(.folImplies(unfolded, unfolded))])
+}
+
+/// `T.d ≡ λx. ¬(x ∈ x)` is Reify's: it passes Expand, which unfolds its `¬`, and reaches Reify so.
+@Test func aDefinitionOwnedByALaterPassReachesItUnfolded() throws {
+    var l = LogicTable()
+    let not = try l.not()
+    let x = try l.bound(0, i)
+    let member = try l.mem(x, x)
+    let d = try l.definition(Defined(.zf, "T.d", .object), fn(i, o), try l.lam(i, try l.const(.defined(not.constant), fn(o, o), member)))
+    var unit = Unit(table: l.t, statements: [], definitions: [not, d])
+    try pipeline.run(&unit)
+    var reached = d
+    reached.definiens = try unit.table.intern(.isaAbs(i, body: try unit.table.intern(.folImplies(member, try unit.table.intern(.folBottom)))))
+    #expect(unit.definitions == [not, reached])
 }

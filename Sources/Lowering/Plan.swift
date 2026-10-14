@@ -20,6 +20,13 @@ func mentionsTypeVariable(_ T: IRType) -> Bool {
     }
 }
 
+func unfolds(_ f: Family, _ level: Level) -> Bool {
+    switch (f, level) {
+    case (.pure, _), (.ifol, _), (.fol, _), (.zf, .meta): return true
+    case (.zf, .object): return false
+    }
+}
+
 func isLogic(_ f: Family) -> Bool {
     switch f {
     case .pure, .ifol, .fol: return true
