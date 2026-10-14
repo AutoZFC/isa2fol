@@ -44,7 +44,8 @@ private let memT = IRType.fn(.i, .fn(.i, .o))
 
 /// A covered construct is ONE node of both dialects: the reader reads `⟹` as the fol-zfc implication. A free
 /// variable is the isa dialect's (the reader's hidden variable); `¬` is fol-zfc's only, IFOL's being defined. A
-/// citation is fol-zfc's only of a theorem at no type arguments.
+/// citation is fol-zfc's only of a theorem at no type arguments. A binder, its intro and its variable at `o` are
+/// fol-zfc's schema letter; `schema_inst` is fol-zfc's only.
 @Test func eachPatternBelongsToTheIsaDialectTheFolDialectOrBoth() {
     #expect(Pattern.folImplies(.o, .o).dialects == [.isa, .fol])
     #expect(Pattern.folPred(args: [.i]).dialects == [.fol])
@@ -59,6 +60,13 @@ private let memT = IRType.fn(.i, .fn(.i, .o))
     #expect(Pattern.use(.theoryAxiom, [], .o).dialects == [.isa])
     #expect(Pattern.use(.lemma, [], .o).dialects == [.isa, .fol])
     #expect(Pattern.isaGuard(.i, .o).dialects == [.isa])
+    #expect(Pattern.ifolAll(.o, body: .o).dialects == [.isa, .fol])
+    #expect(Pattern.isaAllIntro(.o, body: .o).dialects == [.isa, .fol])
+    #expect(Pattern.isaBound(.o).dialects == [.isa, .fol])
+    #expect(Pattern.ifolAll(.i, body: .o).dialects == [.isa])
+    #expect(Pattern.ifolEx(.o, body: .o).dialects == [.isa])
+    #expect(Pattern.isaAllElim(.o, .o).dialects == [.isa])
+    #expect(Pattern.folSchemaInst(.o, .o).dialects == [.fol])
 }
 
 @Test func aPatternPrintsDeterministically() {

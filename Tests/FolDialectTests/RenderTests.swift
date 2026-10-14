@@ -81,6 +81,14 @@ private struct Fol {
     #expect(throws: RenderError.sourceKind(atom)) { try f.text(root) }
 }
 
+/// A letter is fol-zfc's, but `render` writes a claim, never a schema: a letter is refused until emission writes them.
+@Test func aLetterIsRefusedUntilSchemasAreEmitted() throws {
+    var f = Fol()
+    let letter = try f.t.intern(.isaBound(0, .o))
+    let schema = try f.t.intern(.ifolAll(.o, body: try f.imp(letter, letter)))
+    #expect(throws: RenderError.schema(schema)) { try f.text(schema) }
+}
+
 /// ⚠ THE CHECKER'S GRAMMAR IS THE ONLY AUTHORITY. Every construct `render` emits is fed to
 /// the real checker; `probe_bottom` PROVES something only true if `false` is ⊥ — a mere parse
 /// would accept `False`, which lexes as a nullary predicate.

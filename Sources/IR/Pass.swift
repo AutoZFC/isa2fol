@@ -22,6 +22,7 @@ public protocol Registry {
     case noOwner([Pattern])
     case unbuilt(pass: String, [Pattern])
     case lemmaUnbuilt
+    case letterOffSpine([Pattern])
     case cites(String)
     case unread
 }
@@ -239,13 +240,17 @@ private struct Run {
             try add(cited, after: k)
             if k == proving { try prove() }
         }
+        var legal: [Live] = []
         for l in live {
             try legalize(l.statement.root, in: unit.table)
             guard let proof = l.statement.proof else {
                 throw PipelineError.unproved(name: l.statement.name, pass: "registry", statement: l.statement.root, conclusion: nil)
             }
             try legalize(proof, in: unit.table)
+            let misplaced = misplacedLetters([l.statement.root, proof], in: unit.table)
+            if misplaced.isEmpty { legal.append(l) } else { unit.refuse(l.statement.name, .letterOffSpine(named(misplaced))) }
         }
+        live = legal
     }
 
     mutating func add(_ cited: [(Lemma, NodeID)], after k: Int) throws {

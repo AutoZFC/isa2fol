@@ -49,6 +49,7 @@
     case folExistsElim(IRType, body: IRType)
     case folBottomElim(IRType, IRType)
     case folClassicalAbsurd(IRType, body: IRType)
+    case folSchemaInst(IRType, IRType)
 
     @frozen public enum ConstantKind: Hashable, Sendable, CustomStringConvertible {
         case primitive(Primitive)
@@ -148,6 +149,7 @@
         case let .folExistsElim(p, b): self = .folExistsElim(T(p), body: T(b))
         case let .folBottomElim(p, c): self = .folBottomElim(T(p), T(c))
         case let .folClassicalAbsurd(a, b): self = .folClassicalAbsurd(T(a), body: T(b))
+        case let .folSchemaInst(p, a): self = .folSchemaInst(T(p), T(a))
         }
     }
 }
@@ -155,8 +157,9 @@
 extension Pattern {
     public var dialects: Set<Dialect> {
         switch self {
-        case .ifolAll, .ifolEx, .isaConst, .isaFree, .isaBound, .isaVarApp, .isaAbs, .isaOfClass, .isaAllIntro,
-             .isaAllElim, .isaGuard:
+        case let .ifolAll(T, _), let .isaAllIntro(T, _), let .isaBound(T):
+            return T == .o ? [.isa, .fol] : [.isa]
+        case .ifolEx, .isaConst, .isaFree, .isaVarApp, .isaAbs, .isaOfClass, .isaAllElim, .isaGuard:
             return [.isa]
         case let .use(kind, types, _):
             switch kind {
@@ -168,7 +171,7 @@ extension Pattern {
         case .folNot, .folBound, .folPred, .folForall, .folExists, .folAndIntro, .folAndElimL, .folAndElimR,
              .folOrIntroL, .folOrIntroR, .folOrElim, .folNotIntro, .folNotElim, .folIffIntro, .folIffElimL,
              .folIffElimR, .folForallIntro, .folForallElim, .folExistsIntro, .folExistsElim, .folBottomElim,
-             .folClassicalAbsurd:
+             .folClassicalAbsurd, .folSchemaInst:
             return [.fol]
         }
     }

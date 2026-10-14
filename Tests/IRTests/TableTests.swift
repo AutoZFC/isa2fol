@@ -195,3 +195,16 @@ private let collect = Constant.defined(Defined(.zf, "ZF_Base.Collect", .object))
     #expect(throws: TableError.notATermVariable(a)) { try t.intern(.isaGuard(a, set)) }
     #expect(throws: TableError.childType(expected: o, found: i)) { try t.intern(.isaGuard(x, x)) }
 }
+
+/// `schema_inst`: the step instantiates the letter at the top of its premise's conclusion. A premise whose conclusion
+/// binds no letter at its top is refused.
+@Test func aSchemaInstantiationConcludesItsPremisesLetterAtTheInstance() throws {
+    var t = Table()
+    let p = try t.intern(.isaBound(0, o))
+    let schema = try t.intern(.ifolAll(o, body: try t.intern(.folImplies(p, p))))
+    let c = try t.intern(.folPred("C", args: []))
+    let instance = try t.intern(.folSchemaInst(try t.intern(.use(.theorem("id"), [], schema)), c))
+    #expect(t.conclusion(of: instance) == (try t.intern(.folImplies(c, c))))
+    let atI = try t.intern(.use(.theorem("lem"), [], try t.intern(.ifolAll(i, body: try t.intern(.folBottom)))))
+    #expect(throws: TableError.principalConnective(atI)) { try t.intern(.folSchemaInst(atI, c)) }
+}

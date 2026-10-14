@@ -3,6 +3,7 @@ import IR
 @frozen public enum RenderError: Error, Equatable, Sendable {
     case notClosed(NodeID)
     case sourceKind(NodeID)
+    case schema(NodeID)
     case notAName(String)
     case notAFormula(NodeID)
     case notAProof(NodeID)
@@ -144,7 +145,9 @@ private struct Writer {
 
         case .ifolAll, .ifolEx, .isaConst, .isaFree, .isaBound, .isaVarApp, .isaAbs, .isaOfClass,
              .isaAllIntro, .isaAllElim, .isaGuard:
-            throw RenderError.sourceKind(id)
+            throw Pattern(t[id], in: t).dialects.contains(.fol) ? RenderError.schema(id) : RenderError.sourceKind(id)
+        case .folSchemaInst:
+            throw RenderError.schema(id)
         }
     }
 

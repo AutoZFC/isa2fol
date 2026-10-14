@@ -24,7 +24,7 @@ public struct Binds: Hashable, Sendable {
 
 @frozen public enum Node: Hashable, Sendable {
     // THE READER'S OUTPUT is the next two groups and nothing else (DESIGN §4.3b).
-    // Isa only: lowering must replace each; `legalize` refuses them.
+    // Isa only, but at `o` a binder, its intro and its variable are fol-zfc's schema letter: lowering replaces the rest.
     case ifolAll(IRType, body: NodeID)
     case ifolEx(IRType, body: NodeID)
     case isaConst(Constant, IRType, args: [NodeID])
@@ -73,6 +73,7 @@ public struct Binds: Hashable, Sendable {
     case folExistsElim(NodeID, body: NodeID)
     case folBottomElim(NodeID, NodeID)
     case folClassicalAbsurd(NodeID, body: NodeID)
+    case folSchemaInst(NodeID, NodeID)
 
     /// ⚠ THE ONLY PLACE THAT SAYS WHICH KINDS BIND, AND WHAT. The traversal, the index engine
     /// and `looseBound` all read it here; a second list would let them disagree.
@@ -120,6 +121,7 @@ public struct Binds: Hashable, Sendable {
         case let .folExistsElim(p, b): return .folExistsElim(try f(p, .none), body: try f(b, .termAndHyp))
         case let .folBottomElim(p, c): return .folBottomElim(try f(p, .none), try f(c, .none))
         case let .folClassicalAbsurd(a, b): return .folClassicalAbsurd(try f(a, .none), body: try f(b, .hyp))
+        case let .folSchemaInst(p, a): return .folSchemaInst(try f(p, .none), try f(a, .none))
         }
     }
 
@@ -137,7 +139,7 @@ public struct Binds: Hashable, Sendable {
              .use, .isaGuard, .folPred, .folForall, .folExists, .folAndIntro, .folAndElimL, .folAndElimR,
              .folOrIntroL, .folOrIntroR, .folOrElim, .folNotIntro, .folNotElim, .folIffIntro, .folIffElimL,
              .folIffElimR, .folForallIntro, .folForallElim, .folExistsIntro, .folExistsElim, .folBottomElim,
-             .folClassicalAbsurd:
+             .folClassicalAbsurd, .folSchemaInst:
             return nil
         }
     }

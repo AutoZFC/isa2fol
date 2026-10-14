@@ -22,8 +22,9 @@ private func lowered(_ t: Table, _ statements: [Statement]) throws -> Unit {
     #expect(pipeline.provingAfter == "reify")
 }
 
-/// DESIGN §4a, "Lowering's components": each of the reader's patterns has the owner the division gives it, and
-/// one at most. A pattern at a type variable, the hidden variable and a citation fol-zfc lacks have none yet.
+/// DESIGN §4a, "Lowering's components" and "Logic": each of the reader's patterns has the owner the division gives it,
+/// and one at most. A pattern at a type variable, the hidden variable and a citation fol-zfc lacks have none yet; a
+/// binder, its intro and its variable at `o` are fol-zfc's schema letter, no pass's.
 @Test func eachPatternHasTheOwnerTheDivisionGivesIt() {
     let expected: [(Pattern, String?, Owned?)] = [
         (.isaConst(.defined(.ifol, .object), fn(o, fn(o, o)), args: [o, o]), "expand", .rule),
@@ -31,11 +32,23 @@ private func lowered(_ t: Table, _ statements: [Statement]) throws -> Unit {
         (.use(.isaDefinition(.fol, .object), [], o), "expand", .rule),
         (.isaConst(.defined(.zf, .meta), fn(fn(i, fn(i, o)), fn(i, o)), args: [fn(i, fn(i, o)), i]), "expand", .rule),
         (.use(.isaDefinition(.zf, .meta), [o], o), "expand", .rule),
+        (.use(.axiom(.ifol(.conjI)), [], o), "logic", .rule),
+        (.use(.axiom(.fol(.classical)), [], o), "logic", .rule),
+        (.use(.axiom(.pure(.equalElim)), [], o), "logic", .rule),
+        (.use(.axiom(.pure(.reflexive)), [o], o), "logic", .rule),
+        (.isaAllElim(o, o), "logic", .rule),
+        (.use(.axiom(.pure(.reflexive)), [i], o), "logic", .unbuilt),
+        (.use(.axiom(.pure(.reflexive)), [fn(o, o)], o), "logic", .unbuilt),
         (.use(.axiom(.pure(.combination)), [i, o], o), "logic", .unbuilt),
         (.use(.axiom(.ifol(.spec)), [i], o), "logic", .unbuilt),
         (.isaConst(.primitive(.pure(.eq)), fn(fn(i, i), fn(fn(i, i), o)), args: [fn(i, i), fn(i, i)]), "logic", .unbuilt),
-        (.ifolAll(o, body: o), "logic", .unbuilt),
+        (.isaConst(.primitive(.pure(.eq)), fn(fn(o, o), fn(fn(o, o), o)), args: [fn(o, o), fn(o, o)]), "logic", .unbuilt),
+        (.ifolAll(fn(o, o), body: o), "logic", .unbuilt),
         (.isaAllElim(o, fn(o, o)), "logic", .unbuilt),
+        (.ifolAll(o, body: o), nil, nil),
+        (.isaAllIntro(o, body: o), nil, nil),
+        (.isaBound(o), nil, nil),
+        (.ifolEx(o, body: o), nil, nil),
         (.isaConst(.primitive(.zf(.mem)), fn(i, fn(i, o)), args: [i, i]), "reify", .unbuilt),
         (.isaConst(.primitive(.ifol(.eq)), fn(i, fn(i, o)), args: [i, i]), "reify", .unbuilt),
         (.isaConst(.defined(.zf, .object), fn(i, i), args: [i]), "reify", .unbuilt),
@@ -140,4 +153,38 @@ private func lowered(_ t: Table, _ statements: [Statement]) throws -> Unit {
     var reached = d
     reached.definiens = try unit.table.intern(.isaAbs(i, body: try unit.table.intern(.folImplies(member, try unit.table.intern(.folBottom)))))
     #expect(unit.definitions == [not, reached])
+}
+
+/// `IFOL.conjI`, the theorem: `⋀P Q. P ⟹ Q ⟹ P ∧ Q`, proved by the axiom at its own letters. Logic makes its proof the
+/// kernel's `and_intro` over the letters, and the plan keeps it whole: a schema.
+@Test func theLogicsOwnTheoremIsLoweredAsASchemaProvedByTheKernelsStep() throws {
+    var t = Table()
+    let p = try t.intern(.isaBound(1, o)), q = try t.intern(.isaBound(0, o))
+    let body = try t.intern(.folImplies(p, try t.intern(.folImplies(q, try t.intern(.folAnd(p, q))))))
+    let root = try t.intern(.ifolAll(o, body: try t.intern(.ifolAll(o, body: body))))
+    let axiom = try t.intern(.use(.axiom(.ifol(.conjI)), [], root))
+    let instance = try t.intern(.isaAllElim(try t.intern(.isaAllElim(axiom, p)), q))
+    let proof = try t.intern(.isaAllIntro(o, body: try t.intern(.isaAllIntro(o, body: instance))))
+    var unit = try lowered(t, [Statement(name: "IFOL.conjI", root: root, proof: proof)])
+    let both = try unit.table.intern(.folAndIntro(try unit.table.intern(.hyp(1, p)), try unit.table.intern(.hyp(0, q))))
+    let kernel = try unit.table.intern(.folImpliesIntro(p, body: try unit.table.intern(.folImpliesIntro(q, body: both))))
+    #expect(unit.refused.isEmpty)
+    #expect(unit.statements.map(\.root) == [root])
+    #expect(unit.statements.map(\.proof) == [try unit.table.intern(.isaAllIntro(o, body: try unit.table.intern(.isaAllIntro(o, body: kernel))))])
+}
+
+/// `⋀Q. Q ⟹ Q`, proved by instantiating the schema `id : ⋀P. P ⟹ P` at its own letter: `schema_inst` on a citation,
+/// both lowered whole.
+@Test func aSchemaAndAStatementInstantiatingItAreLoweredWhole() throws {
+    var t = Table()
+    let p = try t.intern(.isaBound(0, o))
+    let root = try t.intern(.ifolAll(o, body: try t.intern(.folImplies(p, p))))
+    let id = Statement(name: "id", root: root, proof: try t.intern(.isaAllIntro(o, body: try t.intern(
+        .folImpliesIntro(p, body: try t.intern(.hyp(0, p)))))))
+    let cited = try t.intern(.use(.theorem("id"), [], root))
+    let user = Statement(name: "user", root: root, proof: try t.intern(.isaAllIntro(o, body: try t.intern(.isaAllElim(cited, p)))))
+    var unit = try lowered(t, [id, user])
+    #expect(unit.refused.isEmpty)
+    #expect(unit.statements.map(\.name) == ["id", "user"])
+    #expect(unit.statements[1].proof == (try unit.table.intern(.isaAllIntro(o, body: try unit.table.intern(.folSchemaInst(cited, p))))))
 }

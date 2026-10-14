@@ -20,10 +20,11 @@ holding a pattern no pass owns before the first pass, and one a pass owns unbuil
 the registry**: after reify it hands each lemma a pass cites to the component that states it, which proves it or
 answers unbuilt. The unit holds the named theorems, the 133 they cite outside the ZF sessions and the 1,004
 definitions they reach; a statement citing a refused one falls ("The unit and its citations"). Expand (the logic's
-defined constants and ZF's meta-level ones unfolded, a citation of their definitions as `Pure.reflexive`) and Fol (R3's
-guards, fol-zfc's variables at `i`) have rules, so `isa2fol lower data/zf_export` lowers 0 of the 9,420 to fol-zfc:
-7,176 stop at no owner, 1,078 at logic, 1,115 at reify, and 51 pass every pass but cite the refused `IFOL.TrueI`. Emission is
-not built. `DESIGN.md` is the plan.
+defined constants and ZF's meta-level ones unfolded, a citation of their definitions as `Pure.reflexive`), Logic (a
+`⋀P::o` at a statement's top a schema letter, `schema_inst` at a citation; the logic's propositional axioms the kernel's
+steps) and Fol (R3's guards, fol-zfc's variables at `i`) have rules, so `isa2fol lower data/zf_export` lowers 3 of the
+9,420 to fol-zfc, the first: 7,176 stop at no owner, 558 at logic, 1,631 at reify, and 52 pass every pass but cite a
+refused statement (`IFOL.TrueI` 51). Emission is not built. `DESIGN.md` is the plan.
 
 ## Build
 
@@ -187,7 +188,7 @@ determinism R1–R3 (§4.6).
    print(f'{c}/{t} = {100*c/t:.1f}%')"
    ```
 
-   ✓ **CURRENTLY 9/3437 = 0.3%, under the cap.** Keep it there: a breach is
+   ✓ **CURRENTLY 9/3623 = 0.2%, under the cap.** Keep it there: a breach is
    fixed by deleting prose, never by raising the cap.
 
    Does not apply to `base/**/*.fol.def` headers: those record provenance of
@@ -234,7 +235,7 @@ Sources/
   IR/            Node · Table · transform · index engine · passes · legalize
   FolDialect/    Declaration · render (formulas and proofs) — the text boundary over IR
   Reader/        the export → isa nodes: Export (loading) · IsaType · Constants · Terms (η-long, closed) · Statements · Proofs (decoder) · Reader (proofs) · Census
-  Lowering/      the plan, never seen by the framework: Expand · Logic · Reify · Fol, and Typing's registry — Expand's rules and Fol's at `i` built
+  Lowering/      the plan, never seen by the framework: Expand · Logic · Reify · Fol, and Typing's registry — Expand's rules, Logic's for a proposition's letter and the propositional axioms, and Fol's at `i` built
   isa2fol/       CLI
 Tests/           YXMLTests · FolDialectTests · IRTests · ReaderTests · LoweringTests
 base/            the NBG foundation: axioms.fol.def + 10 tiers, kernel-checked
@@ -247,7 +248,8 @@ data/zf_export/  the Isabelle export — a LOCAL CACHE, never committed: scripts
 ```
 
 The reader (YXML → IR) reads statements and proofs (`Sources/Reader`); `Sources/Lowering` holds
-the plan, Expand and Fol its passes with rules; the other passes' rules and the emitter (IR → FolDialect) are unbuilt.
+the plan, Expand, Logic and Fol its passes with rules; Reify's rules, the rest of Logic's and Fol's, and the emitter
+(IR → FolDialect) are unbuilt.
 
 **There is ONE formula table per unit, holding isa and fol nodes together** —
 interned, immutable, de Bruijn; proof steps live in scope regions and point into
@@ -255,7 +257,7 @@ it. That is `DESIGN.md` §4; the framework — formulas AND proof steps — is b
 `Sources/IR`, rendering and proof emission in `Sources/FolDialect`. No pass, no reader.
 `Pattern.dialects` — one exhaustive switch — is the only place naming both vocabularies:
 each kind is isa only, fol-zfc only, or both (a leaf FOL covers; a citation only of a theorem or a lemma at no
-type arguments) — and `Node` declares its kinds in those groups, commented: the first two are exactly the reader's output. `Pattern` (`Sources/IR/Pattern.swift`)
+type arguments; a binder, its intro and its variable only at `o`, the schema's letter) — and `Node` declares its kinds in those groups, commented: the first two are exactly the reader's output. `Pattern` (`Sources/IR/Pattern.swift`)
 is a node with each child replaced by its type and each constant or citation by its kind: what a pass
 switches over (I3). `legalize` reads its `dialects`, and each pass states what it owns by an exhaustive switch
 over it: what rule 11 rests on.

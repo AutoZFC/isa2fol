@@ -24,7 +24,7 @@ public struct Reify: Pass {
              .folOr, .folIff, .folBottom, .folImpliesIntro, .folImpliesElim, .use, .hyp, .isaGuard, .folNot, .folBound, .folPred,
              .folForall, .folExists, .folAndIntro, .folAndElimL, .folAndElimR, .folOrIntroL, .folOrIntroR, .folOrElim,
              .folNotIntro, .folNotElim, .folIffIntro, .folIffElimL, .folIffElimR, .folForallIntro, .folForallElim,
-             .folExistsIntro, .folExistsElim, .folBottomElim, .folClassicalAbsurd:
+             .folExistsIntro, .folExistsElim, .folBottomElim, .folClassicalAbsurd, .folSchemaInst:
             return nil
         }
     }

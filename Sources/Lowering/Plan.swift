@@ -33,3 +33,11 @@ func isLogic(_ f: Family) -> Bool {
     case .zf: return false
     }
 }
+
+struct Anywhere: Hashable {}
+
+func children(_ n: Node) -> [NodeID] {
+    var found: [NodeID] = []
+    n.forEachChild { c, _ in found.append(c) }
+    return found
+}

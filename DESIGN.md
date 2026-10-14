@@ -205,8 +205,9 @@ Why qualified predicates and not unqualified ones, measured: `pred` names two co
 silently substituting one constant for another; qualified, identifying them is an
 explicit vocabulary entry in a pass.
 
-**No schema variables yet.** If a schema is ever emitted — FOUNDATION's arity-0 `?P` —
-a schema variable becomes a table node kind then: one more case in the four switches.
+**A schema's letter is Isabelle's own `⋀P::o`** (§4a, "Logic"): the binder, its ⋀-intro and its variable at `o` are
+both dialects, and `schema_inst` is `folSchemaInst`. `render` refuses both, `RenderError.schema`, until emission
+writes schemas.
 
 ---
 
@@ -892,6 +893,7 @@ detail.
 | fol intro | `andIntro(p, q)` · `orIntroL(p, B)` · `orIntroR(A, q)` · `impliesIntro(A, body)` ◆ · `notIntro(A, body)` ◆ · `iffIntro(p, q)` · `forallIntro(body)` ● · `existsIntro(p, v)` |
 | fol elim | `andElimL(p)` · `andElimR(p)` · `orElim(p, q, r)` · `impliesElim(p, q)` — `q` concludes the antecedent BY ID · `notElim(p, q)` · `iffElimL(p, q)` · `iffElimR(p, q)` · `forallElim(p, v)` — `v` a fol variable (S1) · `existsElim(p, body)` ●◆ · `bottomElim(p, C)` |
 | fol classical | `classicalAbsurd(A, body)` ◆ — with `notElim` it covers FOL's one axiom, `(¬P ⟹ P) ⟹ P` |
+| fol schema | `schemaInst(p, A)` — `schema_inst`: the letter at the top of `p`'s conclusion, instantiated at `A`. At `o`, `ifolAll`, `isaAllIntro` and `isaBound` are the schema's letter (§4a, "Logic") |
 | isa — the typed quantifier only | `isaAllIntro(T, body)` ● (`ZAbst`, produces `ifolAll`) · `isaAllElim(p, t)` (`ZAppt`, consumes `ifolAll`; `t` any isa term of type `T`, concluding `instantiate(body, t)`). They also cover `⋀P:o` and `⋀P:i⇒o` — instantiating a proposition or class variable, as citing an IFOL rule does |
 | isa — lowering's | `isaGuard(x, G)`: the guard of the bound variable `x`, concluding the formula it carries, as `hyp` does; Fol makes it the assumption it writes at `x`'s binder (§4a, "Fol") |
 
@@ -899,8 +901,7 @@ detail.
 (`src/proof/nd/stack.cpp`: `implies_intro:303`, `not_intro:351`, `forall_intro:495`,
 `exists_intro:552` closing `exists_elim`, `classical_absurd:698`). Left out until a pass
 needs them: `double_neg_elim`, `excluded_middle`, `peirce` (covered classically above);
-`eq_subst`, `eq_sym` (`eq` is a defined predicate, FOUNDATION §2 retires `eq_subst`);
-`schema_inst` (no schemas); `iota_elim` (S1).
+`eq_subst`, `eq_sym` (`eq` is a defined predicate, FOUNDATION §2 retires `eq_subst`); `iota_elim` (S1).
 
 **`fix` and `assume` are emitted from binders; the table has no fixed-variable node.** A
 term binder's body proves `φ` with the bound variable as loose index 0, so `forallIntro`
@@ -951,14 +952,15 @@ and the proof must be built against the changed one.
 ⋀x. (mem(x,y) ⟹ mem(x,y))     →     ∀x. (set(x) → (mem(x,y) → mem(x,y)))
 ```
 
-**The passes.** Expand has its rules, and Fol has rules for binders and variables at `i`; the rest are declared,
-unbuilt ("Lowering's components", below).
+**The passes.** Expand has its rules, Logic its rules for a proposition's letter and the logic's propositional axioms,
+and Fol its rules for binders and variables at `i`; the rest are declared, unbuilt ("Lowering's components", below).
 
 | # | pass | FOUNDATION | status |
 |---|---|---|---|
 | — | **expand** — the logic's defined constants unfolded, a citation of their definitions as `Pure.reflexive` | — | BUILT, below |
 | — | **fol** — the binders and variables at `i`: a guard on each binder, fol-zfc's variables | R3, S6's enforceable form | BUILT, below |
-| — | **logic**, **reify**, the rest of **fol** — the meta level lowered onto FOUNDATION §1a; each component's business in "Lowering's components", below | S1, S3, S4, S5, R3 | DECIDED, below; not built |
+| — | **logic** — an instance at `o` as a schema's `schema_inst`, or reduced on a ⋀-intro; the logic's propositional axioms as the kernel's steps | S4 | BUILT, below |
+| — | the rest of **logic**, **reify**, the rest of **fol** — the meta level lowered onto FOUNDATION §1a; each component's business in "Lowering's components", below | S1, S3, S4, S5, R3 | DECIDED, below; not built |
 
 ### Lowering's components  **[DIVISION DECIDED 2026-10-13 (user), TYPING A REGISTRY 2026-10-14 (user); THE INTERFACE AGREED AND BUILT 2026-10-13 — `Sources/IR/Pass.swift`, `Sources/Lowering`]**
 
@@ -1004,12 +1006,15 @@ unfolds. The reference's reify walked both (`valueChain`, `isaCongruence`).
    | before the first pass | a pattern that no pass owns and fol-zfc lacks | refused, naming every such pattern: a piece with no rule (D1) |
    | before a pass | a pattern the pass owns but has not built | refused at that pass, naming every such pattern (D2) |
    | after a pass | a pattern owned by that pass or an earlier one | a `PipelineError` that stops the run: a rule left its pattern, or wrote back an earlier pass's |
+   | after the last pass | a letter off its spine ("Logic", point 2) | refused, `letterOffSpine`, naming every such pattern |
 
    Before all three, a pattern two passes own stops the run (`PipelineError.twoOwners`), checked on every pattern a run
-   meets. After the last pass, `legalize` checks that each statement is fol-zfc. How a lemma enters the unit and is
-   checked there: "The unit and its citations", below.
+   meets. After the last pass, `legalize` checks that each statement is fol-zfc, and `misplacedLetters` that each of
+   its letters stands where fol-zfc writes one. How a lemma enters the unit and is checked there: "The unit and its
+   citations", below.
 4. **A built rule never refuses.** What it cannot handle is either a pattern of its own, still unbuilt, or a lemma it
-   cites, which the registry refuses (I2). So `transform` catches nothing and a pass returns node IDs.
+   cites, which the registry refuses (I2), or a letter it leaves off its spine, which the pipeline refuses after the
+   last pass. So `transform` catches nothing and a pass returns node IDs.
 
 **The owner of each of the reader's patterns**, from the division. The rows are coarse; each pass's step states its
 own rows exactly.
@@ -1017,16 +1022,16 @@ own rows exactly.
 | patterns | owner |
 |---|---|
 | a Pure, IFOL or FOL defined constant, or a ZF one at the meta level ("Expand", point 6); a citation of its definition | Logic, `expand` |
-| a citation of a Pure, IFOL or FOL axiom; Pure's `≡` at a function type; a binder or an instance at any other type than Typing's (`o`, a function of propositions) | Logic |
+| a citation of a Pure, IFOL or FOL axiom; Pure's `≡` at a function type; an instance at `o`; a binder or an instance at a type beyond objects other than `o` (a function of propositions or of classes) | Logic |
 | an applied constant (a ZF primitive, a ZF definition at the object level, a declared constant, `IFOL.eq`); an applied variable; a `λ`, through Lambda | Reify |
 | a binder, an instance, a variable or the guard of a variable at `i`, `iⁿ ⇒ i` or `iⁿ ⇒ o` | Fol, with the guard Typing gives the type |
 | a bound variable at another type | Fol, unbuilt: no such variable outlives its binder's owner |
-| the both dialect's connectives, ⟹-intro and ⟹-elim, a hypothesis, and a theorem or a lemma cited at no type arguments | none: fol-zfc has them |
+| the both dialect's connectives, ⟹-intro and ⟹-elim, a hypothesis, a theorem or a lemma cited at no type arguments, and a binder, its intro and its variable at `o`, the schema's letter ("Logic") | none: fol-zfc has them |
 | a type variable, `OFCLASS` or a theorem cited at type arguments (decision 4); the hidden variable; a citation of a ZF axiom, a theory axiom or a ZF definition at the object level | **no owner yet**: each is its component's design question, and is refused before the first pass |
 
 **Built.** `Lowering.plan` is the four passes in order — expand, logic, reify, fol — and `Lowering.pipeline` adds
-Typing's registry, proving after reify. Logic and Reify are unbuilt: a switch over `Pattern` stating their rows, and no
-rule. Expand has its rules ("Expand", below). Fol has the rules for binders, instances, variables and guards of
+Typing's registry, proving after reify. Reify is unbuilt: a switch over `Pattern` stating its rows, and no rule.
+Expand and Logic have their rules ("Expand", "Logic", below). Fol has the rules for binders, instances, variables and guards of
 variables at `i`. `Pattern.dialects`
 replaces `Node.dialects` and `legalize` reads it. `RulePass` is gone: no rule writes a pattern its pass owns, so one
 walk is the whole pass. `forall_elim` takes an isa variable of any type but `o`, as `folPred` does. `lower` counts a
@@ -1392,6 +1397,178 @@ owner 7,178, logic 1,014, reify 1,177. 51 named theorems pass every pass, the fi
 of the 1,004 definitions reach the pass that owns their constant, against 892: a ZF definition holding a logic constant
 now passes Expand. Read 61.1 s, lowered 19.2 s.
 
+### Logic — a proposition as a schema letter, the logic's rules as the kernel's  **[AGREED AND BUILT 2026-10-14 — `Sources/Lowering/Logic.swift`, `Sources/IR/Legalize.swift`]**
+
+**Logic reads Isabelle's `⋀P::o` as the one thing fol-zfc has for it, a schema letter, and makes each axiom of the logic
+that binds only propositions the kernel's own step.** It is the Logic component's pass after `expand` ("Lowering's
+components"). This step builds the part of Logic that needs neither an equation between functions nor a citation of
+base; the rest of its rows are owned and unbuilt: the next step (7).
+
+**What Logic receives** is Expand's row: no Pure, IFOL or FOL defined constant; every axiom's statement unfolded; a
+definition's citation as `Pure.reflexive` at its equation's type.
+
+**Where its patterns sit** (a scratch survey of the unit after Expand, not kept):
+- A `⋀P::o` the reader writes stands on a statement's top chain: Isabelle's closure over a theorem's propositional
+  variables (`conjE`, `ccontr`, `ballE`'s `R`). 672 named theorems bind one at their top, and 6,599 instantiate a cited
+  theorem at a proposition. The reader writes one below a top only in four named theorems of `MetaExists` and
+  `Inductive`, each with no owner already.
+- Expand writes one below a top wherever it unfolds one of the three definitions whose definiens binds a proposition:
+  `Pure.conjunction` (`&&&`), `Pure.term` (`TERM`), `MetaExists.ex`.
+- The only axioms of the logic named ZF proofs cite are Pure's seven. IFOL's and FOL's are cited by the logic's own
+  theorems: `IFOL.conjI`'s proof is the axiom at the theorem's own variables.
+- Of the 1,078 named theorems stopping at logic, 520 hold only what this step builds. The other 558 hold Pure's `≡` or
+  one of its rules at `i` or at a function type, or a variable of a type beyond objects other than `o`.
+
+**FOUNDATION first.** S4's arity-0 sentence ("there is no such rendering and none is wanted") is replaced by the
+reference's paragraph of 2026-10-01 (`kinds-proposal`, `19782f9c`): a schematic `P :: o` is a schema letter; a
+statement binding propositions is a schema, proved once with its letters uninterpreted, and each use instantiates it;
+the `⋀P::o` of the logic's rules stay the kernel's own steps; a function of propositions has neither rendering. Its
+correction box comes with it, and §3b's mapping gains the row "`⋀P :: o` at a statement's top, `AppT` at it | a schema
+letter, `schema_inst` (S4)". The rest of the reference's FOUNDATION stays the open decision it is.
+
+**1. A propositional `⋀` is fol-zfc's letter, in Isabelle's own nodes.** The binder `ifolAll(o, φ)`, the ⋀-intro proving
+it `isaAllIntro(o, p)` and the bound proposition `isaBound(k, o)` are the schema's letter binder, its proof's letter and
+the letter. `Pattern.dialects` reads the three at `o` as both dialects, as it reads a citation at no type arguments: no
+pass owns them, and Fol walks a letter binder as an unguarded one. No new kind: §3's "a schema variable becomes a table
+node kind then" is superseded.
+
+```
+Isabelle    IFOL.conjE: ⟦P ∧ Q; ⟦P; Q⟧ ⟹ R⟧ ⟹ R
+read        ⋀P Q R::o. P ∧ Q ⟹ (P ⟹ Q ⟹ R) ⟹ R               ifolAll(o, ifolAll(o, ifolAll(o, …)))
+emitted     schema IFOL.conjE [A0, A1, A2]: ((A0 & A1) -> ((A0 -> (A1 -> A2)) -> A2))
+```
+
+**2. A letter stands only where fol-zfc writes one.** That is fol-zfc's grammar, so it is `legalize`'s (IR), the one
+place that says what fol-zfc is:
+- a letter binder on a root's spine, a statement's or a cited statement's: under `∀` and on the right of `→`. Fol's
+  guard keeps it there: `∀x. set(x) → ⋀P. φ`;
+- a letter's ⋀-intro on a proof root's spine: under `forall_intro` and `implies_intro`;
+- an instantiation on a citation's spine (3).
+
+After the last pass, a statement holding a letter anywhere else is refused, `letterOffSpine`, naming it: FOUNDATION S4's
+"no rendering". The emitted schema declares the letters its spine binds, and its proof drops their intros. Of the 520,
+68 hold one off its spine: a `⋀C::o` from `&&&`, `TERM` or `ex` unfolded; a box whose propositional parameter follows a
+set parameter (3); a proof of a `⋀`-premise.
+
+**3. An elimination at `o` is Logic's rule.** `isaAllElim(p, A)` at `o` reduces where `p` is a ⋀-intro at `o`, an inlined
+box instantiated at once or an axiom's step (4), by `instantiate` at the proof level: the pass plan's box "reduced at
+the proof level". Anywhere else it is `schema_inst`, a new fol-zfc step `folSchemaInst(p, A)`, concluding the letter at
+the top of `p`'s conclusion instantiated at `A`. It is a step per letter, as Isabelle's `AppT` is; emission writes one
+`schema_inst` per citation, with every letter its spine instantiates, ahead of the spine's `forall_elim`s. That is sound
+because a letter hoists across `∀` and the right of `→`.
+
+```
+Isabelle    conjE at A, B, C, applied to h ⊢ A ∧ B and k ⊢ A ⟹ B ⟹ C
+read        folImpliesElim(folImpliesElim(isaAllElim(isaAllElim(isaAllElim(use conjE, A), B), C), h), k)
+logic       folImpliesElim(folImpliesElim(folSchemaInst(folSchemaInst(folSchemaInst(use conjE, A), B), C), h), k)
+emitted     _1 = schema_inst IFOL.conjE {A0: A, A1: B, A2: C}
+            _2 = implies_elim _1, h
+            _3 = implies_elim _2, k
+```
+
+A redex at `i` stays: `forall_intro` then `forall_elim` is fol-zfc. So a box `⋀x::i. ⋀P::o. …` instantiated at once keeps
+its `P` behind the redex at `x`, and its letter is off its spine (2). Reducing through a redex at `i` is a shape (D1);
+such a box waits for boxes' own design. Reading every box at its instance in the reader is not that design: a scratch
+run grew the read past 20 GB and 8 minutes before it was stopped, against 4.3 GB and 88 s.
+
+**4. An axiom of the logic binding only propositions is the kernel's step.** The 16 instances are Pure's `equal_intr` and
+`equal_elim`, and `reflexive`, `symmetric`, `transitive` at `[o]`; IFOL's `impI mp conjI conjunct1 conjunct2 disjI1
+disjI2 disjE FalseE iff_reflection`; FOL's `classical`. A citation of one becomes the kernel's proof of its statement: a
+⋀-intro at `o` per letter around the kernel's step, built from the `Axiom` alone (I1), never by reading the statement
+back. The eliminations above it reduce it (3), so each use is the kernel's own rule at its instance (FOUNDATION §3b),
+and the pipeline checks that each proof still concludes its statement, by ID.
+
+```
+axiom, as read after Expand                     its proof, inside a ⋀-intro per letter
+IFOL.conjI       ⋀P Q. P ⟹ Q ⟹ P ∧ Q              implies_intro P (implies_intro Q (and_intro (hyp 1) (hyp 0)))
+Pure.equal_elim  ⋀A B. (A ↔ B) ⟹ A ⟹ B           implies_intro (A ↔ B) (implies_intro A (iff_elim_l (hyp 1) (hyp 0)))
+FOL.classical    ⋀P. ((P ⟹ ⊥) ⟹ P) ⟹ P            implies_intro h (classical_absurd P [n: ¬P]
+                                                    not_elim n (implies_elim h (implies_intro P (not_elim n (hyp 0)))))
+```
+
+`impI` and `mp` read alike, since `⟹` and `⟶` are one node: both are the identity on `P ⟹ Q`.
+
+**5. Logic's rows, exactly** — one switch over `Pattern`, dispatching the two rules:
+
+| pattern | answer |
+|---|---|
+| `use(axiom a, types, o)`, one of the 16 instances (4) | rule |
+| `isaAllElim(o, o)` | rule (3) |
+| `use(axiom a, types, o)`, any other axiom of the logic at types with no type variable: Pure's `reflexive`, `symmetric`, `transitive` at `i` or at a function type; `combination`; `abstract_rule` | unbuilt (7) |
+| `isaConst(primitive Pure.eq, T ⇒ T ⇒ o, …)`, `T` a function type with no type variable | unbuilt (7) |
+| `ifolAll`, `ifolEx`, `isaAllIntro` or `isaAllElim` at a type beyond objects other than `o`, with no type variable | unbuilt (7) |
+| `ifolAll(o, …)`, `isaAllIntro(o, …)`, `isaBound(o)` | none: fol-zfc's letter (1) |
+| `ifolEx(o, …)` | none, and fol-zfc lacks it: refused before the first pass |
+| every other pattern | not its own |
+
+"Beyond objects" is neither `i`, `iⁿ ⇒ i` nor `iⁿ ⇒ o` (`isObject`). Fol stops owning `isaBound(o)`: a letter is
+fol-zfc's. The coarse table's Logic row changes with it: a binder at `o` is no pass's, but fol-zfc's letter.
+
+**6. What the framework gains.** IR: `Pattern.dialects` reads `ifolAll`, `isaAllIntro` and `isaBound` at `o` as both
+dialects; `folSchemaInst(p, A)` is a fol-zfc step whose conclusion is computed at `intern`, `principalConnective` unless
+`p` concludes a letter binder; `legalize` checks (2). The pipeline gains a refusal after the last pass,
+`letterOffSpine([Pattern])`, which `lower` reports as a group, and the pass-sets table its row. FolDialect renders a
+schema and `schema_inst` when emission is built.
+
+**7. Next: Pure's `≡` and rules at a function type.** They wait because an equation between functions of propositions has
+no fol-zfc statement. `f ≡ g` at `o ⇒ o` says `⋀P. f P ↔ g P`, a proposition bound below a top. So a proof through
+`combination` at `[o, o]`, the simplifier rewriting inside a formula, has no image step by step: what it proves at its
+instance, `φ(A) ↔ φ(B)` from `A ↔ B`, is the context's congruence, proved per formula from `base`'s `cong_*` schemas. At
+an object function type, `f ≡ g` is pointwise, `∀x. f x ↔ g x`, a statement over classes. That design is the next
+step. Pure's rules at `i` wait with it: `≡` at `i` is `IFOL.eq`, and their proofs are base's `eq_refl`, `eq_symm` and
+`eq_trans`, cited by the first step that cites base (point 6 of "The unit and its citations"). `IFOL.TrueI`'s own proof
+rewrites by `combination` at `[o, o]`, so the 51 that fall with it stay.
+
+**The contracts (D2):**
+
+| | provides | assumes |
+|---|---|---|
+| Logic | every statement, proof and definition it walks free of its two rules' patterns, each proof still concluding its statement by ID; every propositional `⋀`, its intro and its variable left as fol-zfc's letter; each axiom of the logic binding only propositions as the kernel's step at its instance | Expand's row: no Pure, IFOL or FOL defined constant, and every axiom's statement unfolded |
+| the pipeline | a statement holding a letter off its spine refused after the last pass, `letterOffSpine`, and its citers with it | `legalize`'s grammar for letters |
+| Fol | a letter binder walked as an unguarded binder; a letter left as it stands | — |
+
+**Tests, written first.**
+- `PlanTests`: Logic answers `.rule` for the 16 instances and for `isaAllElim(o, o)`; `.unbuilt` for `Pure.reflexive` at
+  `[i]` and at `[o ⇒ o]`, for `combination`, for `≡` at `o ⇒ o` and for a binder at `o ⇒ o`. `ifolAll(o, …)`,
+  `isaAllIntro(o, …)` and `isaBound(o)` have no owner and are fol-zfc's. No pattern has two owners.
+- `LogicTests`, Logic run alone, each proof checked to conclude its statement by ID: a citation of `conjI` eliminated at
+  `A` and `B` is `and_intro`'s proof at them; `classical`, likewise; a ⋀-intro at `o` eliminated at once reduces; a
+  citation of a theorem binding a proposition, eliminated at `A`, is `folSchemaInst`; a schema's own proof keeps its
+  letters' intros; a box at `o` behind a redex at `i` is `folSchemaInst`.
+- `TableTests`: `folSchemaInst` concludes its premise's letter at the instance, and refuses a premise that does not
+  conclude a letter binder.
+- `LegalizeTests`: a letter binder on the left of `→`, a letter's ⋀-intro inside a proof, an instantiation of a hypothesis
+  are each off their spine; a letter under Fol's guard is on it.
+- `PipelineTests`: a statement holding a letter off its spine is refused `letterOffSpine`, and its citers fall.
+
+**Kept from the reference, and changed.** Kept: FOUNDATION's arity-0 S4; the logic's rules as kernel steps built from the
+axiom and checked by ID; a ⋀-intro eliminated at once reduced by `instantiate`; a redex at `i` stays. Changed:
+- No schema pass and no statement kind (`.schema(proof:letters:)`, `Schema.letters`, `schemaShape`): the letter is
+  Isabelle's own `⋀` at `o`, fol-zfc's by `Pattern.dialects`.
+- No refusal by name inside a pass (`partialInstantiation`, `propositionBoundInProof`): where a letter stands is fol-zfc's
+  grammar, checked once, at `legalize`.
+- No proof put in place for a citation beyond sets and classes: a cited theorem binding a proposition is a schema, and
+  its use instantiates it.
+- No reduction through redexes at `i` (`reducedUnderRedexesAtI`): it is a shape. Such a box is refused until boxes are
+  designed.
+- No `evaluate` into `isaCongruence`: it is a shape. The congruence is the next step's, from its primitive.
+
+**Built.**
+- IR: `Pattern.dialects` reads `ifolAll`, `isaAllIntro` and `isaBound` at `o` as both dialects; `folSchemaInst(p, A)`,
+  its conclusion computed at `intern`; `misplacedLetters`, beside `legalize`, the grammar (2); the pipeline refuses
+  `letterOffSpine` after the last pass, and `lower` reports it as a group.
+- Lowering: `Logic` owns its rows by one switch (`piece`) dispatching its two rules; the kernel's proofs are built
+  from a `Kernel` case, one per instance but `impI` and `mp`, which share the identity. Fol answers `isaBound(o)` not its
+  own, reading `Pattern.dialects`. `Anywhere` and `children` moved to `Plan.swift`, one home for Expand, Logic and Fol.
+- FolDialect: `render` refuses a letter and `schema_inst`, `RenderError.schema`, until emission writes schemas.
+
+**Measured** (`isa2fol lower data/zf_export`): 3 named theorems are lowered to fol-zfc, the first: `ZF_Base.strip.1`,
+`func.basic_monos.2` and `.4`, the logic's `impI`, `imp_refl` and `conj_mono` under ZF's names. 23 theorems cited
+outside the ZF sessions lower with them, schemas the kernel's steps prove. Refused: no owner 7,176, logic 558, reify
+1,631, and 52 that cite a refused statement: `IFOL.TrueI` 51, `FOL.disj_mono` 1 (`func.basic_monos.3`). Of the 520 that
+leave logic, 516 stop at reify; no statement reaches the letter grammar off its spine yet, since every one holding such
+a letter holds a pattern Reify owns. Read 65.8 s, lowered 20.5 s.
+
 ### Fol — binders, guards and variables  **[BUILT 2026-09-28 as the guard; Fol's 2026-10-14 — `Sources/Lowering/Fol.swift`]**
 
 **The quantified variables of type `i` get a guard, the binder becomes fol-zfc's, and so does the variable.** The
@@ -1486,7 +1663,7 @@ proof step — "β as proof".
 
 | # | pass | removes |
 |---|---|---|
-| 1 | **logic** — IFOL's ND rules and `FOL.classical` to the kernel's own steps; an inlined box instantiated at once, reduced at the proof level (`instantiate`) | every `⋀P::o`; those rules' and boxes' class instantiations |
+| 1 | **logic** — IFOL's ND rules and `FOL.classical` to the kernel's own steps; an inlined box instantiated at once, reduced at the proof level (`instantiate`) | every `⋀P::o` but a schema's letter; those rules' and boxes' class instantiations |
 | 2 | **reify** — every compound term becomes a variable with its defining atom; every function becomes a class | `isaConst` at `i` or a function type, `isaVarApp`, `isaAbs`, `Pure.eq` at a function type, `isaAllElim` at a function type |
 | 3 | **fol** — `set(x)` on every set binder, Isabelle's and reify's, a class binder bare, each written as fol-zfc's binder; every variable to `folBound`; then `legalize`. Until 2026-10-14 the guard was a pass of its own, before fol | the isa binders at `i`, `iⁿ ⇒ i`, `iⁿ ⇒ o`, and the rest of the isa dialect |
 
@@ -1520,7 +1697,7 @@ membership's congruence (`g3_pmem_cong1`), then β as proof — reify's.
 | a bound variable at `i` | a set variable, guarded (R3) |
 | … at `i^n ⇒ i` | a class variable `F`, bare, owing `mfun(F, D)` (S5) |
 | … at `i^n ⇒ o` | a class variable `P`, bare (S4) |
-| … at `o` | classified out: `⋀P::o` is the kernel's own rules (S4) |
+| … at `o` | a schema letter at a statement's top, `schema_inst` at a citation; the logic's rules' are the kernel's own (S4; "Logic") |
 | a constant — a function or a predicate | a class, cited globally (decision 5) |
 | `c(x⃗) : i`, `f(x⃗) : i` | `∃r. fn_apply(F, t, r) ∧ φ(r)`, at the atom where it appears (decision 3) |
 | `P(x⃗) : o`, a predicate constant or variable | `t ∈ P` |

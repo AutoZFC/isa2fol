@@ -693,15 +693,25 @@ false, not redundant — a quantifier the target
 already uses, `axioms.fol.def`'s B2 being `forall A. forall B. …`. Nothing is
 admitted (R1), no class `{x : P(x)}` is ever formed, and this IS R2's "proved
 parametrically" stated in the object logic instead of in schema machinery, so
-the kernel checks it rather than discipline. It is also what lets ONE Isabelle
-proof replay: a schema forces a proof per instantiation, `∀A. θ*(A)` does not.
-Instantiation is then §3 compiling the concrete φ to a class — and §3 has no
-case for a class quantifier, which is where predicativity is enforced. **At
-arity 0 there is no such rendering and none is wanted** — a propositional
-variable has no argument to collect, and encoding it would be the truth-value
-set this section refuses. Those occurrences are the `⋀P::o` of `disjE`/`exE`,
-whose counterparts are the kernel's own ND rules; they are classified out, never
-translated.
+the kernel checks it rather than discipline. Instantiation is then §3 compiling
+the concrete φ to a class — and §3 has no case for a class quantifier, which is
+where predicativity is enforced.
+
+**At arity 0 a schematic `P :: o` is a SCHEMA LETTER `A(0)`** (decided
+2026-10-01). A statement binding propositions — `conj_cong`, `imp_cong`,
+`iff_cong` — is a schema, proved ONCE from its own proof with its letters
+uninterpreted, and each use instantiates it. Nothing is reified: a letter stands
+for a formula, never for an object, so this is not the truth-value set refused
+above, and R2 holds because a proof over uninterpreted letters is parametric by
+construction. The `⋀P::o` of IFOL's primitive rules (`disjE`, `exE`) stay the
+kernel's own ND rules. A variable of a type built over `o` — a function of
+propositions, `o ⇒ o` — has neither rendering: no letter takes a proposition as
+its argument.
+
+> **⚠ THIS SECTION SAID "AT ARITY 0 THERE IS NO SUCH RENDERING AND NONE IS
+> WANTED", AND THAT "A SCHEMA FORCES A PROOF PER INSTANTIATION".** The second is
+> false of the target — a schema is proved once and instantiated — and the first
+> left every proposition-binding lemma to be re-proved inside each of its uses.
 
 **S5 — Set-valued meta-function arguments compile to classes**, then to sets by
 Replacement where the domain is a set. No graph is ever passed as an argument.
@@ -1108,6 +1118,7 @@ specialisation at `kpair`.
 | `AppT` at a compound term | `appt_complex` / `appt_nested` |
 | `Thm` | `use` |
 | `⋀P :: o` at the head of a logical rule | the kernel's OWN ND rule; never translated (S4) |
+| `⋀P :: o` at a statement's top, `AppT` at it | a schema letter, `schema_inst` (S4) |
 
 **⚠ THE GUARD STEP HAS NO COUNTERPART IN THE PROOF TERM.** Isabelle gets `a : i`
 from its type system — decided, never proved — so every `forall_elim` needs a

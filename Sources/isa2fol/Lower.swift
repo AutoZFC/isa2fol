@@ -33,6 +33,7 @@ func lower(_ root: String) {
         case let .noOwner(ps): (group, noun, found) = ("no owner", "patterns", ps.map { "\($0)" })
         case let .unbuilt(pass, ps): (group, noun, found) = ("\(pass), unbuilt", "patterns", ps.map { "\($0)" })
         case .lemmaUnbuilt: (group, noun, found) = ("registry, unbuilt", "", [])
+        case let .letterOffSpine(ps): (group, noun, found) = ("a letter off its spine", "patterns", ps.map { "\($0)" })
         case let .cites(cited): (group, noun, found) = ("cites a refused statement", "statements", [cited])
         case .unread: (group, noun, found) = ("not read", "", [])
         }
@@ -41,7 +42,7 @@ func lower(_ root: String) {
         for p in found { held[group, default: [:]][p, default: 0] += 1 }
     }
     let groups = ["no owner"] + pipeline.passes.map { "\($0.name), unbuilt" }
-        + ["registry, unbuilt", "cites a refused statement", "not read"]
+        + ["registry, unbuilt", "a letter off its spine", "cites a refused statement", "not read"]
     for group in groups {
         guard let n = statements[group] else { continue }
         let counts = held[group] ?? [:]

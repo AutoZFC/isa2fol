@@ -37,7 +37,7 @@ private func piece(_ p: Pattern) -> Piece? {
          .hyp, .isaGuard, .folNot, .folBound, .folPred, .folForall, .folExists, .folAndIntro, .folAndElimL, .folAndElimR,
          .folOrIntroL, .folOrIntroR, .folOrElim, .folNotIntro, .folNotElim, .folIffIntro, .folIffElimL,
          .folIffElimR, .folForallIntro, .folForallElim, .folExistsIntro, .folExistsElim, .folBottomElim,
-         .folClassicalAbsurd:
+         .folClassicalAbsurd, .folSchemaInst:
         return nil
     }
 }
@@ -51,8 +51,6 @@ private struct Citation: Hashable {
     let constant: Defined
     let types: [IRType]
 }
-
-private struct Anywhere: Hashable {}
 
 private struct Unfold: Rule {
     private var definitions: [Instance: Definition] = [:]

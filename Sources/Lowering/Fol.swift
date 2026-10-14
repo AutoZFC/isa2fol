@@ -39,13 +39,13 @@ private func piece(_ p: Pattern) -> Piece? {
     case let .isaAllIntro(T, _): return object(T, .intro)
     case let .isaAllElim(_, T): return object(T, .instance)
     case let .isaGuard(T, _): return object(T, .guardOf)
-    case let .isaBound(T): return mentionsTypeVariable(T) ? nil : T == .i ? .variable : .unbuilt
+    case let .isaBound(T): return mentionsTypeVariable(T) || p.dialects.contains(.fol) ? nil : T == .i ? .variable : .unbuilt
     case .hyp: return .renumber
     case .isaConst, .isaFree, .isaVarApp, .isaAbs, .isaOfClass, .folImplies, .folAnd, .folOr, .folIff, .folBottom,
          .folImpliesIntro, .folImpliesElim, .use, .folNot, .folBound, .folPred, .folForall, .folExists, .folAndIntro,
          .folAndElimL, .folAndElimR, .folOrIntroL, .folOrIntroR, .folOrElim, .folNotIntro, .folNotElim, .folIffIntro,
          .folIffElimL, .folIffElimR, .folForallIntro, .folForallElim, .folExistsIntro, .folExistsElim, .folBottomElim,
-         .folClassicalAbsurd:
+         .folClassicalAbsurd, .folSchemaInst:
         return nil
     }
 }
@@ -110,12 +110,6 @@ private struct FolRule: Rule {
             return nil
         }
     }
-}
-
-private func children(_ n: Node) -> [NodeID] {
-    var found: [NodeID] = []
-    n.forEachChild { c, _ in found.append(c) }
-    return found
 }
 
 private func guardOfBound0(_ t: inout Table) throws -> NodeID {

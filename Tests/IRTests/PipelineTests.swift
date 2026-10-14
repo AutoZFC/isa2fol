@@ -386,3 +386,19 @@ private func reflexiveAtFunction(_ t: inout Table) throws -> NodeID {
         try Pipeline(passes: [cite, elem], registry: Proving { _, _, _ in .proof(proof) }, provingAfter: "cite").run(&unit)
     }
 }
+
+/// `(⋀P. P ⟹ P) ⟹ (⋀P. P ⟹ P)`, by its hypothesis: the letter on the left of `⟹` has no schema to bind it, so the
+/// statement is refused after the last pass; a statement citing it holds that statement, and is refused alike.
+@Test func aStatementHoldingALetterOffItsSpineIsRefusedAfterTheLastPass() throws {
+    var t = Table()
+    let p = try t.intern(.isaBound(0, o))
+    let bad = try identity("bad", try t.intern(.ifolAll(o, body: try t.intern(.folImplies(p, p)))), &t)
+    let bottom = try t.intern(.folBottom)
+    let held = try t.intern(.folAndIntro(try t.intern(.use(.theorem("bad"), [], bad.root)), try t.intern(.hyp(0, bottom))))
+    let citer = Statement(name: "citer", root: try t.intern(.folImplies(bottom, bottom)),
+                          proof: try t.intern(.folImpliesIntro(bottom, body: try t.intern(.folAndElimR(held)))))
+    var unit = Unit(table: t, statements: [bad, citer])
+    try Pipeline(passes: []).run(&unit)
+    #expect(unit.statements.isEmpty)
+    #expect(refusals(unit) == ["bad": .letterOffSpine([.ifolAll(o, body: o)]), "citer": .letterOffSpine([.ifolAll(o, body: o)])])
+}

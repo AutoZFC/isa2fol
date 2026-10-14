@@ -190,6 +190,10 @@ public struct Table: Sendable {
             try expect(.o, a)
             try absurd(body)
             return .step(concluding: a)
+        case let .folSchemaInst(p, a):
+            guard case let .ifolAll(.o, body) = self[try premise(p)] else { throw TableError.principalConnective(p) }
+            try expect(.o, a)
+            return .step(concluding: try instantiate(body, with: a, in: &self))
         case let .isaAllIntro(T, body):
             return .step(concluding: try intern(.ifolAll(T, body: try premise(body))))
         case let .isaAllElim(p, x):
