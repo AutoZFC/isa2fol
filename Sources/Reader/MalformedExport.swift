@@ -39,6 +39,7 @@ import IR
     case unboundHypothesis(Int)
     case unproved(statement: NodeID, conclusion: NodeID?)
     case cyclicClosure(String)
+    case notADefinition(String)
 }
 
 @frozen public enum DialectGap: Error, Equatable, Sendable {

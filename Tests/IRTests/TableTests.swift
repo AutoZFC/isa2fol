@@ -125,6 +125,18 @@ private let collect = Constant.defined(Defined(.zf, "ZF_Base.Collect"))
     #expect(throws: IRRefusal.sourceKindSurvived(x)) { try legalize(set, in: t) }
 }
 
+/// The guard writes fol-zfc's binder while variables are still isa's, so `forall_elim` takes them as a predicate does.
+@Test func aForallEliminationTakesAVariableOfEveryTermType() throws {
+    var t = Table()
+    let x = try t.intern(.isaBound(0, i)), P = try t.intern(.isaBound(1, fn(i, o)))
+    let body = try t.intern(.folPred("elem", args: [try t.intern(.isaBound(0, i)), try t.intern(.isaBound(2, fn(i, o)))]))
+    let all = try t.intern(.folForall(body: body))
+    let atX = try t.intern(.folForallElim(try t.intern(.hyp(0, all)), x))
+    #expect(t.conclusion(of: atX) == (try t.intern(.folPred("elem", args: [x, P]))))
+    let p = try t.intern(.isaBound(0, o))
+    #expect(throws: TableError.propositionAsTerm(p)) { try t.intern(.folForallElim(try t.intern(.hyp(0, all)), p)) }
+}
+
 /// S4: a proposition is never reified, so a variable at `o` is no predicate's argument.
 @Test func aVariableAtOIsNotAPredicateArgument() throws {
     var t = Table()
@@ -170,4 +182,16 @@ private let collect = Constant.defined(Defined(.zf, "ZF_Base.Collect"))
     #expect(throws: TableError.varAppHeadNotVariable(lambda)) {
         try t.intern(.isaVarApp(head: lambda, args: [a]))
     }
+}
+
+/// The guard of a variable concludes the formula it carries, as a hypothesis does; IR knows no guard.
+@Test func theGuardOfAVariableConcludesItsFormula() throws {
+    var t = Table()
+    let x = try t.intern(.isaBound(0, i))
+    let set = try t.intern(.folPred("set", args: [x]))
+    let g = try t.intern(.isaGuard(x, set))
+    #expect(t.conclusion(of: g) == set)
+    let a = try t.intern(.isaConst(.declared("a"), i, args: []))
+    #expect(throws: TableError.notATermVariable(a)) { try t.intern(.isaGuard(a, set)) }
+    #expect(throws: TableError.childType(expected: o, found: i)) { try t.intern(.isaGuard(x, x)) }
 }

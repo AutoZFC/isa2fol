@@ -85,7 +85,7 @@ public struct Table: Sendable {
         case .folBound:
             return .value(.i)
         case let .folPred(_, xs):
-            for x in xs { try expectTermVariable(x) }
+            for x in xs { try expectTermVariable(x, else: .predicateArgumentNotVariable(x)) }
             return .value(.o)
         case let .folAnd(a, b), let .folOr(a, b), let .folImplies(a, b), let .folIff(a, b):
             try expect(.o, a)
@@ -113,6 +113,10 @@ public struct Table: Sendable {
         case let .use(_, _, a), let .hyp(_, a):
             try expect(.o, a)
             return .step(concluding: a)
+        case let .isaGuard(x, g):
+            guard case .isaBound = self[x] else { throw TableError.notATermVariable(x) }
+            try expect(.o, g)
+            return .step(concluding: g)
         case let .folAndIntro(p, q):
             return .step(concluding: try intern(.folAnd(try premise(p), try premise(q))))
         case let .folAndElimL(p):
@@ -163,7 +167,7 @@ public struct Table: Sendable {
             return .step(concluding: try intern(.folForall(body: try premise(body))))
         case let .folForallElim(p, v):
             guard case let .folForall(body) = self[try premise(p)] else { throw TableError.principalConnective(p) }
-            guard case .folBound = self[v] else { throw TableError.notATermVariable(v) }
+            try expectTermVariable(v, else: .notATermVariable(v))
             return .step(concluding: try instantiate(body, with: v, in: &self))
         case let .folExistsIntro(p, v):
             if case let .folBound(k) = self[v] {
@@ -196,9 +200,9 @@ public struct Table: Sendable {
         }
     }
 
-    private func expectTermVariable(_ x: NodeID) throws {
+    private func expectTermVariable(_ x: NodeID, else notVariable: TableError) throws {
         if case .folBound = self[x] { return }
-        guard case let .isaBound(_, T) = self[x] else { throw TableError.predicateArgumentNotVariable(x) }
+        guard case let .isaBound(_, T) = self[x] else { throw notVariable }
         guard T != .o else { throw TableError.propositionAsTerm(x) }
     }
 

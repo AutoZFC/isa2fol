@@ -11,7 +11,7 @@ public struct Depth: Hashable, Sendable {
 public protocol Rule {
     associatedtype Context: Hashable = Depth
     var start: Context { get }
-    func enter(_ c: Context, _ binder: Node, _ binds: Binds) -> Context
+    func enter(_ c: Context, _ binder: Node, _ binds: Binds, in t: Table) -> Context
     func narrow(_ c: Context, _ id: NodeID, in t: Table) -> Context
     func before(_ id: NodeID, context: Context, in t: inout Table) throws -> NodeID?
     func after(_ n: Node, context: Context, in t: inout Table) throws -> NodeID?
@@ -25,16 +25,9 @@ extension Rule {
 
 extension Rule where Context == Depth {
     public var start: Depth { Depth() }
-    public func enter(_ c: Depth, _ binder: Node, _ binds: Binds) -> Depth {
+    public func enter(_ c: Depth, _ binder: Node, _ binds: Binds, in t: Table) -> Depth {
         Depth(terms: c.terms + binds.terms, hyps: c.hyps + binds.hyps)
     }
-}
-
-public protocol Refusal: Error, Sendable {}
-
-@frozen public enum Rewrite: Sendable {
-    case rewritten(NodeID)
-    case refused(any Refusal)
 }
 
 private struct Visit<Context: Hashable>: Hashable {
@@ -42,22 +35,13 @@ private struct Visit<Context: Hashable>: Hashable {
     let context: Context
 }
 
-public func transform<R: Rule>(_ roots: [NodeID], _ rule: R, in t: inout Table) throws -> [Rewrite] {
+public func transform<R: Rule>(_ roots: [NodeID], _ rule: R, in t: inout Table) throws -> [NodeID] {
     var cache: [Visit<R.Context>: NodeID] = [:]
-    return try roots.map { root in
-        do {
-            return .rewritten(try visit(root, rule.start, rule, &cache, &t))
-        } catch let refusal as any Refusal {
-            return .refused(refusal)
-        }
-    }
+    return try roots.map { try visit($0, rule.start, rule, &cache, &t) }
 }
 
 public func transform<R: Rule>(_ root: NodeID, _ rule: R, in t: inout Table) throws -> NodeID {
-    switch try transform([root], rule, in: &t)[0] {
-    case let .rewritten(id): return id
-    case let .refused(refusal): throw refusal
-    }
+    try transform([root], rule, in: &t)[0]
 }
 
 private func visit<R: Rule>(_ id: NodeID, _ outer: R.Context, _ rule: R,
@@ -74,7 +58,8 @@ private func rewrite<R: Rule>(_ id: NodeID, _ c: R.Context, _ rule: R,
     if let replaced = try rule.before(id, context: c, in: &t) { return replaced }
     let n = t[id]
     let rebuilt = try n.mapChildren { child, binds in
-        try visit(child, binds == .none ? c : rule.enter(c, n, binds), rule, &cache, &t)
+        let inner = binds == .none ? c : rule.enter(c, n, binds, in: t)
+        return try visit(child, inner, rule, &cache, &t)
     }
     if let rewritten = try rule.after(rebuilt, context: c, in: &t) { return rewritten }
     return try t.intern(rebuilt)

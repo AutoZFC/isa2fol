@@ -42,6 +42,25 @@ private let memT = IRType.fn(.i, .fn(.i, .o))
     #expect(Pattern(t[withClass], in: t) == .folPred(args: [.i, .fn(.i, .o)]))
 }
 
+/// A covered construct is ONE node of both dialects: the reader reads `⟹` as the fol-zfc implication. A free
+/// variable is the isa dialect's (the reader's hidden variable); `¬` is fol-zfc's only, IFOL's being defined. A
+/// citation is fol-zfc's only of a theorem at no type arguments.
+@Test func eachPatternBelongsToTheIsaDialectTheFolDialectOrBoth() {
+    #expect(Pattern.folImplies(.o, .o).dialects == [.isa, .fol])
+    #expect(Pattern.folPred(args: [.i]).dialects == [.fol])
+    #expect(Pattern.folNot(.o).dialects == [.fol])
+    #expect(Pattern.isaConst(.primitive(.zf(.mem)), memT, args: [.i, .i]).dialects == [.isa])
+    #expect(Pattern.isaFree(.i).dialects == [.isa])
+    #expect(Pattern.isaOfClass(.variable("'a")).dialects == [.isa])
+    #expect(Pattern.use(.theorem, [], .o).dialects == [.isa, .fol])
+    #expect(Pattern.use(.theorem, [.i], .o).dialects == [.isa])
+    #expect(Pattern.use(.axiom(.pure(.combination)), [.i, .i], .o).dialects == [.isa])
+    #expect(Pattern.use(.isaDefinition(.zf), [], .o).dialects == [.isa])
+    #expect(Pattern.use(.theoryAxiom, [], .o).dialects == [.isa])
+    #expect(Pattern.use(.lemma, [], .o).dialects == [.isa, .fol])
+    #expect(Pattern.isaGuard(.i, .o).dialects == [.isa])
+}
+
 @Test func aPatternPrintsDeterministically() {
     #expect("\(Pattern.use(.axiom(.pure(.combination)), [.i, .o], .o))" == "use(axiom Pure.combination, [i, o], o)")
     #expect("\(Pattern.isaConst(.defined(.zf), .fn(.i, .i), args: [.i]))" == "isaConst(defined zf, (i => i), args: [i])")

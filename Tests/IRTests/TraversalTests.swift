@@ -20,7 +20,7 @@ private final class DepthLog: Rule {
 private final class BinderLog: Rule {
     var seen: [(NodeID, [Node])] = []
     var start: [Node] { [] }
-    func enter(_ c: [Node], _ binder: Node, _ binds: Binds) -> [Node] { c + [binder] }
+    func enter(_ c: [Node], _ binder: Node, _ binds: Binds, in t: Table) -> [Node] { c + [binder] }
     func before(_ id: NodeID, context: [Node], in t: inout Table) throws -> NodeID? {
         seen.append((id, context))
         return nil
@@ -30,7 +30,7 @@ private final class BinderLog: Rule {
 private final class NarrowedLog: Rule {
     var seen: [(NodeID, [Node])] = []
     var start: [Node] { [] }
-    func enter(_ c: [Node], _ binder: Node, _ binds: Binds) -> [Node] { c + [binder] }
+    func enter(_ c: [Node], _ binder: Node, _ binds: Binds, in t: Table) -> [Node] { c + [binder] }
     func narrow(_ c: [Node], _ id: NodeID, in t: Table) -> [Node] {
         var terms = t.looseBound(of: id), hyps = t.looseHyps(of: id), k = c.count
         while terms > 0 || hyps > 0 {
@@ -53,17 +53,7 @@ private final class VisitCount: Rule {
     }
 }
 
-private enum Found: Refusal, Equatable { case bottom }
 private struct Broken: Error {}
-
-private final class RefuseBottom: Rule {
-    var visits: [NodeID: Int] = [:]
-    func before(_ id: NodeID, context depth: Depth, in t: inout Table) throws -> NodeID? {
-        visits[id, default: 0] += 1
-        if case .folBottom = t[id] { throw Found.bottom }
-        return nil
-    }
-}
 
 private struct BreakAtBottom: Rule {
     func before(_ id: NodeID, context depth: Depth, in t: inout Table) throws -> NodeID? {
@@ -87,22 +77,8 @@ private struct DropDoubleNegation: Rule {
     }
 }
 
-private struct ForgetTheProof: Rule {
-    func before(_ id: NodeID, context depth: Depth, in t: inout Table) throws -> NodeID? {
-        guard case .folImpliesIntro = t[id] else { return nil }
-        return try t.intern(.hyp(0, try t.intern(.folBottom)))
-    }
-}
-
 private func memOf(_ a: NodeID, _ b: NodeID, _ t: inout Table) throws -> NodeID {
     try t.intern(.isaConst(mem, memT, args: [a, b]))
-}
-
-/// `A → A`, proved by assuming `A`.
-private func identity(_ name: String, _ a: NodeID, _ t: inout Table) throws -> Statement {
-    let root = try t.intern(.folImplies(a, a))
-    let proof = try t.intern(.folImpliesIntro(a, body: try t.intern(.hyp(0, a))))
-    return Statement(name: name, root: root, proof: proof)
 }
 
 @Test func aRuleThatMatchesNothingReturnsTheSameRoot() throws {
@@ -190,9 +166,7 @@ private func contexts(_ seen: [(NodeID, [Node])], _ id: NodeID) -> [[Node]] {
     let r1 = try t.intern(.folNot(shared))
     let r2 = try t.intern(.folAnd(shared, shared))
     let count = VisitCount()
-    let out = try transform([r1, r2], count, in: &t)
-    guard case let .rewritten(x1) = out[0], case let .rewritten(x2) = out[1] else { Issue.record("\(out)"); return }
-    #expect([x1, x2] == [r1, r2])
+    #expect(try transform([r1, r2], count, in: &t) == [r1, r2])
     #expect(count.visits[shared] == 1)
 }
 
@@ -215,102 +189,11 @@ private func contexts(_ seen: [(NodeID, [Node])], _ id: NodeID) -> [[Node]] {
     #expect(try transform(n4, DropDoubleNegation(), in: &t) == n2)
 }
 
-@Test func aRulePassRunsToTheFixpoint() throws {
-    var t = Table()
-    let p = try t.intern(.folBottom)
-    var root = p
-    for _ in 0..<6 { root = try t.intern(.folNot(root)) }
-    let pass = RulePass(name: "drop-double-negation", rule: DropDoubleNegation())
-    guard case let .rewritten(lowered)? = try pass.run([root], in: &t).first else { Issue.record("refused"); return }
-    #expect(lowered == p)
-}
-
-@Test func aPipelineRunsItsPassesInOrderOverEveryStatementAndItsProof() throws {
-    var t = Table()
-    let a = try t.intern(.isaFree(.named("a"), i))
-    let s1 = try identity("s1", try memOf(a, a, &t), &t)
-    let s2 = try identity("s2", try t.intern(.folNot(try memOf(a, a, &t))), &t)
-    var unit = Unit(table: t, statements: [s1, s2])
-    let pipeline = Pipeline(passes: [RulePass(name: "a-to-b", rule: Rename(from: "a", to: "b")),
-                                     RulePass(name: "b-to-c", rule: Rename(from: "b", to: "c"))])
-    try pipeline.run(&unit)
-    let c = try unit.table.intern(.isaFree(.named("c"), i))
-    let cc = try memOf(c, c, &unit.table)
-    let notCC = try unit.table.intern(.folNot(cc))
-    for (s, A) in zip(unit.statements, [cc, notCC]) {
-        #expect(s.root == (try unit.table.intern(.folImplies(A, A))))
-        #expect(s.proof == (try unit.table.intern(.folImpliesIntro(A, body: try unit.table.intern(.hyp(0, A))))))
-    }
-}
-
-@Test func aPassThatBreaksAProofStopsThePipelineNamingThePassAndTheStatement() throws {
-    var t = Table()
-    let a = try t.intern(.isaFree(.named("a"), i))
-    let s = try identity("s", try memOf(a, a, &t), &t)
-    var unit = Unit(table: t, statements: [s])
-    let bottom = try unit.table.intern(.folBottom)
-    let pipeline = Pipeline(passes: [RulePass(name: "forget-the-proof", rule: ForgetTheProof())])
-    #expect(throws: PipelineError.unproved(name: "s", pass: "forget-the-proof", statement: s.root, conclusion: bottom)) {
-        try pipeline.run(&unit)
-    }
-}
-
-/// A refusal ends its own root only. What was rewritten before it stays cached: a completed
-/// rewrite is valid whatever else fails.
-@Test func aRefusalStopsOnlyItsOwnRootAndKeepsTheCache() throws {
-    var t = Table()
-    let a = try t.intern(.isaFree(.named("a"), i))
-    let shared = try memOf(a, a, &t)
-    let refused = try t.intern(.folAnd(shared, try t.intern(.folBottom)))
-    let kept = try t.intern(.folNot(shared))
-    let rule = RefuseBottom()
-    let out = try transform([refused, kept], rule, in: &t)
-    guard case let .refused(r) = out[0], case let .rewritten(k) = out[1] else {
-        Issue.record("\(out)")
-        return
-    }
-    #expect(r as? Found == .bottom)
-    #expect(k == kept)
-    #expect(rule.visits[shared] == 1)
-}
-
-@Test func anErrorThatIsNotARefusalStopsTheWalk() throws {
+@Test func anErrorStopsTheWalk() throws {
     var t = Table()
     let root = try t.intern(.folNot(try t.intern(.folBottom)))
     let other = try t.intern(.isaFree(.named("a"), i))
     #expect(throws: Broken.self) { try transform([root, other], BreakAtBottom(), in: &t) }
-}
-
-@Test func aPipelineRecordsARefusedStatementAndLaterPassesNeverSeeIt() throws {
-    var t = Table()
-    let a = try t.intern(.isaFree(.named("a"), i))
-    let bottom = try t.intern(.folBottom)
-    let bad = try identity("bad", bottom, &t)
-    let good = try identity("good", try memOf(a, a, &t), &t)
-    var unit = Unit(table: t, statements: [bad, good])
-    let second = VisitCount()
-    let pipeline = Pipeline(passes: [RulePass(name: "refuse-bottom", rule: RefuseBottom()),
-                                     RulePass(name: "count", rule: second)])
-    try pipeline.run(&unit)
-    #expect(unit.statements.map(\.name) == ["good"])
-    #expect(unit.refused.map { [$0.name, $0.pass] } == [["bad", "refuse-bottom"]])
-    #expect(unit.refused.first?.refusal as? Found == .bottom)
-    #expect(second.visits[bottom] == nil)
-}
-
-/// A covered construct is ONE node in both dialects: the reader reads `⟹` as the fol-zfc implication. A free
-/// variable is the isa dialect's (the reader's hidden variable); `¬` is fol-zfc's only, IFOL's being defined.
-@Test func eachKindBelongsToTheIsaDialectTheFolDialectOrBoth() throws {
-    var t = Table()
-    let b0 = try t.intern(.folBound(0)), bottom = try t.intern(.folBottom)
-    let a = try t.intern(.isaFree(.named("a"), i))
-    let implies = try t.intern(.folImplies(bottom, bottom)), set = try t.intern(.folPred("set", args: [b0]))
-    let mem = try memOf(a, a, &t), not = try t.intern(.folNot(bottom))
-    #expect(t[implies].dialects == [.isa, .fol])
-    #expect(t[set].dialects == [.fol])
-    #expect(t[not].dialects == [.fol])
-    #expect(t[mem].dialects == [.isa])
-    #expect(t[a].dialects == [.isa])
 }
 
 /// `OFCLASS(T, c)`, "T is in class c": a formula of the isa dialect, the export's own term form.
@@ -318,7 +201,6 @@ private func contexts(_ seen: [(NodeID, [Node])], _ id: NodeID) -> [[Node]] {
     var t = Table()
     let member = try t.intern(.isaOfClass(.variable("'a"), "IFOL.term"))
     #expect(t.type(of: member) == .o)
-    #expect(t[member].dialects == [.isa])
     #expect(throws: IRRefusal.sourceKindSurvived(member)) { try legalize(member, in: t) }
 }
 
@@ -337,4 +219,13 @@ private func contexts(_ seen: [(NodeID, [Node])], _ id: NodeID) -> [[Node]] {
     #expect(throws: IRRefusal.sourceKindSurvived(atom)) {
         try legalize(root, in: t)
     }
+}
+
+/// `use` is a kind of both dialects, yet fol-zfc cites no Isabelle axiom: legalize reads the pattern.
+@Test func legalizeRefusesACitationOfAnIsabelleAxiom() throws {
+    var t = Table()
+    let bottom = try t.intern(.folBottom)
+    let cited = try t.intern(.use(.axiom(.pure(.reflexive)), [.o], try t.intern(.folIff(bottom, bottom))))
+    let root = try t.intern(.folImpliesIntro(bottom, body: cited))
+    #expect(throws: IRRefusal.sourceKindSurvived(cited)) { try legalize(root, in: t) }
 }

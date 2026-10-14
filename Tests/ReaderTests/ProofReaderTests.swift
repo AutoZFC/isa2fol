@@ -297,7 +297,7 @@ private func reaches(_ root: NodeID, _ target: NodeID, _ t: Table) -> Bool {
     var seen: Set<NodeID> = [], work = roots
     while let n = work.popLast() {
         guard seen.insert(n).inserted else { continue }
-        #expect(r.table[n].dialects.contains(.isa), "\(r.table[n])")
+        #expect(Pattern(r.table[n], in: r.table).dialects.contains(.isa), "\(r.table[n])")
         r.table[n].forEachChild { c, _ in work.append(c) }
     }
 }

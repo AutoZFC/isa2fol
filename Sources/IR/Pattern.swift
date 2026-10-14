@@ -1,3 +1,8 @@
+@frozen public enum Dialect: Hashable, Sendable {
+    case isa
+    case fol
+}
+
 @frozen public enum Pattern: Hashable, Sendable {
     case ifolAll(IRType, body: IRType)
     case ifolEx(IRType, body: IRType)
@@ -19,6 +24,8 @@
     case folImpliesElim(IRType, IRType)
     case use(CitedKind, [IRType], IRType)
     case hyp(IRType)
+
+    case isaGuard(IRType, IRType)
 
     case folNot(IRType)
     case folBound
@@ -70,6 +77,7 @@
         case isaDefinition(Family)
         case axiom(Axiom)
         case theoryAxiom
+        case lemma
 
         init(_ c: Cited) {
             switch c {
@@ -77,6 +85,7 @@
             case let .isaDefinition(_, d): self = .isaDefinition(d.family)
             case let .axiom(a): self = .axiom(a)
             case .theoryAxiom: self = .theoryAxiom
+            case .lemma: self = .lemma
             }
         }
 
@@ -86,6 +95,7 @@
             case let .isaDefinition(f): return "definition \(f)"
             case let .axiom(a): return "axiom \(a)"
             case .theoryAxiom: return "theory axiom"
+            case .lemma: return "lemma"
             }
         }
     }
@@ -114,6 +124,7 @@
         case let .folImpliesElim(p, q): self = .folImpliesElim(T(p), T(q))
         case let .use(c, types, root): self = .use(CitedKind(c), types, T(root))
         case let .hyp(_, a): self = .hyp(T(a))
+        case let .isaGuard(x, g): self = .isaGuard(T(x), T(g))
 
         case let .folNot(a): self = .folNot(T(a))
         case .folBound: self = .folBound
@@ -137,6 +148,28 @@
         case let .folExistsElim(p, b): self = .folExistsElim(T(p), body: T(b))
         case let .folBottomElim(p, c): self = .folBottomElim(T(p), T(c))
         case let .folClassicalAbsurd(a, b): self = .folClassicalAbsurd(T(a), body: T(b))
+        }
+    }
+}
+
+extension Pattern {
+    public var dialects: Set<Dialect> {
+        switch self {
+        case .ifolAll, .ifolEx, .isaConst, .isaFree, .isaBound, .isaVarApp, .isaAbs, .isaOfClass, .isaAllIntro,
+             .isaAllElim, .isaGuard:
+            return [.isa]
+        case let .use(kind, types, _):
+            switch kind {
+            case .theorem, .lemma: return types.isEmpty ? [.isa, .fol] : [.isa]
+            case .isaDefinition, .axiom, .theoryAxiom: return [.isa]
+            }
+        case .folImplies, .folAnd, .folOr, .folIff, .folBottom, .folImpliesIntro, .folImpliesElim, .hyp:
+            return [.isa, .fol]
+        case .folNot, .folBound, .folPred, .folForall, .folExists, .folAndIntro, .folAndElimL, .folAndElimR,
+             .folOrIntroL, .folOrIntroR, .folOrElim, .folNotIntro, .folNotElim, .folIffIntro, .folIffElimL,
+             .folIffElimR, .folForallIntro, .folForallElim, .folExistsIntro, .folExistsElim, .folBottomElim,
+             .folClassicalAbsurd:
+            return [.fol]
         }
     }
 }

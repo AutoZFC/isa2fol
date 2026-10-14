@@ -193,6 +193,36 @@ public struct Reader {
         return try statement(Instance(source: .axiom(axiom), types: e.tfrees.map(IRType.variable)))
     }
 
+    mutating func definition(of d: Defined, at T: IRType) throws -> Definition {
+        guard let axiom = constants[d.name]?.definition else { throw MalformedExport.undeclaredConstant(d.name) }
+        guard let entry = corpus.axioms[axiom] else { throw MalformedExport.undeclaredAxiom(axiom) }
+        return try located(entry.file) {
+            let e = try decode.axiom(entry.body)
+            let (head, sides) = try decode.spine(e.prop)
+            guard case let .constant("Pure.eq", types) = head, types.count == 1, sides.count == 2 else {
+                throw MalformedExport.notADefinition(axiom)
+            }
+            let (lhs, parameters) = try decode.spine(sides[0])
+            guard case let .constant(c, _) = lhs, c == d.name else { throw MalformedExport.notADefinition(axiom) }
+            let names = try parameters.map { p in
+                let (h, arguments) = try decode.spine(p)
+                guard case let .free(name, _) = h, arguments.isEmpty else { throw MalformedExport.notADefinition(axiom) }
+                return name
+            }
+            guard names == e.frees.map(\.0) else { throw MalformedExport.notADefinition(axiom) }
+            let declared = try e.frees.reversed().reduce(try types[0].irType()) { U, free in .fn(try free.1.irType(), U) }
+            var bound: [String: IRType] = [:]
+            guard match(declared, T, &bound) else { throw MalformedExport.notADefinition(axiom) }
+            let instance = try e.tfrees.map { v in
+                guard let U = bound[v] else { throw MalformedExport.notADefinition(axiom) }
+                return U
+            }
+            var terms = try Terms(decode: decode, constants: constants, classes: classes, file: e, at: instance)
+            let body = try terms.term(sides[1], try terms.irType(types[0]), terms.closure, in: &table)
+            return Definition(constant: d, type: T, definiens: try terms.close(body, Node.isaAbs, in: &table))
+        }
+    }
+
     private mutating func box(_ key: TheoremKey, _ instance: Instance) throws -> NodeID {
         if let b = boxes[instance] { return b }
         let proof = try prove(key, at: instance.types).proof
@@ -225,5 +255,54 @@ public struct Reader {
         }
         statements[instance] = p
         return p
+    }
+}
+
+private func match(_ pattern: IRType, _ T: IRType, _ bound: inout [String: IRType]) -> Bool {
+    switch pattern {
+    case let .variable(v):
+        if let U = bound[v] { return U == T }
+        bound[v] = T
+        return true
+    case .i, .o:
+        return pattern == T
+    case let .fn(a, b):
+        guard case let .fn(c, d) = T else { return false }
+        return match(a, c, &bound) && match(b, d, &bound)
+    }
+}
+
+private struct Reached: Hashable {
+    let constant: Defined
+    let type: IRType
+}
+
+extension Reader {
+    public mutating func unit() throws -> Unit {
+        var statements: [Statement] = [], unread: [String] = [], taken: Set<String> = []
+        var definitions: [Definition] = [], reached: Set<Reached> = [], seen: Set<NodeID> = [], work: [NodeID] = []
+        func take(_ theorem: Theorem, _ name: String) throws {
+            guard taken.insert(name).inserted else { return }
+            switch try read(theorem) {
+            case let .proved(statement, proof):
+                statements.append(Statement(name: name, root: statement, proof: proof))
+                work += [proof, statement]
+            case .refused:
+                unread.append(name)
+            }
+        }
+        for theorem in population { try take(theorem, try claimName(corpus.names[theorem.key]!)) }
+        work.reverse()
+        while let id = work.popLast() {
+            guard seen.insert(id).inserted else { continue }
+            if case let .use(.theorem(name), [], _) = table[id], let theorem = citedAs[name] { try take(theorem, name) }
+            if case let .isaConst(.defined(d), T, _) = table[id], reached.insert(Reached(constant: d, type: T)).inserted {
+                let definition = try definition(of: d, at: T)
+                definitions.append(definition)
+                work.append(definition.definiens)
+            }
+            table[id].forEachChild { c, _ in work.append(c) }
+        }
+        return Unit(table: table, statements: statements, definitions: definitions, unread: unread)
     }
 }

@@ -11,11 +11,16 @@ the ZF sessions, statement AND proof, into the IR: ALL 9,420 are proved — the 
 conclusion is the statement's node, by ID — and 0 are refused (`DESIGN.md` §2). Nothing is
 absorbed: a type variable is `IRType.variable`, a class membership `isaOfClass`. **The input layer is
 `DESIGN.md` §4.3b**: Pure, IFOL, FOL and ZF contribute axioms and constants, read as typed values —
-`Constant` (primitive · defined · declared), `Cited` (theorem · definition · axiom · theory axiom); a
+`Constant` (primitive · defined · declared), `Cited` (theorem · definition · axiom · theory axiom, and lowering's lemma); a
 leaf FOL has reads as its node, a defined constant as defined; a gap in the dialect stops the read.
-**Lowering has one pass, the guard (R3)**: `isa2fol lower data/zf_export` lowers 2,685 of the 9,420,
-each proof concluding its guarded statement BY ID, and refuses the 6,735 that instantiate at a
-compound term (`DESIGN.md` §4a). Emission is not built. `DESIGN.md` is the plan.
+**Lowering is the plan of four passes, declared whole** (`DESIGN.md` §4a, "Lowering's components"): expand ·
+logic · reify · fol. Each owns patterns by ONE exhaustive switch over `Pattern`; the pipeline refuses a statement
+holding a pattern no pass owns before the first pass, and one a pass owns unbuilt at that pass. **Typing is no pass but
+the registry**: after reify it hands each lemma a pass cites to the component that states it, which proves it or
+answers unbuilt. The unit holds the named theorems, the 133 they cite outside the ZF sessions and the 1,004
+definitions they reach; a statement citing a refused one falls ("The unit and its citations"). Only Fol (R3's guards,
+fol-zfc's variables at `i`) has rules, so `isa2fol lower data/zf_export` lowers 0 of the 9,420 to fol-zfc: 7,178 stop
+at no owner, 1,048 at expand, 133 at logic, 1,061 at reify. Emission is not built. `DESIGN.md` is the plan.
 
 ## Build
 
@@ -179,7 +184,7 @@ determinism R1–R3 (§4.6).
    print(f'{c}/{t} = {100*c/t:.1f}%')"
    ```
 
-   ✓ **CURRENTLY 8/2817 = 0.3%, under the cap.** Keep it there: a breach is
+   ✓ **CURRENTLY 9/3336 = 0.3%, under the cap.** Keep it there: a breach is
    fixed by deleting prose, never by raising the cap.
 
    Does not apply to `base/**/*.fol.def` headers: those record provenance of
@@ -226,7 +231,7 @@ Sources/
   IR/            Node · Table · transform · index engine · passes · legalize
   FolDialect/    Declaration · render (formulas and proofs) — the text boundary over IR
   Reader/        the export → isa nodes: Export (loading) · IsaType · Constants · Terms (η-long, closed) · Statements · Proofs (decoder) · Reader (proofs) · Census
-  Lowering/      passes over the table, never seen by the framework: Guard (R3)
+  Lowering/      the plan, never seen by the framework: Expand · Logic · Reify · Fol, and Typing's registry — Fol's rules at `i` alone built
   isa2fol/       CLI
 Tests/           YXMLTests · FolDialectTests · IRTests · ReaderTests · LoweringTests
 base/            the NBG foundation: axioms.fol.def + 10 tiers, kernel-checked
@@ -239,18 +244,18 @@ data/zf_export/  the Isabelle export — a LOCAL CACHE, never committed: scripts
 ```
 
 The reader (YXML → IR) reads statements and proofs (`Sources/Reader`); `Sources/Lowering` holds
-pass 1 (guard); the other passes and the emitter (IR → FolDialect) are unbuilt.
+the plan, Fol its only pass with rules; the other passes' rules and the emitter (IR → FolDialect) are unbuilt.
 
 **There is ONE formula table per unit, holding isa and fol nodes together** —
 interned, immutable, de Bruijn; proof steps live in scope regions and point into
 it. That is `DESIGN.md` §4; the framework — formulas AND proof steps — is built in
 `Sources/IR`, rendering and proof emission in `Sources/FolDialect`. No pass, no reader.
-`Node.dialects` — one exhaustive switch — is the only place naming both vocabularies:
-each kind is isa only, fol-zfc only, or both (a leaf FOL covers) — and `Node` declares its kinds in
-those groups, commented: the first two are exactly the reader's output. `Pattern` (`Sources/IR/Pattern.swift`)
+`Pattern.dialects` — one exhaustive switch — is the only place naming both vocabularies:
+each kind is isa only, fol-zfc only, or both (a leaf FOL covers; a citation only of a theorem or a lemma at no
+type arguments) — and `Node` declares its kinds in those groups, commented: the first two are exactly the reader's output. `Pattern` (`Sources/IR/Pattern.swift`)
 is a node with each child replaced by its type and each constant or citation by its kind: what a pass
-switches over (I3). `legalize` derives from it; a rewrite is partial, so that switch is
-what rule 11 rests on.
+switches over (I3). `legalize` reads its `dialects`, and each pass states what it owns by an exhaustive switch
+over it: what rule 11 rests on.
 
 ⚠ **THE TREE IR IS GONE.** `IsaDialect`'s `Sort`/`Term`/`Prop`/`Proof`/
 `Statement<Stage>` were deleted 2026-09-23: the graph represents the same
@@ -266,7 +271,7 @@ at `i`; unrestricted, deferred.
 arguments are *variables, and there is no other term*: the table refuses anything
 else (`predicateArgumentNotVariable`), and a variable at `o` (`propositionAsTerm`). That is S1 as a check, and it is what makes
 a description former unrepresentable. Whether a binder is a set or a class is its
-IR TYPE, which the guard reads: every set binder guarded, **every class binder
+IR TYPE, which Fol reads: every set binder guarded, **every class binder
 unguarded** — guarding a class makes the claim false, not redundant.
 
 ### Translation

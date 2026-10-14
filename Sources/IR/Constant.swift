@@ -118,11 +118,29 @@ public struct Defined: Hashable, Sendable {
     case isaDefinition(String, of: Defined)
     case axiom(Axiom)
     case theoryAxiom(String)
+    case lemma(Lemma)
 
     public var name: String {
         switch self {
         case let .theorem(name), let .isaDefinition(name, _), let .theoryAxiom(name): return name
         case let .axiom(a): return a.name
+        case let .lemma(l): return l.name
         }
     }
+}
+
+public protocol Request: Hashable, Sendable {
+    var name: String { get }
+}
+
+public struct Lemma: Hashable, Sendable, CustomStringConvertible {
+    public let request: any Request
+
+    public init(_ request: some Request) { self.request = request }
+
+    public var name: String { request.name }
+    public var description: String { name }
+
+    public static func == (a: Lemma, b: Lemma) -> Bool { AnyHashable(a.request) == AnyHashable(b.request) }
+    public func hash(into h: inout Hasher) { AnyHashable(request).hash(into: &h) }
 }

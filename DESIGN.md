@@ -13,7 +13,7 @@ Sources/
   IR/            §4's framework: Node · Table · transform · index engine · passes · legalize
   FolDialect/    Declaration · render (formulas and proofs) — the text boundary over IR (§3)
   Reader/        the export → isa nodes, statements and proofs (§2)
-  Lowering/      passes over the table (§4a): the guard
+  Lowering/      the plan (§4a): Expand · Logic · Reify · Fol, and Typing's registry
   isa2fol/       CLI
 Tests/
   YXMLTests/  FolDialectTests/  IRTests/  ReaderTests/  LoweringTests/
@@ -23,7 +23,8 @@ Tests/
   YXML  ─►  Reader  ─►  IR  ─►  Lowering  ─►  FolDialect
 ```
 
-**The reader and the guard are built**; the other passes (§4a) and the emission of a unit are not.
+**The reader, the unit's citations and lemmas, and Fol's binders and variables at `i` are built**; Expand, Logic,
+Reify, the provers (§4a) and the emission of a unit are not.
 
 ### Two rules that make the guarantee real
 
@@ -212,7 +213,7 @@ a schema variable becomes a table node kind then: one more case in the four swit
 ## 4. IR  **[FRAMEWORK BUILT]**
 
 **§4.2–§4.7's framework is built** (`Sources/IR`, `Sources/FolDialect`, pinned by
-`Tests/`); the reader (§2) and the guard (§4a) are built on it. The previous region graph — formulas edited in place through `replaceAllUses`/`insert`/
+`Tests/`); the reader (§2) and Fol (§4a) are built on it. The previous region graph — formulas edited in place through `replaceAllUses`/`insert`/
 `erase`, measured O(n²) per pass — is deleted; do not restore it from history.
 
 ### 4.1 Two layers, mirroring the checker
@@ -381,7 +382,7 @@ What translation makes of a generic theorem — FOL-ZFC is one-sorted — is tra
 FOL has it natively; it then reads as FOL's, the SAME node. A defined constant is never covered (§4.3b):
 `↔` and `¬`, which IFOL defines, read as defined constants. Pinned by
 `aCoveredLeafReadsAsItsCover`; the reader emits no node kind outside this table
-(`theReaderEmitsOnlyTheIsaDialect`: every node it emits has `.isa` in `Node.dialects`).
+(`theReaderEmitsOnlyTheIsaDialect`: every node it emits has `.isa` in its pattern's `dialects`).
 
 | surface primitive | the Isabelle constructs it covers | isa dialect |
 |---|---|---|
@@ -474,8 +475,8 @@ these two mechanisms and those formers, and nothing else. If every pattern is tr
 | component | provides | assumes |
 |---|---|---|
 | IR | the vocabulary: `Constant`, `Cited`, `Pattern`, and `Node`'s input kinds | — |
-| Reader | every named theorem as `(statement, proof)`, with `conclusion(proof) == statement` BY ID. Every node it emits is of the isa or both dialect. Every constant and citation is a typed value. `isaFree(.hidden, _)` occurs in proofs only. It makes no translation decision beyond the coverage of leaves | an export of one build; every leaf and axiom of the foundation that occurs is listed, else the read STOPS (point 3) |
-| Lowering | — (the next step: each pass states its input and output sets) | the reader's row; the first pass's input set is the reader's output set |
+| Reader | every named theorem as `(statement, proof)`, with `conclusion(proof) == statement` BY ID, with each theorem they cite at no type arguments and each definition they reach (§4a, "The unit and its citations"). Every node it emits is of the isa or both dialect. Every constant and citation is a typed value. `isaFree(.hidden, _)` occurs in proofs only. It makes no translation decision beyond the coverage of leaves | an export of one build; every leaf and axiom of the foundation that occurs is listed, else the read STOPS (point 3) |
+| Lowering | each component's business, and each pass's sets by what it owns: §4a, "Lowering's components" (PROPOSED) | the reader's row; the first pass's input set is the reader's output set |
 
 **1. The typed values (I1), each in one home (D3).** The MEANING lives in IR, which every pass reads. The export's
 SPELLING (which name is which leaf, what `theory/constdefs` defines) lives in the Reader, which alone reads the export.
@@ -501,8 +502,8 @@ case isaFree(Free, IRType)                        // Free: .named(String) | .hid
 ```
 
 - A case's raw value is Isabelle's name, which emission writes unchanged (rule 5).
-- `Cited` holds only what the reader cites. Lowering's own citations (its lemmas, base's axioms) are added in the step
-  that builds them.
+- `Cited` holds what the reader cites, and `lemma(r)`, a lemma's request (§4a, "The unit and its citations"). Base's
+  claims are added in the first step that cites base.
 - `folNot` moves to the fol-only group: with `¬` defined, the reader no longer emits it.
 - ⚠ **THE HIDDEN VARIABLE IS `isaFree(.hidden, T)`, NOT A NEW KIND.** The agreed text proposed `isaHidden(T)` to
   replace `isaFree` as dead. `isaFree` is not dead: the index engine's `abstract` closes over it (§4.4). A variable
@@ -576,8 +577,8 @@ variable is at `i ⇒ o` (`Table.expectTermVariable`). A pattern built from the 
 
 `Pattern(node, in: table)` is that rule, in IR. Every node kind has a pattern, so a pass's input and its output can each
 be stated as a set of patterns (I3). A switch over `Pattern` has no `default` (rule 11). The reader's output set is the
-patterns of the isa and both dialects, which `Node.dialects` already states and `theReaderEmitsOnlyTheIsaDialect`
-tests. How a pass states its sets, and where they are checked, is the next step's interface.
+patterns of the isa and both dialects, which `Pattern.dialects` states and `theReaderEmitsOnlyTheIsaDialect`
+tests. How a pass states its sets, and where they are checked: §4a, "Lowering's components".
 
 **5. The census counts patterns** (`Reader.census()`, `Sources/Reader/Census.swift`). Its population is the
 reference's: the named theorems of the ZF sessions, everything they cite, and the definition of every constant that
@@ -683,7 +684,7 @@ so each tests the arithmetic AND deterministic building:
   transform   THE traversal: descend, count binders, apply a Rule, rebuild through the table
      ├── index engine   shift · instantiate · abstract — Rules on variable leaves  §4.4
      └── passes         Rules on the kinds a pass lowers
-  Unit        the table + statements [(name, root, proof)] in source order
+  Unit        the table + statements (theorems, lemmas) + definitions; a citation names a statement
   legalize    no source kind reachable from a lowered root
 ```
 
@@ -700,21 +701,23 @@ leaves, a pass is a rule that fires on the kinds it lowers.
 public protocol Rule {   // nil = no match: rebuild the node from its rewritten children
     associatedtype Context: Hashable = Depth
     var start: Context { get }
-    func enter(_ c: Context, _ binder: Node, _ binds: Binds) -> Context
+    func enter(_ c: Context, _ binder: Node, _ binds: Binds, in t: Table) -> Context
     func narrow(_ c: Context, _ id: NodeID, in t: Table) -> Context          // default: c
     func before(_ id: NodeID, context: Context, in t: inout Table) throws -> NodeID?
     func after(_ n: Node, context: Context, in t: inout Table) throws -> NodeID?
 }
-public func transform<R: Rule>(_ roots: [NodeID], _ rule: R, in t: inout Table) throws -> [Rewrite]
+public func transform<R: Rule>(_ roots: [NodeID], _ rule: R, in t: inout Table) throws -> [NodeID]
 public protocol Pass { var name: String { get }
-                       func run(_ roots: [NodeID], in t: inout Table) throws -> [Rewrite] }
-public protocol Refusal: Error, Sendable {}          // Rewrite: .rewritten(NodeID) | .refused(any Refusal)
+                       func owns(_ p: Pattern) -> Owned?                 // .rule, .unbuilt; nil: not its own
+                       func run(_ roots: [NodeID], _ definitions: [Definition], in t: inout Table) throws -> [NodeID] }
+public protocol Registry { func prove(_ lemma: Lemma, _ statement: NodeID, _ definitions: [Definition],
+                                      in t: inout Table) throws -> Proved }   // .proof(NodeID) or .unbuilt
 ```
 
 - **A pass never writes its own recursion.** It supplies a rule for the kinds it handles;
   every other kind is rebuilt from its rewritten children.
-- **A fixpoint is a pass that returns the same root ID.** No round cap: a pass that does
-  not approach its fixpoint is a bug in its rules.
+- **A pass is one walk.** No rule writes a pattern its pass owns (§4a, "Lowering's components"), so a second
+  walk would find nothing.
 - **The traversal hands a rule its CONTEXT — what the binders above a node made of it.**
   A variable is a position, not a pointer, and a shared node has no parent, so the path
   exists only in the walk. `visit` calls `enter(c, binder, binds)` once per bound child —
@@ -726,12 +729,14 @@ public protocol Refusal: Error, Sendable {}          // Rewrite: .rewritten(Node
   whole-statement parameters it computes from the root before transforming (the ordered
   frees that closing needs: one interned free-variable node becomes `bvar 0` at one
   site and `bvar 1` under an inner binder).
-- **A pipeline** runs its passes in order, each over every statement's root AND its proof
+- **A pipeline** is the whole plan. It runs its passes in order, each over every statement's root AND its proof
   in ONE walk — one cache for the unit — and after each pass every proof must still
   conclude its root, BY ID — else
-  `PipelineError.unproved` names the statement and the pass. `legalize` is a
-  separate call, made where lowering is meant to be complete — a pipeline may end at a
-  mixed stage.
+  `PipelineError.unproved` names the statement and the pass. Around every pass it checks the pass's sets
+  (§4a, "Lowering's components"), adds every lemma the pass's output cites, and hands each definition to the pass that
+  owns its constant; after the pass it names it asks the registry for each lemma's proof. After the last pass it calls
+  `legalize`, and links: every citation names a statement, and a statement citing a refused one falls (§4a, "The unit
+  and its citations").
 - **A rule sees a node BEFORE its children, and a non-nil result replaces that subtree
   without descending into it.** Returning the node itself means "unchanged, do not
   descend" — how the index engine prunes a closed subtree (§4.4).
@@ -756,7 +761,7 @@ public protocol Refusal: Error, Sendable {}          // Rewrite: .rewritten(Node
 | **structure** — `mapChildren(node, f(child, underBinder))` | children, and which sit under a binder | children (`f` records), rebuild (`f` returns new), binder body, `looseBound` = max over children of `looseBound(child) − (underBinder ? 1 : 0)` |
 | **bound variable** | is this a bound variable, at which index | the `k + 1` leaf of `looseBound`; the index engine's leaves |
 | **type** | the node's type, and whether its children are well-typed | `intern`'s validation |
-| **dialects** — `Node.dialects` | isa only, fol-zfc only, or both (a leaf FOL covers, §4.3a 4); `isaFree` is isa: the reader's hidden variable (§4.3b) | `legalize` — the seal; the reader's output is the isa dialect, pinned by `theReaderEmitsOnlyTheIsaDialect` |
+| **dialects** — `Pattern.dialects` | isa only, fol-zfc only, or both (a leaf FOL covers, §4.3a 4); `isaFree` is isa: the reader's hidden variable (§4.3b); a citation is fol-zfc's only of a theorem or a lemma at no type arguments | `legalize` — the seal; the reader's output is the isa dialect, pinned by `theReaderEmitsOnlyTheIsaDialect` |
 
 ⚠ **WHICH KINDS BIND EXISTS IN EXACTLY ONE PLACE — THE STRUCTURE SWITCH.** The traversal,
 the index engine and `looseBound` all derive from it, so they cannot disagree. Separate
@@ -768,9 +773,9 @@ for `isaConst`/`folPred`'s arrays — is an unmeasured constant factor.
 text, so it cannot be derived; its source-kind cases throw. Adding a kind that can reach
 the text costs five switches.
 
-⚠ **`legalize` STAYS THE SEAL.** A rule is partial, so a new kind breaks no pass; the
-dialects switch is where a kind nothing lowers is caught — `legalize` refuses what fol-zfc lacks.
-`Node` declares its kinds in the same groups, commented: the first two are the reader's output.
+⚠ **`legalize` STAYS THE SEAL.** Every pass's ownership is an exhaustive switch over `Pattern`, so a new
+kind breaks every pass until each answers it; `legalize`, at the pipeline's end, refuses what fol-zfc lacks.
+`Node` declares its kinds in the dialects' groups, commented: the first two are the reader's output.
 
 ### 4.6 Determinism
 
@@ -817,7 +822,7 @@ of DERIVED formulas (`formula_deps_`, `src/proof/nd/stack.h`); a step checks its
 premises are derived and marks its conclusion derived.
 
 **A step is a function from derived statements to a new derived statement** — a node
-in the SAME table, lowered by the SAME `transform` and `RulePass` as formulas. Its
+in the SAME table, lowered by the SAME `transform` as formulas. Its
 conclusion is a formula node, computed at `intern` the way a formula node's type is.
 There is no separate proof tree, no builder, and no step-by-step driver.
 
@@ -886,6 +891,7 @@ detail.
 | fol elim | `andElimL(p)` · `andElimR(p)` · `orElim(p, q, r)` · `impliesElim(p, q)` — `q` concludes the antecedent BY ID · `notElim(p, q)` · `iffElimL(p, q)` · `iffElimR(p, q)` · `forallElim(p, v)` — `v` a fol variable (S1) · `existsElim(p, body)` ●◆ · `bottomElim(p, C)` |
 | fol classical | `classicalAbsurd(A, body)` ◆ — with `notElim` it covers FOL's one axiom, `(¬P ⟹ P) ⟹ P` |
 | isa — the typed quantifier only | `isaAllIntro(T, body)` ● (`ZAbst`, produces `ifolAll`) · `isaAllElim(p, t)` (`ZAppt`, consumes `ifolAll`; `t` any isa term of type `T`, concluding `instantiate(body, t)`). They also cover `⋀P:o` and `⋀P:i⇒o` — instantiating a proposition or class variable, as citing an IFOL rule does |
+| isa — lowering's | `isaGuard(x, G)`: the guard of the bound variable `x`, concluding the formula it carries, as `hyp` does; Fol makes it the assumption it writes at `x`'s binder (§4a, "Fol") |
 
 ◆ binds a hypothesis, ● a term variable — exactly the checker rules that close a scope
 (`src/proof/nd/stack.cpp`: `implies_intro:303`, `not_intro:351`, `forall_intro:495`,
@@ -943,22 +949,260 @@ and the proof must be built against the changed one.
 ⋀x. (mem(x,y) ⟹ mem(x,y))     →     ∀x. (set(x) → (mem(x,y) → mem(x,y)))
 ```
 
-**The passes.** The guard is built; the rest are decided in "the pass plan" below.
+**The passes.** Fol has rules for binders and variables at `i`; the rest are declared, unbuilt ("Lowering's
+components", below).
 
 | # | pass | FOUNDATION | status |
 |---|---|---|---|
-| — | **guard** — the quantified variables of type `i` | R3, S6's enforceable form | BUILT, below, as the only pass |
-| — | **logic**, **reify**, the guard, **fol** — the meta level lowered onto FOUNDATION §1a; reify builds each constant's definition and lemmas as it goes | S1, S3, S4, S5, R3 | DECIDED, below; not built |
+| — | **fol** — the binders and variables at `i`: a guard on each binder, fol-zfc's variables | R3, S6's enforceable form | BUILT, below: the only pass with rules |
+| — | **expand**, **logic**, **reify**, the rest of **fol** — the meta level lowered onto FOUNDATION §1a; each component's business in "Lowering's components", below | S1, S3, S4, S5, R3 | DECIDED, below; not built |
 
-### Pass 1 — guard  **[BUILT 2026-09-28 — `Sources/Lowering/Guard.swift`]**
+### Lowering's components  **[DIVISION DECIDED 2026-10-13 (user), TYPING A REGISTRY 2026-10-14 (user); THE INTERFACE AGREED AND BUILT 2026-10-13 — `Sources/IR/Pass.swift`, `Sources/Lowering`]**
 
-**The quantified variables of type `i` get a guard; no variable changes.** A variable keeps
-`isaBound(k, T)`, its type, until fol: that type is how the guard tells a set binder from a class
-binder, and `set(x)` is `folPred("set", [isaBound(k, i)])` — a fol predicate over an isa variable
-(prerequisite 1 of the pass plan, below).
+**Each component minds its own business** (user, 2026-10-13). In the reference every component knew the others'
+gaps (`kinds-proposal` DESIGN.md, "Step C by contracts", reasons 1–3). Here a piece belongs to one component, and a
+component that meets another's piece calls that component or cites its lemma; it never handles the piece itself.
 
-⚠ **THE GUARD RELABELLED `isaBound(k, i)` TO `folBound(k)` UNTIL 2026-09-29.** A `folBound` is typed
-`i`, so a class variable relabelled for reify's `t ∈ P` would look like a set, open to `set(P)`.
+| component | its business | calls |
+|---|---|---|
+| **Logic** | the logic's own primitives. First `expand` — the reference's, kept, and extended to Pure's defined constants, which this reader reads as defined: every Pure, IFOL and FOL defined constant unfolded by its definition at the use's type, and a citation of that definition read as `Pure.reflexive`. Then IFOL's and FOL's rules as the kernel's steps, and Pure's rules and `≡` at every type, congruence included | — |
+| **Reify** | S1: a compound term becomes a variable where it stands. It states and proves the EX and UNIQ of each function it names, by one walk over a term ("The unit and its citations", point 4), and nothing more | Typing, for guards; Tuple |
+| **Lambda** | a wrapper: a λ's class is function reify's of its body | Reify |
+| **Typing** | no pass. The registry: it hands each lemma to the component that states it. The guard each binder type gets (a set, a function, and so on); the typing lemmas, the discharges and the helpers | — |
+| **Tuple** | the tuple's lemmas at every arity — the reference's, kept | base |
+| **Fol** | every isa binder and variable becomes fol-zfc's: a binder with the guard Typing gives its type, an instance and the guard of a variable discharged by that variable's guard; then `legalize` | Typing |
+
+⚠ **REIFY NEVER HANDLES A CONGRUENCE OR A BODY.** A congruence belongs to whatever produced it. It is Logic's where a
+proof applies Pure's or IFOL's rules, and it belongs to the translation of a Pure or FOL constant where that constant
+unfolds. The reference's reify walked both (`valueChain`, `isaCongruence`).
+
+**The pass-sets interface (I3).**
+
+1. **A pass owns patterns.** ONE exhaustive switch over `Pattern`, in the pass's own file, gives every pattern one of
+   three answers:
+   - **a rule**: the pass translates the pattern, and no instance survives the pass;
+   - **unbuilt**: the pass owns the pattern but has no rule for it yet;
+   - **not its own**: the pattern is rebuilt from its rewritten children.
+
+   The same switch dispatches the pass's rules. A rule may rebuild a pattern it does not own (Fol renumbers a `hyp`
+   under the guards it inserts), but it never writes one that its pass owns. A new `Pattern` case breaks every pass's
+   build until each pass answers it. IR sees the switch as `owns(_ p: Pattern) -> Owned?`, where `Owned` is `.rule` or
+   `.unbuilt` and `nil` means not its own. A rule's `enter` sees the table, so Fol decides which binder brings a guard
+   by the same switch.
+2. **The sets follow from ownership and the plan's order**, so nothing lists a set twice. A pass's input is every
+   pattern that no earlier pass owns. Its output is every pattern that neither it nor an earlier pass owns. The reader's
+   output is the first input (`theReaderEmitsOnlyTheIsaDialect`), and fol-zfc's patterns are the last output:
+   `Pattern.dialects`, where a citation is fol-zfc's only of a theorem or a lemma at no type arguments.
+3. **The pipeline checks the sets, so a failure lands at the provider.** The plan is declared whole: every pass is in
+   the pipeline from the start, owning its patterns, and stays unbuilt until its step.
+
+   | when | a statement holding … | is |
+   |---|---|---|
+   | before the first pass | a pattern that no pass owns and fol-zfc lacks | refused, naming every such pattern: a piece with no rule (D1) |
+   | before a pass | a pattern the pass owns but has not built | refused at that pass, naming every such pattern (D2) |
+   | after a pass | a pattern owned by that pass or an earlier one | a `PipelineError` that stops the run: a rule left its pattern, or wrote back an earlier pass's |
+
+   Before all three, a pattern two passes own stops the run (`PipelineError.twoOwners`), checked on every pattern a run
+   meets. After the last pass, `legalize` checks that each statement is fol-zfc. How a lemma enters the unit and is
+   checked there: "The unit and its citations", below.
+4. **A built rule never refuses.** What it cannot handle is either a pattern of its own, still unbuilt, or a lemma it
+   cites, which the registry refuses (I2). So `transform` catches nothing and a pass returns node IDs.
+
+**The owner of each of the reader's patterns**, from the division. The rows are coarse; each pass's step states its
+own rows exactly.
+
+| patterns | owner |
+|---|---|
+| a Pure, IFOL or FOL defined constant; a citation of its definition | Logic, `expand` |
+| a citation of a Pure, IFOL or FOL axiom; Pure's `≡` at a function type; a binder or an instance at any other type than Typing's (`o`, a function of propositions) | Logic |
+| an applied constant (a ZF primitive or definition, a declared constant, `IFOL.eq`); an applied variable; a `λ`, through Lambda | Reify |
+| a binder, an instance, a variable or the guard of a variable at `i`, `iⁿ ⇒ i` or `iⁿ ⇒ o` | Fol, with the guard Typing gives the type |
+| a bound variable at another type | Fol, unbuilt: no such variable outlives its binder's owner |
+| the both dialect's connectives, ⟹-intro and ⟹-elim, a hypothesis, and a theorem or a lemma cited at no type arguments | none: fol-zfc has them |
+| a type variable, `OFCLASS` or a theorem cited at type arguments (decision 4); the hidden variable; a citation of a ZF axiom, a theory axiom or a ZF definition | **no owner yet**: each is its component's design question, and is refused before the first pass |
+
+**Built.** `Lowering.plan` is the four passes in order — expand, logic, reify, fol — and `Lowering.pipeline` adds
+Typing's registry, proving after reify. Expand, Logic and Reify are unbuilt: a switch over `Pattern` stating their rows,
+and no rule. Fol has the rules for binders, instances, variables and guards of variables at `i`. `Pattern.dialects`
+replaces `Node.dialects` and `legalize` reads it. `RulePass` is gone: no rule writes a pattern its pass owns, so one
+walk is the whole pass. `forall_elim` takes an isa variable of any type but `o`, as `folPred` does. `lower` counts a
+statement only when it reaches fol-zfc.
+
+**Measured** (`isa2fol lower data/zf_export`): of the 9,420, 0 are lowered, and each is refused where it first stops.
+No pattern has two owners.
+
+| stops | statements | patterns | the most frequent |
+|---|---:|---:|---|
+| no owner | 7,178 | 184 | `use(theorem, [i], o)` 6,040, `isaOfClass(i)` 6,039, `use(definition zf, [], o)` 1,544, `isaFree(i)` 1,489 |
+| expand | 1,048 | 6 | `isaConst(defined pure, (o => o), args: [o])` 788 |
+| logic | 133 | 33 | `ifolAll(o, body: o)` 89 |
+| reify | 1,061 | 89 | `isaConst(defined zf, (i => i), args: [i])` 553 |
+
+None reaches Fol. The pipeline takes 17.0 s after a 61.9 s read, most of it spent computing each statement's
+patterns.
+
+### The unit and its citations — the framework's other half  **[AGREED AND BUILT 2026-10-14 — points 1–3 and 5, and the four-pass plan; 4 and 6 in their own steps — `Sources/IR/Pass.swift`, `Sources/Reader/Reader.swift`, `Sources/Lowering/Typing.swift`, `Fol.swift`]**
+
+The pass-sets interface says which pass lowers what. This says what the reader hands lowering, and how a statement, a
+lemma and a citation meet (I2; prerequisite 2 of the pass plan). Every component after Expand meets through it: Reify
+states and proves EX and UNIQ, Typing keeps the registry, Tuple provides the tuple's lemmas. Built first, it leaves no
+component to invent its own way to request, cite or refuse a lemma.
+
+Today `lower`'s unit holds the named theorems only, `Statement` is `(name, root, proof)`, `Cited` has the reader's four
+kinds, and nothing falls with a statement it cites.
+
+**The plan is `expand · logic · reify · fol`, with Typing's registry proving between reify and fol.** Typing is not a
+pass (the division above): Reify states and proves EX and UNIQ, and Fol walks every binder, with the guard Typing gives
+its type. The guard pass's rules are Fol's ("Fol — binders, guards and variables", below).
+
+**1. The reader provides what its theorems rest on.**
+- **Every theorem they cite at no type arguments, transitively.** `read` proves the 200 cited outside the ZF sessions,
+  but `lower`'s unit leaves them out, so such a citation names no statement lowering sees. A theorem cited at type
+  arguments is decision 4's.
+- **Every definition they reach.** A theorem may use `A ↔ B` without citing `IFOL.iff_def`, and Expand must still
+  unfold `↔`. The unit holds the definition of each defined constant that occurs in a theorem or in a definition so
+  reached, at each type it occurs at: `Definition(constant, type, definiens)`, an IR value, the `b` of `c ≡ b` read at
+  that instance by the reader's one reading (I1).
+- **A definition is lowered with the statements up to the pass that owns its constant, and read there.** Expand reads
+  a Pure, IFOL or FOL definition as read, to unfold its constant; Reify's prover reads a ZF definition as expand and
+  logic left it, to prove EX and UNIQ (point 4). A pattern that a pass before the owner has not built stops the
+  definition there, and a lemma whose proof needs it is refused at the registry.
+- An axiom needs no provision: a citation carries its statement at its types (§4.7).
+- Replaces the reference's driver loop, which asked `Expand.instances` and `Reify.constantsToDefine` what to read, then
+  expanded, compiled and guarded each ZF definition outside the pipeline.
+
+**2. A citation of a theorem or a lemma names a statement of the unit, and falls with it.** `A` cites `B`, and `B`
+stops at reify on a term only its proof holds. `A` holds `B`'s statement but not its proof, so the pipeline lowers
+`A`, citing a claim that is never emitted. After the last pass, a statement citing a refused one is refused,
+`cites(B)`, transitively (I2). The run stops on a citation naming no statement of the unit, on one whose root is not
+its statement's root by ID, and on a cycle of citations.
+
+**3. A lemma is stated and proved by the component that owns its request; Typing's registry routes it.**
+- A component cites a lemma by a typed request (I1): `use(.lemma(r), [], root)`. IR holds `r` by an identity and a
+  name and never reads it (D3). The pattern is `use(lemma, [], o)`: both dialects, owned by no pass.
+- The request's owner states `root` from `r` alone (I2), in the registry's vocabulary: no pattern that a pass before
+  the registry owns. So every citer, at any pass, cites one node, and the passes before the registry leave it unchanged.
+- After each pass, the pipeline adds every lemma that pass's output cites and the unit lacks, as a statement without a
+  proof, in the order the walk meets them (§4.6 R3).
+- After reify, the pipeline hands Typing's registry each lemma without a proof. The plan gives the registry one prover
+  per component that states lemmas — Reify, Tuple, Typing itself — so Typing never calls one by name. A prover owns its
+  requests by ONE exhaustive switch, as a pass owns its patterns, and answers each with a proof concluding its
+  statement by ID, in the vocabulary of every other proof before fol and checked at once as a pass's output is; or
+  with unbuilt, which refuses the lemma there. A proof may cite more lemmas; they are added and proved in turn, until none is new.
+  Fol then lowers each lemma with its citers, as one node (R1).
+- The run stops on a request that no prover or two provers own, on a lemma holding a pattern that a pass before the
+  registry owns or that no pass owns (its statement is wrong, I3), on a lemma cited after the registry, and on one name
+  given to two requests, or to a theorem and a lemma.
+
+  ```
+              T                                  L                                    unit holds
+  reader      statement + proof                                                       T, what it cites, definitions
+  expand      ●  unfolds by its definitions
+  logic       ●
+  reify       ●  T's proof now cites L ─────────► added: S, as L's owner states it;   T, L
+                                                  no proof
+  registry                                        ● handed to L's prover: a proof     T, L
+                                                    of S, or unbuilt: L refused
+  fol         ●  S becomes S′ in T's proof        ●  S becomes S′: one node            T, L
+  link        kept, or refused: cites(L)
+  ```
+- Replaces the reference's `Pass.run → (rewrites, added)`; `Provider: Pass`, where the pass that added a lemma proved
+  it in a job of its own; `Statement(citedAs:content:)`; `Run.claimed`'s registry of names; and lemmas named by
+  strings (`c + "_EX"`).
+
+**4. EX and UNIQ: one walk over a term, recursive through the registry.** Reify's prover proves `EX c` by walking c's
+body as a term, the walk Reify makes wherever Isabelle instantiates at a compound term. At each application it cites
+the head's EX, which the registry proves in turn by the same walk over that head's definition, down to the primitives,
+whose EX and UNIQ come from base (S3: a body uses only constants defined before it). It walks the term only: a formula
+inside, such as a class argument `λx. φ`, stays with its owner. `UNIQ c` is the same walk, citing each head's UNIQ,
+the tuple's UNIQ and membership's congruence (base).
+
+```
+EX succ, succ ≡ λi. cons(i, i): for every set x, some set r with ⟨⟨x⟩, r⟩ in succ's class
+  some set r = cons(x, x)            the walk over cons(x, x), as expand and logic left it:
+    the tuple ⟨x, x⟩ exists            Tuple: the tuple's EX at 2
+    cons has a value at it             EX cons, cited: the registry hands it to Reify, which walks
+                                         Upair(a, a) ∪ A the same way, down to the primitives
+  ⟨⟨x⟩, r⟩ in succ's class            succ's class definition (decision 5)
+```
+
+**5. The guard of a variable.** A proof before fol may need a guard that fol has not written yet: citing base's
+`Pow_EX: forall A. (set(A) -> …)` at its own variable `y` needs `set(y)`. It writes `isaGuard(y, G)`, the guard of `y`,
+concluding `G`, the guard Typing gives `y`'s type. The step carries its formula, as `hyp` does, so IR knows no guard.
+Fol replaces it by the hypothesis it introduces at `y`'s binder, as it does for an instance at `y`. The guard of a
+variable whose binder brings none, or another one, is malformed and throws.
+
+```
+the proof before fol                        emitted
+fix y                                       fix f0
+                                            _0 = assume set(f0)        ← fol, at y's binder
+use Pow_EX                                  _1 = use Pow_EX
+forall_elim at y                            _2 = forall_elim _1, f0
+implies_elim with the guard of y            _3 = implies_elim _2, _0   ← the guard of y
+```
+
+**6. A base claim is cited with base's own statement**, parsed from its text (§3's `parse`), never a shape built by
+hand (the reference's `Base.claims`); a schema, by instantiation (§4.7's `schema_inst`). Built in the first step that
+cites base.
+
+Not in this step: emission, the unit in the order its citations and definitions require; a `@def` as a prover's
+answer, which waits on decision 5; and point 4 itself, Reify's own step, which this one gives the registry, the
+definitions and the guard of a variable.
+
+**The contracts (D2):**
+
+| | provides | assumes |
+|---|---|---|
+| Reader | each named theorem of the ZF sessions and each theorem they cite at no type arguments, `(statement, proof)`; each definition they reach, at every type | an export of one build |
+| the pipeline | each pass's input; each definition, as it stands at its owner's input, to that pass and to the provers; each cited lemma added once; the registry asked after reify; every citation linked, every refusal carried to its citers | each pass's `owns`; one registry |
+| a citer | `use(.lemma(r), [], root)`, `root` the owner's statement of `r` | the registry proves `r`, or refuses it there |
+| Typing's registry | each lemma handed to the one prover that owns its request | the plan's provers |
+| a prover | for each request it owns, by one switch: its statement, from the request alone, and a proof of it, or unbuilt | the definitions at their owners' input; the statements of the lemmas it cites |
+| Fol | each binder with the guard Typing gives its type; each instance and each guard of a variable discharged by that variable's guard; each variable fol-zfc's | Typing's guards |
+
+**Tests, written first.** `PipelineTests`, on fake passes and a fake registry: a statement citing a refused one is
+refused, transitively; a lemma two statements cite is added once, unchanged until the registry, and lowered with both
+as one node; the registry hands each lemma to the prover that owns it, and the lemmas its proof cites in turn; a lemma
+its prover has not built is refused there, and its citers fall; a pass reads the definitions of the constants it owns
+as they stand at its input; the run stops on a citation of no statement, two statements for one lemma, a cycle of
+citations, a lemma cited after the registry, a lemma holding a pattern that a pass before the registry owns, and a
+lemma named as a theorem. `TableTests`: the guard of a variable concludes its formula. `ReaderTests` (`UnitTests`): the
+unit holds each theorem its theorems cite at no type arguments, and the definition of each constant they reach, at
+each type, `c ≡ λx. b` and `primrec`'s applied `c(x) ≡ b` alike. `LoweringTests`: the guard's tests, run on Fol, and
+the guard of a variable (`FolTests`); Typing's registry hands a lemma to the one prover owning its request, and a
+request no prover or two own stops the run (`TypingTests`); the plan is the four passes, the registry proving after
+reify with no prover yet (`PlanTests`).
+
+**Built.**
+- IR: `Statement` is a theorem or a lemma (`lemma: Lemma?`, `proof: NodeID?`); `Cited.lemma(Lemma)`, `Lemma` holding a
+  `Request` by its identity and name; `Definition(constant, type, definiens)`; `Unit.definitions`; `Pass.run(roots,
+  definitions, in:)`; `Registry`, answering `Proved.proof` or `.unbuilt`; `Pipeline(passes:, registry:, provingAfter:)`;
+  `isaGuard(x, G)`; `PipelineRefusal` `lemmaUnbuilt`, `cites`, `unread`.
+- Reader: `Reader.unit()`. ⚠ **A DEFINITION IS WRITTEN IN TWO FORMS**: `c ≡ λx. b`, and the applied `c(x) ≡ b` that
+  `primrec` writes, its arguments the axiom's frees in their order (`ZF.iterates.iterates_nat_def`). Both read as the
+  definiens `λx. b`; a third form stops the read, `MalformedExport.notADefinition`.
+- Lowering: `Typing` is the registry, routing to `Prover`s; `Lowering.pipeline` has none yet. Fol has the guard's rules,
+  makes a variable at `i` fol-zfc's (`folBound(k)`), and resolves the guard of a variable.
+
+**Measured** (`isa2fol lower data/zf_export`): the unit holds the 9,420 named theorems, 133 they cite outside the ZF
+sessions at no type arguments, and 1,004 definitions they reach; 892 of these reach the pass that owns their constant.
+The refusals are unchanged: no owner 7,178, expand 1,048, logic 133, reify 1,061; none reaches Fol, and no lemma is
+cited. Read 61.9 s, lowered 17.0 s.
+
+**Then Expand**, against point 1: its owner rows and contract in its own step.
+
+### Fol — binders, guards and variables  **[BUILT 2026-09-28 as the guard; Fol's 2026-10-14 — `Sources/Lowering/Fol.swift`]**
+
+**The quantified variables of type `i` get a guard, the binder becomes fol-zfc's, and so does the variable.** The
+guard was Typing's pass until 2026-10-14; Typing keeps no pass ("The unit and its citations"), so Fol writes each
+binder with the guard Typing gives its type (`Typing.guarded`). A variable keeps `isaBound(k, T)`, its type, until
+Fol: that type is how Fol tells a set binder from a class binder.
+
+⚠ **A VARIABLE BECOMES `folBound` ONLY AT `i`, AND ONLY IN FOL, THE LAST PASS.** A `folBound` is typed `i`, so a class
+variable relabelled while a pass still reads types would look like a set, open to `set(P)`; the guard relabelled before
+reify until 2026-09-29. So Fol relabels a variable at `i` in the walk that guards its binder, and a variable at a class
+type stays isa with its binder, both unbuilt. An instance's discharge reads the binder's entry in the context, never
+the instance's rewritten child.
 
 ⚠ **`set(t)` CANNOT BE WRITTEN FOR A COMPOUND `t`** — `folPred` takes only variables, S1 as a
 check. So a compound instantiation is not discharged by a closure lemma over terms
@@ -967,13 +1211,16 @@ EX delivers `set(r)` with it.
 
 | before | after |
 |---|---|
-| `ifolAll(i, φ)` | `ifolAll(i, folImplies(set(0), φ′))` |
-| `ifolEx(i, φ)` | `ifolEx(i, folAnd(set(0), φ′))` |
-| `isaAllIntro(i, body)` | `isaAllIntro(i, folImpliesIntro(set(0), body′))` — the guard is a hypothesis the fixed variable brings |
-| `isaAllElim(p, x)`, `x` a bound variable | `folImpliesElim(isaAllElim(p′, x), hyp(j, set(x)))` — discharged by `x`'s own guard |
-| `isaAllElim(p, t)`, `t` a constant or a variable applied | REFUSED by name, before its step is built |
+| `ifolAll(i, φ)` | `folForall(folImplies(set(0), φ′))` |
+| `ifolEx(i, φ)` | `folExists(folAnd(set(0), φ′))` |
+| `isaAllIntro(i, body)` | `folForallIntro(folImpliesIntro(set(0), body′))` — the guard is a hypothesis the fixed variable brings |
+| `isaAllElim(p, x)`, `x` a bound variable | `folImpliesElim(folForallElim(p′, x′), hyp(j, set(x′)))` — discharged by `x`'s own guard |
+| `isaGuard(x, G)`, the guard of a variable | `hyp(j, G′)`, the same discharge; `G` not `x`'s guard (`notItsGuard`), or `x`'s binder bringing none (`unguardedBinder`), is malformed |
+| `isaBound(k, i)` | `folBound(k)` |
+| `isaAllElim(p, t)`, `t` a compound term | never reaches Fol: `t` is Reify's, an earlier pass; an instance at anything but a bound variable throws `instanceNotAVariable` |
 | `hyp(k, A)` | `hyp(k + g, A′)` — `g` the guards inserted between it and its binder |
-| a quantifier, `⋀`-intro or `⋀`-elim at `o`, a function type or a type variable; a `λ` | no guard: a class quantifier is unguarded (S4), `⋀P::o` is classified out, a type variable is translation's, a `λ` binds no quantified variable |
+| a quantifier, `⋀`-intro or `⋀`-elim, a variable or the guard of a variable at `iⁿ ⇒ i` or `iⁿ ⇒ o` | Fol's, unbuilt: Typing has no guard for the type yet |
+| … at `o`, at a function of propositions, at a type variable; a `λ` | not Fol's: Logic's, no owner's (decision 4), Reify's |
 
 The walk rewrites every `use`'s root too, so a cited statement and the theorem's own lowered
 statement are one node.
@@ -984,16 +1231,14 @@ statement are one node.
 enum Entry: Hashable { case fix(guarded: Bool), assume }
 ```
 
-`enter` pushes one `.fix` per term the binder binds — `guarded` exactly when the binder is
-`isaAllIntro`, `ifolAll` or `ifolEx` at `i`, decided by an exhaustive switch — and one `.assume`
-per hypothesis. `narrow` keeps the top of the stack down to the deepest binder the node reaches
-(`looseBound`, `looseHyps`); a closed node keeps nothing. Reading it, "above" meaning nearer the
-top:
+`enter` pushes one `.fix` per term the binder binds — `guarded` exactly when Fol's switch over `Pattern` gives the
+binder a rule: `isaAllIntro`, `ifolAll` or `ifolEx` at `i` — and one `.assume` per hypothesis. `narrow` keeps the top
+of the stack down to the deepest binder the node reaches (`looseBound`, `looseHyps`); a closed node keeps nothing.
+Reading it, "above" meaning nearer the top:
 
-- **the guard of `x = isaBound(k)`**: its entry is the `(k+1)`-th `.fix` from the top, and `j` =
-  the `.assume`s above it + the guarded `.fix`es above it. An unguarded entry there —
-  `isaAllIntro(T, …)` binding a variable of another type — is MALFORMED and throws; it is not a
-  refusal.
+- **the guard of `x`, bound `k`**: its entry is the `(k+1)`-th `.fix` from the top, and `j` = the `.assume`s above it +
+  the guarded `.fix`es above it. An unguarded entry there — a binder bringing no guard — is MALFORMED and throws; it is
+  not a refusal.
 - **`hyp(k, A)`**: its binder is the `(k+1)`-th `.assume` from the top, and `g` = the guarded
   `.fix`es above it.
 
@@ -1002,44 +1247,27 @@ fix x, assume P(x), lem at x              stack [x✓, h]      above x: 1 assume
 assume C, fix x, assume P(x), hyp(1, C)   stack [c, x✓, h]   above c: 1 guard      → hyp(2, C)
 ```
 
-**One walk, not a fixpoint.** `RulePass` reruns until nothing changes, and a guard rule guards its
-own output forever; pass 1 conforms to `Pass` with a single `transform`.
-
-**Measured** (`isa2fol lower data/zf_export`: the reader, then the pipeline): of the 9,420 named
-theorems, **2,685 are lowered, each lowered proof concluding its lowered statement BY ID** — the
-pipeline's check, which throws on the first that does not — and **6,735 are refused**, every one
-`compoundInstantiation`. The guard walk takes 1.4 s after a 60 s read.
-⚠ The check is the TABLE's: the lowered proofs are still isa, so `legalize` refuses them and no
-kernel has seen one.
+**One walk.** Fol writes fol-zfc's binders and variables, never a pattern it owns, so nothing is left for a second.
 
 **Where it lives:** a module `Lowering`, depending on `IR` — the framework never sees a pass.
 
-**Tests** (`LoweringTests`), the five planned and two that mutations showed missing:
+**Tests** (`FolTests`): Fol is run alone, each proof checked to conclude its statement BY ID. The pipeline over the plan
+stops every fixture that has `P(x)` at Reify, and lowers `⋀x. ⊥ ⟹ ⊥` whole (`PlanTests`).
 
-1. `∀`/`∃` at `i` is guarded; at `o`, `i ⇒ o` and a type variable it is unchanged; `λ` at `i` is unchanged.
+1. `∀`/`∃` at `i` is guarded and its variable becomes fol-zfc's; at `o`, `i ⇒ o` and a type variable it is unchanged.
 2. fix x, assume P(x), lem at x: the lowered proof concludes the lowered statement by ID; the discharge is `hyp(1, set(x))`.
 3. assume C, fix x, assume P(x), `hyp(1, C)`: it becomes `hyp(2, C)`, and the proof concludes.
-4. an elimination at `Pow(C)` is refused by name.
+4. an elimination at `Pow(a)` stops at Reify, the term's owner (`PlanTests`).
 5. a cited statement and the cited theorem's own lowered statement are one node.
 6. `⋀x y`: an elimination at `x` skips `y`'s guard — `hyp(2, set(x))`.
 7. `C ⟹ ⋀P::o. P ⟹ C`: a binder at `o` inserts nothing and renumbers nothing.
+8. the guard of `x` is the assumption Fol writes at `x`'s binder; under `forall_intro`, or not `set(x)`, it throws.
 
-### Needed before pass 1: a refusal must not stop the walk  **[BUILT 2026-09-28]**
+### A refusal inside the walk  **[BUILT 2026-09-28; DELETED 2026-10-13 with the pass-sets interface]**
 
-The pipeline lowers every statement and proof in ONE walk (§4.5), so a refusal thrown inside one
-proof unwinds the walk — one compound instantiation would stop all 9,420. Proposed, as the reader
-does it (§2, outcomes):
-
-- IR declares `protocol Refusal: Error`; a pass's refusal enum conforms.
-- `transform(roots)` catches a `Refusal` per ROOT and returns it as that root's outcome. The cache
-  holds only completed rewrites, and a completed rewrite is valid whatever else fails, so it stays.
-  Anything else — a `TableError`, a malformed state — is a bug and still stops the run.
-- The pipeline records a statement whose root or proof was refused — `(name, pass, refusal)` in
-  `Unit.refused` — and drops it from later passes. `RulePass`'s fixpoint runs on the roots still
-  alive.
-
-Also needed: `Reader` exposes a theorem's claim name (`name(4)` → `name.4`, CLAUDE.md rule 5) for
-the unit's statements.
+A built rule never refuses ("Lowering's components", point 4), so `transform` catches nothing: `Refusal` and
+`Rewrite` are gone. Only the pipeline refuses a statement, before a pass, naming its patterns. `Reader` exposes a
+theorem's claim name (`name(4)` → `name.4`, CLAUDE.md rule 5) for the unit's statements.
 
 ### The meta level, lowered — the pass plan  **[DECIDED 2026-09-29 — decision 4 deferred; nothing built]**
 
@@ -1059,30 +1287,30 @@ proof step — "β as proof".
 |---|---|---|
 | 1 | **logic** — IFOL's ND rules and `FOL.classical` to the kernel's own steps; an inlined box instantiated at once, reduced at the proof level (`instantiate`) | every `⋀P::o`; those rules' and boxes' class instantiations |
 | 2 | **reify** — every compound term becomes a variable with its defining atom; every function becomes a class | `isaConst` at `i` or a function type, `isaVarApp`, `isaAbs`, `Pure.eq` at a function type, `isaAllElim` at a function type |
-| 3 | **guard** — `set(x)` on every set binder, Isabelle's and reify's; a class binder stays bare | unguarded set binders |
-| 4 | **fol** — `ifolAll`/`ifolEx` to `folForall`/`folExists`, every variable to `folBound`; then `legalize` | the rest of the isa dialect |
+| 3 | **fol** — `set(x)` on every set binder, Isabelle's and reify's, a class binder bare, each written as fol-zfc's binder; every variable to `folBound`; then `legalize`. Until 2026-10-14 the guard was a pass of its own, before fol | the isa binders at `i`, `iⁿ ⇒ i`, `iⁿ ⇒ o`, and the rest of the isa dialect |
 
 - **logic before reify**: an IFOL rule at a λ becomes the kernel's step and no class is built. `spec` at
   `λx. x∈A ⟶ x∈B`, then at `c`, is `isaAllElim` at `c`: `∀` and `⋀` are one node.
-- **reify before guard**: reify's variables are set binders too, and R3 guards "the ones S1 invents".
-- **guard before fol**: the guard reads the binder's IR type — `i` guarded, a class bare — and `folForall`
-  carries none.
+- **reify before fol**: reify's variables are set binders too, and R3 guards "the ones S1 invents".
+- **the guard in fol, the last pass** (2026-10-14): fol reads the binder's IR type — `i` guarded, a class bare — and
+  writes `folForall`, which carries none; each variable keeps its type until fol relabels it, in the same walk.
 
 ⚠ **`subst` IS NOT AN ND RULE.** Logic does not remove its class instantiations: at the λ's class it is
 membership's congruence (`g3_pmem_cong1`), then β as proof — reify's.
 
-**Prerequisites, in the framework — not built:**
+**Prerequisites, in the framework — both built:**
 
 1. **A fol node accepts a variable whose IR type matches** — **BUILT 2026-09-29.** `folPred` takes any
    variable, `folBound` or `isaBound` at a type other than `o` (a proposition is never a term, S4:
    `propositionAsTerm`); `exists_intro` at `isaBound(k, T)` concludes `ifolEx(T, …)`, and `exists_elim`
    opens `ifolEx` as well as `folExists`. Variables keep `isaBound(k, T)` until fol, and `legalize`
    enforces fol-only at the end. ⚠ **NO RELABEL PASS**: relabelling early makes a class variable a
-   `folBound`, typed `i` — indistinguishable from a set, and open to `set(·)`. The guard no longer
-   relabels. Its rules for `∃`-intro and `∃`-elim at `i` — the witness's guard into the `∧`, the
-   hypothesis becoming `set ∧ φ` — come with logic, their first producer.
-2. **A pass may add statements.** Reify builds helpers as it goes — each constant's definition and lemmas
-   (decision 5) — so a pass that returns one rewrite per root is not enough.
+   `folBound`, typed `i` — indistinguishable from a set, and open to `set(·)`. Fol relabels, last. Its rules for
+   `∃`-intro and `∃`-elim at `i` — the witness's guard into the `∧`, the hypothesis becoming `set ∧ φ` — come with
+   logic, their first producer. `forall_elim` takes an isa variable too (2026-10-13). Open for that step:
+   `exists_intro` at `isaBound(k, i)` concludes `ifolEx(i, …)`, and Fol writes `folExists`.
+2. **A pass may add statements** — **BUILT 2026-10-14 otherwise** ("The unit and its citations"): a pass never adds a
+   statement; the pipeline adds each lemma a pass's output cites, and the prover that owns its request proves it.
 
 **What each construct becomes.**
 
@@ -1121,7 +1349,7 @@ membership's congruence (`g3_pmem_cong1`), then β as proof — reify's.
 
 1. **Arity 1 is a 1-tuple**, as R7 reads every arity. The value itself would save a tuple per unary
    application — a later size optimisation.
-2. **Order: logic → reify → guard → fol**, on prerequisite 1.
+2. **Order: logic → reify → guard → fol**, on prerequisite 1; the guard is fol's since 2026-10-14.
 3. **A compound term's variable is bound where the term appears, never wider**, written with S1's `∃`:
    `P(f(x))` is `∃r. fn_apply(F, t, r) ∧ P(r)` in place. Isabelle's local variables stay local: a λ or a
    compound term is never lifted into a global claim, which would close it over its locals and need a fresh

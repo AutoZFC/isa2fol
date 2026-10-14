@@ -143,7 +143,7 @@ private struct Writer {
             return try discharging("assume ~\(try formula(a, operand: true))", body, "classical_absurd")
 
         case .ifolAll, .ifolEx, .isaConst, .isaFree, .isaBound, .isaVarApp, .isaAbs, .isaOfClass,
-             .isaAllIntro, .isaAllElim:
+             .isaAllIntro, .isaAllElim, .isaGuard:
             throw RenderError.sourceKind(id)
         }
     }
