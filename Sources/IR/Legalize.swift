@@ -13,7 +13,7 @@ public func misplacedLetters(_ roots: [NodeID], in t: Table) -> Set<Pattern> {
         guard seen.insert(at).inserted else { continue }
         let n = t[at.id]
         switch n {
-        case let .ifolAll(.o, body), let .isaAllIntro(.o, body):
+        case let .ifolAll(.o, body), let .isaAllIntro(.o, body), let .folLetterAll(_, body):
             if !at.spine { misplaced.insert(Pattern(n, in: t)) }
             pending.append(Place(id: body, spine: at.spine))
         case let .folForall(body), let .folForallIntro(body):
@@ -29,7 +29,7 @@ public func misplacedLetters(_ roots: [NodeID], in t: Table) -> Set<Pattern> {
              .isaAllElim, .isaReflexive, .isaSymmetric, .isaTransitive, .isaCombination, .isaAbstract, .folAnd, .folOr, .folIff, .folBottom, .folImpliesElim, .hyp, .isaGuard, .isaExIntro, .isaExElim, .folNot, .folBound,
              .folPred, .folExists, .folAndIntro, .folAndElimL, .folAndElimR, .folOrIntroL, .folOrIntroR, .folOrElim,
              .folNotIntro, .folNotElim, .folIffIntro, .folIffElimL, .folIffElimR, .folForallElim, .folExistsIntro,
-             .folExistsElim, .folBottomElim, .folClassicalAbsurd:
+             .folExistsElim, .folBottomElim, .folClassicalAbsurd, .folLetter, .folLetterAbs:
             n.forEachChild { c, _ in pending.append(Place(id: c, spine: false)) }
         }
     }

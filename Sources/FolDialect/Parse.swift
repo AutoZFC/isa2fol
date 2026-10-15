@@ -15,13 +15,13 @@ public func parse(schema line: String, in t: inout Table) throws -> (name: Strin
     var p = Parser(tokens: try tokens(line))
     guard p.take() == "schema", let name = p.take(), isName(name) else { throw ParseError.notASchema(line) }
     try p.expect("[")
-    var letters: [String] = []
+    var letters: [(name: String, arity: Int)] = []
     while true {
         guard let letter = p.take(), isName(letter) else { throw ParseError.notASchema(line) }
         try p.expect("(")
-        guard p.take() == "0" else { throw ParseError.letterArity(letter) }
+        guard let digits = p.take(), let arity = Int(digits), arity >= 0 else { throw ParseError.letterArity(letter) }
         try p.expect(")")
-        letters.append(letter)
+        letters.append((letter, arity))
         guard let next = p.take() else { throw ParseError.unexpected("end") }
         if next == "]" { break }
         guard next == "," else { throw ParseError.unexpected(next) }
@@ -29,8 +29,21 @@ public func parse(schema line: String, in t: inout Table) throws -> (name: Strin
     try p.expect(":")
     var body = try p.formula(Scope(letters: letters), in: &t)
     if let rest = p.take() { throw ParseError.unexpected(rest) }
-    for _ in letters { body = try t.intern(.ifolAll(.o, body: body)) }
+    for (_, arity) in letters.reversed() {
+        body = try t.intern(arity == 0 ? .ifolAll(.o, body: body) : .folLetterAll(arity, body: body))
+    }
     return (name, body)
+}
+
+public func schemaLetters(from texts: [String]) -> [String: [String]] {
+    var found: [String: [String]] = [:]
+    for text in texts {
+        for line in text.split(separator: "\n").map(String.init) where line.hasPrefix("schema ") {
+            guard let tokens = try? tokens(line), tokens.count > 2, tokens[2] == "[", let close = tokens.firstIndex(of: "]") else { continue }
+            found[tokens[1]] = stride(from: 3, to: close, by: 5).map { tokens[$0] }
+        }
+    }
+    return found
 }
 
 public func parse(claim line: String, in t: inout Table) throws -> (name: String, root: NodeID) {
@@ -74,8 +87,8 @@ private func statementName(_ line: String) -> (Kind, String)? {
 }
 
 private struct Scope {
-    let letters: [String]
-    var variables: [String] = []
+    let letters: [(name: String, arity: Int)]
+    var variables: [(name: String, set: Bool)] = []
 }
 
 public func baseTexts(_ directory: URL) throws -> [String] {
@@ -122,27 +135,40 @@ private struct Parser {
             guard let bound = take(), bound.hasSuffix("."), isName(String(bound.dropLast())) else {
                 throw ParseError.unexpected(token)
             }
+            let name = String(bound.dropLast()), guarded = ["(", "set", "(", name, ")", token == "forall" ? "->" : "&"]
             var inner = s
-            inner.variables.append(String(bound.dropLast()))
-            let body = try formula(inner, in: &t)
-            return try t.intern(token == "forall" ? .folForall(body: body) : .folExists(body: body))
-        default:
-            if let k = s.letters.firstIndex(of: token) {
-                return try t.intern(.isaBound(s.variables.count + s.letters.count - 1 - k, .o))
+            guard Array(tokens.dropFirst(at).prefix(guarded.count)) == guarded else {
+                inner.variables.append((name, false))
+                let body = try formula(inner, in: &t)
+                return try t.intern(token == "forall" ? .folForall(body: body) : .folExists(body: body))
             }
+            at += guarded.count
+            inner.variables.append((name, true))
+            let body = try unary(inner, in: &t)
+            try expect(")")
+            return try t.intern(token == "forall" ? .ifolAll(.i, body: body) : .ifolEx(.i, body: body))
+        default:
+            let letter = s.letters.firstIndex { $0.name == token }
+            let index = letter.map { s.variables.count + s.letters.count - 1 - $0 }
+            if let letter, let index, s.letters[letter].arity == 0 { return try t.intern(.isaBound(index, .o)) }
             guard isName(token), at < tokens.count, tokens[at] == "(" else {
                 throw isName(token) ? ParseError.unknownName(token) : ParseError.unexpected(token)
             }
             at += 1
             var args: [NodeID] = []
             while true {
-                guard let name = take(), let k = s.variables.lastIndex(of: name) else { throw ParseError.unknownName(tokens[at - 1]) }
-                args.append(try t.intern(.folBound(s.variables.count - 1 - k)))
+                guard let name = take(), let k = s.variables.lastIndex(where: { $0.name == name }) else {
+                    throw ParseError.unknownName(tokens[at - 1])
+                }
+                let index = s.variables.count - 1 - k
+                args.append(try t.intern(s.variables[k].set ? .isaBound(index, .i) : .folBound(index)))
                 guard let next = take() else { throw ParseError.unexpected("end") }
                 if next == ")" { break }
                 guard next == "," else { throw ParseError.unexpected(next) }
             }
-            return try t.intern(.folPred(predicate(token), args: args))
+            guard let letter, let index else { return try t.intern(.folPred(predicate(token), args: args)) }
+            guard args.count == s.letters[letter].arity else { throw ParseError.letterArity(token) }
+            return try t.intern(.folLetter(head: try t.intern(.folBound(index)), args: args))
         }
     }
 }

@@ -43,3 +43,22 @@ claim tuple_snoc: forall t. forall s. forall n. (set(n) -> (forall v. (set(v) ->
 claim snoc_inj: forall t. forall t2. forall n. (set(n) -> (forall v. (set(v) -> (forall v2. (set(v2) -> (forall s. (tuple(t,n) -> (tuple(t2,n) -> (snoc(t,n,v,s) -> (snoc(t2,n,v2,s) -> (eq(t,t2) & eq(v,v2))))))))))))
 claim snoc_CONG: forall t. forall t2. forall n. forall n2. forall v. forall v2. forall s. (eq(t,t2) -> (eq(n,n2) -> (eq(v,v2) -> (snoc(t,n,v,s) -> snoc(t2,n2,v2,s)))))
 claim cong_snoc_v: forall t. forall n. forall a. forall b. forall s. (eq(a,b) -> (snoc(t,n,a,s) <-> snoc(t,n,b,s)))
+
+# The index and the snoc as functions of their arguments: what a tuple's UNIQ and injectivity rest on.
+claim nsucc_CONG: forall n. forall n2. forall m. (eq(n,n2) -> (nsucc(n,m) -> nsucc(n2,m)))
+claim nsucc_UNIQ: forall n. forall m. forall m2. (nsucc(n,m) -> (nsucc(n,m2) -> eq(m,m2)))
+claim snoc_res_cong: forall t. forall n. forall v. forall s. forall s2. (snoc(t,n,v,s) -> (eq(s,s2) -> snoc(t,n,v,s2)))
+
+# Ported from kinds-proposal (21ca100f) with the reference's proofs, unchanged: snoc_keep, tuple_empty, tuple_on_empty, tuple_ext, nsucc_eq, next_in, snoc_EQ, snoc_read.
+claim snoc_keep: forall t. forall n. forall v. forall s. (snoc(t,n,v,s) -> (forall i. (forall y. (pmem(i,y,t) -> pmem(i,y,s)))))
+claim tuple_empty: forall e. ((forall u. (set(u) -> (~ elem(u,e)))) -> (forall m. ((forall u. (set(u) -> (~ elem(u,m)))) -> tuple(e,m))))
+claim tuple_on_empty: forall t. forall m. (tuple(t,m) -> ((forall u. (set(u) -> (~ elem(u,m)))) -> (forall u. (set(u) -> (~ elem(u,t))))))
+claim tuple_ext: forall s. forall t. forall n. (tuple(s,n) -> (tuple(t,n) -> ((forall i. (set(i) -> (forall y. (set(y) -> (pmem(i,y,s) <-> pmem(i,y,t)))))) -> eq(s,t))))
+claim nsucc_eq: forall i. forall j. forall i2. forall j2. (eq(i,j) -> (nsucc(i,i2) -> (nsucc(j,j2) -> eq(i2,j2))))
+claim next_in: forall j. (set(j) -> (forall j2. (set(j2) -> (nsucc(j,j2) -> (forall s. (tuple(s,j) -> (forall i. (eq(i,j) -> (forall x. (set(x) -> (forall a. (snoc(s,i,x,a) -> (tuple(a,j2) & (pmem(j,x,a) & snoc(s,j,x,a)))))))))))))))
+claim snoc_EQ: forall s. forall s2. forall n. forall n2. forall v. forall t. forall t2. (eq(s,s2) -> (eq(n,n2) -> (snoc(s,n,v,t) -> (snoc(s2,n2,v,t2) -> eq(t,t2)))))
+schema snoc_read [P(0)]: forall K. forall a. (set(a) -> (forall k. (set(k) -> (forall m. (set(m) -> (tuple(a,k) -> (nsucc(k,m) -> (forall v. (set(v) -> ((forall b. (set(b) -> (tuple(b,m) -> (pmem(k,v,b) -> ((forall i. (forall y. (pmem(i,y,a) -> pmem(i,y,b)))) -> (elem(b,K) <-> P)))))) -> ((exists b. (set(b) & (snoc(a,k,v,b) & elem(b,K)))) <-> P)))))))))))
+
+# An extension read at every b that IS a's extension by v: what class existence's read-back of an existential takes,
+# keeping the snoc fact, so a record's chain of extensions stays at hand (DESIGN "Class existence — its prover").
+schema snoc_some [X(1), P(0)]: forall a. (set(a) -> (forall k. (set(k) -> (forall v. (set(v) -> ((forall b. (set(b) -> (snoc(a,k,v,b) -> (X(b) <-> P)))) -> ((exists b. (set(b) & (snoc(a,k,v,b) & X(b)))) <-> P)))))))

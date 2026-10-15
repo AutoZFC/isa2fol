@@ -33,8 +33,8 @@ check s2s3       $T/s2s3       $A $T/pairs $T/witness
 check primitives $T/primitives $A
 check regroup    $T/regroup
 check tuples     $T/tuples     $A $T/pairs $T/witness
-check classes    $T/classes    $A $T/pairs $T/witness $T/logic $T/cong $T/s2s3 $T/tuples
+check classes    $T/classes    $A $T/pairs $T/witness $T/logic $T/cong $T/s2s3 $T/primitives $T/tuples
 check metafun    $T/metafun    $A $T/pairs $T/witness $T/logic $T/cong $T/s2s3 $T/primitives $T/tuples $T/classes
 check inf        $T/inf        $A $T/pairs $T/witness $T/logic $T/cong $T/s2s3 $T/primitives $T/tuples $T/classes
-check zf         $T/zf         $A $T/pairs $T/witness $T/logic $T/cong $T/s2s3 $T/primitives $T/tuples $T/classes $T/inf
+check zf         $T/zf         $A $T/pairs $T/witness $T/logic $T/cong $T/s2s3 $T/primitives $T/tuples $T/classes $T/metafun $T/inf
 exit $bad

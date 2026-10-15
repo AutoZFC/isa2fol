@@ -14,6 +14,7 @@
     case notATermVariable(NodeID)
     case witnessEscapes(NodeID)
     case notAFunctionType(IRType)
+    case letterArity(NodeID)
 }
 
 public struct Table: Sendable {
@@ -72,7 +73,8 @@ public struct Table: Sendable {
              .folAnd, .folOr, .folBottom, .folImpliesIntro, .folImpliesElim, .use, .hyp, .folIffIntro, .folIffElimL,
              .isaGuard, .isaExIntro, .isaExElim, .folNot, .folBound, .folPred, .folForall, .folExists, .folAndIntro, .folAndElimL, .folAndElimR,
              .folOrIntroL, .folOrIntroR, .folOrElim, .folNotIntro, .folNotElim, .folIffElimR, .folForallIntro,
-             .folForallElim, .folExistsIntro, .folExistsElim, .folBottomElim, .folClassicalAbsurd, .folSchemaInst:
+             .folForallElim, .folExistsIntro, .folExistsElim, .folBottomElim, .folClassicalAbsurd, .folSchemaInst,
+             .folLetterAll, .folLetter, .folLetterAbs:
             return nil
         }
     }
@@ -217,9 +219,24 @@ public struct Table: Sendable {
             try absurd(body)
             return .step(concluding: a)
         case let .folSchemaInst(p, a):
-            guard case let .ifolAll(.o, body) = self[try premise(p)] else { throw TableError.principalConnective(p) }
+            let schema = try premise(p)
+            if case let .folLetterAll(k, body) = self[schema] {
+                try letterInstance(a, arity: k)
+                return .step(concluding: try instantiate(body, with: a, in: &self))
+            }
+            guard case let .ifolAll(.o, body) = self[schema] else { throw TableError.principalConnective(p) }
             try expect(.o, a)
             return .step(concluding: try instantiate(body, with: a, in: &self))
+        case let .folLetterAll(_, b):
+            try expect(.o, b)
+            return .value(.o)
+        case let .folLetter(h, xs):
+            guard case .folBound = self[h] else { throw TableError.varAppHeadNotVariable(h) }
+            for x in xs { try termVariable(x, else: .predicateArgumentNotVariable(x)) }
+            return .value(.o)
+        case let .folLetterAbs(b):
+            try expect(.o, b)
+            return .value(.o)
         case let .isaReflexive(x):
             return .step(concluding: try equation(try value(x), x, x))
         case let .isaSymmetric(T, p):
@@ -249,6 +266,15 @@ public struct Table: Sendable {
     }
 
     @discardableResult
+    private func letterInstance(_ a: NodeID, arity k: Int) throws {
+        var inner = a
+        for _ in 0..<k {
+            guard case let .folLetterAbs(b) = self[inner] else { throw TableError.letterArity(a) }
+            inner = b
+        }
+        if case .folLetterAbs = self[inner] { throw TableError.letterArity(a) }
+    }
+
     private func termVariable(_ x: NodeID, else notVariable: TableError) throws -> Int {
         if case let .folBound(k) = self[x] { return k }
         guard case let .isaBound(k, T) = self[x] else { throw notVariable }

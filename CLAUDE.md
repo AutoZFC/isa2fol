@@ -29,8 +29,16 @@ from base's own text), Reify in Logic's walk (S1: a term and a λ in a class slo
 class by its `@def`, which its prover states from the definition; an instance at a compound term by EX and UNIQ of the
 term) and Fol (the guard Reify gives each object type — `set`, `function`, none — fol-zfc's variables, `∃` at `i`) have
 rules, so `isa2fol lower data/zf_export` lowers 59 of the 9,420 to fol-zfc and states 451 `@def`s: 7,176 stop at no
-owner, 924 at logic, 94 at a letter off its spine, and 1,167 cite a refused statement — EX and UNIQ, whose prover is the
-next step's, or a `@def` holding a piece not built. Emission is not built. `DESIGN.md` is the plan.
+owner, 924 at logic, 94 at a letter off its spine, and 1,167 cite a refused statement — a `@def` holding a piece not
+built, or a theorem refused for one of the others. **EX and UNIQ have their prover** (`DESIGN.md` "EX and UNIQ — their
+prover"): a term's naming walked binder by binder, one fact per piece, per constant, per closed λ and per arity, a
+constant's from its `@def` and a primitive's from base. **Class existence has its prover** (`DESIGN.md` "Class existence
+— its prover", FOUNDATION §3, R5, R4): a formula's class of records built from base's rows and read back exact, named by
+`member_class` or `graph_class`; a class binder a hypothesis of what lies under it; one lift per class-taking constant,
+uniform in the record's length, re-keyed by `REKEY`. Every lemma the corpus requests is proved: 1,866 statements beside
+the 59 reach fol-zfc, among them 165 `_CLASS`, 99 `CLASS ⟨λ⟩`, 27 `_LIFT`, 278 EX and 338 UNIQ, and no named theorem
+waited on class existence alone — most stop at a theorem cited at a type instance, `use(theorem, [i], o)`. Emission is
+not built; tests render and kernel-check every lemma kind they prove. `DESIGN.md` is the plan.
 
 ## Build
 
@@ -194,7 +202,7 @@ determinism R1–R3 (§4.6).
    print(f'{c}/{t} = {100*c/t:.1f}%')"
    ```
 
-   ✓ **CURRENTLY 18/5034 = 0.4%, under the cap.** Keep it there: a breach is
+   ✓ **CURRENTLY 27/7511 = 0.4%, under the cap.** Keep it there: a breach is
    fixed by deleting prose, never by raising the cap.
 
    Does not apply to `base/**/*.fol.def` headers: those record provenance of
@@ -241,7 +249,7 @@ Sources/
   IR/            Node · Table · transform · index engine · passes · legalize
   FolDialect/    Declaration · render (formulas and proofs) · parse (base's schemas) — the text boundary over IR
   Reader/        the export → isa nodes: Export (loading) · IsaType · Constants · Terms (η-long, closed) · Statements · Proofs (decoder) · Reader (proofs) · Census
-  Lowering/      the plan, never seen by the framework: the passes Expand · Logic · Fol, Reify a component in Logic's walk, and the registry — Expand's rules, Logic's for a proposition's letter, the propositional axioms and Pure's equality at `o` and at functions of propositions with its replacement walk, Reify's naming, `@def`s and instance at a compound term, and Fol's at every object type built
+  Lowering/      the plan, never seen by the framework: the passes Expand · Logic · Fol, Reify a component in Logic's walk, and the registry — Expand's rules, Logic's for a proposition's letter, the propositional axioms and Pure's equality at `o` and at functions of propositions with its replacement walk, Reify's naming, `@def`s and instance at a compound term, Fol's at every object type, and class existence (Comprehension, the class prover) built
   isa2fol/       CLI
 Tests/           YXMLTests · FolDialectTests · IRTests · ReaderTests · LoweringTests
 base/            the NBG foundation: axioms.fol.def + 12 tiers, kernel-checked
@@ -254,9 +262,10 @@ data/zf_export/  the Isabelle export — a LOCAL CACHE, never committed: scripts
 ```
 
 The reader (YXML → IR) reads statements and proofs (`Sources/Reader`); `Sources/Lowering` holds
-the plan, Expand, Logic and Fol its passes with rules, and Reify's code, which the logic pass calls; Reify's provers (EX
-and UNIQ of a term), Lambda's instance at a class type, the rest of Logic's, and the emitter (IR → FolDialect) are
-unbuilt.
+the plan, Expand, Logic and Fol its passes with rules, Reify's code, which the logic pass calls, and the registry's provers,
+Reify's (EX and UNIQ of a term, a constant's and a λ's facts), Tuple's and the class prover's (`CLASS ⟨λ⟩`, `c_CLASS`,
+`c_LIFT`, `REKEY`, from Comprehension's classes of records); Lambda's instance at a class type, the rest of Logic's, and
+the emitter (IR → FolDialect) are unbuilt.
 
 **There is ONE formula table per unit, holding isa and fol nodes together** —
 interned, immutable, de Bruijn; proof steps live in scope regions and point into

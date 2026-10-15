@@ -70,7 +70,7 @@ private func piece(_ p: Pattern) -> Piece? {
          .folBottom, .folImpliesIntro, .folImpliesElim, .use, .hyp, .isaGuard, .isaExIntro, .isaExElim, .folNot, .folBound, .folPred, .folForall,
          .folExists, .folAndIntro, .folAndElimL, .folAndElimR, .folOrIntroL, .folOrIntroR, .folOrElim, .folNotIntro,
          .folNotElim, .folIffIntro, .folIffElimL, .folIffElimR, .folForallIntro, .folForallElim, .folExistsIntro,
-         .folExistsElim, .folBottomElim, .folClassicalAbsurd, .folSchemaInst:
+         .folExistsElim, .folBottomElim, .folClassicalAbsurd, .folSchemaInst, .folLetterAll, .folLetter, .folLetterAbs:
         return nil
     }
 }
@@ -301,12 +301,38 @@ struct Replacement {
             let there = try t.intern(.isaExElim(.i, try t.intern(.hyp(0, l)), body: forward))
             let back = try t.intern(.isaExElim(.i, try t.intern(.hyp(0, r)), body: backward))
             return try t.intern(.folIffIntro(try t.intern(.folImpliesIntro(l, body: there)), try t.intern(.folImpliesIntro(r, body: back))))
+        case let .folExists(body):
+            guard case let .folExists(lb) = t[l], case let .folExists(rb) = t[r] else { throw LogicError.context(phi) }
+            var inner = s
+            _ = inner.assume(l)
+            _ = inner.fix(nil)
+            _ = inner.assume(lb)
+            let p = try proof(body, lb, rb, in: inner, &t)
+            let x = try t.intern(.folBound(0))
+            let forward = try t.intern(.folExistsIntro(try t.intern(.folIffElimL(p, try t.intern(.hyp(0, lb)))), x))
+            let backward = try t.intern(.folExistsIntro(try t.intern(.folIffElimR(p, try t.intern(.hyp(0, rb)))), x))
+            let there = try t.intern(.folExistsElim(try t.intern(.hyp(0, l)), body: forward))
+            let back = try t.intern(.folExistsElim(try t.intern(.hyp(0, r)), body: backward))
+            return try t.intern(.folIffIntro(try t.intern(.folImpliesIntro(l, body: there)), try t.intern(.folImpliesIntro(r, body: back))))
+        case let .folForall(body):
+            guard case let .folForall(lb) = t[l], case let .folForall(rb) = t[r] else { throw LogicError.context(phi) }
+            var inner = s
+            _ = inner.assume(l)
+            _ = inner.fix(nil)
+            let p = try proof(body, lb, rb, in: inner, &t)
+            let x = try t.intern(.folBound(0))
+            let at = { (side: NodeID, t: inout Table) throws -> NodeID in
+                try t.intern(.folForallElim(try t.intern(.hyp(0, try shift(side, by: 1, in: &t))), x))
+            }
+            let forward = try t.intern(.folImpliesIntro(l, body: try t.intern(.folForallIntro(body: try t.intern(.folIffElimL(p, try at(l, &t)))))))
+            let backward = try t.intern(.folImpliesIntro(r, body: try t.intern(.folForallIntro(body: try t.intern(.folIffElimR(p, try at(r, &t)))))))
+            return try t.intern(.folIffIntro(forward, backward))
         case .ifolEx, .isaConst, .isaFree, .isaBound, .isaVarApp, .isaAbs, .isaOfClass, .isaAllIntro, .isaAllElim, .isaReflexive,
              .isaSymmetric, .isaTransitive, .isaCombination, .isaAbstract, .folBottom, .folImpliesIntro, .folImpliesElim,
-             .use, .hyp, .folIffIntro, .folIffElimL, .isaGuard, .isaExIntro, .isaExElim, .folBound, .folPred, .folForall,
-             .folExists, .folAndIntro, .folAndElimL, .folAndElimR, .folOrIntroL, .folOrIntroR, .folOrElim, .folNotIntro,
+             .use, .hyp, .folIffIntro, .folIffElimL, .isaGuard, .isaExIntro, .isaExElim, .folBound, .folPred,
+             .folAndIntro, .folAndElimL, .folAndElimR, .folOrIntroL, .folOrIntroR, .folOrElim, .folNotIntro,
              .folNotElim, .folIffElimR, .folForallIntro, .folForallElim, .folExistsIntro, .folExistsElim, .folBottomElim,
-             .folClassicalAbsurd, .folSchemaInst:
+             .folClassicalAbsurd, .folSchemaInst, .folLetterAll, .folLetter, .folLetterAbs:
             throw LogicError.context(phi)
         }
     }
@@ -323,7 +349,7 @@ private func connective(_ n: Node) -> (BaseStatement, NodeID, NodeID)? {
          .folImpliesElim, .use, .hyp, .folIffIntro, .folIffElimL, .isaGuard, .isaExIntro, .isaExElim, .folNot, .folBound,
          .folPred, .folForall, .folExists, .folAndIntro, .folAndElimL, .folAndElimR, .folOrIntroL, .folOrIntroR, .folOrElim,
          .folNotIntro, .folNotElim, .folIffElimR, .folForallIntro, .folForallElim, .folExistsIntro, .folExistsElim,
-         .folBottomElim, .folClassicalAbsurd, .folSchemaInst:
+         .folBottomElim, .folClassicalAbsurd, .folSchemaInst, .folLetterAll, .folLetter, .folLetterAbs:
         return nil
     }
 }

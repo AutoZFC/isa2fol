@@ -58,7 +58,7 @@ private struct Fol {
 
 @Test func aMalformedNameIsRefused() throws {
     var f = Fol()
-    for bad in ["1bad", "forall", "a..b", "a.", ".a", "ZF Base", "a'b", "mem(4)"] {
+    for bad in ["1bad", "forall", "a..b", "a.", ".a", "ZF Base", "a'b", "mem(4)", "T.use", "use.T"] {
         #expect(throws: RenderError.notAName(bad)) { try f.text(try f.p(bad)) }
     }
     let body = try f.p("set", try f.b(0))

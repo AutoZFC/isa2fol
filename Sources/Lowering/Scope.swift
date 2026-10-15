@@ -90,3 +90,103 @@ func closing(_ binders: [Binder], _ witnesses: [NodeID], _ constraints: [NodeID]
     }
     return proof
 }
+
+/// ⚠ A PROOF BUILT OUTSIDE AN ASSUMPTION IS NEVER REUSED INSIDE IT: its hypothesis indices shift, and the table checks no
+/// hypothesis against its binder. Rebuild it from its levels at the scope it is used in, or `have` it first.
+struct Frame {
+    private(set) var scope: Scope
+    private var steps: [Step] = []
+
+    private enum Step {
+        case forall(IRType?)
+        case implies(NodeID)
+        case exists(Binder, NodeID)
+        case cut(NodeID, NodeID)
+    }
+
+    init(_ scope: Scope = Scope()) { self.scope = scope }
+
+    mutating func fix(_ T: IRType?) -> Int {
+        steps.append(.forall(T))
+        return scope.fix(T)
+    }
+
+    mutating func assume(_ formula: NodeID) -> Int {
+        steps.append(.implies(formula))
+        return scope.assume(formula)
+    }
+
+    mutating func have(_ p: NodeID, in t: inout Table) throws -> Int {
+        guard let c = t.conclusion(of: p) else { throw TableError.expectedStep(p) }
+        steps.append(.cut(c, p))
+        return scope.assume(c)
+    }
+
+    mutating func open(_ p: NodeID, in t: inout Table) throws -> (witness: Int, hypothesis: Int) {
+        guard let c = t.conclusion(of: p) else { throw TableError.expectedStep(p) }
+        if case let .ifolEx(.i, body) = t[c] {
+            steps.append(.exists(.set, p))
+            let w = scope.fix(.i)
+            return (w, scope.assume(body))
+        }
+        guard case let .folExists(body) = t[c] else { throw ScopeError.notAChain(p) }
+        steps.append(.exists(.cls, p))
+        let w = scope.fix(nil)
+        return (w, scope.assume(body))
+    }
+
+    mutating func open(chain fact: Fact, _ binders: [Binder], in t: inout Table) throws -> Opened {
+        var o = Opened(core: fact)
+        var current = fact
+        for _ in binders {
+            let (w, h) = try open(try scope.proof(current, in: &t), in: &t)
+            o.witnesses.append(w)
+            o.constraints.append(.left(.hypothesis(h)))
+            current = .right(.hypothesis(h))
+        }
+        o.core = current
+        return o
+    }
+
+    mutating func open(_ p: NodeID, count n: Int, in t: inout Table) throws -> (witnesses: [Int], body: Fact) {
+        var witnesses: [Int] = [], current = p, body = Fact.hypothesis(-1)
+        for k in 0..<n {
+            let (w, h) = try open(current, in: &t)
+            witnesses.append(w)
+            body = .hypothesis(h)
+            if k < n - 1 { current = try scope.hypothesis(h, in: &t) }
+        }
+        return (witnesses, body)
+    }
+
+    func variable(_ level: Int, in t: inout Table) throws -> NodeID { try scope.variable(level, in: &t) }
+    func proof(_ f: Fact, in t: inout Table) throws -> NodeID { try scope.proof(f, in: &t) }
+    func hypothesis(_ level: Int, in t: inout Table) throws -> NodeID { try scope.hypothesis(level, in: &t) }
+
+    func close(_ body: NodeID, in t: inout Table) throws -> NodeID {
+        var proof = body
+        for step in steps.reversed() {
+            switch step {
+            case let .forall(T): proof = try t.intern(T == .i ? .isaAllIntro(.i, body: proof) : .folForallIntro(body: proof))
+            case let .implies(a): proof = try t.intern(.folImpliesIntro(a, body: proof))
+            case let .exists(b, p): proof = try t.intern(b == .set ? .isaExElim(.i, p, body: proof) : .folExistsElim(p, body: proof))
+            case let .cut(c, p): proof = try t.intern(.folImpliesElim(try t.intern(.folImpliesIntro(c, body: proof)), p))
+            }
+        }
+        return proof
+    }
+}
+
+func eliminated(_ p: NodeID, at x: NodeID, in t: inout Table) throws -> NodeID {
+    guard let c = t.conclusion(of: p) else { throw TableError.expectedStep(p) }
+    if case .ifolAll(.i, _) = t[c] { return try t.intern(.isaAllElim(p, x)) }
+    guard case .folForall = t[c] else { throw TableError.principalConnective(p) }
+    return try t.intern(.folForallElim(p, x))
+}
+
+func eliminated(_ p: NodeID, at xs: [NodeID], premises: [NodeID] = [], in t: inout Table) throws -> NodeID {
+    var step = p
+    for x in xs { step = try eliminated(step, at: x, in: &t) }
+    for q in premises { step = try t.intern(.folImpliesElim(step, q)) }
+    return step
+}

@@ -172,10 +172,7 @@ private func lowered(_ t: Table, _ statements: [Statement]) throws -> Unit {
     #expect(unit.statements.map(\.root) == [guarded])
 }
 
-/// `lem : ⋀x. x ∈ x ⟶ x ∈ x` at `Pow(0)`: the logic pass proves the instance, citing EX and UNIQ of `Pow(0)`, whose
-/// prover is the next step's. Both are refused, and the statement with them; the cited theorem is lowered whole.
-@Test func anEliminationAtACompoundTermCitesItsTermsLemmas() throws {
-    var t = Table()
+private func compoundElimination(_ t: inout Table) throws -> [Statement] {
     let memT = fn(i, fn(i, o))
     let x = try t.intern(.isaBound(0, i))
     let selfMember = try t.intern(.isaConst(.primitive(.zf(.mem)), memT, args: [x, x]))
@@ -185,12 +182,48 @@ private func lowered(_ t: Table, _ statements: [Statement]) throws -> Unit {
     let pow = try t.intern(.isaConst(.primitive(.zf(.pow)), fn(i, i), args: [try t.intern(.isaConst(.primitive(.zf(.zero)), i, args: []))]))
     let atPow = try t.intern(.isaConst(.primitive(.zf(.mem)), memT, args: [pow, pow]))
     let proof = try t.intern(.isaAllElim(try t.intern(.use(.theorem("lem"), [], lemRoot)), pow))
-    let unit = try lowered(t, [lem, Statement(name: "thm", root: try t.intern(.folImplies(atPow, atPow)), proof: proof)])
-    let lemmas = unit.refused.map(\.name).filter { $0 != "thm" }.sorted()
-    #expect(lemmas.count == 2 && lemmas[0].hasPrefix("EX_") && lemmas[1].hasPrefix("UNIQ_"))
-    #expect(unit.refused.filter { $0.refusal == .lemmaUnbuilt }.count == 2)
-    #expect(unit.refused.first { $0.name == "thm" }?.refusal == .cites(lemmas[0]))
-    #expect(unit.statements.map(\.name) == ["lem"])
+    return [lem, Statement(name: "thm", root: try t.intern(.folImplies(atPow, atPow)), proof: proof)]
+}
+
+/// `lem : ⋀x. x ∈ x ⟶ x ∈ x` at `Pow(0)`: the logic pass proves the instance, citing EX and UNIQ of `Pow(0)`, both proved —
+/// UNIQ by `Pow`'s facts from base, EX by `Pow`'s class — and the statement lowers. The cited theorem is lowered whole.
+@Test func anEliminationAtACompoundTermCitesItsTermsLemmas() throws {
+    var t = Table()
+    let statements = try compoundElimination(&t)
+    let unit = try lowered(t, statements)
+    #expect(unit.refused.isEmpty)
+    let kept = Set(unit.statements.map(\.name))
+    #expect(kept.isSuperset(of: ["lem", "thm", "ZF_Base.Pow_CLASS", "ZF_Base.Pow_AGREE", "ZF_Base.Pow_FUNC", "ZF_Base.Pow_TOTAL",
+                                 "TUPLE_UNIQ_1", "TUPLE_INJ_1"]))
+    #expect(kept.contains { $0.hasPrefix("UNIQ_") } && kept.contains { $0.hasPrefix("EX_") })
+}
+
+private struct Unbuilt: Prover {
+    let name = "unbuilt"
+    func owns(_ l: Lemma) -> Owned? { l.name.hasSuffix("_CLASS") ? .unbuilt : nil }
+    func prove(_ l: Lemma, _ statement: NodeID, _ definitions: [Definition], in t: inout Table) throws -> NodeID { statement }
+    func defines(_ c: Defined) -> Owned? { nil }
+    func define(_ c: Defined, _ definitions: [Definition], in t: inout Table) throws -> NodeID { try t.intern(.folBottom) }
+}
+
+/// The same, a registry answering class existence unbuilt: `Pow`'s class is refused at the registry, EX citing it falls,
+/// and the statement with it; what it does not cite stays.
+@Test func aStatementFallsWithAnUnbuiltLemmaItsProofCites() throws {
+    var t = Table()
+    let b = try base(in: &t)
+    let statements = try compoundElimination(&t)
+    var unit = Unit(table: t, statements: statements)
+    let registry = Provers([ReifyProver(base: b), TupleProver(base: b), Unbuilt()])
+    try Pipeline(passes: plan(b), registry: registry, provingAfter: "logic").run(&unit)
+    let refused = Dictionary(uniqueKeysWithValues: unit.refused.map { ($0.name, $0.refusal) })
+    let ex = try #require(refused.keys.first { $0.hasPrefix("EX_") })
+    #expect(refused.count == 3)
+    #expect(refused["ZF_Base.Pow_CLASS"] == .lemmaUnbuilt)
+    #expect(refused[ex] == .cites("ZF_Base.Pow_CLASS"))
+    #expect(refused["thm"] == .cites(ex))
+    let kept = Set(unit.statements.map(\.name))
+    #expect(kept.isSuperset(of: ["lem", "ZF_Base.Pow_AGREE", "ZF_Base.Pow_FUNC", "ZF_Base.Pow_TOTAL", "TUPLE_UNIQ_1", "TUPLE_INJ_1"]))
+    #expect(kept.contains { $0.hasPrefix("UNIQ_") })
 }
 
 /// An elimination at the reader's hidden variable: no pass owns it yet, so the statement stops before the first.

@@ -66,6 +66,55 @@ private struct Pf {
     }
 }
 
+/// A base schema instantiated at every letter is one `schema_inst` step, its letters named as base declares them; at some
+/// letters only, it is no step the checker has.
+@Test func aSchemaInstanceRendersAsOneStepNamingItsLetters() throws {
+    var f = Pf()
+    let (_, schema) = try parse(schema: "schema iff_symm [A(0), B(0)]: ((A <-> B) -> (B <-> A))", in: &f.t)
+    let letters = schemaLetters(from: ["schema iff_symm [A(0), B(0)]: ((A <-> B) -> (B <-> A))"])
+    #expect(letters == ["iff_symm": ["A", "B"]])
+    let (P, Q) = (try f.p("P"), try f.p("Q"))
+    let cited = try f.n(.use(.base("iff_symm"), [], schema))
+    let instance = try f.n(.folSchemaInst(try f.n(.folSchemaInst(cited, P)), Q))
+    let pq = try f.n(.folIff(P, Q))
+    let proof = try f.intro(pq, try f.n(.folImpliesElim(instance, try f.hyp(0, pq))))
+    let claim = Declaration(kind: .claim, name: "probe", root: f.t.conclusion(of: proof)!)
+    #expect(try render(proof: proof, of: claim, in: f.t, letters: letters) == """
+        proof probe:
+            _0 = assume (P <-> Q)
+            _1 = schema_inst iff_symm { A: P, B: Q }
+            _2 = implies_elim _1, _0
+            _3 = implies_intro _2
+            qed _3
+
+        """)
+    let partial = try f.n(.folSchemaInst(cited, P))
+    let partialClaim = Declaration(kind: .claim, name: "probe", root: f.t.conclusion(of: partial)!)
+    #expect(throws: RenderError.schema(partial)) { try render(proof: partial, of: partialClaim, in: f.t, letters: letters) }
+}
+
+/// A letter with arguments is instantiated at a λ, the table β-reducing its applications, and the λ renders as the
+/// kernel reads it, `\b1. elem(b1, f0)`.
+@Test func aLetterWithArgumentsIsInstantiatedAtALambdaAndRendered() throws {
+    var f = Pf()
+    let line = "schema mono [P(1)]: ((forall z. P(z)) -> (forall z. P(z)))"
+    let (_, schema) = try parse(schema: line, in: &f.t)
+    let letters = schemaLetters(from: [line])
+    #expect(letters == ["mono": ["P"]])
+    let lambda = try f.n(.folLetterAbs(body: try f.p("elem", try f.b(0), try f.b(1))))
+    let instance = try f.n(.folSchemaInst(try f.n(.use(.base("mono"), [], schema)), lambda))
+    let every = try f.n(.folForall(body: try f.p("elem", try f.b(0), try f.b(1))))
+    let claim = Declaration(kind: .claim, name: "probe", root: try f.n(.folForall(body: try f.imp(every, every))))
+    #expect(try render(proof: try f.n(.folForallIntro(body: instance)), of: claim, in: f.t, letters: letters) == """
+        proof probe:
+            fix f0
+            _0 = schema_inst mono { P: \\b1. elem(b1, f0) }
+            _1 = forall_intro _0
+            qed _1
+
+        """)
+}
+
 /// ⚠ THE CHECKER IS THE ONLY AUTHORITY: one claim per rule family, each PROVED by the real
 /// checker from what emission writes.
 @Test func theRealCheckerProvesWhatEmissionWrites() throws {

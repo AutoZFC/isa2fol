@@ -26,6 +26,20 @@ private struct Formulas {
     #expect(root == (try f.letters(4, body)))
 }
 
+/// A letter with arguments is fol-zfc's own binder and application, never isa's `⋀` at a class type, which is a class
+/// (FOUNDATION S4): `cong_exists`'s `P Q` are `folLetterAll(1, …)`, `P(z)` the letter applied, its head the letter's variable.
+@Test func aSchemaLetterWithArgumentsParsesAsAFolLetter() throws {
+    var f = Formulas()
+    let line = "schema cong_exists [P(1), Q(1)]: ((forall z. (set(z) -> (P(z) <-> Q(z)))) -> ((exists z. (set(z) & P(z))) <-> (exists z. (set(z) & Q(z)))))"
+    let (name, root) = try parse(schema: line, in: &f.t)
+    let z = try f.n(.isaBound(0, .i))
+    let (P, Q) = (try f.n(.folLetter(head: try f.n(.folBound(2)), args: [z])), try f.n(.folLetter(head: try f.n(.folBound(1)), args: [z])))
+    let premise = try f.n(.ifolAll(.i, body: try f.n(.folIff(P, Q))))
+    let body = try f.n(.folImplies(premise, try f.n(.folIff(try f.n(.ifolEx(.i, body: P)), try f.n(.ifolEx(.i, body: Q))))))
+    #expect(name == "cong_exists")
+    #expect(root == (try f.n(.folLetterAll(1, body: try f.n(.folLetterAll(1, body: body))))))
+}
+
 /// Every connective base's propositional schemas use: `~`, `|`, `->`, `<->`, `&`, and `false`.
 @Test func everyConnectiveParses() throws {
     var f = Formulas()
@@ -65,6 +79,7 @@ private struct Claims {
     mutating func b(_ k: Int) throws -> NodeID { try n(.folBound(k)) }
     mutating func p(_ name: String, _ xs: NodeID...) throws -> NodeID { try n(.folPred(.base(name), args: xs)) }
     mutating func all(_ body: NodeID) throws -> NodeID { try n(.folForall(body: body)) }
+    mutating func x(_ k: Int) throws -> NodeID { try n(.isaBound(k, .i)) }
 }
 
 /// A claim's variables are its quantifiers' own, the innermost `folBound(0)`; its atoms are base's predicates.
@@ -78,20 +93,28 @@ private struct Claims {
     #expect(root == (try c.all(try c.all(try c.all(body)))))
 }
 
-/// A guarded `∃` and a quantifier under a connective, as `apply_EX` has them.
-@Test func aGuardedExistentialParses() throws {
+/// A quantifier whose guard follows its binder is a set binder, as lowering writes one: `∀ᵢ`, `∃ᵢ`, its variable at `i`;
+/// `F`, unguarded, stays fol-zfc's.
+@Test func aGuardedQuantifierParsesAsASetBinder() throws {
     var c = Claims()
     let (_, root) = try parse(claim: "claim apply_EX: forall F. (forall t. (set(t) -> (exists r. (set(r) & apply(t,r,F)))))", in: &c.t)
-    let witness = try c.n(.folExists(body: try c.n(.folAnd(try c.p("set", try c.b(0)), try c.p("apply", try c.b(1), try c.b(0), try c.b(2))))))
-    #expect(root == (try c.all(try c.all(try c.n(.folImplies(try c.p("set", try c.b(0)), witness))))))
+    let witness = try c.n(.ifolEx(.i, body: try c.p("apply", try c.x(1), try c.x(0), try c.b(2))))
+    #expect(root == (try c.all(try c.n(.ifolAll(.i, body: witness)))))
+}
+
+/// A guard that does not follow its binder leaves the binder fol-zfc's, its variable untyped.
+@Test func aGuardElsewhereLeavesTheBinderFolZfcs() throws {
+    var c = Claims()
+    let (_, root) = try parse(claim: "claim s: forall x. forall y. (set(x) -> elem(x,y))", in: &c.t)
+    #expect(root == (try c.all(try c.all(try c.n(.folImplies(try c.p("set", try c.b(1)), try c.p("elem", try c.b(1), try c.b(0))))))))
 }
 
 /// A primitive's class predicate is that constant's, typed, as Reify writes it.
 @Test func aPrimitivesClassPredicateParsesAsItsConstant() throws {
     var c = Claims()
     let (_, root) = try parse(claim: "claim ZF_Base.zero_EX: exists v. (set(v) & ZF_Base.zero(v))", in: &c.t)
-    let zero = try c.n(.folPred(.constant(.primitive(.zf(.zero))), args: [try c.b(0)]))
-    #expect(root == (try c.n(.folExists(body: try c.n(.folAnd(try c.p("set", try c.b(0)), zero))))))
+    let zero = try c.n(.folPred(.constant(.primitive(.zf(.zero))), args: [try c.x(0)]))
+    #expect(root == (try c.n(.ifolEx(.i, body: zero))))
 }
 
 @Test func aMalformedClaimIsRefused() throws {

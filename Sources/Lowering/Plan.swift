@@ -2,9 +2,11 @@ import IR
 
 public func plan(_ base: Base) -> [Pass] { [Expand(), Logic(base: base), Fol()] }
 
-public func pipeline(_ base: Base) -> Pipeline {
-    Pipeline(passes: plan(base), registry: Provers([ReifyProver()]), provingAfter: "logic")
+public func provers(_ base: Base) -> Provers {
+    Provers([ReifyProver(base: base), TupleProver(base: base), ClassProver(base: base)])
 }
+
+public func pipeline(_ base: Base) -> Pipeline { Pipeline(passes: plan(base), registry: provers(base), provingAfter: "logic") }
 
 func isObject(_ T: IRType) -> Bool {
     switch T {

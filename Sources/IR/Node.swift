@@ -94,6 +94,11 @@ public struct Binds: Hashable, Sendable {
     case folBottomElim(NodeID, NodeID)
     case folClassicalAbsurd(NodeID, body: NodeID)
     case folSchemaInst(NodeID, NodeID)
+    // A base schema's letter with arguments: its binder, its application, its λ instance. Isa's binder at a class type
+    // is a class (FOUNDATION S4), never a letter.
+    case folLetterAll(Int, body: NodeID)
+    case folLetter(head: NodeID, args: [NodeID])
+    case folLetterAbs(body: NodeID)
 
     /// ⚠ THE ONLY PLACE THAT SAYS WHICH KINDS BIND, AND WHAT. The traversal, the index engine
     /// and `looseBound` all read it here; a second list would let them disagree.
@@ -149,6 +154,9 @@ public struct Binds: Hashable, Sendable {
         case let .folBottomElim(p, c): return .folBottomElim(try f(p, .none), try f(c, .none))
         case let .folClassicalAbsurd(a, b): return .folClassicalAbsurd(try f(a, .none), body: try f(b, .hyp))
         case let .folSchemaInst(p, a): return .folSchemaInst(try f(p, .none), try f(a, .none))
+        case let .folLetterAll(k, b): return .folLetterAll(k, body: try f(b, .term))
+        case let .folLetter(h, xs): return .folLetter(head: try f(h, .none), args: try xs.map { try f($0, .none) })
+        case let .folLetterAbs(b): return .folLetterAbs(body: try f(b, .term))
         }
     }
 
@@ -167,7 +175,7 @@ public struct Binds: Hashable, Sendable {
              .use, .isaGuard, .isaExIntro, .isaExElim, .folPred, .folForall, .folExists, .folAndIntro, .folAndElimL, .folAndElimR,
              .folOrIntroL, .folOrIntroR, .folOrElim, .folNotIntro, .folNotElim, .folIffIntro, .folIffElimL,
              .folIffElimR, .folForallIntro, .folForallElim, .folExistsIntro, .folExistsElim, .folBottomElim,
-             .folClassicalAbsurd, .folSchemaInst:
+             .folClassicalAbsurd, .folSchemaInst, .folLetterAll, .folLetter, .folLetterAbs:
             return nil
         }
     }

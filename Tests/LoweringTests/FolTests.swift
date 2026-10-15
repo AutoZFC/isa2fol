@@ -1,5 +1,6 @@
 import Testing
 import IR
+import FolDialect
 import Lowering
 
 private let i = IRType.i
@@ -194,4 +195,14 @@ private func statement(_ unit: Unit, _ name: String) throws -> Statement {
     let other = try f.fix(try f.t.intern(.folImpliesIntro(px, body: try f.t.intern(.isaGuard(x, px)))))
     let wrong = try f.pred("P", v0)
     #expect(throws: FolError.notItsGuard(wrong)) { _ = try Fol().run([other], [], in: &f.t) }
+}
+
+/// Base's guarded quantifiers parse as set binders, and Fol writes each guard back: a parsed claim lowered is its text.
+@Test func aParsedBaseClaimLoweredByFolIsItsText() throws {
+    var f = F()
+    let (_, root) = try parse(claim: "claim apply_EX: forall F. (forall t. (set(t) -> (exists r. (set(r) & apply(t,r,F)))))", in: &f.t)
+    let lowered = try Fol().run([root], [], in: &f.t)[0]
+    let apply = try f.t.intern(.folPred(.base("apply"), args: [try f.v(1), try f.v(0), try f.v(2)]))
+    let witness = try f.t.intern(.folExists(body: try f.t.intern(.folAnd(try f.set(try f.v(0)), apply))))
+    #expect(lowered == (try f.t.intern(.folForall(body: try f.guardedAll(witness)))))
 }

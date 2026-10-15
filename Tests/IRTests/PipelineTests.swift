@@ -523,3 +523,33 @@ private let idle = Owning(name: "idle", owned: [:], rule: NoMatch())
     #expect(registry.asked.isEmpty)
     #expect(refusals(unit) == ["T.d_DEF": .unbuilt(pass: "owner", [memAtom]), "S": .cites("T.d_DEF")])
 }
+
+/// A proof cites a constant's `@def` by its statement, as it cites a lemma: linked to the `@def` by ID, and a citation at
+/// another statement stops the run.
+@Test func aDefinitionIsCitedByItsStatementAsALemmaIs() throws {
+    var t = Table()
+    let defined = try definition(d, selfMember, &t)
+    let s = Statement(name: "S", root: defined, proof: try t.intern(.use(.definition(d), [], defined)))
+    var unit = Unit(table: t, statements: [s]), wrong = unit
+    try Pipeline(passes: [idle], registry: Proving({ _, _, _ in .unbuilt }, defining: { _, _ in .statement(defined) }),
+                 provingAfter: "idle").run(&unit)
+    #expect(unit.refused.isEmpty)
+    #expect(unit.statements.map(\.name) == ["S", "T.d_DEF"])
+    let other = try definition(d, { t in try t.intern(.folNot(try selfMember(&t))) }, &wrong.table)
+    #expect(throws: PipelineError.citationMismatch("T.d_DEF")) {
+        try Pipeline(passes: [idle], registry: Proving({ _, _, _ in .unbuilt }, defining: { _, _ in .statement(other) }),
+                     provingAfter: "idle").run(&wrong)
+    }
+}
+
+/// A lemma naming a constant whose `@def` is refused falls with it, and its prover is never asked: it would state facts
+/// about a body no rule names.
+@Test func aLemmaNamingARefusedDefinitionIsRefusedUnasked() throws {
+    var t = Table()
+    let s = try citing("L", "S", try namingD(&t).root, &t)
+    var unit = Unit(table: t, statements: [s])
+    let registry = Proving({ _, _, _ in .unbuilt }, defining: { _, _ in .unbuilt })
+    try Pipeline(passes: [cite], registry: registry, provingAfter: "cite").run(&unit)
+    #expect(registry.asked == ["T.d_DEF"])
+    #expect(refusals(unit) == ["T.d_DEF": .lemmaUnbuilt, "L": .cites("T.d_DEF"), "S": .cites("L")])
+}

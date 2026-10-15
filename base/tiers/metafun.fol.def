@@ -15,6 +15,8 @@
 #   apply       r is F's value at t, or 0 where F has none: Isabelle/ZF's f`a, a function variable's application
 #   apply_EX    every application has a value, with no guard: totality lives in apply's default, not the guard
 #   apply_UNIQ  and only one, given the guard -- so neither carries an arity
+#   func_at     a function class's values at equal tuples are equal, across agreeing classes
+#   apply_at    an application's likewise, under its guard; apply_class_cong, apply respects agreement of its class
 #
 # Depends on base/axioms, pairs, witness, logic, cong, s2s3, primitives (zero), tuples, classes. Admits
 # nothing: three definitional introductions, content zero.
@@ -40,3 +42,18 @@ claim g7_at_p1: forall p. (set(p) -> (forall p1. (set(p1) -> (forall c. (set(c) 
 @def(apply) axiom apply_def: forall t. forall r. forall F. (apply(t,r,F) <-> (pmem(t,r,F) | ((~ (exists u. (set(u) & pmem(t,u,F)))) & zero(r))))
 claim apply_EX: forall F. (forall t. (set(t) -> (exists r. (set(r) & apply(t,r,F)))))
 claim apply_UNIQ: forall F. (function(F) -> (forall t. (set(t) -> (forall r. (set(r) -> (forall s. (set(s) -> (apply(t,r,F) -> (apply(t,s,F) -> eq(r,s))))))))))
+
+# A class function's values at equal tuples are equal, across classes that agree; an application's likewise, under its
+# guard; and an application respects agreement of its class. What UNIQ of a term composes at each value it names.
+claim func_at: forall C. forall C2. (function(C) -> ((forall t. (set(t) -> (forall r. (set(r) -> (pmem(t,r,C) <-> pmem(t,r,C2)))))) -> (forall t. (set(t) -> (forall t2. (set(t2) -> (eq(t,t2) -> (forall r. (set(r) -> (forall r2. (set(r2) -> (pmem(t,r,C) -> (pmem(t2,r2,C2) -> eq(r,r2))))))))))))))
+claim apply_at: forall F. (function(F) -> (forall t. (set(t) -> (forall t2. (set(t2) -> (eq(t,t2) -> (forall r. (set(r) -> (forall r2. (set(r2) -> (apply(t,r,F) -> (apply(t2,r2,F) -> eq(r,r2)))))))))))))
+claim apply_class_cong: forall F. forall G. ((forall t. (set(t) -> (forall r. (set(r) -> (pmem(t,r,F) <-> pmem(t,r,G)))))) -> (forall t. (set(t) -> (forall r. (set(r) -> (apply(t,r,F) <-> apply(t,r,G)))))))
+
+# A class of records exact at every extension of a context c is a class of what follows c: the step from the class a
+# formula's rows build to the class a lemma names (DESIGN "Class existence — its prover", decision 1). From lam_pred and
+# lam_class with snoc_EX; the context one set, so neither carries an arity.
+schema member_class [Q(1)]: (forall p. (set(p) -> (forall A. (forall c. (set(c) -> ((forall t. (set(t) -> (forall a1. (set(a1) -> (snoc(c,p,t,a1) -> (elem(a1,A) <-> Q(t))))))) -> (exists K. (forall t. (set(t) -> (elem(t,K) <-> Q(t)))))))))))
+schema graph_class [Q(2)]: (forall p. (set(p) -> (forall p1. (set(p1) -> (forall A. (forall c. (set(c) -> ((forall t. (set(t) -> (forall r. (set(r) -> (forall a1. (set(a1) -> (forall a2. (set(a2) -> (snoc(c,p,t,a1) -> (snoc(a1,p1,r,a2) -> (elem(a2,A) <-> Q(t,r)))))))))))) -> (exists K. (forall t. (set(t) -> (forall r. (set(r) -> (pmem(t,r,K) <-> Q(t,r)))))))))))))))
+
+# A function variable's application as a class: its witness class, which a row reads as it reads a constant's.
+claim cls_apply: forall F. (exists W. (forall t. (set(t) -> (forall r. (set(r) -> (pmem(t,r,W) <-> apply(t,r,F)))))))

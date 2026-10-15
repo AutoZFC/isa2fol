@@ -40,6 +40,13 @@ public func unshift(_ id: NodeID, in t: inout Table) throws -> NodeID {
     try transform(id, Unshift(), in: &t)
 }
 
+/// ⚠ A FOL-ZFC VARIABLE IS UNTYPED: it takes any term variable, and any variable may be instantiated at it, the node
+/// substituted as it is. Retyped instead, one variable would stand in two forms that differ by ID until Fol erases both.
+private func isFolVariable(_ id: NodeID, _ t: Table) -> Bool {
+    if case .folBound = t[id] { return true }
+    return false
+}
+
 private func termVariable(_ id: NodeID, _ t: Table) -> (index: Int, reindexed: (Int) -> Node)? {
     guard let v = t[id].boundVariable, v.namespace == .term else { return nil }
     return (v.index, v.reindexed)
@@ -62,14 +69,26 @@ private struct Instantiate: Rule {
         guard let v = termVariable(id, t) else { return nil }
         if v.index > depth.terms { return try t.intern(v.reindexed(v.index - 1)) }
         guard let expected = t.type(of: id) else { throw TableError.expectedValue(id) }
-        guard expected == type else { throw IRRefusal.instantiateType(expected: expected, found: type) }
+        guard expected == type || isFolVariable(id, t) || isFolVariable(replacement, t) else {
+            throw IRRefusal.instantiateType(expected: expected, found: type)
+        }
         return try shift(replacement, by: depth.terms, in: &t)
     }
 
     func after(_ n: Node, was id: NodeID, context depth: Depth, in t: inout Table) throws -> NodeID? {
+        if case let .folLetter(head, args) = n, case .folLetterAbs = t[head] { return try letterBeta(head, args, in: &t) }
         guard case let .isaVarApp(head, args) = n, case .isaAbs = t[head] else { return nil }
         return try beta(head, args, in: &t)
     }
+}
+
+private func letterBeta(_ f: NodeID, _ args: [NodeID], in t: inout Table) throws -> NodeID {
+    var reduced = f
+    for a in args {
+        guard case let .folLetterAbs(body) = t[reduced] else { throw TableError.letterArity(f) }
+        reduced = try instantiate(body, with: a, in: &t)
+    }
+    return reduced
 }
 
 private struct Abstract: Rule {

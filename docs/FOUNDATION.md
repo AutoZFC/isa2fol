@@ -931,6 +931,16 @@ once, at the top, by intersecting with the class of tuples on `k`.
 No row aligns, widens or permutes. That is what replaces T1/T2/T3/T4,
 B5/B6/B7-as-composed, and every arity-indexed placement law.
 
+**An atom is read as membership of its entries in its WITNESS class**
+(decided 2026-10-15). `x ∈ y` is `⟨x, y⟩ ∈ E`, E B1's class; `x = y` is membership
+in the diagonal; the tuple formation's atoms — `t` empty, `n` the successor of
+`m`, `s` the tuple `t` with index `n` set to `v` — are membership of one, two and
+four entries in their classes, each built once from B1–B7 (`base/tiers/classes`).
+A class parameter `Y` is its own witness. So the table's atom rows become one per
+WIDTH, a record's one, two or four entries read into ANY class, and membership's
+congruence, proved once inside those three, is the only congruence the
+construction uses: no atom carries its own.
+
 > **⚠ THIS TABLE HAD A WIDENING ROW, `{a : dom(a) = J ∧ a↾I ∈ A}`**, with each
 > subformula over only the variables it MENTIONS — so `x ∈ y` and `y ∈ z` had
 > domains `{0,2}` and `{1,2}`, `∧` had to widen both first, and removing an

@@ -6,6 +6,29 @@ import IR
     case eqRefl = "eq_refl", eqSymm = "eq_symm", eqTrans = "eq_trans"
     case congElemL = "cong_elem_l", congElemR = "cong_elem_r", congEqL = "cong_eq_l", congEqR = "cong_eq_r"
     case congSnocV = "cong_snoc_v"
+    case zeroEX = "zero_EX", zeroUNIQ = "zero_UNIQ", zeroDef = "zero_def"
+    case nsuccEX = "nsucc_EX", nsuccUNIQ = "nsucc_UNIQ", nsuccCONG = "nsucc_CONG"
+    case snocEX = "snoc_EX", snocUNIQ = "snoc_UNIQ", snocCONG = "snoc_CONG", snocInj = "snoc_inj", snocResCong = "snoc_res_cong"
+    case tupleZero = "tuple_zero", tupleSnoc = "tuple_snoc"
+    case functionDef = "function_def", applyEX = "apply_EX", applyAt = "apply_at", applyClassCong = "apply_class_cong"
+    case funcAt = "func_at", extensionality
+    case zfZeroEX = "ZF_Base.zero_EX", zfZeroUNIQ = "ZF_Base.zero_UNIQ", zfInfEX = "ZF_Base.Inf_EX", zfInfUNIQ = "ZF_Base.Inf_UNIQ"
+    case zfPowDef = "ZF_Base.Pow_def", zfUnionDef = "ZF_Base.Union_def", zfPrimReplaceDef = "ZF_Base.PrimReplace_def"
+    case zfPrimReplaceValue = "ZF_Base.PrimReplace_value"
+    case powEX = "Pow_EX", powUNIQ = "Pow_UNIQ", powCONG = "Pow_CONG"
+    case unionEX = "Union_EX", unionUNIQ = "Union_UNIQ", unionCONG = "Union_CONG"
+    case congExists = "cong_exists", forallAsNexists = "forall_as_nexists"
+    case read1, read2, read4
+    case b1 = "B1", b2 = "B2", b3 = "B3", bOr = "B_or", bIff = "B_iff", rowEx = "row_ex"
+    case clsZero = "cls_zero", clsNsucc = "cls_nsucc", clsSnoc4 = "cls_snoc4", clsDiag = "cls_diag", rsKey = "rs_key"
+    case clsApply = "cls_apply"
+    case snocSome = "snoc_some", snocKeep = "snoc_keep", snocNew = "snoc_new"
+    case memberClass = "member_class", graphClass = "graph_class"
+    case impAsNand = "imp_as_nand", orIdem = "or_idem"
+    case powDef = "Pow_def", unionDef = "Union_def"
+    case upairEx = "upair_ex", upairDef = "upair_def"
+    case applyDef = "apply_def", lamPred = "lam_pred", lamClass = "lam_class", snocEQ = "snoc_EQ", tuplesClass = "tuples_class"
+    case zfZeroDef = "ZF_Base.zero_def", zfInfDef = "ZF_Base.Inf_def", infDef = "Inf_def", indDef = "ind_def"
 }
 
 @frozen public enum BaseError: Error, Equatable, Sendable {

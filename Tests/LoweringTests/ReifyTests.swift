@@ -120,7 +120,7 @@ private struct R {
     let applied = try r.n(.isaVarApp(head: try r.n(.isaBound(0, P)), args: [try r.x(1)]))
     let f = Definition(constant: at, type: fn(i, fn(P, o)), axiomTypes: [], parameters: 0,
                        definiens: try r.lam(try r.n(.isaAbs(P, body: applied))))
-    let prover = ReifyProver()
+    let prover = ReifyProver(base: r.base)
     let defs = [d, e, f]
     let stated = try [selfMember, empty, at].map { try prover.define($0, defs, in: &r.t) }
     let dDef = try r.n(.folForall(body: try r.iff(try r.k(.defined(selfMember), try r.c(0)), try r.every(try r.iff(

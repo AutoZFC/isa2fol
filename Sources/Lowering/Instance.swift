@@ -1,84 +1,9 @@
 import IR
 
-struct Existence: Request {
-    let term: NodeID
-    let name: String
-}
-
-/// ⚠ UNIQ IS NOT `⟦y = a⟧ → ⟦y′ = a⟧ → y = y′`: an occurrence's value is a witness its own chain binds, and
-/// re-closing that chain at it captures the value on both sides of `⟦r = a⟧`.
-struct Uniqueness: Request {
-    let term: NodeID
-    let name: String
-}
-
 @frozen public enum InstanceError: Error, Equatable, Sendable {
     case notAnInstance(NodeID)
     case notAnEquivalence(NodeID)
     case noCongruence(NodeID)
-}
-
-private struct Closed {
-    let term: NodeID
-    let variables: [NodeID]
-    let types: [IRType]
-}
-
-private func closed(_ a: NodeID, in t: inout Table) throws -> Closed {
-    let frees = freeVariables(a, in: t)
-    var term = a
-    for (j, v) in frees.enumerated() { term = try abstractIndex(term, v.index + j, in: &t) }
-    return Closed(term: term, variables: try frees.map { try t.intern(.isaBound($0.index, $0.type)) }, types: frees.map(\.type))
-}
-
-private func freeVariables(_ x: NodeID, in t: Table) -> [(index: Int, type: IRType)] {
-    var found: [(index: Int, type: IRType)] = []
-    func walk(_ n: NodeID, _ d: Int) {
-        guard t.looseBound(of: n) > d else { return }
-        if case let .isaBound(k, T) = t[n] {
-            if !found.contains(where: { $0.index == k - d }) { found.append((k - d, T)) }
-            return
-        }
-        t[n].forEachChild { c, binds in walk(c, d + binds.terms) }
-    }
-    walk(x, 0)
-    return found
-}
-
-private func universal(_ types: [IRType], _ body: NodeID, in t: inout Table) throws -> NodeID {
-    var root = body
-    for T in types.reversed() {
-        if let g = try Reify.guarded(try t.intern(.isaBound(0, T)), T, in: &t) { root = try t.intern(.folImplies(g, root)) }
-        root = try t.intern(.folForall(body: root))
-    }
-    return root
-}
-
-private func existence(_ c: Closed, in t: inout Table) throws -> NodeID {
-    let valued = try equation(try t.intern(.isaBound(0, .i)), try shift(c.term, by: 1, in: &t), in: &t)
-    return try universal(c.types, try t.intern(.ifolEx(.i, body: try named(atom: t[valued], in: &t))), in: &t)
-}
-
-private func uniqueness(_ c: Closed, in t: inout Table) throws -> NodeID {
-    var naming = Naming()
-    let (r, r2) = (try naming.name(c.term, [], &t), try naming.name(c.term, [], &t))
-    let core = try naming.chain.predicate(.base("eq"), [r, r2], in: &t)
-    return try universal(c.types, try naming.chain.premises(core, in: &t), in: &t)
-}
-
-private func instantiated(_ lemma: NodeID, _ c: Closed, in s: Scope, _ t: inout Table) throws -> NodeID {
-    var p = lemma
-    for (v, T) in zip(c.variables, c.types) {
-        let x = try s.lift(v, in: &t)
-        p = try t.intern(.folForallElim(p, x))
-        if let g = try Reify.guarded(x, T, in: &t) { p = try t.intern(.folImpliesElim(p, try t.intern(.isaGuard(x, g)))) }
-    }
-    return p
-}
-
-private func fingerprint(_ x: NodeID, _ t: Table) -> String {
-    let hex = String(t.fingerprint(of: x), radix: 16)
-    return String(repeating: "0", count: 16 - hex.count) + hex
 }
 
 struct TermInstance {
@@ -89,11 +14,12 @@ struct TermInstance {
               let instance = t.conclusion(of: id), let rewritten = t.conclusion(of: p) else { throw InstanceError.notAnInstance(id) }
         let wanted = try named(formula: instance, in: &t)
         let c = try closed(a, in: &t)
-        let name = fingerprint(c.term, t)
-        let ex = try t.intern(.use(.lemma(Lemma(Existence(term: c.term, name: "EX_" + name))), [], try existence(c, in: &t)))
-        let uniq = try t.intern(.use(.lemma(Lemma(Uniqueness(term: c.term, name: "UNIQ_" + name))), [], try uniqueness(c, in: &t)))
+        let (exR, uniqR) = (try existence(of: a, in: &t), try uniqueness(of: a, in: &t))
+        let ex = try t.intern(.use(.lemma(Lemma(exR)), [], try statement(exR, in: &t)))
+        let uniq = try t.intern(.use(.lemma(Lemma(uniqR)), [], try statement(uniqR, in: &t)))
         var s = Scope()
-        let exists = try instantiated(ex, c, in: s, &t)
+        let exists = try instantiated(ex, at: try c.variables.map { try s.lift($0, in: &t) }, c.types, guards: false,
+                                      guardOf: isaGuard, in: &t)
         guard case let .ifolEx(.i, valued)? = t.conclusion(of: exists).map({ t[$0] }) else { throw InstanceError.notAnInstance(id) }
         let y = s.fix(.i), h = s.assume(valued)
         let premise = try s.lift(rewritten, in: &t)
@@ -130,7 +56,7 @@ private func units(_ n: NodeID, _ x: Int, _ path: [Int], in t: Table) -> [Unit] 
          .use, .hyp, .isaGuard, .isaExIntro, .isaExElim, .folNot, .folBound, .folPred, .folForall, .folExists,
          .folAndIntro, .folAndElimL, .folAndElimR, .folOrIntroL, .folOrIntroR, .folOrElim, .folNotIntro, .folNotElim,
          .folIffIntro, .folIffElimL, .folIffElimR, .folForallIntro, .folForallElim, .folExistsIntro, .folExistsElim,
-         .folBottomElim, .folClassicalAbsurd, .folSchemaInst:
+         .folBottomElim, .folClassicalAbsurd, .folSchemaInst, .folLetterAll, .folLetter, .folLetterAbs:
         return []
     }
 }
@@ -267,36 +193,21 @@ private struct Conversion {
         let have = try conclusion(p, t)
         let walk = try Replacement(base: base) { phi, l, r, s, t in
             guard case .folPred = t[phi] else { return nil }
-            return try self.congruence(l, r, try equal(s, &t), &t)
+            let e = try equal(s, &t)
+            return try congruent(l, r, self.base, { _, _, _ in e }, &t)
         }.proof(have, have, wanted, in: s, &t)
         return try t.intern(.folIffElimL(walk, p))
     }
 
-    private func congruence(_ l: NodeID, _ r: NodeID, _ equal: NodeID, _ t: inout Table) throws -> NodeID {
-        guard case let .folPred(p, ls) = t[l], case let .folPred(p2, rs) = t[r], p == p2, ls.count == rs.count,
-              let k = ls.indices.first(where: { ls[$0] != rs[$0] }), ls.indices.filter({ ls[$0] != rs[$0] }).count == 1
-        else { throw InstanceError.noCongruence(l) }
-        let (claim, variables): (BaseStatement, [NodeID])
-        switch (p, k) {
-        case (.base("elem"), 0): (claim, variables) = (.congElemL, [ls[0], rs[0], ls[1]])
-        case (.base("elem"), 1): (claim, variables) = (.congElemR, [ls[0], ls[1], rs[1]])
-        case (.base("eq"), 0): (claim, variables) = (.congEqL, [ls[0], rs[0], ls[1]])
-        case (.base("eq"), 1): (claim, variables) = (.congEqR, [ls[0], ls[1], rs[1]])
-        case (.base("snoc"), 2): (claim, variables) = (.congSnocV, [ls[0], ls[1], ls[2], rs[2], ls[3]])
-        default: throw InstanceError.noCongruence(l)
-        }
-        return try base.claimed(claim, variables, [equal], in: &t)
-    }
-
     private func returning(_ oh: Opened, _ witnesses: [Int], _ facts: [Fact], _ value2: Int, in s: Scope,
                            _ t: inout Table) throws -> NodeID {
-        var p = try instantiated(uniq, closed, in: s, &t)
+        var p = try instantiated(uniq, at: try closed.variables.map { try s.lift($0, in: &t) }, closed.types, guards: true,
+                                 guardOf: isaGuard, in: &t)
         let named = oh.witnesses.indices.map { (oh.witnesses[$0], oh.constraints[$0], binders[$0]) }
         let occurrence = witnesses.indices.map { (witnesses[$0], facts[$0], binders[$0]) }
         for (w, f, b) in named + occurrence {
             let v = try s.variable(w, in: &t)
-            p = try t.intern(.folForallElim(p, v))
-            if b == .set, let g = try Reify.guarded(v, .i, in: &t) { p = try t.intern(.folImpliesElim(p, try t.intern(.isaGuard(v, g)))) }
+            p = try t.intern(b == .set ? .isaAllElim(p, v) : .folForallElim(p, v))
             p = try t.intern(.folImpliesElim(p, try s.proof(f, in: &t)))
         }
         let (y, r, r2) = (try s.variable(witness, in: &t), try s.variable(oh.witnesses[value], in: &t), try s.variable(value2, in: &t))

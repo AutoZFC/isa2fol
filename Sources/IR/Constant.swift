@@ -118,12 +118,14 @@ public struct Defined: Hashable, Sendable {
     case theoryAxiom(String)
     case lemma(Lemma)
     case base(String)
+    case definition(Defined)
 
     public var name: String {
         switch self {
         case let .theorem(name), let .isaDefinition(name, _), let .theoryAxiom(name), let .base(name): return name
         case let .axiom(a): return a.name
         case let .lemma(l): return l.name
+        case let .definition(c): return c.definitionName
         }
     }
 }

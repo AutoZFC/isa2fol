@@ -166,6 +166,7 @@ private struct Run {
     var names: Set<String> = []
     var lemmas: Set<Lemma> = []
     var definitionsAsked: Set<Defined> = []
+    var definitionsRefused: Set<Defined> = []
     var checked: Set<Pattern> = []
 
     init(_ p: Pipeline, _ unit: Unit) throws {
@@ -311,11 +312,13 @@ private struct Run {
             if let d = reached.first(where: { $0.constant == c }) ?? unit.definitions.first(where: { $0.constant == c }),
                let refusal = blocked(try check(patterns(under: [body(of: d, in: unit.table)], in: unit.table)), through: r) {
                 unit.refuse(name, refusal)
+                definitionsRefused.insert(c)
                 continue
             }
             switch try registry.define(c, reached, in: &unit.table) {
             case .unbuilt:
                 unit.refuse(name, .lemmaUnbuilt)
+                definitionsRefused.insert(c)
             case let .statement(root):
                 let held = try check(patterns(under: [root], in: unit.table))
                 if let p = misstated(held, through: r) { throw PipelineError.misstatedLemma(name: name, pattern: p) }
@@ -331,7 +334,13 @@ private struct Run {
         while next < live.count {
             defer { next += 1 }
             if let l = live[next].statement.lemma, live[next].statement.proof == nil {
-                let root = live[next].statement.root
+                let root = live[next].statement.root, named = constantsNamed(under: [root], unit.table)
+                try define(named, with: registry, through: r)
+                if let c = named.first(where: definitionsRefused.contains) {
+                    unit.refuse(l.name, .cites(c.definitionName))
+                    unbuilt.insert(next)
+                    continue
+                }
                 switch try registry.prove(l, root, reached, in: &unit.table) {
                 case .unbuilt:
                     unit.refuse(l.name, .lemmaUnbuilt)
@@ -365,7 +374,10 @@ private struct Run {
             var found: [String] = [], to: [Int] = []
             for (c, root) in l.statement.proof.map({ citations(under: $0, unit.table) }) ?? [] {
                 found.append(c.name)
-                if let j = index[c] {
+                if case let .definition(d) = c, let j = definitions[d] {
+                    guard live[j].statement.root == root else { throw PipelineError.citationMismatch(c.name) }
+                    to.append(j)
+                } else if let j = index[c] {
                     guard live[j].statement.root == root else { throw PipelineError.citationMismatch(c.name) }
                     to.append(j)
                 } else if !refused.contains(c.name) {
@@ -440,7 +452,7 @@ private func citations(under proof: NodeID, _ t: Table) -> [(Cited, NodeID)] {
         guard seen.insert(id).inserted else { continue }
         if case let .use(c, _, root) = t[id] {
             switch c {
-            case .theorem, .lemma:
+            case .theorem, .lemma, .definition:
                 if cited.insert(c).inserted { found.append((c, root)) }
             case .isaDefinition, .axiom, .theoryAxiom, .base:
                 break

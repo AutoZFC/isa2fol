@@ -29,12 +29,12 @@ public func render(formula root: NodeID, in t: Table) throws -> String {
     return try w.formula(root)
 }
 
-public func render(proof root: NodeID, of d: Declaration, in t: Table) throws -> String {
+public func render(proof root: NodeID, of d: Declaration, in t: Table, letters: [String: [String]] = [:]) throws -> String {
     try checkName(d.name)
     guard t.looseBound(of: root) == 0, t.looseHyps(of: root) == 0 else { throw RenderError.notClosed(root) }
     guard let concluded = t.conclusion(of: root) else { throw RenderError.notAProof(root) }
     guard concluded == d.root else { throw RenderError.proofConcludes(expected: d.root, found: concluded) }
-    var w = Writer(t: t)
+    var w = Writer(t: t, letters: letters)
     let last = try w.step(root)
     return (["proof \(d.name):"] + w.lines + ["    qed \(last)", ""]).joined(separator: "\n")
 }
@@ -46,6 +46,7 @@ private enum Rendered {
 
 private struct Writer {
     let t: Table
+    var letters: [String: [String]] = [:]
     var terms: [String] = []
     var hyps: [String] = []
     var lines: [String] = []
@@ -148,9 +149,32 @@ private struct Writer {
              .isaAllIntro, .isaAllElim, .isaGuard, .isaExIntro, .isaExElim, .isaReflexive, .isaSymmetric, .isaTransitive, .isaCombination,
              .isaAbstract:
             throw Pattern(t[id], in: t).dialects.contains(.fol) ? RenderError.schema(id) : RenderError.sourceKind(id)
-        case .folSchemaInst:
+        case .folLetterAll, .folLetter:
             throw RenderError.schema(id)
+        case .folLetterAbs:
+            var names: [String] = [], body = id
+            while case let .folLetterAbs(b) = t[body] {
+                names.append("b\(terms.count + names.count)")
+                body = b
+            }
+            return .formula("\\" + names.joined(separator: " ") + ". " + (try lambda(names[...], body)))
+        case .folSchemaInst:
+            var instances: [NodeID] = [], head = id
+            while case let .folSchemaInst(p, a) = t[head] {
+                instances.append(a)
+                head = p
+            }
+            guard case let .use(.base(name), [], _) = t[head], let names = letters[name], names.count == instances.count else {
+                throw RenderError.schema(id)
+            }
+            let bindings = try zip(names, instances.reversed()).map { "\($0): \(try formula($1))" }.joined(separator: ", ")
+            return emit("schema_inst \(name) { \(bindings) }")
         }
+    }
+
+    private mutating func lambda(_ names: ArraySlice<String>, _ body: NodeID) throws -> String {
+        guard let first = names.first else { return try formula(body) }
+        return try binding(term: first, hyp: nil) { try $0.lambda(names.dropFirst(), body) }
     }
 
     private mutating func binary(_ a: NodeID, _ op: String, _ b: NodeID) throws -> Rendered {
@@ -170,8 +194,8 @@ private struct Writer {
     }
 }
 
-/// ⚠ A COPY OF THE CHECKER'S RESERVED WORDS (`src/parser/formula.l`). `false` is one and
-/// `False` is not: `False` lexes as a nullary predicate, silently.
+/// ⚠ A COPY OF THE CHECKER'S RESERVED WORDS (`src/parser/formula.l`), refused in every segment: `T.use` lexes as `T`,
+/// `.`, `use`. `false` is one and `False` is not: `False` lexes as a nullary predicate, silently.
 private let keywords: Set<String> = [
     "forall", "exists", "and", "or", "not", "implies", "iff", "false", "bottom", "axiom",
     "claim", "theorem", "proof", "fix", "assume", "let", "qed", "use", "and_intro",
@@ -186,7 +210,7 @@ func checkName(_ name: String) throws {
     let segments = name.split(separator: ".", omittingEmptySubsequences: false)
     let wellFormed = isSegment(segments[0], digitFirst: false)
         && segments.dropFirst().allSatisfy { isSegment($0, digitFirst: true) }
-    guard wellFormed, !keywords.contains(name) else { throw RenderError.notAName(name) }
+    guard wellFormed, !segments.contains(where: { keywords.contains(String($0)) }) else { throw RenderError.notAName(name) }
 }
 
 private func isSegment(_ s: Substring, digitFirst: Bool) -> Bool {

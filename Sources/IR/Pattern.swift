@@ -57,6 +57,9 @@
     case folBottomElim(IRType, IRType)
     case folClassicalAbsurd(IRType, body: IRType)
     case folSchemaInst(IRType, IRType)
+    case folLetterAll(Int, body: IRType)
+    case folLetter(args: [IRType])
+    case folLetterAbs(body: IRType)
 
     @frozen public enum ConstantKind: Hashable, Sendable, CustomStringConvertible {
         case primitive(Primitive)
@@ -87,6 +90,7 @@
         case theoryAxiom
         case lemma
         case base
+        case definition
 
         init(_ c: Cited) {
             switch c {
@@ -96,6 +100,7 @@
             case .theoryAxiom: self = .theoryAxiom
             case .lemma: self = .lemma
             case .base: self = .base
+            case .definition: self = .definition
             }
         }
 
@@ -107,6 +112,7 @@
             case .theoryAxiom: return "theory axiom"
             case .lemma: return "lemma"
             case .base: return "base"
+            case .definition: return "@def"
             }
         }
     }
@@ -167,6 +173,9 @@
         case let .folBottomElim(p, c): self = .folBottomElim(T(p), T(c))
         case let .folClassicalAbsurd(a, b): self = .folClassicalAbsurd(T(a), body: T(b))
         case let .folSchemaInst(p, a): self = .folSchemaInst(T(p), T(a))
+        case let .folLetterAll(k, b): self = .folLetterAll(k, body: T(b))
+        case let .folLetter(_, xs): self = .folLetter(args: Ts(xs))
+        case let .folLetterAbs(b): self = .folLetterAbs(body: T(b))
         }
     }
 }
@@ -181,7 +190,7 @@ extension Pattern {
             return [.isa]
         case let .use(kind, types, _):
             switch kind {
-            case .theorem, .lemma: return types.isEmpty ? [.isa, .fol] : [.isa]
+            case .theorem, .lemma, .definition: return types.isEmpty ? [.isa, .fol] : [.isa]
             case .isaDefinition, .axiom, .theoryAxiom: return [.isa]
             case .base: return [.fol]
             }
@@ -190,7 +199,7 @@ extension Pattern {
             return [.isa, .fol]
         case .folNot, .folBound, .folPred, .folForall, .folExists, .folAndIntro, .folAndElimL, .folAndElimR,
              .folOrIntroL, .folOrIntroR, .folOrElim, .folNotIntro, .folNotElim, .folIffElimR, .folForallIntro, .folForallElim, .folExistsIntro, .folExistsElim, .folBottomElim,
-             .folClassicalAbsurd, .folSchemaInst:
+             .folClassicalAbsurd, .folSchemaInst, .folLetterAll, .folLetter, .folLetterAbs:
             return [.fol]
         }
     }

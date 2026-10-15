@@ -140,7 +140,7 @@ with no enclosing binder, an ill-typed position, a frees header that is not the 
 frees. Every construct today's reader still REFUSES is listed in §4.3a with the reading that
 replaces its refusal.
 
-## 3. FolDialect — the text boundary over the table  **[render BUILT; parse NOT]**
+## 3. FolDialect — the text boundary over the table  **[render BUILT, a schema instance since "EX and UNIQ — their prover"; parse BUILT for base's statements]**
 
 **There is no second representation of a fol formula.** The table's fol nodes (§4.3)
 ARE the formulas; `FolDialect` only turns them into fol-zfc text and back.
@@ -155,10 +155,11 @@ ARE the formulas; `FolDialect` only turns them into fol-zfc text and back.
 | | |
 |---|---|
 | `Declaration` | `(kind, name, root)` — kind `claim` or `definition(predicate)`, rendered `claim NAME: …` and `@def(P) axiom NAME: …`. There is NO `axiom` case: only `base/` has axioms, and `base/` is text the checker reads, never something we emit — so G1 holds by construction. `schema` waits for schemas |
-| `render` | the table → text: one line per declaration, bound variables named by level `b0, b1, …`; refuses an isa node, an unclosed root, a malformed name |
-| `parse` | text → table nodes, for imports — when imports are built |
+| `render` | the table → text: one line per declaration, bound variables named by level `b0, b1, …`; a base schema instantiated at every letter is one `schema_inst` step, its letters named as base's schema line declares them (`schemaLetters`); refuses an isa node, a partial schema instance, an unclosed root, a malformed name |
+| `parse` | base's text → table nodes in lowering's vocabulary: a schema's letters are `⋀::o`, and a guarded quantifier, `forall x. (set(x) -> φ)` or `exists x. (set(x) & φ)`, is a set binder `∀ᵢ`, `∃ᵢ`, which Fol writes back as the text ("EX and UNIQ — their prover", 4) |
 
-⚠ **THE ROUND TRIP IS AN ID COMPARISON:** `intern(parse(render(root))) == root`.
+⚠ **THE ROUND TRIP IS AN ID COMPARISON:** `intern(parse(render(root))) == root`, and for a guarded quantifier, which
+parses as a set binder, `Fol(parse(text))` is the text's own fol-zfc reading (`aParsedBaseClaimLoweredByFolIsItsText`).
 Interning makes it exact. The checker's grammar is the only authority on the syntax,
 so the text in that test must also be text the REAL checker accepts — never only our
 own reading of the grammar.
@@ -624,7 +625,7 @@ operation:
 | operation | at bound `k`, at depth `d` | at named `x` | used by |
 |---|---|---|---|
 | `shift(φ, δ)` — a binder was added above | `k ≥ d` → `k + δ` | — | S1 wrapping `∀r` around an atom |
-| `instantiate(body, t)` — a binder was removed | `k = d` → `t` shifted by `d`; `k > d` → `k − 1` | — | `forall_elim`, `exists_elim`, β-reduction: `beta(f, args)`, one `instantiate` per argument |
+| `instantiate(body, t)` — a binder was removed | `k = d` → `t` shifted by `d`, its type the variable's, unless either is a fol-zfc variable, which is untyped; `k > d` → `k − 1` | — | `forall_elim`, `exists_elim`, β-reduction: `beta(f, args)`, one `instantiate` per argument |
 | `abstract(φ, x)` — close over a name | `k ≥ d` → `k + 1` | `x` → `d` | closing a statement over its frees |
 
 The guard needs none: `∀. body` → `∀. (set(0) → body)` leaves the body at its depth.
@@ -1132,20 +1133,20 @@ its statement's root by ID, and on a cycle of citations.
   it in a job of its own; `Statement(citedAs:content:)`; `Run.claimed`'s registry of names; and lemmas named by
   strings (`c + "_EX"`).
 
-**4. EX and UNIQ: one walk over a term, recursive through the registry.** Reify's prover proves `EX c` by walking c's
-body as a term. A use of `c` cites `EX c` and never builds it, so the proof and the uses share no walk. At each
-application it cites
-the head's EX, which the registry proves in turn by the same walk over that head's definition, down to the primitives,
-whose EX and UNIQ come from base (S3: a body uses only constants defined before it). It walks the term only: a formula
-inside, such as a class argument `λx. φ`, stays with its owner. `UNIQ c` is the same walk, citing each head's UNIQ,
-the tuple's UNIQ and membership's congruence (base).
+**4. EX and UNIQ: one walk over a term, recursive through the registry.** A use cites EX of its term ("Reify — S1 at
+the site", point 4) and never builds it, so the proof and the uses share no walk. Reify's prover proves it by walking
+the term: at each application it cites the head's EX at its arguments, which the registry proves in turn, a
+constant's at `c(x⃗)` by the same walk over its definition's body, down to the primitives, whose EX and UNIQ come from
+base (S3: a body uses only constants defined before it). It walks the term only: a formula inside, such as a class
+argument `λx. φ`, stays with its owner. UNIQ is the same walk, citing each head's UNIQ, the tuple's UNIQ and
+membership's congruence (base).
 
 ```
-EX succ, succ ≡ λi. cons(i, i): for every set x, some set r with ⟨⟨x⟩, r⟩ in succ's class
+EX ⟨succ(x)⟩, succ ≡ λi. cons(i, i): for every set x, some set r with ⟨⟨x⟩, r⟩ in succ's class
   some set r = cons(x, x)            the walk over cons(x, x), as Expand left it:
     the tuple ⟨x, x⟩ exists            Tuple: the tuple's EX at 2
-    cons has a value at it             EX cons, cited: the registry hands it to Reify, which walks
-                                         Upair(a, a) ∪ A the same way, down to the primitives
+    cons has a value at it             EX ⟨cons(x, y)⟩ at x, x, cited: the registry hands it to Reify, which
+                                         walks Upair(a, a) ∪ A the same way, down to the primitives
   ⟨⟨x⟩, r⟩ in succ's class            succ's class definition (decision 5)
 ```
 
@@ -1169,9 +1170,7 @@ hand (the reference's `Base.claims`); a schema, by instantiation (§4.7's `schem
 cites base.
 
 Not in this step: emission, the unit in the order its citations and definitions require; and point 4 itself, EX's
-and UNIQ's prover, which this one gives the registry, the definitions and the guard of a variable. Since "Reify — S1 at
-the site" a use cites EX and UNIQ of its whole term, closed over the term's variables, and their prover composes the
-heads' facts.
+and UNIQ's prover, which this one gives the registry, the definitions and the guard of a variable.
 
 **A `@def` is a prover's answer** ("Reify — S1 at the site"). After logic, for each defined constant whose class
 predicate a statement names, the registry asks the prover that defines it, unless the constant's definition, read under
@@ -1624,8 +1623,8 @@ does not claim. Reify's switch, exhaustive over `Pattern` in Reify's file (D3), 
 not claim. To the pipeline the logic pass owns patterns by one `owns`, as every pass does.
 
 **2. What Reify provides.**
-- Per constant: its class, and its lemmas, EX and UNIQ, each stated from the constant alone and proved once by the
-  registry. A use cites them and never builds one.
+- Per constant: its class. Per term an instance meets: EX and UNIQ, stated from the term alone and proved once by the
+  registry ("Reify — S1 at the site", point 4). A use cites them and never builds one.
 - Per site: a term named where it stands (S1), and a statement instantiated at a compound term (FOUNDATION §3b's
   `appt_complex`), citing EX, and UNIQ where two namings of one term meet.
 - No state of its own. Naming a term is a function of its site alone, its variable bound where it stands (`P(f(a))`
@@ -1667,7 +1666,7 @@ expand and logic, Reify's pieces included. EX and UNIQ are stated over variables
 
 | | provides | assumes |
 |---|---|---|
-| Reify | per constant, its class and lemmas, proved once by the registry; per site, a term named where it stands and an instance at a compound term, one node per site | the logic pass asks it at each of its pieces; ZF's definitions as Expand left them |
+| Reify | per constant, its class; per term an instance meets, EX and UNIQ, proved once by the registry; per site, a term named where it stands and an instance at a compound term, one node per site | the logic pass asks it at each of its pieces; ZF's definitions as Expand left them |
 | Logic | its rules; a term it needs as a variable asked of Reify, never written | Reify's provisions |
 | the logic pass | Logic's pieces to Logic's rules, every other pattern to Reify's switch | Logic's switch and Reify's claiming no pattern in common |
 | the pipeline | the registry asked after logic | — |
@@ -1710,8 +1709,9 @@ the guard each type gets, and Reify EX and UNIQ:
 | Reify | provides |
 |---|---|
 | per site | a term named where it stands (S1); a statement instantiated at a compound term (§3b's `appt_complex`) |
-| per constant | its class, stated by its `@def`; EX and UNIQ, stated per term an instance meets ("Reify — S1 at the site", the build's refinements) and proved from the definitions, cited by every use |
-| per type | the guard: `set(x)` at `i`, `function(F)` at `iⁿ ⇒ i` (single-valued, no arity: a function variable's application is base's `apply`), none at `iⁿ ⇒ o`; and its discharge: at a variable by its binder's hypothesis (Fol's), at a named term by S1's `∃`, at a constant's class by its EX and UNIQ |
+| per constant | its class, stated by its `@def` |
+| per term | EX and UNIQ of each term an instance meets, stated from the term ("Reify — S1 at the site", point 4) and proved from the definitions, cited by every use |
+| per type | the guard: `set(x)` at `i`, `function(F)` at `iⁿ ⇒ i` (single-valued, no arity: a function variable's application is base's `apply`), none at `iⁿ ⇒ o`; and its discharge: at a variable by its binder's hypothesis (Fol's), at a named term by S1's `∃`, at a constant's class by EX and UNIQ of `c(x⃗)` |
 
 It keeps no state of its own ("Reify called from Logic's walk", point 2).
 
@@ -1733,7 +1733,7 @@ for what it is. In code `Typing`, the `Registry` the pipeline asks, becomes `Pro
 
 | | provides | assumes |
 |---|---|---|
-| Reify | per site, per constant and per type, as above | ZF's definitions as Expand left them; Tuple's lemmas; base |
+| Reify | per site, per constant, per term and per type, as above | ZF's definitions as Expand left them; Tuple's lemmas; base |
 | the registry | each lemma handed to the one prover owning its request | the plan's provers |
 | Fol | each binder with the guard Reify gives its type; each instance and each guard of a variable discharged by that variable's guard | Reify's guards |
 
@@ -1926,7 +1926,7 @@ outside; refused at no owner 7,176, logic 2,188; 1 cites a refused statement (`F
 citing it lower. The table holds 6.55M nodes, 7.22M before; read 70.5 s, lowered 13.9 s. `isa2fol read` proves all
 9,420. `SOURCE_SURFACE.md` and `CLOSURE.md` are regenerated: Pure's rules are steps there, no axioms.
 
-### Reify — S1 at the site  **[AGREED 2026-10-14 (user), decision by decision: the scope, the `@def`, `Rule.after`, the guard with no arity; BUILT 2026-10-14 — `Sources/Lowering/Reify.swift`, `Instance.swift`, `Chain.swift`, `Tuple.swift`, `Scope.swift`, `Logic.swift`, `Fol.swift`, `Sources/IR/Pass.swift`, `Node.swift`, `Table.swift`, `base/tiers/metafun`, `inf`, `zf`]**
+### Reify — S1 at the site  **[AGREED 2026-10-14 (user), decision by decision: the scope, the `@def`, `Rule.after`, the guard with no arity; EX and UNIQ per term, UNIQ in chain form, 2026-10-15 (user), on review of the build; BUILT 2026-10-14 — `Sources/Lowering/Reify.swift`, `Instance.swift`, `Chain.swift`, `Tuple.swift`, `Scope.swift`, `Logic.swift`, `Fol.swift`, `Sources/IR/Pass.swift`, `Node.swift`, `Table.swift`, `base/tiers/metafun`, `inf`, `zf`]**
 
 **Reify's provisions as their consumers see them** ("Reify and Typing as one component"): a term named where it stands
 (S1), a constant's class and its `@def`, EX and UNIQ as the lemmas every use cites, the guard per type. Their provers —
@@ -1951,8 +1951,8 @@ fol-zfc    ∃S. ZF_Base.succ(S) ∧ ∃t. set(t) ∧ (⟨y⟩ = t ∧ ∃r. set
 
 Isabelle   p ⊢ ⋀x. x ∈ A ⟹ x ∈ B,  p at succ(a)       ⊢ succ(a) ∈ A ⟹ succ(a) ∈ B
 wanted     ⟦succ(a) ∈ A⟧ → ⟦succ(a) ∈ B⟧               each atom naming succ(a) itself
-proof      EX succ at a: ∃y. set(y) ∧ ⟦y = succ(a)⟧; ∃-elim y; p at y ⊢ y ∈ A → y ∈ B;
-           y ∈ A ↔ ⟦succ(a) ∈ A⟧ — → by EX's naming, ← by UNIQ succ — and at B the same; joined by cong_imp
+proof      EX ⟨succ(x)⟩ at a: ∃y. set(y) ∧ ⟦y = succ(a)⟧; ∃-elim y; p at y ⊢ y ∈ A → y ∈ B;
+           y ∈ A ↔ ⟦succ(a) ∈ A⟧ — → by EX's naming, ← by UNIQ ⟨succ(x)⟩ — and at B the same; joined by cong_imp
 ```
 
 `⟨y⟩ = t` is Tuple's formula, `∃e. set(e) ∧ (zero(e) ∧ snoc(e, e, y, t))`: a 1-tuple at arity 1 (decision 1).
@@ -2016,30 +2016,45 @@ of the same name too (the reference's ⚠). A body uses only earlier constants (
 
 **3. An instance at a compound term** (FOUNDATION §3b's `appt_complex`). Isabelle instantiates `p ⊢ ⋀x. φ(x)` at `t`, and
 the step after it expects `⟦φ(t)⟧`, with `t` named at each atom.
-- **EX of `t`** gives `y` with `⟦y = t⟧`: each head's EX at its named arguments, inner first — a constant's lemma (4),
-  base's `apply_EX` at a function variable (5), and for a λ argument its class, Lambda's lemma. That lemma is closed
-  over the λ's free variables (user, 2026-10-14): `∀v⃗. ∃K. def(K)`, cited by instantiating it at the variables the λ
-  mentions, where it concludes the λ's naming in its class slot by ID. Its prover is the next step's.
+- **EX of `t`** (4), at `t`'s variables, gives `y` with `⟦y = t⟧`.
 - **`∃`-elim `y`**; `p` at `y` concludes `⟦φ(y)⟧`, an instance at a variable: Fol's.
 - **`⟦φ(y)⟧ ↔ ⟦φ(t)⟧` by replacement of equivalents over Isabelle's `φ`**: Logic's walk, its `Context` today, made the
   one home for it, with holes the caller gives (⚠ REIFY NEVER HANDLES A CONGRUENCE). A hole is an atom where `x` stood:
-  `α(y) ↔ ⟦α(t)⟧`, `→` by EX's naming, `←` by UNIQ of `t` (a constant's lemma, `apply_UNIQ` at a variable's guard),
-  and membership's congruence at the atom (base's `cong_elem_*`,
-  `cong_eq_*`, `cong_snoc_v`). Where `x` stands inside a λ argument, the λ's definition is walked the same way and
-  its class is kept.
+  `α(y) ↔ ⟦α(t)⟧`, `→` by EX's naming, `←` by UNIQ of `t` (4), and membership's congruence at the atom (base's
+  `cong_elem_*`, `cong_eq_*`, `cong_snoc_v`). Where `x` stands inside a λ argument, the λ's definition is walked the
+  same way and its class is kept.
 
-**4. EX and UNIQ per constant: its typing and its value's uniqueness**: Isabelle statements named by 1 and built from the
-constant alone (I2). They are the two facts base's `apply_EX` and `apply_UNIQ` give a function variable (5).
+**4. EX and UNIQ per term: its value and the value's uniqueness** (user, 2026-10-15, over per constant): built from
+the term alone (I2), `a` closed over its variables `v⃗` in the order they first occur, so `succ(succ(a))` and
+`succ(succ(b))` share one pair. EX is Isabelle's statement named by 1; UNIQ is in chain form (user, 2026-10-15, over
+Isabelle's `⋀v⃗ y y′. y = a ⟹ y′ = a ⟹ y = y′`): two namings of `a`, their binders `b⃗`, `b⃗′` the lemma's variables
+and their constraints `c⃗`, `c⃗′` its premises, concluding that their values `r`, `r′` are equal.
 
 ```
-EX c      ⋀P⃗ x⃗. ∃y. y = c(x⃗, P⃗)                         a set constant: ∃y. y = c
-UNIQ c    ⋀P⃗ P⃗′ x⃗ y y′. y = c(x⃗, P⃗) ⟹ y′ = c(x⃗, P⃗′) ⟹ y = y′
+EX ⟨a⟩     ∀v⃗. ∃y. ⟦y = a⟧                                a set constant c: ∃y. ⟦y = c⟧
+UNIQ ⟨a⟩   ∀v⃗. ∀b⃗. c⃗ → ∀b⃗′. c⃗′ → eq(r, r′)
 ```
 
-In UNIQ each class argument in `P⃗′` agrees with its counterpart in `P⃗` on the tuples, as two namings of one λ do by
-their definitions. Both assume each function class argument's guard (5). They are Reify's requests, named `c_EX` and
-`c_UNIQ`. Its prover is the next step, so the registry refuses them and their citers fall. A predicate constant needs
-neither, since no instance is at a predicate.
+⚠ **EVERY CONSUMER OF UNIQ HOLDS BOTH NAMINGS OPEN** — the instance (3) and UNIQ's prover at an inner term — and the
+chain form takes them as they stand. Isabelle's form would make each consumer rebuild a naming around its own value,
+which `exists_intro` cannot do directly: it abstracts every occurrence of its witness (fol-zfc's `translate_term`, the
+IR's `isaExIntro`), so `⟦r′ = a⟧` closed at `r′` concludes `eq(r, r)`; only a detour through a fresh variable equal to
+`r′` reaches it.
+
+Each assumes the guard of each of `v⃗` (5). At `c(x⃗)` they are the constant's own typing and its value's uniqueness,
+the two facts base's `apply_EX` and `apply_UNIQ` give a function variable (5). Their prover walks `a` inner first,
+citing each head's facts at its arguments' values — a constant's at `c(x⃗)`, proved by the same walk over its
+definition's body ("The unit and its citations", point 4); `apply_EX` and `apply_UNIQ` at a function variable; for a λ
+argument its class, Lambda's lemma, closed over the λ's free variables (user, 2026-10-14): `∀v⃗. ∃K. def(K)`, cited at
+the variables the λ mentions, where it concludes the λ's naming in its class slot by ID. UNIQ's two namings name each λ
+argument by its own class, and the two agree by their definitions. So one walk proves a term's facts, once however many
+instances cite them, and no instance walks a term: the reference's `lambda_<fp>_typing` for a λ's body, made
+systematic (proved at every use, `Acc.acc_FUNC` held five copies of one 8.1k-step proof). They are Reify's requests,
+named `EX_` and `UNIQ_` and a 64-bit FNV-1a fingerprint of the closed term (`Table.fingerprint`): a fol-zfc name cannot
+spell a term and rule 5 forbids mangling, and Swift's `Hasher` is seeded per process while a name must be the same
+every run. Two terms sharing a fingerprint stop the run (`duplicateName`). The price is that a name, and a refusal,
+says nothing of its term. The prover is the next step, so the registry refuses them and their citers fall. A
+predicate's application is no term and needs neither.
 
 **5. The guard per type: one atom, with lemmas on it** (user, 2026-10-14: the guard is an atom chosen by the type, base's
 lemmas on it keep its uses short, and it carries no arity — a function is its pairs).
@@ -2060,8 +2075,8 @@ apply_EX       ∀F t. ∃r. set(r) ∧ apply(t, r, F)                          
 apply_UNIQ     ∀F. function(F) → ∀t r s. apply(t, r, F) → apply(t, s, F) → eq(r, s)     and only one
 ```
 
-Base proves the two lemmas once, for every arity. They state of a variable what EX c and UNIQ c state of a constant: an
-instance at `f(a⃗)` cites them where one at `c(a⃗)` cites `c`'s lemmas. A constant's application stays `pmem`, since a
+Base proves the two lemmas once, for every arity. They state of a variable what EX and UNIQ of `c(x⃗)` state of a
+constant: EX's prover cites them at `f(a⃗)` where it cites `c`'s at `c(a⃗)`. A constant's application stays `pmem`, since a
 constant is total by its definition; at an instance of `∀F` at a λ (Lambda's step) the λ's class is total, and one base
 lemma reads `apply` as `pmem` there. Faithful (N2): every single-valued `F`, read through `apply`, is a total function
 on sets, and every Isabelle function is such an `F`.
@@ -2096,7 +2111,7 @@ predicate. "The meta level, lowered": decision 5. "Fol": its rows. §4.5: `Rule.
 
 | | provides | assumes |
 |---|---|---|
-| Reify | every term named where it stands; each constant's `@def`; EX and UNIQ requests built from the constant; an instance at a compound term concluding Isabelle's formula named, by ID; the guard per type | Expand's row; Tuple's formula; base's predicates for the primitives, `function` and `apply` with their lemmas; Logic's replacement walk; its requests proved by its prover or refused there |
+| Reify | every term named where it stands; each constant's `@def`; EX and UNIQ requests built from the term; an instance at a compound term concluding Isabelle's formula named, by ID; the guard per type | Expand's row; Tuple's formula; base's predicates for the primitives, `function` and `apply` with their lemmas; Logic's replacement walk; its requests proved by its prover or refused there |
 | Logic | replacement of equivalents over a formula, its holes the caller's | — |
 | Fol | binders, intros and variables at every object type, with the guard Reify gives; `∃` at `i`, guarded | Reify's guards |
 | the pipeline | each named defined constant's `@def`, stated by the registry after logic and linked to every statement naming it | a typed predicate; the registry's `define` |
@@ -2105,8 +2120,8 @@ predicate. "The meta level, lowered": decision 5. "Fol": its rows. §4.5: `Rule.
 - `ReifyTests`: each row of 1 named where it stands, by ID; one term twice is two variables; naming commutes with an
   instance at a variable, by ID; a constant's `@def` from its definition, a set constant's, a class argument as a
   parameter.
-- `ReifyTests`: an instance at `succ(a)` concludes Isabelle's formula named, by ID, citing EX and UNIQ of `succ`; one
-  at an applied function variable cites `apply_EX` and `apply_UNIQ` at its guard; one with `x` inside a λ argument keeps
+- `ReifyTests`: an instance at `succ(0)` concludes Isabelle's formula named, by ID, citing EX and UNIQ of `succ(0)`;
+  one at an applied function variable cites the term's, closed over the variable, discharging its guard; one with `x` inside a λ argument keeps
   the λ's class.
 - `PipelineTests`: a statement naming a constant is linked to its `@def`; a `@def` that cannot be stated refuses its
   users; a `@def` of the wrong shape stops the run; a `@def` naming itself is no cycle.
@@ -2129,8 +2144,9 @@ parameters; an instance at a term by EX, `∃`-elim and UNIQ; the primitives' cl
   the term stands, and the lifting is Logic's walk.
 - No driver adding `@def`s (`constantsToDefine`): the pipeline adds one where a predicate first names it, and a refusal
   reaches the users.
-- Two lemmas per constant cited by its uses, stated in Isabelle's terms and named by 1, where the reference cited five
-  (`c_EX`, `c_UNIQ`, `c_FUNC`, `c_typing`, `c_value_UNIQ`).
+- Two lemmas per term an instance meets, built from the term and named by 1, where the reference cited five per
+  constant (`c_EX`, `c_UNIQ`, `c_FUNC`, `c_typing`, `c_value_UNIQ`), opening a term one constant at a time at every
+  use, and only a λ's body's per term (`lambda_<fp>_typing`).
 - A λ in a class slot is named at its site by its definition (the stash's wrapper), never as a constant `L` (Step (4)).
 
 **Built.** Reify's switch gives its pieces rules: a ZF primitive, a ZF definition at the object level of a type whose
@@ -2146,17 +2162,11 @@ guard, or the `∧` an `∃` at `i` opens to). Base's `function`, `apply`, `appl
 reference's `inf` and `zf` tiers are kernel-checked (`scripts/check-base.sh`); `skolem` is gone.
 
 **Refinements made in the build** (no checker change; delegated, for review):
-- **EX and UNIQ per term, not per constant.** An instance cites one EX and one UNIQ of the whole term `a`, closed over
-  its variables in the order they first occur: `EX_⟨a⟩ = ∀v⃗. g(v⃗) → ∃y. ⟦y = a⟧`. Their prover composes the
-  constants' facts once per term; the per-constant lemmas of 4 are these at `c(x⃗)`. Each is named by an FNV-1a
-  fingerprint of the closed term's structure (`Table.fingerprint`), `EX_…` and `UNIQ_…`: Swift's `Hasher` is seeded
-  per process, and a name must be the same every run.
-- **UNIQ in chain form**: `∀v⃗. ∀b⃗. c⃗ → ∀b⃗′. c⃗′ → r = r′`, two namings of `a` with their binders as variables
-  and their constraints as premises. Isabelle's `⟦y = a⟧ → ⟦y′ = a⟧ → y = y′` cannot be met: an occurrence's value
-  is a witness of its own chain, and closing that chain again at it captures the value on both sides of `⟦r = a⟧`.
-- **A lemma's variables** are fol-zfc's `∀`, each guard written out, the variable a typed isa one; a use eliminates
-  each by `forall_elim` and discharges its guard by `isaGuard`, which Fol resolves to the variable's own. An isa `⋀` at a
-  class type could not be eliminated at a variable: the table admits only a λ there.
+- **A lemma's variables** are `∀ᵢ` at `i`, which Fol guards, and fol-zfc's `∀` at a class type, the variable a typed isa
+  one and a function variable's guard written out ("EX and UNIQ — their prover", 4, changed from fol-zfc's `∀` at every
+  type, under which a prover could not close an isa `∃` at its own variable). A use eliminates a set variable by an
+  instance, a class variable by `forall_elim`, its guard by `isaGuard`, which Fol resolves to the variable's own. An isa
+  `⋀` at a class type could not be eliminated at a variable: the table admits only a λ there.
 - **`∃` at an isa binder is a step of its own, `isaExIntro` and `isaExElim`** (IR nodes, isa only, Fol's at `i`). The
   fol-zfc steps bind fol-zfc's `∃` only: `Pattern` cannot tell an isa `∃` at `i` from fol-zfc's, and Fol dispatches
   by `Pattern` (I3). IFOL's `exI` and `exE` are these steps when Logic builds them.
@@ -2178,6 +2188,325 @@ piece not built (12 `If`'s proposition slot, 9 a declared constant) and 85 cite 
 UNIQ, refused as their prover is the next step's. Of the named, refused where each first stops: no owner 7,176; logic
 924 (`isaAllElim(o, (i => i))` 458, Lambda's instance at a class type, the most frequent); a letter off its spine 94;
 1,167 cite a refused statement, a `@def` or a lemma. No statement stops at Fol. Read 70.5 s, lowered 25.5 s.
+
+### EX and UNIQ — their prover  **[DELEGATED 2026-10-15 (user: "go autonomous on this feature"); BUILT 2026-10-15, its decisions reviewed by the user — `Sources/Lowering/Terms.swift`, `Graph.swift`, `Facts.swift`, `Tuple.swift`, `Congruence.swift`, `Scope.swift`, `Reify.swift`, `Logic.swift`, `Sources/IR/Index.swift`, `Pass.swift`, `Constant.swift`, `Pattern.swift`, `Sources/FolDialect/Parse.swift`, `Render.swift`, `base/tiers/tuples`, `metafun`]**
+
+**The step.** Reify's requests EX ⟨a⟩ and UNIQ ⟨a⟩ ("Reify — S1 at the site", point 4) get their prover. A term's naming is
+a chain of binders, each standing for one piece of the term, and the prover walks it: **one fact per piece, for EX its
+witness, for UNIQ its agreement across two namings** (D1). The class a function constant or a λ names exists by class
+existence per formula (FOUNDATION §3, R5's opening, R4's lift): that is the next step, so its facts are cited here and
+refused at their prover (D2) — EX of a term holding a function constant or a λ falls there, and UNIQ does not need it.
+
+**1. The pieces of a naming, and their facts.** `∀ᵢ`, `∃ᵢ` are isa binders at `i`, which Fol guards; `∀`, `∃` fol-zfc's,
+bare, over classes. `P⃗` are a constant's class parameters, `x⃗` its set arguments, `≈` agreement of two classes on their
+tuples (`∀ᵢt. elem(t,K) ↔ elem(t,K′)` at a predicate, `∀ᵢt r. pmem(t,r,K) ↔ pmem(t,r,K′)` at a function).
+
+| binder, its constraint | EX: a witness | UNIQ: two namings agree |
+|---|---|---|
+| `v`: `c(v)`, a set constant | `c_EX: ∃ᵢv. c(v)` | `c_UNIQ: ∀ᵢv w. c(v) → c(w) → eq(v,w)` |
+| `C`: `c(C, K⃗)` | `c_CLASS: ∀P⃗. ∃C. c(C,P⃗)` (next step) | `c_AGREE: ∀P⃗ P⃗′. P⃗ ≈ P⃗′ → ∀C C′. c(C,P⃗) → c(C′,P⃗′) → C ≈ C′` |
+| `K`: a λ's definition | `CLASS_⟨λ⟩: ∀v⃗. ∃K. def(K)` (next step) | the two definitions are one formula |
+| `τ`: `⟨x⃗⟩ = τ` | `TUPLE_EX_n: ∀ᵢx⃗. ∃ᵢτ. ⟨x⃗⟩ = τ` | `TUPLE_UNIQ_n: ∀ᵢx⃗ x⃗′. eq(x⃗,x⃗′) → ∀ᵢτ τ′. ⟨x⃗⟩ = τ → ⟨x⃗′⟩ = τ′ → eq(τ,τ′)` |
+| `r`: `pmem(τ, r, C)` | `c_TOTAL: ∀C P⃗. c(C,P⃗) → ∀ᵢx⃗ τ. ⟨x⃗⟩ = τ → ∃ᵢr. pmem(τ,r,C)` | `c_FUNC: ∀C P⃗. function(P_f) → c(C,P⃗) → function(C)`, and base's `func_at` |
+| `r`: `apply(τ, r, f)` | base's `apply_EX` | base's `apply_at`, under `f`'s guard |
+
+At a set constant or a function constant the facts are per constant, named by it and a suffix the export never uses (a
+clash stops the run, `duplicateName`); a primitive's are base's where base has them (`ZF_Base.zero_EX`, `Inf_UNIQ`, …).
+At a λ they are per closed λ, named by its fingerprint; at a tuple, per arity. `FUNC_⟨λ⟩: ∀v⃗. ∀K. def(K) →
+function(K)` is a function λ's guard, which `c_FUNC` owes at a λ in a function slot.
+
+**2. EX ⟨a⟩ and UNIQ ⟨a⟩ walk the chain.** EX opens each binder's witness in order, by its fact at the refs its
+constraint names, then closes `⟦z = a⟧` at the witnesses for a fresh `z` with `eq(z, r)` and instantiates `z` at the value
+`r` (⚠ "Reify — S1 at the site", point 4: a naming is never closed around its own value). UNIQ fixes both namings and
+derives each binder's agreement from the earlier ones; the last is `eq(r, r′)`. Neither reads a constraint back (I1):
+the naming records, for each binder, the piece it stands for.
+
+**3. A class given by a graph definition is total and single-valued — one rule, for a constant and a λ.** A function
+constant's `@def` and a function λ's definition are one shape, `∀ᵢt r. pmem(t,r,K) ↔ ∃ᵢx⃗. ⟨x⃗⟩ = t ∧ member(x⃗, r)`:
+- **total**: the tuple's entries are `x⃗` themselves, and `member` has a value there;
+- **single-valued**: two values at one `t` come from entries equal by the tuple's injectivity (`TUPLE_INJ_n`), the second
+  member moved to the first's entries by membership's congruence, then `member`'s uniqueness.
+`member` is a defined constant's `⟦r = b⟧` — its value by EX ⟨b⟩, its uniqueness by UNIQ ⟨b⟩, its congruence the
+replacement walk at atoms (`cong_elem_*`, `cong_eq_*`, `cong_snoc_v`) — or a primitive's base relation: `Pow`, `Union` by
+their `_EX`, `_UNIQ`, `_CONG`; `PrimReplace`'s by extensionality and `zero_UNIQ` in its two branches, its value the next
+step's (its image is a class of Kuratowski pairs, built by class existence). `c_AGREE` is the replacement walk over the
+definition at the atoms on `P⃗`. A defined set constant's `c_EX` and `c_UNIQ` are its `@def` with EX ⟨b⟩ and UNIQ ⟨b⟩.
+
+**4. What the framework gains** — each for review:
+- **Base's guarded quantifiers parse as set binders.** `forall x. (set(x) -> φ)` is `∀ᵢx. φ` and `exists x. (set(x) &
+  φ)` is `∃ᵢx. φ`, `x` a variable at `i`; Fol writes the guard back, so a parsed claim lowered by Fol is its text. Base
+  and lowering then name a set variable alike: parsed as fol-zfc's, a base existential's witness never met a naming's
+  constraint by ID before Fol, nor could Fol discharge its guard.
+- **A lemma's set variables are `∀ᵢ`** ("Reify — S1 at the site", refinement "A lemma's variables", changed): Fol
+  guards them, so a prover's proof closes an isa `∃` at its own variables. Class variables stay fol-zfc's `∀`, a
+  function variable's guard written out. EX assumes no function guard: an application has a value under none
+  (`apply_EX`).
+- **A proof cites a `@def`**: `Cited.definition(c)`, named `c_DEF`, linked to the `@def` by ID as a lemma is.
+- **A lemma naming a constant whose `@def` is refused is refused before its prover is asked** (`cites(c_DEF)`): its
+  prover would state facts about a body no rule names.
+
+**5. Base gains** (kernel-checked, `scripts/check-base.sh`): in `tuples`, `nsucc_UNIQ`, `nsucc_CONG` and `snoc_res_cong`
+(the reference's proofs); in `metafun`, `func_at` — a function class's values at equal tuples are equal across agreeing
+classes —, `apply_at` — the same for an application under `function(F)` — and `apply_class_cong` — `apply` respects
+agreement of its class.
+
+**The contracts (D2):**
+
+| | provides | assumes |
+|---|---|---|
+| Reify's prover | EX ⟨a⟩, UNIQ ⟨a⟩; each constant's and λ's facts of 1 but `_CLASS`; the graph rule of 3 | class existence's `_CLASS` facts, stated here and refused by it until built; Tuple's facts; base |
+| Tuple's prover | `TUPLE_EX_n`, `TUPLE_UNIQ_n`, `TUPLE_INJ_n` at every arity | base's `zero`, `nsucc`, `snoc` and `tuple` lemmas |
+| the pipeline | a `@def` cited by ID; a lemma refused with the `@def`s it names | — |
+| FolDialect | base's statements in lowering's vocabulary | — |
+
+**Tests, written first.** `ParseTests`: a guarded quantifier parses as a set binder, and Fol gives back the text.
+`TupleTests`: each tuple fact at arities 0–3, its proof concluding its statement by ID through Fol. `ReifyTests`: EX ⟨0⟩
+and UNIQ ⟨0⟩ proved from base; UNIQ ⟨succ(x)⟩, and of an applied function variable, proved; EX ⟨succ(x)⟩ cites
+`ZF_Base.succ_CLASS`; a constant's `_TOTAL`, `_FUNC`, `_AGREE` and a set constant's `_EX`, `_UNIQ` proved from small
+definitions. `PipelineTests`: a `@def` citation links by ID; a lemma naming a refused `@def` is refused unasked.
+
+**Built.** `TermProofs` walks a term's naming for EX and UNIQ (`Terms.swift`); `GraphProofs` proves a constant's and a λ's
+facts by the graph rule, its member a defined term, `Pow`'s or `Union`'s base relation, or `PrimReplace`'s two branches
+(`Graph.swift`); `TupleProver` proves the tuple's facts at every arity along its numerals (`Tuple.swift`). The naming
+records each binder's piece (`NamedPiece`). Proofs are built in a `Frame`, which records each binder and wraps them at
+the end; `have` cuts a derived fact into a hypothesis, which a deeper scope rebuilds from its level (⚠ the table checks
+no hypothesis against its binder). Logic's replacement walk takes fol-zfc's `∃` and `∀`, and one congruence step
+(`congruent`, membership's at every differing position) serves the instance and the provers. `_CLASS` and
+`CLASS ⟨λ⟩` are owned and unbuilt, and so is `PrimReplace`'s `_TOTAL`: its image is a class of Kuratowski pairs, which
+class existence builds. Tests: every lemma the tests prove whose citations close is checked by the real checker
+(`kernelChecks`, `Tests/LoweringTests/ProofChecks.swift`), FolDialect now rendering a base schema's instance as one
+`schema_inst` step; a test helper checks each hypothesis against its binder (`misscoped`).
+
+**Measured** (`isa2fol lower data/zf_export`): 59 lowered, as before — every EX of a term holding a function constant
+or a λ cites its class, class existence's; 1,122 statements of the unit beside them reach fol-zfc (478 before). Of the
+lemmas refused at their prover, 225 (400 before): 117 constants' `_CLASS`, 107 λs' `CLASS ⟨λ⟩`, `PrimReplace_TOTAL`.
+Proved and kept: 333 UNIQ ⟨a⟩, 105 `_AGREE`, 105 `_FUNC`, 71 `FUNC ⟨λ⟩`, 14 tuple facts, 13 set constants' `_UNIQ`,
+2 `_TOTAL`, 1 EX. The named refusals are as before: no owner 7,176, logic 924, a letter off its spine 94, 1,167 citing a
+refused statement. Read 70.5 s, lowered 31.4 s.
+
+**Decisions made in the build**, reviewed by the user 2026-10-15 (no checker change):
+1. **Scope.** The prover is complete against its contract; class existence's facts are cited and refused there (D2),
+   so no instance at a compound term holding a function constant or a λ lowers until class existence is built.
+2. **One fact per piece**, per constant (`c_EX`, `c_UNIQ`, `c_CLASS`, `c_AGREE`, `c_TOTAL`, `c_FUNC`), per closed λ
+   (`CLASS_`, `FUNC_` and its fingerprint), per arity (`TUPLE_EX_n`, `TUPLE_UNIQ_n`, `TUPLE_INJ_n`); a primitive's from
+   base where base has it. A constant's are named by it, readable in a refusal.
+3. **One graph rule** for a function constant's `@def` and a function λ's definition, its member's facts per kind.
+4. **Base's guarded quantifiers parse as set binders** (4, first bullet).
+5. **A lemma's set variables are `∀ᵢ`; EX assumes no function guard** (4, second bullet; "Reify — S1 at the site",
+   refinement "A lemma's variables" changed).
+6. **A proof cites a `@def`**: `Cited.definition`, linked by ID.
+7. **A lemma naming a refused `@def` is refused unasked.**
+8. **A fol-zfc variable is untyped in an instance** (`Sources/IR/Index.swift`): it takes any term variable, and any
+   variable is instantiated at it, the node substituted as it is — retyped, one variable would stand in two forms.
+9. **Base gains** six lemmas, kernel-checked (5).
+10. **FolDialect renders a schema instance**, its letters named as base's schema line declares them (`schemaLetters`).
+
+### Class existence — its prover  **[AGREED 2026-10-15 (user), all nine decisions one by one; BUILT 2026-10-15, its decisions in the build reviewed by the user — `Sources/Lowering/Comprehension.swift`, `Classes.swift`, `Facts.swift`, `Graph.swift`, `Reify.swift`, `Plan.swift`, `Sources/IR/Node.swift`, `Pattern.swift`, `Table.swift`, `Index.swift`, `Legalize.swift`, `Sources/FolDialect/Parse.swift`, `Render.swift`, `base/tiers/tuples`, `classes`, `metafun`, `zf`]**
+
+**The step.** Class existence's facts, which EX ⟨a⟩ cites and the registry refuses unbuilt today: `c_CLASS` of a
+constant, `CLASS ⟨λ⟩` of a closed λ, and PrimReplace's value under its `_TOTAL` — 225 lemmas in the last run ("EX and
+UNIQ — their prover", Measured). FOUNDATION §3: a formula's class is built from base's rows as a class of RECORDS —
+assignments, tuples on the variables in scope — and read back exactly on them; R5: a constant's class in a body is a
+parameter, its body never unfolded; R4: a class-taking constant at a λ that varies with the formula's variables has its
+class built for that site.
+
+**How the reference builds it** (`kinds-proposal`: `Sources/Classes/Comprehension.swift`, `Open.swift`, `Lift.swift`,
+`Sources/Constants/Replaced.swift`, `base/tiers/classes`; its DESIGN, step 6):
+- *Comprehension* builds a class of records per subformula from base's rows. An atom is read as membership of its
+  entries in a witness class (`B1`'s, `cls_diag`, `cls_zero`, `cls_nsucc`, `cls_snoc4`) by one row per width (`read1`,
+  `read2`, `read4`), so congruence is membership's, proved once; `∃` by `row_ex`; the class is read back exact on
+  records, and two schemas (`member_class`, `graph_class`) take exactness to the class.
+- *The Opener* runs first and proves the body equivalent to a class-free one: a class-free constant's binder opened by
+  its class (`c_EX`) and `c_UNIQ`; a λ's class a BUNDLE, the λ closed over the walk-bound sets it mentions; a
+  class-taking constant at bundles by `c_lift_p`, one lemma per constant AND context size `p`; bundles of different
+  contexts WIDENED to their union; a dry pass lays out the classes before the real pass proves.
+- PrimReplace's value is hand-coded (`Replaced.swift`): Replacement at the class of Kuratowski pairs built from `P`.
+- Measured there: EX and UNIQ for 223 constants; a per-arity tuple row cut the steps by 47%.
+
+**1. One construction: a formula's class of records, then its section.** Every class this step names is one
+formula's: `CLASS ⟨λ⟩` the λ's definition at its free variables, a function or predicate constant's `c_CLASS` the
+`@def`'s at the class parameters, a lift (4) the `@def`'s read at a context. A set constant's `c_CLASS` is no
+construction: it is the singleton of its value, a set (decision 5). The generator, *Comprehension*, builds the class
+of records of each subformula from its children's by base's rows and proves it EXACT: for every record `b` on `k` whose
+entries are `e⃗`, `elem(b, A_ψ) ↔ ψ(e⃗)`. The class named is the top class's section at the context, `c` the tuple of
+the free variables — `∅` for a constant — by one of two schemas proved once in base, `member_class [Q(1)]` and
+`graph_class [Q(2)]`: if `A` is exact at every extension of `c` by `t` (and `r`), a class `K` with
+`elem(t, K) ↔ Q(t)` (`pmem(t, r, K) ↔ Q(t, r)`) exists. Each is proved from `lam_pred` or `lam_class`
+(`{t : c ++ [t] ∈ A}`, `{⟨t, r⟩ : c ++ [t, r] ∈ A}`) and `snoc_EX`, uniform in the context's length.
+
+**2. The pieces, each one rule** (D1). The generator walks the naming of the formula's atoms and reads each binder's
+`NamedPiece` — never a constraint back (I1):
+
+| piece, or atom | its class at the record |
+|---|---|
+| `∧ ∨ ¬ → ↔` | `B2`, `B_or`, `B3`, `imp_as_nand`, `B_iff`; exact by the connective's congruence |
+| `∃ᵢ`, Isabelle's or a naming's (`τ`, `r`, `v`) | `row_ex` at the scope's length; exact by `snoc_read`. `∀ᵢ` as `¬∃¬` |
+| `elem`, `eq`, `zero`, `nsucc`, `snoc` on entries | `read2`, `read1` or `read4` into the atom's witness class |
+| an atom on a fixed class: a class parameter, an opened class, a function variable | `read1` or `read2` into it; `apply(τ, r, F)` into `F`'s application class, `cls_apply` |
+| `.setConstant(c)`: `∃ᵢv. c(v)` | `v` an entry; `c(v)` read into the singleton of `c`'s value (`c_CLASS`), opened |
+| `.constantClass(c)`, no class argument | OPENED: `C₀` from `c_CLASS`; the atom on `C` read at `C₀`, joined there by `c_AGREE` |
+| `.constantClass(c, classes: K⃗)` | LIFTED: `U` from `c_LIFT` at the λs' bundles; the atom on `C` read at `U` |
+| `.lambdaClass(λ)` | its definition's right side built at the extended scope: the BUNDLE its constant's lift takes |
+
+**3. A class binder is a hypothesis of what lies under it.** A class is never an entry (R4), so a naming's class
+binder adds no row: the subformula under `∃C. c(C, K⃗)` is built once, an atom on `C` read through a FIXED class — the
+opened `C₀` or the lift's `U` — and its exactness holds for EVERY `C` and `K⃗` meeting the binders' constraints at the
+record's entries, proved at the atom (by `c_AGREE`, or by `c_LIFT`). The binder's exactness then needs only witnesses:
+`←` instantiates that exactness, `→` takes `C₀`, or the bundles' sections at the record and `c_CLASS` at them. One walk,
+bottom-up, each class proved where it is built; no formula rewritten whole, nothing laid out before the walk.
+
+**4. The lift: one per class-taking constant, uniform in the context.** A site's context is its record itself — a set,
+a tuple on its length — so the lift is stated once, the length a variable:
+```
+c_LIFT: ∀ᵢp p1. nsucc(p, p1) → ∀A⃗. ∃U. ∀ᵢa. tuple(a, p) → ∀K⃗. K⃗ ≈ₐ A⃗ → ∀C. c(C, K⃗) → C ≈ₐ U
+```
+`K ≈ₐ A` says `K` is `A`'s section at `a`, `lam_pred`'s or `lam_class`'s right side: `∀ᵢu. elem(u, K) ↔ ∃ᵢb.
+snoc(a, p, u, b) ∧ elem(b, A)` at a predicate, `∀ᵢu w. pmem(u, w, K) ↔ ∃ᵢb. snoc(a, p, u, b) ∧ ∃ᵢb′. snoc(b, p1, w, b′)
+∧ elem(b′, A)` at a function. At a site on `k` entries the record is the context and the bundles are `A⃗`; `τ` and `r`
+are the next two entries, so `pmem(τ, r, C)`'s record is `a ++ [τ, r]` and its class is `U` itself. The proof: `c`'s
+`@def` at `C`, its member with each `K_j` read through `A_j` at `a` (Logic's replacement walk, its holes `K⃗ ≈ₐ A⃗`),
+built by the generator with `p`, `p1`, `a` as entries, then re-keyed from records `⟨p, p1, a, t, r⟩` to `a ++ [t, r]`
+by `snoc`'s injectivity on tuples — a lemma proved once. A class-taking constant in `c`'s body at a λ that mentions `a`
+is lifted in turn, its lift cited, earlier in definitional order.
+
+**5. The primitives** go through the same rules from base's definitions (`base/tiers/zf`): the classes of
+`ZF_Base.Pow`, `Union` and `PrimReplace`, PrimReplace's lift included, are built from their class predicates'
+definitions, `Pow(A, r)` and `Union(A, r)` read through base's own — the primitives being the one thing a rule may name
+(D1); `zero`'s and `Inf`'s are singletons (decision 5), from base's `ZF_Base.zero_EX`, `Inf_EX` and their `_UNIQ`.
+PrimReplace's VALUE is not a class: it is Replacement at the class of Kuratowski pairs `{⟨u, v⟩ : u ∈ A ∧ ⟨u, v⟩ ∈ P}`,
+which `read1`, `B2` and `lam_class` build — a base lemma, so its `_TOTAL` is the graph rule's as `Pow`'s is, and
+`Graph.swift`'s `primReplace` member stops refusing.
+
+**6. Base gains**, each kernel-checked before the code. Ported with the reference's proofs: `read1`, `read2`, `read4`,
+`cls_zero`, `cls_nsucc`, `cls_snoc4`, `rs_key`, `snoc_read`, `snoc_keep` and the tuple facts the read-back takes
+(`first_in`, `next_in`, `tuple_first`, `tuple_last`). New: `cls_apply: ∀F. ∃W. ∀ᵢt r. pmem(t, r, W) ↔ apply(t, r, F)`,
+`cls_tuple` (the re-keying's `tuple(a, p)` read as membership — not built, `tuples_class` serves: build decision 4),
+PrimReplace's value, and the schemas `member_class` and
+`graph_class` (1). FOUNDATION §3 gains, first, the witness-class reading of an atom.
+
+**The contracts (D2):**
+
+| | provides | assumes |
+|---|---|---|
+| Classes' prover (new, `Sources/Lowering`) | `c_CLASS` of every constant, a set constant's `∃S. ∀ᵢv. elem(v, S) ↔ c(v)` included; `CLASS ⟨λ⟩`; `c_LIFT` of a class-taking constant | `c_DEF`; `c_AGREE`; a set constant's `c_EX` and `c_UNIQ` and base's Pairing (`upair_ex`); Tuple's `TUPLE_EX_n` for a context; the base gains (6) |
+| Reify's prover | as before, and `ZF_Base.PrimReplace_TOTAL` by the graph rule | base's PrimReplace value |
+| Facts | the statements of a set constant's `c_CLASS` and of `c_LIFT`, from the request alone (I2) | — |
+
+**Tests, written first**, each proof concluding its statement by ID through Fol, `misscoped`, and kernel-checked:
+`CLASS ⟨λx. x ∈ y⟩` (rows, `∃`, the section at `⟨y⟩`); `CLASS ⟨λx. f(x)⟩` (`cls_apply`); `ZF_Base.Pow_CLASS` and
+`Union_CLASS` from base's definitions; `T.s ≡ λx. Pow(x)`: `T.s_CLASS`, opening `Pow`'s class, and EX ⟨T.s(x)⟩ PROVED
+end to end; `T.e ≡ Pow(0)`: a set constant's class; `sub ≡ λA B. ball(A, λx. x ∈ B)`: `ball_LIFT` and `sub_CLASS`, the
+λ depending on `sub`'s own argument; two λs at different arguments, ONE lift and no widening; a lift inside a lift's
+body (PrimReplace's from base); EX ⟨PrimReplace(a, λx y. x = y)⟩ PROVED. Then the corpus, measured, nothing predicted.
+
+**Not in this step:** a `@def` holding `If`'s proposition slot or a declared constant, refused before the registry (the
+reference read a proposition argument as a class of the empty tuple); a class quantifier in a body (FOUNDATION S4: §3 has
+no case for one) — the generator throws there (`ComprehensionError.unread`), and no lemma the corpus requests reaches
+one; refusing it by name, unbuilt, needs the prover to see the definition before it proves, an interface question raised
+when a statement does; a per-arity tuple row, the reference's measured optimization.
+
+**Built.** *Comprehension* (`Comprehension.swift`) walks a definition's raw body and, at each Isabelle atom, its naming's
+chain with its pieces (8), opening in the top frame the class of each piece by its row, each row once per key; *Reading*
+reads it back exact in a frame fixing a record:
+- `∃ᵢ` by `row_ex`, its exactness at every extension `b` by `snoc(a, n_k, v, b)` taken to the record by `snoc_some` and
+  `cong_exists`; `∧ ∨ ¬ ↔` by `B2`, `B_or`, `B3`, `B_iff` and their congruence; `∀ᵢ` as `¬∃¬` (`forall_as_nexists`), `→`
+  as `¬(A ∧ ¬B)` (`imp_as_nand`); `⊥` as the numeral `0`, empty by `zero_def`;
+- an atom by its read row (`read1`, `read2`, `read4`) and its witness's property: `B1`'s, `cls_diag`, `cls_zero`,
+  `cls_nsucc`, `cls_snoc4` with `rs_key`, `cls_apply` at a function variable, a set constant's singleton, a fixed class
+  itself; `Pow(A, r)` and `Union(A, r)` through `Pow_def`, `Union_def`;
+- a record is built by `snoc` from the empty one, `tuple_snoc`, `snoc_new` and `snoc_keep` each `have`d once per
+  extension, an older entry read through the chain of `keep`s;
+- a class binder: its body read in a frame fixing the class and assuming its constraint; `←` instantiates that, `→` takes
+  a witness — `C₀` from `c_CLASS` (opened), the λ's section at the record by `lam_pred` or `lam_class` (a λ), `c_CLASS` at
+  the sections (lifted); an atom on a lifted `C` is `U`'s membership at the record two (one) `snoc`s on, by `C ≈ₐ U`,
+  `snoc_some` and `snoc_EQ`.
+
+*ClassProver* (`Classes.swift`) owns `c_CLASS`, `CLASS ⟨λ⟩`, `c_LIFT` and `REKEY_m`, `.unbuilt` at a declared constant:
+- `CLASS ⟨λ⟩` and a constant's `c_CLASS`: the section by `member_class` or `graph_class` at the context's record — `⟨⟩` for
+  a constant — then, for a constant, its definition, a defined constant's `@def` or a primitive's base's;
+- `c_LIFT`: the class `W` of records `⟨p, p1, a, t (, r)⟩` at which the definition holds, each class parameter read
+  through its section at `a`, its `K ≈ₐ A` a hypothesis at the atom; `U` is `W` re-keyed by `REKEY_1` or `REKEY_2`;
+- `REKEY_m`: `U = {a ++ [t (, r)] : tuple(a, p), ⟨p, p1, a, t (, r)⟩ ∈ W}`, built by the generator at the record
+  `⟨p, p1⟩`, `tuple(a, p)` read through `tuples_class` at the lemma's fixed `p`; read back by `snoc_inj` on tuples, the
+  entries carried along by `cong_snoc_v`;
+- a set constant's class: the singleton of its value, Pairing from `c_EX`; `c(v) → v = v₀` by `c_UNIQ`; back by its
+  definition carried along the equation — a defined constant's `@def` at its core `eq(v, r)`, `0`'s and `Inf`'s base's,
+  unfolded through `zero_def`, `Inf_def` and `ind_def` to membership.
+
+**Decisions made in the build** (no checker change; reviewed by the user, 2026-10-15):
+1. **Schema letters with arguments** (the user, 2026-10-15: "go with option 1"): `folLetterAll(n)`, `folLetter`,
+   `folLetterAbs`, fol-zfc only (`Sources/IR/Node.swift`); `schema_inst` instantiates one at an n-fold λ, β-reduced, and
+   renders it `Q: \b1 b2. φ`. `member_class [Q(1)]`, `graph_class [Q(2)]`, `snoc_some [X(1), P(0)]`, `cong_exists` and
+   `forall_as_nexists` are cited at letters with arguments.
+2. **`snoc_some`** (`base/tiers/tuples`): the step from an extension's exactness to the record's — the reference's
+   `snoc_read`, its class a letter, so a function λ's two-level section is one schema, twice.
+3. **A class parameter of a lift's body is read through its section** at the lift's record, `K ≈ₐ A` a hypothesis at
+   the atom — decision 2's transport, at a parameter; its `apply` through `apply_def`.
+4. **`REKEY_1` and `REKEY_2`**, by the extension's width, the class prover's; `tuples_class` at the lemma's fixed `p`
+   reads `tuple(a, p)`, so `cls_tuple` (6) is not needed.
+5. **A set constant's class binds a set**, `∃ᵢS. ∀ᵢv. elem(v, S) ↔ c(v)`: its witness is one.
+6. **`0` and `Inf` take the singleton rule** with base's EX, UNIQ and definitions — no base lemma per primitive.
+7. **`⊥`'s class is the numeral `0`.**
+8. **A predicate constant's `_AGREE` is membership's agreement**, `elem(t, C) ↔ elem(t, C′)`: the statement wrote `pmem`
+   for every constant, and nothing had cited a predicate's.
+9. **PrimReplace's `_TOTAL` by the graph rule**, from `ZF_Base.PrimReplace_value` (7b).
+10. **The renderer refuses a reserved word in any segment of a name**: `T.use` lexes as `T`, `.`, `use`.
+
+**Measured** (`MEM=32G scripts/capped.sh .build/release/isa2fol lower data/zf_export`: 2 min 11 s, peak 13.0 GB): every
+lemma requested is proved — 0 refused unbuilt, against 225 — and beside the named theorems 1,866 statements reach
+fol-zfc, against 1,122: 165 `_CLASS`, 99 `CLASS ⟨λ⟩`, 27 `_LIFT`, both `REKEY`s, 278 EX, 338 UNIQ, 451 `@def`s, and
+Reify's and Tuple's other facts (by name, a throwaway count of the unit's statements, not kept). **The named theorems
+lowered stay 59**: the 1,167 refused for citing a refused statement each still cite one, none an EX now — `Formula.satisfies_DEF`
+heads the list, then theorems refused for no owner — so no named theorem waited on class existence alone. The table holds
+15.6M nodes, against 9.5M; lowering takes 60 s, against 25 s. The proofs are kernel-checked in the tests; their rendered
+size is unmeasured, emission being unbuilt.
+
+**Decisions**, each agreed by the user, 2026-10-15. **Order of work:** the EX and UNIQ build reviewed and committed
+first, as one step; FOUNDATION §3's witness-class line (6) before any code; base's gains (1, 6, 7b) kernel-checked
+before any code cites them; then the prover, its tests first.
+1. **One construction** (1): every class a formula's class of records and its section. **AGREED 2026-10-15 (user),
+   refined**: the step from the class of records to the class named is one of two schemas, `member_class [Q(1)]` and
+   `graph_class [Q(2)]`, proved once in base from `lam_pred`/`lam_class` and `snoc_EX` and uniform in the context's
+   length — the reference's bridge proved once (`member_class`, `graph_class`, `lambda_class_n` per λ arity) without
+   its family; argued inline instead, every class proof would repeat it.
+2. **A class binder is a hypothesis of the exactness under it** (3), its transport local to the atom — the reference's
+   Opener (a whole-formula equivalence, a dry pass, a spine of classes) has no counterpart. **AGREED 2026-10-15
+   (user)**: both build the same classes from the same rows and differ only in where the class is replaced by its
+   stand-in — the reference rewrites the whole formula and proves the rewrite; ours replaces it at the one atom that
+   mentions it and states everything above that atom for every class meeting the binder.
+3. **The context is the record** (2, 4): a λ in a class slot is built in place — no bundle per closed λ, no widening.
+   **AGREED 2026-10-15 (user)**: the reference gives each bundle its own context, the variables its λ mentions, so two
+   bundles at one binder can differ and are widened, and its rewritten atom spells its context's tuple; ours gives every
+   bundle at a binder the same context, the record there, and with decision 2 the atom on the lifted class is read at
+   `U` itself.
+4. **One lift per class-taking constant, uniform in the context's length** (4), against the reference's `c_lift_p` per
+   context size, a family (FOUNDATION §3: families go); the cost is one re-keying per lift. **AGREED 2026-10-15
+   (user)**: the lift replaces a class that changes with the formula's sets — Replace's graph at Upair's λ, one per
+   `(a, b)` — by one class whose members carry those sets; each class-taking constant states it once, its extra
+   arguments one tuple of any length.
+5. **Every constant piece opened by its class** (2): a set constant gains a class lemma; the reference linked none.
+   **AGREED 2026-10-15 (user), corrected**: a set constant's class is the singleton of its value, a SET — by Pairing
+   from `c_EX`, its defining property from `c_UNIQ` and `c_DEF` — not a construction; the atom `c(v)` is read as
+   membership in it, a variable in a fixed class, so `v` stays a variable wherever else it occurs. Opened by its value
+   instead, the value would stand where no row reads a fixed set (left of `∈`, in `=`, in a tuple).
+6. **Atoms read through witness classes, one row per width** (2, 6): kept from the reference. **AGREED 2026-10-15
+   (user)**, over one row per atom kind (our base's `row_mem`, `row_eq`, …): every atom is first membership of its
+   entries in its witness class, so an atom's exactness is two citations and congruence is membership's, proved once
+   in `read1`, `read2`, `read4`; the cost is FOUNDATION §3's line and the port.
+7. **The primitives from base's definitions; PrimReplace's value a base lemma** (5). **AGREED 2026-10-15 (user)**:
+   `Pow`'s, `Union`'s and `PrimReplace`'s classes and PrimReplace's lift are the general rule's — the class of a
+   definition — so the generator builds them from `base/tiers/zf`, `Pow(A, r)` and `Union(A, r)` read through base's
+   definitions; PrimReplace's value is an instance of no rule, one fact about one primitive, so base proves it by hand
+   (cases on functionality, Replacement at the class of Kuratowski pairs) beside `PrimReplace_EX`.
+8. **Dispatch by the naming's pieces** (2, I1): the reference parsed definitions back into λs (`definitionOf`,
+   `definedLambda`) and recognized a tuple formula by rebuilding it (`tupleSlots`). **AGREED 2026-10-15 (user)**: the
+   generator names the λ's or `@def`'s Isabelle body itself and reads each class and set-constant binder's
+   `NamedPiece`, as the EX and UNIQ prover does; its formula equals the stated one by ID, checked, a mismatch thrown.
+   Tuple formations need no piece: their atoms are rows.
+9. **A new prover owns class existence**: Reify's prover no longer owns `_CLASS` or `CLASS ⟨λ⟩`. **AGREED 2026-10-15
+   (user)**: `ClassProver`, a third entry in the plan, owns every `c_CLASS` (a set constant's singleton included),
+   `CLASS ⟨λ⟩`, `c_LIFT` and the re-keying lemma; Reify's keeps the rest and proves `ZF_Base.PrimReplace_TOTAL` by the
+   graph rule. The boundary is already in the lemmas: EX cites `c_CLASS` and calls none of its code.
 
 ### Fol — binders, guards and variables  **[BUILT 2026-09-28 as the guard; Fol's 2026-10-14; every object type and `∃` at `i` with "Reify — S1 at the site" — `Sources/Lowering/Fol.swift`]**
 

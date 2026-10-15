@@ -61,11 +61,8 @@ struct Chain {
 
     func premises(_ core: NodeID, in t: inout Table) throws -> NodeID {
         try folded(core, in: &t) { b, c, body, t in
-            var premised = try t.intern(.folImplies(c, body))
-            if b == .set, let g = try Reify.guarded(try t.intern(.isaBound(0, .i)), .i, in: &t) {
-                premised = try t.intern(.folImplies(g, premised))
-            }
-            return try t.intern(.folForall(body: premised))
+            let premised = try t.intern(.folImplies(c, body))
+            return try t.intern(b == .set ? .ifolAll(.i, body: premised) : .folForall(body: premised))
         }
     }
 
