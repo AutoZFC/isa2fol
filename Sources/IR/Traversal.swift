@@ -14,13 +14,13 @@ public protocol Rule {
     func enter(_ c: Context, _ binder: Node, _ binds: Binds, in t: Table) -> Context
     func narrow(_ c: Context, _ id: NodeID, in t: Table) -> Context
     func before(_ id: NodeID, context: Context, in t: inout Table) throws -> NodeID?
-    func after(_ n: Node, context: Context, in t: inout Table) throws -> NodeID?
+    func after(_ n: Node, was id: NodeID, context: Context, in t: inout Table) throws -> NodeID?
 }
 
 extension Rule {
     public func narrow(_ c: Context, _ id: NodeID, in t: Table) -> Context { c }
     public func before(_ id: NodeID, context: Context, in t: inout Table) throws -> NodeID? { nil }
-    public func after(_ n: Node, context: Context, in t: inout Table) throws -> NodeID? { nil }
+    public func after(_ n: Node, was id: NodeID, context: Context, in t: inout Table) throws -> NodeID? { nil }
 }
 
 extension Rule where Context == Depth {
@@ -61,6 +61,6 @@ private func rewrite<R: Rule>(_ id: NodeID, _ c: R.Context, _ rule: R,
         let inner = binds == .none ? c : rule.enter(c, n, binds, in: t)
         return try visit(child, inner, rule, &cache, &t)
     }
-    if let rewritten = try rule.after(rebuilt, context: c, in: &t) { return rewritten }
+    if let rewritten = try rule.after(rebuilt, was: id, context: c, in: &t) { return rewritten }
     return try t.intern(rebuilt)
 }

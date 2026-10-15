@@ -66,7 +66,7 @@ private struct Closure {
                 switch c {
                 case let .theorem(name):
                     if let v = cited(name) { edges.insert(v) }
-                case .isaDefinition, .axiom, .theoryAxiom, .lemma:
+                case .isaDefinition, .axiom, .theoryAxiom, .lemma, .base:
                     bits.insert(id(.cited(c)))
                 }
             }

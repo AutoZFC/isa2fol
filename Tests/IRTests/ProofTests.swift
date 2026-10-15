@@ -9,7 +9,7 @@ private let memT = fn(i, fn(i, o))
 private struct P {
     var t = Table()
     mutating func b(_ k: Int) throws -> NodeID { try t.intern(.folBound(k)) }
-    mutating func pred(_ n: String, _ xs: NodeID...) throws -> NodeID { try t.intern(.folPred(n, args: xs)) }
+    mutating func pred(_ n: String, _ xs: NodeID...) throws -> NodeID { try t.intern(.folPred(.base(n), args: xs)) }
     mutating func mem(_ a: NodeID, _ b: NodeID) throws -> NodeID { try t.intern(.isaConst(.primitive(.zf(.mem)), memT, args: [a, b])) }
     mutating func hyp(_ k: Int, _ a: NodeID) throws -> NodeID { try t.intern(.hyp(k, a)) }
     mutating func concl(_ s: NodeID) -> NodeID { t.conclusion(of: s)! }
@@ -125,19 +125,25 @@ private struct P {
     }
 }
 
-/// Before fol, `∃` is typed: a witness `isaBound(k, T)` concludes `ifolEx(T, …)`, which `∃ elim` opens.
-@Test func existentialStepsTakeTheTypedExistsBeforeFol() throws {
+/// Before fol, `∃` at an isa binder is the isa steps': a witness `isaBound(k, T)` concludes `ifolEx(T, …)`, which the isa
+/// `∃ elim` at `T` opens. Fol-zfc's own steps keep fol-zfc's binder, whatever the witness: Fol guards only the first.
+@Test func existentialStepsAtAnIsaBinderAreTheIsaSteps() throws {
     var p = P()
     let x0 = try p.t.intern(.isaBound(0, i)), x1 = try p.t.intern(.isaBound(1, i)), x2 = try p.t.intern(.isaBound(2, i))
     let elem01 = try p.pred("elem", x0, x1)
-    let intro = try p.t.intern(.folExistsIntro(try p.hyp(0, elem01), x0))
+    let intro = try p.t.intern(.isaExIntro(try p.hyp(0, elem01), x0))
     #expect(p.concl(intro) == (try p.t.intern(.ifolEx(i, body: try p.pred("elem", x0, x2)))))
     let hypothesis = try p.t.intern(.ifolEx(i, body: elem01))
-    let elim = try p.t.intern(.folExistsElim(try p.hyp(0, hypothesis), body: intro))
+    let elim = try p.t.intern(.isaExElim(i, try p.hyp(0, hypothesis), body: intro))
     #expect(p.concl(elim) == hypothesis)
+    #expect(throws: TableError.principalConnective(try p.hyp(0, hypothesis))) {
+        try p.t.intern(.folExistsElim(try p.hyp(0, hypothesis), body: intro))
+    }
+    let own = try p.t.intern(.folExistsIntro(try p.hyp(0, elem01), x0))
+    #expect(p.concl(own) == (try p.t.intern(.folExists(body: try p.pred("elem", x0, x2)))))
     let a = try p.t.intern(.isaFree(.named("a"), i))
     #expect(throws: TableError.notATermVariable(a)) {
-        try p.t.intern(.folExistsIntro(try p.hyp(0, elem01), a))
+        try p.t.intern(.isaExIntro(try p.hyp(0, elem01), a))
     }
 }
 
@@ -186,7 +192,7 @@ private struct P {
 /// invalid, so `after` must rewrite it before `intern` sees it. Its conclusion is unchanged.
 private struct LowerCitationThenElimination: Rule {
     let isaRoot: NodeID, folRoot: NodeID
-    func after(_ n: Node, context depth: Depth, in t: inout Table) throws -> NodeID? {
+    func after(_ n: Node, was id: NodeID, context depth: Depth, in t: inout Table) throws -> NodeID? {
         if case let .use(cited, types, root) = n, root == isaRoot { return try t.intern(.use(cited, types, folRoot)) }
         guard case let .isaAllElim(p, x) = n, case let .folForall(body)? = t.conclusion(of: p).map({ t[$0] }),
               case let .folImplies(guardFormula, _) = t[body] else { return nil }

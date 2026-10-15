@@ -12,7 +12,7 @@ private struct F {
     mutating func v(_ k: Int) throws -> NodeID { try t.intern(.folBound(k)) }
     mutating func const(_ c: Constant, _ T: IRType, _ xs: NodeID...) throws -> NodeID { try t.intern(.isaConst(c, T, args: xs)) }
     mutating func pred(_ n: String, _ x: NodeID) throws -> NodeID { try const(.declared(n), fn(i, o), x) }
-    mutating func set(_ x: NodeID) throws -> NodeID { try t.intern(.folPred("set", args: [x])) }
+    mutating func set(_ x: NodeID) throws -> NodeID { try t.intern(.folPred(.base("set"), args: [x])) }
     mutating func imp(_ a: NodeID, _ b: NodeID) throws -> NodeID { try t.intern(.folImplies(a, b)) }
     mutating func all(_ body: NodeID) throws -> NodeID { try t.intern(.ifolAll(i, body: body)) }
     mutating func guardedAll(_ body: NodeID) throws -> NodeID { try t.intern(.folForall(body: try imp(try set(try v(0)), body))) }
@@ -49,22 +49,47 @@ private func statement(_ unit: Unit, _ name: String) throws -> Statement {
     try #require(unit.statements.first { $0.name == name })
 }
 
-/// Only a quantifier at `i` gains a guard, written as fol-zfc's binder over fol-zfc's variable. A quantifier at
-/// `i ⇒ o` is Fol's too, unbuilt: the pipeline refuses it before Fol.
-@Test func aQuantifierAtIIsGuardedAndItsVariableBecomesFolZfcs() throws {
+/// A quantifier at an object type is written as fol-zfc's binder over fol-zfc's variable, with the guard Reify gives the
+/// type: `set` at `i`, `function` at `i ⇒ i`, none at `i ⇒ o`. At `o` and at a type variable it is unchanged.
+@Test func aQuantifierAtAnObjectTypeTakesItsTypesGuard() throws {
     var f = F()
     let px = try f.pred("P", try f.b(0))
-    let a = try f.const(.declared("a"), i)
     let allAtI = try f.all(px)
     let exAtI = try f.t.intern(.ifolEx(i, body: px))
     let atO = try f.t.intern(.ifolAll(o, body: try f.t.intern(.isaBound(0, o))))
-    let atPredicate = try f.t.intern(.ifolAll(fn(i, o), body: try f.t.intern(
-        .isaVarApp(head: try f.t.intern(.isaBound(0, fn(i, o))), args: [a]))))
+    let q = { (x: NodeID, f: inout F) in try f.t.intern(.folPred(.base("Q"), args: [x])) }
+    let atPredicate = try f.t.intern(.ifolAll(fn(i, o), body: try q(try f.t.intern(.isaBound(0, fn(i, o))), &f)))
+    let atFunction = try f.t.intern(.ifolAll(fn(i, i), body: try q(try f.t.intern(.isaBound(0, fn(i, i))), &f)))
     let atVariable = try f.t.intern(.ifolAll(.variable("'a"), body: try f.t.intern(.folBottom)))
-    let out = try Fol().run([allAtI, exAtI, atO, atPredicate, atVariable], [], in: &f.t)
-    let pv = try f.pred("P", try f.v(0))
-    let guardedEx = try f.t.intern(.folExists(body: try f.t.intern(.folAnd(try f.set(try f.v(0)), pv))))
-    #expect(out == [try f.guardedAll(pv), guardedEx, atO, atPredicate, atVariable])
+    let out = try Fol().run([allAtI, exAtI, atO, atPredicate, atFunction, atVariable], [], in: &f.t)
+    let v = try f.v(0), pv = try f.pred("P", v)
+    let guardedEx = try f.t.intern(.folExists(body: try f.t.intern(.folAnd(try f.set(v), pv))))
+    let function = try f.t.intern(.folPred(.base("function"), args: [v]))
+    #expect(out == [try f.guardedAll(pv), guardedEx, atO, try f.t.intern(.folForall(body: try q(v, &f))),
+                    try f.t.intern(.folForall(body: try f.imp(function, try q(v, &f)))), atVariable])
+}
+
+/// `(∃y. P(y)) ⟹ ∃y. Q(y)` by `lem` at the witness: `∃`-elim at `i` opens `set(y) ∧ P(y)` to the guard and `P(y)`, so
+/// the instance at `y` is discharged by `y`'s guard; `∃`-intro at `i` puts the witness's guard into the `∧`.
+@Test func anExistentialAtIIsGuardedWhereItIsOpenedAndClosed() throws {
+    var f = F()
+    let lem = try f.lem()
+    let y = try f.b(0), py = try f.pred("P", y), qy = try f.pred("Q", y)
+    let (someP, someQ) = (try f.t.intern(.ifolEx(i, body: py)), try f.t.intern(.ifolEx(i, body: qy)))
+    let atY = try f.mp(try f.elim(try f.use("lem", lem.root), y), try f.hyp(0, py))
+    let proof = try f.assume(someP, try f.t.intern(.isaExElim(i, try f.hyp(0, someP), body: try f.t.intern(.isaExIntro(atY, y)))))
+    let unit = try lowered(f, [lem, Statement(name: "thm", root: try f.imp(someP, someQ), proof: proof)])
+    var g = F(t: unit.table)
+    let v = try g.v(0), pv = try g.pred("P", v), qv = try g.pred("Q", v), sv = try g.set(v)
+    let both = try g.t.intern(.folAnd(sv, pv))
+    let guardedP = try g.t.intern(.folExists(body: both))
+    let lemRoot = try g.guardedAll(try g.imp(pv, qv))
+    let discharged = try g.mp(try g.guardedElim(try g.use("lem", lemRoot), v, guard: 1), try g.hyp(0, pv))
+    let intro = try g.t.intern(.folExistsIntro(try g.t.intern(.folAndIntro(try g.hyp(1, sv), discharged)), v))
+    let opened = try g.hyp(0, both)
+    let split = try g.assume(sv, try g.assume(pv, intro))
+    let body = try g.mp(try g.mp(split, try g.t.intern(.folAndElimL(opened))), try g.t.intern(.folAndElimR(opened)))
+    #expect(try statement(unit, "thm").proof == (try g.assume(guardedP, try g.t.intern(.folExistsElim(try g.hyp(0, guardedP), body: body)))))
 }
 
 /// `λx h. lem x h`: the elimination at `x` owes `set(x)`, and `x`'s guard is one assumption

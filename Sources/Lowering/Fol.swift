@@ -6,6 +6,7 @@ import IR
     case unboundHypothesis(Int)
     case instanceNotAVariable(NodeID)
     case notItsGuard(NodeID)
+    case notGuardedExistential(NodeID)
 }
 
 public struct Fol: Pass {
@@ -15,7 +16,7 @@ public struct Fol: Pass {
 
     public func owns(_ p: Pattern) -> Owned? {
         switch piece(p) {
-        case .forall?, .exists?, .intro?, .instance?, .guardOf?, .variable?: return .rule
+        case .forall?, .exists?, .intro?, .instance?, .guardOf?, .variable?, .existsIntro?, .existsElim?: return .rule
         case .unbuilt?: return .unbuilt
         case .renumber?, nil: return nil
         }
@@ -27,21 +28,25 @@ public struct Fol: Pass {
 }
 
 private enum Piece {
-    case forall, exists, intro, instance, guardOf, variable
+    case forall(IRType), exists(IRType), intro(IRType)
+    case instance, guardOf, variable, existsIntro, existsElim
     case unbuilt
     case renumber
 }
 
 private func piece(_ p: Pattern) -> Piece? {
     switch p {
-    case let .ifolAll(T, _): return object(T, .forall)
-    case let .ifolEx(T, _): return object(T, .exists)
-    case let .isaAllIntro(T, _): return object(T, .intro)
-    case let .isaAllElim(_, T): return object(T, .instance)
-    case let .isaGuard(T, _): return object(T, .guardOf)
-    case let .isaBound(T): return mentionsTypeVariable(T) || p.dialects.contains(.fol) ? nil : T == .i ? .variable : .unbuilt
+    case let .ifolAll(T, _): return isObject(T) ? .forall(T) : nil
+    case let .ifolEx(T, _): return isObject(T) ? .exists(T) : nil
+    case let .isaAllIntro(T, _): return isObject(T) ? .intro(T) : nil
+    case let .isaAllElim(_, T): return T == .i ? .instance : nil
+    case let .isaGuard(T, _): return isObject(T) ? .guardOf : nil
+    case let .isaBound(T): return mentionsTypeVariable(T) || T == .o ? nil : isObject(T) ? .variable : .unbuilt
+    case let .isaExIntro(_, T): return T == .i ? .existsIntro : nil
+    case let .isaExElim(T, _, _): return T == .i ? .existsElim : nil
     case .hyp: return .renumber
-    case .isaConst, .isaFree, .isaVarApp, .isaAbs, .isaOfClass, .folImplies, .folAnd, .folOr, .folIff, .folBottom,
+    case .isaConst, .isaFree, .isaVarApp, .isaAbs, .isaOfClass, .isaReflexive, .isaSymmetric, .isaTransitive,
+         .isaCombination, .isaAbstract, .folImplies, .folAnd, .folOr, .folIff, .folBottom,
          .folImpliesIntro, .folImpliesElim, .use, .folNot, .folBound, .folPred, .folForall, .folExists, .folAndIntro,
          .folAndElimL, .folAndElimR, .folOrIntroL, .folOrIntroR, .folOrElim, .folNotIntro, .folNotElim, .folIffIntro,
          .folIffElimL, .folIffElimR, .folForallIntro, .folForallElim, .folExistsIntro, .folExistsElim, .folBottomElim,
@@ -50,26 +55,23 @@ private func piece(_ p: Pattern) -> Piece? {
     }
 }
 
-private func object(_ T: IRType, _ atI: Piece) -> Piece? {
-    T == .i ? atI : isObject(T) ? .unbuilt : nil
-}
-
 private enum Entry: Hashable {
-    case fix(guarded: Bool)
+    case fix(IRType?)
     case assume
+    case inserted(guard: Bool)
 }
 
 private struct FolRule: Rule {
     var start: [Entry] { [] }
 
     func enter(_ c: [Entry], _ binder: Node, _ binds: Binds, in t: Table) -> [Entry] {
-        let guarded: Bool
         switch piece(Pattern(binder, in: t)) {
-        case .forall?, .exists?, .intro?: guarded = true
-        case .instance?, .guardOf?, .variable?, .unbuilt?, .renumber?, nil: guarded = false
+        case let .intro(T)?: return c + [.fix(T)] + (Reify.guardPredicate(T) == nil ? [] : [.inserted(guard: true)])
+        case let .forall(T)?, let .exists(T)?: return c + [.fix(T)]
+        case .existsElim?: return c + [.fix(.i), .inserted(guard: false), .inserted(guard: true), .assume]
+        case .instance?, .guardOf?, .variable?, .existsIntro?, .unbuilt?, .renumber?, nil:
+            return c + Array(repeating: .fix(nil), count: binds.terms) + Array(repeating: .assume, count: binds.hyps)
         }
-        return c + Array(repeating: .fix(guarded: guarded), count: binds.terms)
-            + Array(repeating: .assume, count: binds.hyps)
     }
 
     func narrow(_ c: [Entry], _ id: NodeID, in t: Table) -> [Entry] {
@@ -79,19 +81,26 @@ private struct FolRule: Rule {
             switch c[k] {
             case .fix: terms -= 1
             case .assume: hyps -= 1
+            case .inserted: break
             }
         }
         return k == 0 ? c : Array(c[k...])
     }
 
-    func after(_ n: Node, context c: [Entry], in t: inout Table) throws -> NodeID? {
-        switch piece(Pattern(n, in: t)) {
-        case .forall?:
-            return try t.intern(.folForall(body: try t.intern(.folImplies(try guardOfBound0(&t), children(n)[0]))))
-        case .exists?:
-            return try t.intern(.folExists(body: try t.intern(.folAnd(try guardOfBound0(&t), children(n)[0]))))
-        case .intro?:
-            return try t.intern(.folForallIntro(body: try t.intern(.folImpliesIntro(try guardOfBound0(&t), body: children(n)[0]))))
+    func after(_ n: Node, was id: NodeID, context c: [Entry], in t: inout Table) throws -> NodeID? {
+        switch piece(Pattern(t[id], in: t)) {
+        case let .forall(T)?:
+            let body = children(n)[0]
+            guard let g = try guardOfBound0(T, &t) else { return try t.intern(.folForall(body: body)) }
+            return try t.intern(.folForall(body: try t.intern(.folImplies(g, body))))
+        case let .exists(T)?:
+            let body = children(n)[0]
+            guard let g = try guardOfBound0(T, &t) else { return try t.intern(.folExists(body: body)) }
+            return try t.intern(.folExists(body: try t.intern(.folAnd(g, body))))
+        case let .intro(T)?:
+            let body = children(n)[0]
+            guard let g = try guardOfBound0(T, &t) else { return try t.intern(.folForallIntro(body: body)) }
+            return try t.intern(.folForallIntro(body: try t.intern(.folImpliesIntro(g, body: body))))
         case .instance?:
             let (p, x) = (children(n)[0], children(n)[1])
             return try t.intern(.folImpliesElim(try t.intern(.folForallElim(p, x)), try discharge(x, c, &t)))
@@ -102,52 +111,64 @@ private struct FolRule: Rule {
             return d
         case .variable?:
             return try t.intern(.folBound(n.boundVariable!.index))
+        case .existsIntro?:
+            let (q, x) = (children(n)[0], children(n)[1])
+            return try t.intern(.folExistsIntro(try t.intern(.folAndIntro(try discharge(x, c, &t), q)), x))
+        case .existsElim?:
+            guard case let .isaExElim(_, p, body) = n, case let .folExists(both)? = t.conclusion(of: p).map({ t[$0] }),
+                  case let .folAnd(g, phi) = t[both] else { throw FolError.notGuardedExistential(id) }
+            let opened = try t.intern(.hyp(0, both))
+            let split = try t.intern(.folImpliesIntro(g, body: try t.intern(.folImpliesIntro(phi, body: body))))
+            let guarded = try t.intern(.folImpliesElim(split, try t.intern(.folAndElimL(opened))))
+            return try t.intern(.folExistsElim(p, body: try t.intern(.folImpliesElim(guarded, try t.intern(.folAndElimR(opened))))))
         case .renumber?:
             let h = n.boundVariable!
-            let g = try guardsAbove(hypothesis: h.index, in: c)
-            return g == 0 ? nil : try t.intern(h.reindexed(h.index + g))
+            let k = try renumbered(hypothesis: h.index, in: c)
+            return k == h.index ? nil : try t.intern(h.reindexed(k))
         case .unbuilt?, nil:
             return nil
         }
     }
 }
 
-private func guardOfBound0(_ t: inout Table) throws -> NodeID {
-    try Typing.guarded(try t.intern(.folBound(0)), in: &t)
+private func guardOfBound0(_ T: IRType, _ t: inout Table) throws -> NodeID? {
+    try Reify.guarded(try t.intern(.folBound(0)), T, in: &t)
 }
 
 private func discharge(_ x: NodeID, _ c: [Entry], _ t: inout Table) throws -> NodeID {
     guard case let .folBound(k) = t[x] else { throw FolError.instanceNotAVariable(x) }
-    return try t.intern(.hyp(try guardDistance(ofVariable: k, x, in: c), try Typing.guarded(x, in: &t)))
-}
-
-private func guardDistance(ofVariable k: Int, _ x: NodeID, in c: [Entry]) throws -> Int {
-    var fixes = 0, between = 0
+    var fixes = 0, hyps = 0, guardAt: Int?
     for e in c.reversed() {
         switch e {
-        case let .fix(guarded):
+        case let .fix(T):
             if fixes == k {
-                guard guarded else { throw FolError.unguardedBinder(x) }
-                return between
+                guard let T, let j = guardAt, let g = try Reify.guarded(x, T, in: &t) else { throw FolError.unguardedBinder(x) }
+                return try t.intern(.hyp(j, g))
             }
             fixes += 1
-            if guarded { between += 1 }
-        case .assume:
-            between += 1
+            guardAt = nil
+        case .assume, .inserted(guard: false):
+            hyps += 1
+        case .inserted(guard: true):
+            guardAt = hyps
+            hyps += 1
         }
     }
     throw FolError.unboundVariable(x)
 }
 
-private func guardsAbove(hypothesis k: Int, in c: [Entry]) throws -> Int {
-    var assumes = 0, guards = 0
+private func renumbered(hypothesis k: Int, in c: [Entry]) throws -> Int {
+    var assumes = 0, hyps = 0
     for e in c.reversed() {
         switch e {
-        case let .fix(guarded):
-            if guarded { guards += 1 }
+        case .fix:
+            break
         case .assume:
-            if assumes == k { return guards }
+            if assumes == k { return hyps }
             assumes += 1
+            hyps += 1
+        case .inserted:
+            hyps += 1
         }
     }
     throw FolError.unboundHypothesis(k)

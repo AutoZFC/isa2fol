@@ -14,6 +14,11 @@
     case isaOfClass(IRType)
     case isaAllIntro(IRType, body: IRType)
     case isaAllElim(IRType, IRType)
+    case isaReflexive(IRType)
+    case isaSymmetric(IRType, IRType)
+    case isaTransitive(IRType, IRType, IRType)
+    case isaCombination(IRType, IRType, IRType)
+    case isaAbstract(IRType, IRType)
 
     case folImplies(IRType, IRType)
     case folAnd(IRType, IRType)
@@ -24,8 +29,12 @@
     case folImpliesElim(IRType, IRType)
     case use(CitedKind, [IRType], IRType)
     case hyp(IRType)
+    case folIffIntro(IRType, IRType)
+    case folIffElimL(IRType, IRType)
 
     case isaGuard(IRType, IRType)
+    case isaExIntro(IRType, IRType)
+    case isaExElim(IRType, IRType, body: IRType)
 
     case folNot(IRType)
     case folBound
@@ -40,8 +49,6 @@
     case folOrElim(IRType, IRType, IRType)
     case folNotIntro(IRType, body: IRType)
     case folNotElim(IRType, IRType)
-    case folIffIntro(IRType, IRType)
-    case folIffElimL(IRType, IRType)
     case folIffElimR(IRType, IRType)
     case folForallIntro(body: IRType)
     case folForallElim(IRType, IRType)
@@ -79,6 +86,7 @@
         case axiom(Axiom)
         case theoryAxiom
         case lemma
+        case base
 
         init(_ c: Cited) {
             switch c {
@@ -87,6 +95,7 @@
             case let .axiom(a): self = .axiom(a)
             case .theoryAxiom: self = .theoryAxiom
             case .lemma: self = .lemma
+            case .base: self = .base
             }
         }
 
@@ -97,6 +106,7 @@
             case let .axiom(a): return "axiom \(a)"
             case .theoryAxiom: return "theory axiom"
             case .lemma: return "lemma"
+            case .base: return "base"
             }
         }
     }
@@ -115,6 +125,11 @@
         case let .isaOfClass(U, _): self = .isaOfClass(U)
         case let .isaAllIntro(U, b): self = .isaAllIntro(U, body: T(b))
         case let .isaAllElim(p, x): self = .isaAllElim(T(p), T(x))
+        case let .isaReflexive(x): self = .isaReflexive(T(x))
+        case let .isaSymmetric(U, p): self = .isaSymmetric(U, T(p))
+        case let .isaTransitive(U, p, q): self = .isaTransitive(U, T(p), T(q))
+        case let .isaCombination(U, p, q): self = .isaCombination(U, T(p), T(q))
+        case let .isaAbstract(U, p): self = .isaAbstract(U, T(p))
 
         case let .folImplies(a, b): self = .folImplies(T(a), T(b))
         case let .folAnd(a, b): self = .folAnd(T(a), T(b))
@@ -126,6 +141,8 @@
         case let .use(c, types, root): self = .use(CitedKind(c), types, T(root))
         case let .hyp(_, a): self = .hyp(T(a))
         case let .isaGuard(x, g): self = .isaGuard(T(x), T(g))
+        case let .isaExIntro(p, v): self = .isaExIntro(T(p), T(v))
+        case let .isaExElim(U, p, b): self = .isaExElim(U, T(p), body: T(b))
 
         case let .folNot(a): self = .folNot(T(a))
         case .folBound: self = .folBound
@@ -159,18 +176,20 @@ extension Pattern {
         switch self {
         case let .ifolAll(T, _), let .isaAllIntro(T, _), let .isaBound(T):
             return T == .o ? [.isa, .fol] : [.isa]
-        case .ifolEx, .isaConst, .isaFree, .isaVarApp, .isaAbs, .isaOfClass, .isaAllElim, .isaGuard:
+        case .ifolEx, .isaConst, .isaFree, .isaVarApp, .isaAbs, .isaOfClass, .isaAllElim, .isaGuard, .isaExIntro, .isaExElim, .isaReflexive,
+             .isaSymmetric, .isaTransitive, .isaCombination, .isaAbstract:
             return [.isa]
         case let .use(kind, types, _):
             switch kind {
             case .theorem, .lemma: return types.isEmpty ? [.isa, .fol] : [.isa]
             case .isaDefinition, .axiom, .theoryAxiom: return [.isa]
+            case .base: return [.fol]
             }
-        case .folImplies, .folAnd, .folOr, .folIff, .folBottom, .folImpliesIntro, .folImpliesElim, .hyp:
+        case .folImplies, .folAnd, .folOr, .folIff, .folBottom, .folImpliesIntro, .folImpliesElim, .hyp, .folIffIntro,
+             .folIffElimL:
             return [.isa, .fol]
         case .folNot, .folBound, .folPred, .folForall, .folExists, .folAndIntro, .folAndElimL, .folAndElimR,
-             .folOrIntroL, .folOrIntroR, .folOrElim, .folNotIntro, .folNotElim, .folIffIntro, .folIffElimL,
-             .folIffElimR, .folForallIntro, .folForallElim, .folExistsIntro, .folExistsElim, .folBottomElim,
+             .folOrIntroL, .folOrIntroR, .folOrElim, .folNotIntro, .folNotElim, .folIffElimR, .folForallIntro, .folForallElim, .folExistsIntro, .folExistsElim, .folBottomElim,
              .folClassicalAbsurd, .folSchemaInst:
             return [.fol]
         }

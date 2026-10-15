@@ -1033,3 +1033,123 @@ proof mfun_ext:
     _c10 = forall_intro _c9
     _c11 = forall_intro _c10
     qed _c11
+
+proof apply_EX:
+    _ad = use apply_def
+    _ze = use zero_EX
+    fix F
+    fix t
+    _st = assume set(t)
+    _a1 = forall_elim _ad, t
+    _phi = let (exists u. (set(u) & pmem(t,u,F)))
+    _em = excluded_middle _phi
+    _c1 = assume (exists u. (set(u) & pmem(t,u,F)))
+    _w1 = exists_elim _c1, w
+    _sw = and_elim_l _w1
+    _pw = and_elim_r _w1
+    _a2 = forall_elim _a1, w
+    _a3 = forall_elim _a2, F
+    _o1d = let ((~ (exists u. (set(u) & pmem(t,u,F)))) & zero(w))
+    _o1 = or_intro_l _pw, _o1d
+    _ap1 = iff_elim_r _a3, _o1
+    _cj1 = and_intro _sw, _ap1
+    _ex1 = exists_intro _cj1, w
+    _cl1 = exists_intro _ex1
+    _l1 = implies_intro _cl1
+    _c2 = assume (~ (exists u. (set(u) & pmem(t,u,F))))
+    _w2 = exists_elim _ze, z
+    _sz = and_elim_l _w2
+    _zz = and_elim_r _w2
+    _b1 = forall_elim _a1, z
+    _b2 = forall_elim _b1, F
+    _nz = and_intro _c2, _zz
+    _o2d = let pmem(t,z,F)
+    _o2 = or_intro_r _o2d, _nz
+    _ap2 = iff_elim_r _b2, _o2
+    _cj2 = and_intro _sz, _ap2
+    _ex2 = exists_intro _cj2, z
+    _cl2 = exists_intro _ex2
+    _l2 = implies_intro _cl2
+    _res = or_elim _em, _l1, _l2
+    _i = implies_intro _res
+    _q1 = forall_intro _i
+    _q2 = forall_intro _q1
+    qed _q2
+
+proof apply_UNIQ:
+    _ad = use apply_def
+    _fd = use function_def
+    _zu = use zero_UNIQ
+    fix F
+    _hf = assume function(F)
+    _f1 = forall_elim _fd, F
+    _f2 = iff_elim_l _f1, _hf
+    fix t
+    _st = assume set(t)
+    fix r
+    _sr = assume set(r)
+    fix s
+    _ss = assume set(s)
+    _hr = assume apply(t,r,F)
+    _hs = assume apply(t,s,F)
+    _d1 = forall_elim _ad, t
+    _dr1 = forall_elim _d1, r
+    _dr2 = forall_elim _dr1, F
+    _ur = iff_elim_l _dr2, _hr
+    _ds1 = forall_elim _d1, s
+    _ds2 = forall_elim _ds1, F
+    _us = iff_elim_l _ds2, _hs
+    _g1 = forall_elim _f2, t
+    _g2 = implies_elim _g1, _st
+    _g3 = forall_elim _g2, r
+    _g4 = implies_elim _g3, _sr
+    _g5 = forall_elim _g4, s
+    _g6 = implies_elim _g5, _ss
+    _z1 = forall_elim _zu, r
+    _z2 = implies_elim _z1, _sr
+    _z3 = forall_elim _z2, s
+    _z4 = implies_elim _z3, _ss
+    _pr = assume pmem(t,r,F)
+    _ps = assume pmem(t,s,F)
+    _e11 = implies_elim _g6, _pr
+    _e12 = implies_elim _e11, _ps
+    _k11 = implies_intro _e12
+    _ns = assume ((~ (exists u. (set(u) & pmem(t,u,F)))) & zero(s))
+    _nsn = and_elim_l _ns
+    _wr = and_intro _sr, _pr
+    _xr = exists_intro _wr, r
+    _bt1 = not_elim _nsn, _xr
+    _eq1 = let eq(r,s)
+    _bo1 = bottom_elim _bt1, _eq1
+    _k12 = implies_intro _bo1
+    _case1 = or_elim _us, _k11, _k12
+    _kr1 = implies_intro _case1
+    _nr = assume ((~ (exists u. (set(u) & pmem(t,u,F)))) & zero(r))
+    _nrn = and_elim_l _nr
+    _nrz = and_elim_r _nr
+    _ps2 = assume pmem(t,s,F)
+    _ws = and_intro _ss, _ps2
+    _xs = exists_intro _ws, s
+    _bt2 = not_elim _nrn, _xs
+    _eq2 = let eq(r,s)
+    _bo2 = bottom_elim _bt2, _eq2
+    _k21 = implies_intro _bo2
+    _ns2 = assume ((~ (exists u. (set(u) & pmem(t,u,F)))) & zero(s))
+    _nsz = and_elim_r _ns2
+    _e21 = implies_elim _z4, _nrz
+    _e22 = implies_elim _e21, _nsz
+    _k22 = implies_intro _e22
+    _case2 = or_elim _us, _k21, _k22
+    _kr2 = implies_intro _case2
+    _res = or_elim _ur, _kr1, _kr2
+    _i1 = implies_intro _res
+    _i2 = implies_intro _i1
+    _i3 = implies_intro _i2
+    _q1 = forall_intro _i3
+    _i4 = implies_intro _q1
+    _q2 = forall_intro _i4
+    _i5 = implies_intro _q2
+    _q3 = forall_intro _i5
+    _i6 = implies_intro _q3
+    _q4 = forall_intro _i6
+    qed _q4

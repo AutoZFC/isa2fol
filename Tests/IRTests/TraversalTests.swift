@@ -207,7 +207,7 @@ private func contexts(_ seen: [(NodeID, [Node])], _ id: NodeID) -> [[Node]] {
 @Test func legalizeAcceptsATargetOnlyRoot() throws {
     var t = Table()
     let b0 = try t.intern(.folBound(0))
-    let root = try t.intern(.folForall(body: try t.intern(.folPred("set", args: [b0]))))
+    let root = try t.intern(.folForall(body: try t.intern(.folPred(.base("set"), args: [b0]))))
     try legalize(root, in: t)
 }
 
@@ -225,7 +225,30 @@ private func contexts(_ seen: [(NodeID, [Node])], _ id: NodeID) -> [[Node]] {
 @Test func legalizeRefusesACitationOfAnIsabelleAxiom() throws {
     var t = Table()
     let bottom = try t.intern(.folBottom)
-    let cited = try t.intern(.use(.axiom(.pure(.reflexive)), [.o], try t.intern(.folIff(bottom, bottom))))
+    let cited = try t.intern(.use(.axiom(.ifol(.impI)), [], try t.intern(.folImplies(bottom, bottom))))
     let root = try t.intern(.folImpliesIntro(bottom, body: cited))
     #expect(throws: IRRefusal.sourceKindSurvived(cited)) { try legalize(root, in: t) }
+}
+
+/// Logs, at each node, the node rebuilt from its rewritten children and the node as it stood; `mem` becomes `elem`.
+private final class StoodLog: Rule {
+    var seen: [(rebuilt: Node, stood: Node)] = []
+    func after(_ n: Node, was id: NodeID, context depth: Depth, in t: inout Table) throws -> NodeID? {
+        seen.append((n, t[id]))
+        guard case let .isaConst(.primitive(.zf(.mem)), _, xs) = n else { return nil }
+        return try t.intern(.folPred(.base("elem"), args: xs))
+    }
+}
+
+@Test func afterSeesTheNodeAsItStoodBesideTheNodeRebuilt() throws {
+    var t = Table()
+    let a = try t.intern(.isaBound(0, i))
+    let m = try t.intern(.isaConst(mem, memT, args: [a, a]))
+    let both = try t.intern(.folAnd(m, m))
+    let log = StoodLog()
+    let out = try transform(both, log, in: &t)
+    let e = try t.intern(.folPred(.base("elem"), args: [a, a]))
+    #expect(out == (try t.intern(.folAnd(e, e))))
+    #expect(log.seen.last?.rebuilt == .folAnd(e, e))
+    #expect(log.seen.last?.stood == .folAnd(m, m))
 }

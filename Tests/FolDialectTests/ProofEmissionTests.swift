@@ -7,7 +7,7 @@ private struct Pf {
     var t = Table()
     mutating func n(_ node: Node) throws -> NodeID { try t.intern(node) }
     mutating func b(_ k: Int) throws -> NodeID { try n(.folBound(k)) }
-    mutating func p(_ name: String, _ xs: NodeID...) throws -> NodeID { try n(.folPred(name, args: xs)) }
+    mutating func p(_ name: String, _ xs: NodeID...) throws -> NodeID { try n(.folPred(.base(name), args: xs)) }
     mutating func hyp(_ k: Int, _ a: NodeID) throws -> NodeID { try n(.hyp(k, a)) }
     mutating func imp(_ a: NodeID, _ b: NodeID) throws -> NodeID { try n(.folImplies(a, b)) }
     mutating func not(_ a: NodeID) throws -> NodeID { try n(.folNot(a)) }

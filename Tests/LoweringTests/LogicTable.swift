@@ -1,7 +1,6 @@
 import IR
 
-/// A table holding the logic's definitions as the reader hands them: each definiens, and `Pure.reflexive` read at the
-/// type of the definition's equation.
+/// A table holding the logic's definitions as the reader hands them.
 struct LogicTable {
     var t = Table()
 
@@ -16,34 +15,11 @@ struct LogicTable {
         try const(.primitive(.zf(.mem)), .fn(.i, .fn(.i, .o)), x, y)
     }
 
-    /// `≡` at `T` as the reader reads it: `↔` at `o`, `=` at `i`, Pure's own at any other type.
-    mutating func equal(_ T: IRType, _ a: NodeID, _ b: NodeID) throws -> NodeID {
-        switch T {
-        case .o: return try t.intern(.folIff(a, b))
-        case .i: return try const(.primitive(.ifol(.eq)), .fn(.i, .fn(.i, .o)), a, b)
-        case .fn, .variable: return try const(.primitive(.pure(.eq)), .fn(T, .fn(T, .o)), a, b)
-        }
-    }
-
-    /// `⋀x::T. x ≡ x`, `x` η-long: `Pure.reflexive` read at `T`.
-    mutating func reflexive(_ T: IRType) throws -> NodeID {
-        let x = try etaLong(try bound(0, T), T, [])
-        return try all(T, try equal(T, x, x))
-    }
-
-    private mutating func etaLong(_ v: NodeID, _ T: IRType, _ args: [NodeID]) throws -> NodeID {
-        guard case let .fn(A, rest) = T else { return args.isEmpty ? v : try t.intern(.isaVarApp(head: v, args: args)) }
-        let y = try etaLong(try bound(0, A), A, [])
-        let shifted = try args.map { try shift($0, by: 1, in: &t) } + [y]
-        let inner = try shift(v, by: 1, in: &t)
-        return try lam(A, try etaLong(inner, rest, shifted))
-    }
+    mutating func equal(_ T: IRType, _ a: NodeID, _ b: NodeID) throws -> NodeID { try t.equation(T, a, b) }
 
     mutating func definition(_ c: Defined, _ T: IRType, axiomTypes: [IRType] = [], parameters: Int = 0,
                              _ definiens: NodeID) throws -> Definition {
-        let reflexive = try reflexive(equation(T, parameters))
-        return Definition(constant: c, type: T, axiomTypes: axiomTypes, parameters: parameters, definiens: definiens,
-                          reflexive: reflexive)
+        Definition(constant: c, type: T, axiomTypes: axiomTypes, parameters: parameters, definiens: definiens)
     }
 
     /// `Not ≡ λP. P ⟶ ⊥`
@@ -85,9 +61,4 @@ struct LogicTable {
         let a = try bound(2, .o), b = try bound(1, .o), c = try bound(0, .o)
         return try all(.o, try imp(try imp(a, try imp(b, c)), c))
     }
-}
-
-private func equation(_ T: IRType, _ parameters: Int) -> IRType {
-    guard parameters > 0, case let .fn(_, rest) = T else { return T }
-    return equation(rest, parameters - 1)
 }

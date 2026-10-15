@@ -66,7 +66,7 @@ private struct Instantiate: Rule {
         return try shift(replacement, by: depth.terms, in: &t)
     }
 
-    func after(_ n: Node, context depth: Depth, in t: inout Table) throws -> NodeID? {
+    func after(_ n: Node, was id: NodeID, context depth: Depth, in t: inout Table) throws -> NodeID? {
         guard case let .isaVarApp(head, args) = n, case .isaAbs = t[head] else { return nil }
         return try beta(head, args, in: &t)
     }

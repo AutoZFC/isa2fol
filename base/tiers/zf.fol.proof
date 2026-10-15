@@ -1,0 +1,118 @@
+proof ZF_Base.zero_EX:
+    _cd = use ZF_Base.zero_def
+    _ex = use zero_EX
+    _w = exists_elim _ex, v
+    _sv = and_elim_l _w
+    _rv = and_elim_r _w
+    _d = forall_elim _cd, v
+    _cv = iff_elim_r _d, _rv
+    _both = and_intro _sv, _cv
+    _out = exists_intro _both
+    qed _out
+
+proof ZF_Base.Inf_EX:
+    _cd = use ZF_Base.Inf_def
+    _ex = use Inf_EX
+    _w = exists_elim _ex, v
+    _sv = and_elim_l _w
+    _rv = and_elim_r _w
+    _d = forall_elim _cd, v
+    _cv = iff_elim_r _d, _rv
+    _both = and_intro _sv, _cv
+    _out = exists_intro _both
+    qed _out
+
+proof ZF_Base.zero_UNIQ:
+    _cd = use ZF_Base.zero_def
+    _un = use zero_UNIQ
+    fix v
+    _sv = assume set(v)
+    fix w
+    _sw = assume set(w)
+    _hv = assume ZF_Base.zero(v)
+    _hw = assume ZF_Base.zero(w)
+    _dv = forall_elim _cd, v
+    _cv = iff_elim_l _dv, _hv
+    _dw = forall_elim _cd, w
+    _cw = iff_elim_l _dw, _hw
+    _u1 = forall_elim _un, v
+    _u2 = implies_elim _u1, _sv
+    _u3 = forall_elim _u2, w
+    _u4 = implies_elim _u3, _sw
+    _u5 = implies_elim _u4, _cv
+    _eq = implies_elim _u5, _cw
+    _o1 = implies_intro _eq
+    _o2 = implies_intro _o1
+    _o3 = implies_intro _o2
+    _g1 = forall_intro _o3
+    _o4 = implies_intro _g1
+    _g2 = forall_intro _o4
+    qed _g2
+
+proof ZF_Base.Inf_UNIQ:
+    _cd = use ZF_Base.Inf_def
+    _un = use Inf_UNIQ
+    fix v
+    _sv = assume set(v)
+    fix w
+    _sw = assume set(w)
+    _hv = assume ZF_Base.Inf(v)
+    _hw = assume ZF_Base.Inf(w)
+    _dv = forall_elim _cd, v
+    _cv = iff_elim_l _dv, _hv
+    _dw = forall_elim _cd, w
+    _cw = iff_elim_l _dw, _hw
+    _u1 = forall_elim _un, v
+    _u2 = implies_elim _u1, _sv
+    _u3 = forall_elim _u2, w
+    _u4 = implies_elim _u3, _sw
+    _u5 = implies_elim _u4, _cv
+    _eq = implies_elim _u5, _cw
+    _o1 = implies_intro _eq
+    _o2 = implies_intro _o1
+    _o3 = implies_intro _o2
+    _g1 = forall_intro _o3
+    _o4 = implies_intro _g1
+    _g2 = forall_intro _o4
+    qed _g2
+
+proof IFOL.subst:
+    _cs = use cong_snoc_v
+    fix a
+    _sa = assume set(a)
+    fix b
+    _sb = assume set(b)
+    fix P
+    _h = assume eq(a,b)
+    _pa = assume (exists t. (set(t) & ((exists e. (set(e) & (zero(e) & snoc(e,e,a,t)))) & elem(t,P))))
+    _wt = exists_elim _pa, t
+    _st = and_elim_l _wt
+    _rt = and_elim_r _wt
+    _te = and_elim_l _rt
+    _el = and_elim_r _rt
+    _we = exists_elim _te, e
+    _se = and_elim_l _we
+    _re = and_elim_r _we
+    _ze = and_elim_l _re
+    _sn = and_elim_r _re
+    _c1 = forall_elim _cs, e
+    _c2 = forall_elim _c1, e
+    _c3 = forall_elim _c2, a
+    _c4 = forall_elim _c3, b
+    _c5 = forall_elim _c4, t
+    _c6 = implies_elim _c5, _h
+    _snb = iff_elim_l _c6, _sn
+    _z1 = and_intro _ze, _snb
+    _z2 = and_intro _se, _z1
+    _xe = exists_intro _z2
+    _j1 = and_intro _xe, _el
+    _j2 = and_intro _st, _j1
+    _xt = exists_intro _j2
+    _i1 = implies_intro _xt
+    _i2 = implies_intro _i1
+    _g1 = forall_intro _i2
+    _i3 = implies_intro _g1
+    _g2 = forall_intro _i3
+    _i4 = implies_intro _g2
+    _g3 = forall_intro _i4
+    qed _g3

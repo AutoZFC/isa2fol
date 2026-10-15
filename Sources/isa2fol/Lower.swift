@@ -1,7 +1,11 @@
+import FolDialect
 import Foundation
 import IR
 import Lowering
 import Reader
+
+private let baseDirectory = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+    .deletingLastPathComponent().appendingPathComponent("base")
 
 func lower(_ root: String) {
     let start = Date()
@@ -14,17 +18,28 @@ func lower(_ root: String) {
         stopped(error)
     }
     let read = Date(), outside = unit.statements.count + unit.refused.count - named.count, definitions = unit.definitions.count
+    let lowering: Pipeline
     do {
-        try pipeline.run(&unit)
+        let names = BaseStatement.allCases.map(\.rawValue)
+        lowering = pipeline(try Base(try parse(statements: names, from: try baseTexts(baseDirectory), in: &unit.table)))
+    } catch {
+        fail("base: \(error)", 1)
+    }
+    do {
+        try lowering.run(&unit)
     } catch {
         fail("pipeline: \(error)", 1)
     }
     let lowered = unit.statements.filter { named.contains($0.name) }
     print("named theorems, all ZF sessions: \(named.count)")
     print("  with \(outside) theorems they cite outside the ZF sessions and \(definitions) definitions they reach")
-    print("lowered to fol-zfc through \(pipeline.passes.map(\.name).joined(separator: ", ")): \(lowered.count) — each proof concludes its statement, by ID")
+    print("lowered to fol-zfc through \(lowering.passes.map(\.name).joined(separator: ", ")): \(lowered.count) — each proof concludes its statement, by ID")
     print("  and \(unit.statements.count - lowered.count) of the theorems cited outside and lemmas")
     print("definitions read by the pass owning their constant: \(unit.definitions.count) of \(definitions)")
+    let defs = unit.statements.filter { $0.defines != nil }.count
+    let refusedDefs = unit.refused.filter { $0.name.hasSuffix("_DEF") && !named.contains($0.name) }.count
+    let refusedLemmas = unit.refused.filter { $0.refusal == .lemmaUnbuilt && !$0.name.hasSuffix("_DEF") }.count
+    print("constants' @defs stated: \(defs), refused: \(refusedDefs); lemmas requested and refused, unbuilt: \(refusedLemmas)")
     print("refused, named: \(unit.refused.filter { named.contains($0.name) }.count)")
     var statements: [String: Int] = [:], held: [String: [String: Int]] = [:], nouns: [String: String] = [:]
     for r in unit.refused where named.contains(r.name) {
@@ -41,7 +56,7 @@ func lower(_ root: String) {
         nouns[group] = noun
         for p in found { held[group, default: [:]][p, default: 0] += 1 }
     }
-    let groups = ["no owner"] + pipeline.passes.map { "\($0.name), unbuilt" }
+    let groups = ["no owner"] + lowering.passes.map { "\($0.name), unbuilt" }
         + ["registry, unbuilt", "a letter off its spine", "cites a refused statement", "not read"]
     for group in groups {
         guard let n = statements[group] else { continue }

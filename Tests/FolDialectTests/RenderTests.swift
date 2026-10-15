@@ -6,7 +6,7 @@ import IR
 private struct Fol {
     var t = Table()
     mutating func b(_ k: Int) throws -> NodeID { try t.intern(.folBound(k)) }
-    mutating func p(_ n: String, _ args: NodeID...) throws -> NodeID { try t.intern(.folPred(n, args: args)) }
+    mutating func p(_ n: String, _ args: NodeID...) throws -> NodeID { try t.intern(.folPred(.base(n), args: args)) }
     mutating func all(_ body: NodeID) throws -> NodeID { try t.intern(.folForall(body: body)) }
     mutating func ex(_ body: NodeID) throws -> NodeID { try t.intern(.folExists(body: body)) }
     mutating func imp(_ a: NodeID, _ b: NodeID) throws -> NodeID { try t.intern(.folImplies(a, b)) }

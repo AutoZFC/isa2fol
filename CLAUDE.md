@@ -10,21 +10,27 @@ were hoisted out of it first and are live.
 the ZF sessions, statement AND proof, into the IR: ALL 9,420 are proved — the proof's
 conclusion is the statement's node, by ID — and 0 are refused (`DESIGN.md` §2). Nothing is
 absorbed: a type variable is `IRType.variable`, a class membership `isaOfClass`. **The input layer is
-`DESIGN.md` §4.3b**: Pure, IFOL, FOL and ZF contribute axioms and constants, read as typed values —
-`Constant` (primitive · defined · declared), `Cited` (theorem · definition · axiom · theory axiom, and lowering's lemma); a
+`DESIGN.md` §4.3b**: Pure, IFOL, FOL and ZF contribute axioms and constants, read as typed values — Pure's equality
+rules read as steps — `Constant` (primitive · defined · declared), `Cited` (theorem · definition · axiom · theory axiom,
+and lowering's lemma and base's schema); a
 leaf FOL has reads as its node, a defined constant as defined, at its declared level (object · meta); a gap in the
 dialect stops the read.
-**Lowering is the plan of four passes, declared whole** (`DESIGN.md` §4a, "Lowering's components"): expand ·
-logic · reify · fol. Each owns patterns by ONE exhaustive switch over `Pattern`; the pipeline refuses a statement
-holding a pattern no pass owns before the first pass, and one a pass owns unbuilt at that pass. **Typing is no pass but
-the registry**: after reify it hands each lemma a pass cites to the component that states it, which proves it or
-answers unbuilt. The unit holds the named theorems, the 133 they cite outside the ZF sessions and the 1,004
-definitions they reach; a statement citing a refused one falls ("The unit and its citations"). Expand (the logic's
-defined constants and ZF's meta-level ones unfolded, a citation of their definitions as `Pure.reflexive`), Logic (a
-`⋀P::o` at a statement's top a schema letter, `schema_inst` at a citation; the logic's propositional axioms the kernel's
-steps) and Fol (R3's guards, fol-zfc's variables at `i`) have rules, so `isa2fol lower data/zf_export` lowers 3 of the
-9,420 to fol-zfc, the first: 7,176 stop at no owner, 558 at logic, 1,631 at reify, and 52 pass every pass but cite a
-refused statement (`IFOL.TrueI` 51). Emission is not built. `DESIGN.md` is the plan.
+**Lowering is the plan of three passes, declared whole** (`DESIGN.md` §4a, "Lowering's components"): expand ·
+logic · fol. **Reify is no pass**: the logic pass's walk calls its code ("Reify called from Logic's walk"). Each pass
+owns patterns by ONE exhaustive switch over `Pattern`; the pipeline refuses a statement holding a pattern no pass owns
+before the first pass, and one a pass owns unbuilt at that pass. **The registry is no pass**: after logic it hands
+each lemma a pass cites to the component that states it, which proves it or answers unbuilt. The unit holds the
+named theorems, the 133 they cite outside the ZF sessions and the 1,004 definitions they reach; a statement citing a
+refused one falls ("The unit and its citations"). Expand (the logic's defined constants and ZF's meta-level ones
+unfolded, a citation of their definitions as the `reflexive` step), Logic (a `⋀P::o` at a statement's top a schema
+letter, `schema_inst` at a citation; the logic's propositional axioms the kernel's steps; Pure's equality, which the
+reader reads as steps, as base's `iff_*` at `o` and the congruence at a function of propositions, base's schemas parsed
+from base's own text), Reify in Logic's walk (S1: a term and a λ in a class slot named where they stand; a constant's
+class by its `@def`, which its prover states from the definition; an instance at a compound term by EX and UNIQ of the
+term) and Fol (the guard Reify gives each object type — `set`, `function`, none — fol-zfc's variables, `∃` at `i`) have
+rules, so `isa2fol lower data/zf_export` lowers 59 of the 9,420 to fol-zfc and states 451 `@def`s: 7,176 stop at no
+owner, 924 at logic, 94 at a letter off its spine, and 1,167 cite a refused statement — EX and UNIQ, whose prover is the
+next step's, or a `@def` holding a piece not built. Emission is not built. `DESIGN.md` is the plan.
 
 ## Build
 
@@ -188,7 +194,7 @@ determinism R1–R3 (§4.6).
    print(f'{c}/{t} = {100*c/t:.1f}%')"
    ```
 
-   ✓ **CURRENTLY 9/3623 = 0.2%, under the cap.** Keep it there: a breach is
+   ✓ **CURRENTLY 18/5034 = 0.4%, under the cap.** Keep it there: a breach is
    fixed by deleting prose, never by raising the cap.
 
    Does not apply to `base/**/*.fol.def` headers: those record provenance of
@@ -233,12 +239,12 @@ Package.swift
 Sources/
   YXML/          Isabelle's transfer format → a hash-consed Forest (equal subtrees, one Ref).  Knows no dialect.
   IR/            Node · Table · transform · index engine · passes · legalize
-  FolDialect/    Declaration · render (formulas and proofs) — the text boundary over IR
+  FolDialect/    Declaration · render (formulas and proofs) · parse (base's schemas) — the text boundary over IR
   Reader/        the export → isa nodes: Export (loading) · IsaType · Constants · Terms (η-long, closed) · Statements · Proofs (decoder) · Reader (proofs) · Census
-  Lowering/      the plan, never seen by the framework: Expand · Logic · Reify · Fol, and Typing's registry — Expand's rules, Logic's for a proposition's letter and the propositional axioms, and Fol's at `i` built
+  Lowering/      the plan, never seen by the framework: the passes Expand · Logic · Fol, Reify a component in Logic's walk, and the registry — Expand's rules, Logic's for a proposition's letter, the propositional axioms and Pure's equality at `o` and at functions of propositions with its replacement walk, Reify's naming, `@def`s and instance at a compound term, and Fol's at every object type built
   isa2fol/       CLI
 Tests/           YXMLTests · FolDialectTests · IRTests · ReaderTests · LoweringTests
-base/            the NBG foundation: axioms.fol.def + 10 tiers, kernel-checked
+base/            the NBG foundation: axioms.fol.def + 12 tiers, kernel-checked
 docs/            FOUNDATION.md · SOURCE_SURFACE.md · CLOSURE.md (both generated) · phase2_probes
 data/zf_export/  the Isabelle export — a LOCAL CACHE, never committed: scripts/03-export-zf.sh
 ```
@@ -248,8 +254,9 @@ data/zf_export/  the Isabelle export — a LOCAL CACHE, never committed: scripts
 ```
 
 The reader (YXML → IR) reads statements and proofs (`Sources/Reader`); `Sources/Lowering` holds
-the plan, Expand, Logic and Fol its passes with rules; Reify's rules, the rest of Logic's and Fol's, and the emitter
-(IR → FolDialect) are unbuilt.
+the plan, Expand, Logic and Fol its passes with rules, and Reify's code, which the logic pass calls; Reify's provers (EX
+and UNIQ of a term), Lambda's instance at a class type, the rest of Logic's, and the emitter (IR → FolDialect) are
+unbuilt.
 
 **There is ONE formula table per unit, holding isa and fol nodes together** —
 interned, immutable, de Bruijn; proof steps live in scope regions and point into

@@ -64,7 +64,7 @@ func closureReport(_ c: Census, command: String) -> String {
         case let .axiom(a): axioms[a.family, default: []].append((a.name, n))
         case let .isaDefinition(name, d): definitions[d.family, default: []].append((name, n))
         case let .theoryAxiom(name): theory.append((name, n))
-        case .theorem, .lemma: break
+        case .theorem, .lemma, .base: break
         }
     }
 

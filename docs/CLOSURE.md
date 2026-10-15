@@ -24,15 +24,8 @@ The reader refuses none of them, nor any theorem they cite.
 
 | axiom | theorems reaching it | % |
 |---|---:|---:|
-| `Pure.reflexive` | 8843 | 93.9% |
-| `Pure.equal_elim` | 8832 | 93.8% |
-| `Pure.symmetric` | 8832 | 93.8% |
-| `Pure.combination` | 8825 | 93.7% |
-| `Pure.transitive` | 8726 | 92.6% |
 | `Pure.prop_def` | 8174 | 86.8% |
-| `Pure.equal_intr` | 7981 | 84.7% |
 | `Pure.conjunction_def` | 7700 | 81.7% |
-| `Pure.abstract_rule` | 7627 | 81.0% |
 | `Pure.term_def` | 28 | 0.3% |
 
 ## ifol — every axiom and definition reached

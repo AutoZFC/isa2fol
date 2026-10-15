@@ -1,0 +1,36 @@
+# base/tiers/zf -- Isabelle/ZF's primitive constants in class form: the predicates reify names them by.
+#
+# ZF_Base AXIOMATISES zero, Pow, Union, PrimReplace and Inf -- there is no Isabelle definition to translate
+# or to name -- and each is one of NBG's own notions, a relation defined in base/tiers/primitives (Inf, the
+# least inductive set, in base/tiers/inf). So their class predicates are defined HERE, from those relations, in the shape reify gives a
+# constant Isabelle defines (DESIGN decision 5): a set constant `c(v) <-> body(v)`; a function constant
+# `c(S) <-> forall t r. <t,r> : S <-> exists A. <A> = t & body(A,r)`, the tuple and its guards as the
+# pipeline writes them. Reify neither defines nor refuses a constant this tier defines: its list is pinned
+# against this file by a test.
+#
+# PrimReplace's P IS ISABELLE'S PREDICATE [i,i] => o, A CLASS OF 2-TUPLES (R7) -- not the relation of
+# Kuratowski pairs that PrimReplace(A,F,r) takes. Its body is replacement's matrix over the tuple.
+#
+# PrimReplace IS TOTAL, AS ISABELLE'S IS: where P is not functional on A, Isabelle's value is unspecified
+# and the image may be no set, so the class takes the empty set there. Without that case the class has no
+# value at such A, is no function, and `PrimReplace(A,P) = PrimReplace(A,P)` is false.
+#
+# The set constants' EX and UNIQ, the first links of their chain (decision 5), from base's own.
+#
+# IFOL.subst, IFOL's axiom with its predicate a CLASS variable, bare (FOUNDATION §2 S4): membership's
+# congruence, from cong_snoc_v -- a's 1-tuple is b's. As the pipeline renders it at i, OFCLASS dropped.
+#
+# Depends on base/axioms, pairs, witness, logic, cong, s2s3, primitives, tuples, classes, inf. Admits nothing: five definitional
+# introductions, content zero.
+
+@def(ZF_Base.zero) axiom ZF_Base.zero_def: forall v. (ZF_Base.zero(v) <-> zero(v))
+@def(ZF_Base.Inf) axiom ZF_Base.Inf_def: forall v. (ZF_Base.Inf(v) <-> Inf(v))
+@def(ZF_Base.Pow) axiom ZF_Base.Pow_def: forall S. (ZF_Base.Pow(S) <-> (forall t. (set(t) -> (forall r. (set(r) -> (pmem(t,r,S) <-> (exists A. (set(A) & ((exists e. (set(e) & (zero(e) & snoc(e,e,A,t)))) & Pow(A,r))))))))))
+@def(ZF_Base.Union) axiom ZF_Base.Union_def: forall S. (ZF_Base.Union(S) <-> (forall t. (set(t) -> (forall r. (set(r) -> (pmem(t,r,S) <-> (exists A. (set(A) & ((exists e. (set(e) & (zero(e) & snoc(e,e,A,t)))) & Union(A,r))))))))))
+@def(ZF_Base.PrimReplace) axiom ZF_Base.PrimReplace_def: forall S. forall P. (ZF_Base.PrimReplace(S,P) <-> (forall t. (set(t) -> (forall r. (set(r) -> (pmem(t,r,S) <-> (exists A. (set(A) & ((exists e. (set(e) & (zero(e) & snoc(e,e,A,t)))) & (((forall x. (set(x) -> (elem(x,A) -> (forall y. (set(y) -> (forall z. (set(z) -> ((exists p. (set(p) & ((exists e. (set(e) & (zero(e) & (exists i. (set(i) & (nsucc(e,i) & (exists s. (set(s) & (snoc(e,e,x,s) & snoc(s,i,y,p)))))))))) & elem(p,P)))) -> ((exists q. (set(q) & ((exists e. (set(e) & (zero(e) & (exists i. (set(i) & (nsucc(e,i) & (exists s. (set(s) & (snoc(e,e,x,s) & snoc(s,i,z,q)))))))))) & elem(q,P)))) -> eq(y,z)))))))))) & (forall v. (set(v) -> (elem(v,r) <-> (exists u. (set(u) & (elem(u,A) & (exists p. (set(p) & ((exists e. (set(e) & (zero(e) & (exists i. (set(i) & (nsucc(e,i) & (exists s. (set(s) & (snoc(e,e,u,s) & snoc(s,i,v,p)))))))))) & elem(p,P))))))))))) | ((~ (forall x. (set(x) -> (elem(x,A) -> (forall y. (set(y) -> (forall z. (set(z) -> ((exists p. (set(p) & ((exists e. (set(e) & (zero(e) & (exists i. (set(i) & (nsucc(e,i) & (exists s. (set(s) & (snoc(e,e,x,s) & snoc(s,i,y,p)))))))))) & elem(p,P)))) -> ((exists q. (set(q) & ((exists e. (set(e) & (zero(e) & (exists i. (set(i) & (nsucc(e,i) & (exists s. (set(s) & (snoc(e,e,x,s) & snoc(s,i,z,q)))))))))) & elem(q,P)))) -> eq(y,z))))))))))) & zero(r))))))))))))
+
+claim ZF_Base.zero_EX: exists v. (set(v) & ZF_Base.zero(v))
+claim ZF_Base.Inf_EX: exists v. (set(v) & ZF_Base.Inf(v))
+claim ZF_Base.zero_UNIQ: forall v. (set(v) -> (forall w. (set(w) -> (ZF_Base.zero(v) -> (ZF_Base.zero(w) -> eq(v,w))))))
+claim ZF_Base.Inf_UNIQ: forall v. (set(v) -> (forall w. (set(w) -> (ZF_Base.Inf(v) -> (ZF_Base.Inf(w) -> eq(v,w))))))
+claim IFOL.subst: forall a. (set(a) -> (forall b. (set(b) -> (forall P. (eq(a,b) -> ((exists t. (set(t) & ((exists e. (set(e) & (zero(e) & snoc(e,e,a,t)))) & elem(t,P)))) -> (exists t. (set(t) & ((exists e. (set(e) & (zero(e) & snoc(e,e,b,t)))) & elem(t,P))))))))))

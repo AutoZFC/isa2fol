@@ -42,3 +42,4 @@ claim snoc_old: forall t. forall n. forall v. forall s. (snoc(t,n,v,s) -> ((~ el
 claim tuple_snoc: forall t. forall s. forall n. (set(n) -> (forall v. (set(v) -> (forall m. (set(m) -> (tuple(t,n) -> (nsucc(n,m) -> (snoc(t,n,v,s) -> tuple(s,m)))))))))
 claim snoc_inj: forall t. forall t2. forall n. (set(n) -> (forall v. (set(v) -> (forall v2. (set(v2) -> (forall s. (tuple(t,n) -> (tuple(t2,n) -> (snoc(t,n,v,s) -> (snoc(t2,n,v2,s) -> (eq(t,t2) & eq(v,v2))))))))))))
 claim snoc_CONG: forall t. forall t2. forall n. forall n2. forall v. forall v2. forall s. (eq(t,t2) -> (eq(n,n2) -> (eq(v,v2) -> (snoc(t,n,v,s) -> snoc(t2,n2,v2,s)))))
+claim cong_snoc_v: forall t. forall n. forall a. forall b. forall s. (eq(a,b) -> (snoc(t,n,a,s) <-> snoc(t,n,b,s)))

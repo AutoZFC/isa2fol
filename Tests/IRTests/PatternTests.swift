@@ -3,14 +3,14 @@ import IR
 
 private let memT = IRType.fn(.i, .fn(.i, .o))
 
-/// DESIGN §4.3b 4: congruence at a function, at a predicate and at a proposition are three cases, never one.
+/// DESIGN §4.3b 4: one primitive at several types is several pieces, never one.
 @Test func onePrimitiveAtSeveralTypesIsSeveralPatterns() throws {
     var t = Table()
     let root = try t.intern(.folBottom)
-    let instances: [[IRType]] = [[.i, .i], [.i, .o], [.o, .o]]
-    let uses = try instances.map { try t.intern(.use(.axiom(.pure(.combination)), $0, root)) }
+    let instances: [[IRType]] = [[.i], [.fn(.i, .i)], [.o]]
+    let uses = try instances.map { try t.intern(.use(.axiom(.ifol(.refl)), $0, root)) }
     let found = Set(uses.map { Pattern(t[$0], in: t) })
-    #expect(found == Set(instances.map { Pattern.use(.axiom(.pure(.combination)), $0, .o) }))
+    #expect(found == Set(instances.map { Pattern.use(.axiom(.ifol(.refl)), $0, .o) }))
 }
 
 @Test func aPatternReplacesChildrenByTheirTypesAndDropsNamesAndIndices() throws {
@@ -28,7 +28,7 @@ private let memT = IRType.fn(.i, .fn(.i, .o))
 
 @Test func aProofStepStandsForAFormula() throws {
     var t = Table()
-    let A = try t.intern(.folPred("A", args: []))
+    let A = try t.intern(.folPred(.base("A"), args: []))
     let intro = try t.intern(.folImpliesIntro(A, body: try t.intern(.hyp(0, A))))
     #expect(Pattern(t[intro], in: t) == .folImpliesIntro(.o, body: .o))
 }
@@ -37,15 +37,16 @@ private let memT = IRType.fn(.i, .fn(.i, .o))
 @Test func aFolPatternKeepsItsArgumentsTypes() throws {
     var t = Table()
     let x = try t.intern(.folBound(0)), K = try t.intern(.isaBound(1, .fn(.i, .o)))
-    let sets = try t.intern(.folPred("elem", args: [x, x])), withClass = try t.intern(.folPred("elem", args: [x, K]))
+    let sets = try t.intern(.folPred(.base("elem"), args: [x, x])), withClass = try t.intern(.folPred(.base("elem"), args: [x, K]))
     #expect(Pattern(t[sets], in: t) == .folPred(args: [.i, .i]))
     #expect(Pattern(t[withClass], in: t) == .folPred(args: [.i, .fn(.i, .o)]))
 }
 
-/// A covered construct is ONE node of both dialects: the reader reads `⟹` as the fol-zfc implication. A free
-/// variable is the isa dialect's (the reader's hidden variable); `¬` is fol-zfc's only, IFOL's being defined. A
-/// citation is fol-zfc's only of a theorem at no type arguments. A binder, its intro and its variable at `o` are
-/// fol-zfc's schema letter; `schema_inst` is fol-zfc's only.
+/// A covered construct is ONE node of both dialects: the reader reads `⟹` as the fol-zfc implication, and Pure's
+/// `equal_intr` and `equal_elim` as `iff_intro` and `iff_elim_l`. A free variable is the isa dialect's (the reader's
+/// hidden variable); `¬` is fol-zfc's only, IFOL's being defined. A citation is fol-zfc's only of a theorem at no type
+/// arguments, or of base. A binder, its intro and its variable at `o` are fol-zfc's schema letter; `schema_inst` is
+/// fol-zfc's only. Pure's other equality rules are steps of the isa dialect.
 @Test func eachPatternBelongsToTheIsaDialectTheFolDialectOrBoth() {
     #expect(Pattern.folImplies(.o, .o).dialects == [.isa, .fol])
     #expect(Pattern.folPred(args: [.i]).dialects == [.fol])
@@ -55,7 +56,15 @@ private let memT = IRType.fn(.i, .fn(.i, .o))
     #expect(Pattern.isaOfClass(.variable("'a")).dialects == [.isa])
     #expect(Pattern.use(.theorem, [], .o).dialects == [.isa, .fol])
     #expect(Pattern.use(.theorem, [.i], .o).dialects == [.isa])
-    #expect(Pattern.use(.axiom(.pure(.combination)), [.i, .i], .o).dialects == [.isa])
+    #expect(Pattern.use(.axiom(.ifol(.subst)), [.i], .o).dialects == [.isa])
+    #expect(Pattern.use(.base, [], .o).dialects == [.fol])
+    #expect(Pattern.isaReflexive(.o).dialects == [.isa])
+    #expect(Pattern.isaSymmetric(.o, .o).dialects == [.isa])
+    #expect(Pattern.isaTransitive(.o, .o, .o).dialects == [.isa])
+    #expect(Pattern.isaCombination(.fn(.o, .o), .o, .o).dialects == [.isa])
+    #expect(Pattern.isaAbstract(.fn(.i, .o), .o).dialects == [.isa])
+    #expect(Pattern.folIffIntro(.o, .o).dialects == [.isa, .fol])
+    #expect(Pattern.folIffElimL(.o, .o).dialects == [.isa, .fol])
     #expect(Pattern.use(.isaDefinition(.zf, .object), [], .o).dialects == [.isa])
     #expect(Pattern.use(.theoryAxiom, [], .o).dialects == [.isa])
     #expect(Pattern.use(.lemma, [], .o).dialects == [.isa, .fol])
@@ -70,7 +79,7 @@ private let memT = IRType.fn(.i, .fn(.i, .o))
 }
 
 @Test func aPatternPrintsDeterministically() {
-    #expect("\(Pattern.use(.axiom(.pure(.combination)), [.i, .o], .o))" == "use(axiom Pure.combination, [i, o], o)")
+    #expect("\(Pattern.use(.axiom(.ifol(.subst)), [.i], .o))" == "use(axiom IFOL.subst, [i], o)")
     #expect("\(Pattern.isaConst(.defined(.zf, .object), .fn(.i, .i), args: [.i]))" == "isaConst(defined zf object, (i => i), args: [i])")
     #expect("\(Pattern.isaConst(.primitive(.zf(.mem)), memT, args: [.i, .i]))"
             == "isaConst(primitive ZF_Base.mem, (i => (i => o)), args: [i, i])")

@@ -13,6 +13,7 @@
     case premiseMismatch(expected: NodeID, found: NodeID)
     case notATermVariable(NodeID)
     case witnessEscapes(NodeID)
+    case notAFunctionType(IRType)
 }
 
 public struct Table: Sendable {
@@ -47,6 +48,32 @@ public struct Table: Sendable {
         switch sorts[Int(id.raw)] {
         case let .value(T): return T
         case .step: return .o
+        }
+    }
+
+    public mutating func equation(_ T: IRType, _ a: NodeID, _ b: NodeID) throws -> NodeID {
+        switch T {
+        case .o: return try intern(.folIff(a, b))
+        case .i: return try intern(.isaConst(.primitive(.ifol(.eq)), .fn(.i, .fn(.i, .o)), args: [a, b]))
+        case .fn, .variable: return try intern(.isaConst(.primitive(.pure(.eq)), .fn(T, .fn(T, .o)), args: [a, b]))
+        }
+    }
+
+    public func sides(ofEquation formula: NodeID) -> (type: IRType, left: NodeID, right: NodeID)? {
+        switch self[formula] {
+        case let .folIff(a, b):
+            return (.o, a, b)
+        case let .isaConst(.primitive(.ifol(.eq)), _, args) where args.count == 2:
+            return (.i, args[0], args[1])
+        case let .isaConst(.primitive(.pure(.eq)), .fn(T, _), args) where args.count == 2:
+            return (T, args[0], args[1])
+        case .ifolAll, .ifolEx, .isaConst, .isaFree, .isaBound, .isaVarApp, .isaAbs, .isaOfClass, .isaAllIntro,
+             .isaAllElim, .isaReflexive, .isaSymmetric, .isaTransitive, .isaCombination, .isaAbstract, .folImplies,
+             .folAnd, .folOr, .folBottom, .folImpliesIntro, .folImpliesElim, .use, .hyp, .folIffIntro, .folIffElimL,
+             .isaGuard, .isaExIntro, .isaExElim, .folNot, .folBound, .folPred, .folForall, .folExists, .folAndIntro, .folAndElimL, .folAndElimR,
+             .folOrIntroL, .folOrIntroR, .folOrElim, .folNotIntro, .folNotElim, .folIffElimR, .folForallIntro,
+             .folForallElim, .folExistsIntro, .folExistsElim, .folBottomElim, .folClassicalAbsurd, .folSchemaInst:
+            return nil
         }
     }
 
@@ -85,7 +112,7 @@ public struct Table: Sendable {
         case .folBound:
             return .value(.i)
         case let .folPred(_, xs):
-            for x in xs { try expectTermVariable(x, else: .predicateArgumentNotVariable(x)) }
+            for x in xs { try termVariable(x, else: .predicateArgumentNotVariable(x)) }
             return .value(.o)
         case let .folAnd(a, b), let .folOr(a, b), let .folImplies(a, b), let .folIff(a, b):
             try expect(.o, a)
@@ -167,21 +194,20 @@ public struct Table: Sendable {
             return .step(concluding: try intern(.folForall(body: try premise(body))))
         case let .folForallElim(p, v):
             guard case let .folForall(body) = self[try premise(p)] else { throw TableError.principalConnective(p) }
-            try expectTermVariable(v, else: .notATermVariable(v))
+            try termVariable(v, else: .notATermVariable(v))
             return .step(concluding: try instantiate(body, with: v, in: &self))
         case let .folExistsIntro(p, v):
-            if case let .folBound(k) = self[v] {
-                return .step(concluding: try intern(.folExists(body: try abstractIndex(try premise(p), k, in: &self))))
-            }
-            guard case let .isaBound(k, T) = self[v] else { throw TableError.notATermVariable(v) }
-            return .step(concluding: try intern(.ifolEx(T, body: try abstractIndex(try premise(p), k, in: &self))))
+            let k = try termVariable(v, else: .notATermVariable(v))
+            return .step(concluding: try intern(.folExists(body: try abstractIndex(try premise(p), k, in: &self))))
         case let .folExistsElim(p, body):
-            guard isExistential(self[try premise(p)]) else { throw TableError.principalConnective(p) }
-            do {
-                return .step(concluding: try unshift(try premise(body), in: &self))
-            } catch IRRefusal.indexOccurs {
-                throw TableError.witnessEscapes(body)
-            }
+            guard case .folExists = self[try premise(p)] else { throw TableError.principalConnective(p) }
+            return .step(concluding: try witnessed(body))
+        case let .isaExIntro(p, v):
+            guard case let .isaBound(k, T) = self[v], T != .o else { throw TableError.notATermVariable(v) }
+            return .step(concluding: try intern(.ifolEx(T, body: try abstractIndex(try premise(p), k, in: &self))))
+        case let .isaExElim(T, p, body):
+            guard case .ifolEx(T, _) = self[try premise(p)] else { throw TableError.principalConnective(p) }
+            return .step(concluding: try witnessed(body))
         case let .folBottomElim(p, c):
             try absurd(p)
             try expect(.o, c)
@@ -194,6 +220,24 @@ public struct Table: Sendable {
             guard case let .ifolAll(.o, body) = self[try premise(p)] else { throw TableError.principalConnective(p) }
             try expect(.o, a)
             return .step(concluding: try instantiate(body, with: a, in: &self))
+        case let .isaReflexive(x):
+            return .step(concluding: try equation(try value(x), x, x))
+        case let .isaSymmetric(T, p):
+            let (a, b) = try sides(p, at: T)
+            return .step(concluding: try equation(T, b, a))
+        case let .isaTransitive(T, p, q):
+            let (a, b) = try sides(p, at: T), (b2, c) = try sides(q, at: T)
+            try same(b, b2)
+            return .step(concluding: try equation(T, a, c))
+        case let .isaCombination(F, p, q):
+            guard case let .fn(T, U) = F else { throw TableError.notAFunctionType(F) }
+            let (f, g) = try sides(p, at: F), (x, y) = try sides(q, at: T)
+            return .step(concluding: try equation(U, try applied(f, x), try applied(g, y)))
+        case let .isaAbstract(F, p):
+            guard case let .fn(T, U) = F else { throw TableError.notAFunctionType(F) }
+            guard case let .ifolAll(T2, body) = self[try premise(p)], T2 == T, let (V, a, b) = sides(ofEquation: body), V == U
+            else { throw TableError.principalConnective(p) }
+            return .step(concluding: try equation(F, try intern(.isaAbs(T, body: a)), try intern(.isaAbs(T, body: b))))
         case let .isaAllIntro(T, body):
             return .step(concluding: try intern(.ifolAll(T, body: try premise(body))))
         case let .isaAllElim(p, x):
@@ -204,21 +248,52 @@ public struct Table: Sendable {
         }
     }
 
-    private func expectTermVariable(_ x: NodeID, else notVariable: TableError) throws {
-        if case .folBound = self[x] { return }
-        guard case let .isaBound(_, T) = self[x] else { throw notVariable }
+    @discardableResult
+    private func termVariable(_ x: NodeID, else notVariable: TableError) throws -> Int {
+        if case let .folBound(k) = self[x] { return k }
+        guard case let .isaBound(k, T) = self[x] else { throw notVariable }
         guard T != .o else { throw TableError.propositionAsTerm(x) }
+        return k
     }
 
-    private func isExistential(_ n: Node) -> Bool {
-        if case .folExists = n { return true }
-        if case .ifolEx = n { return true }
-        return false
+    /// ⚠ NOT SWIFT'S `Hasher`: it is seeded per process, and a name made from it changes from run to run, silently.
+    public func fingerprint(of id: NodeID) -> UInt64 {
+        var known: [NodeID: UInt64] = [:]
+        return fingerprint(id, &known)
+    }
+
+    private func fingerprint(_ id: NodeID, _ known: inout [NodeID: UInt64]) -> UInt64 {
+        if let h = known[id] { return h }
+        var h: UInt64 = 0xcbf2_9ce4_8422_2325
+        func mix<S: Sequence<UInt8>>(_ bytes: S) { for b in bytes { h = (h ^ UInt64(b)) &* 0x100_0000_01b3 } }
+        mix(String(describing: self[id].mapChildren { _, _ in NodeID(raw: 0) }).utf8)
+        self[id].forEachChild { c, _ in withUnsafeBytes(of: fingerprint(c, &known).littleEndian) { mix($0) } }
+        known[id] = h
+        return h
+    }
+
+    private mutating func witnessed(_ body: NodeID) throws -> NodeID {
+        do {
+            return try unshift(try premise(body), in: &self)
+        } catch IRRefusal.indexOccurs {
+            throw TableError.witnessEscapes(body)
+        }
     }
 
     private func value(_ c: NodeID) throws -> IRType {
         guard let T = type(of: c) else { throw TableError.expectedValue(c) }
         return T
+    }
+
+    private func sides(_ p: NodeID, at T: IRType) throws -> (NodeID, NodeID) {
+        guard let (U, a, b) = sides(ofEquation: try premise(p)) else { throw TableError.principalConnective(p) }
+        guard U == T else { throw TableError.childType(expected: T, found: U) }
+        return (a, b)
+    }
+
+    private mutating func applied(_ f: NodeID, _ x: NodeID) throws -> NodeID {
+        guard case let .isaAbs(_, body) = self[f] else { throw TableError.functionArgumentNotAbstraction(f) }
+        return try instantiate(body, with: x, in: &self)
     }
 
     private func premise(_ c: NodeID) throws -> NodeID {

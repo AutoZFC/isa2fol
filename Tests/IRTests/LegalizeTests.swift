@@ -20,7 +20,7 @@ private struct L {
 /// intro on its proof's.
 @Test func aLetterUnderFolsGuardIsOnItsSpine() throws {
     var l = L()
-    let set = try l.n(.folPred("set", args: [try l.n(.folBound(0))]))
+    let set = try l.n(.folPred(.base("set"), args: [try l.n(.folBound(0))]))
     let root = try l.n(.folForall(body: try l.n(.folImplies(set, try l.identity()))))
     let proof = try l.n(.folForallIntro(body: try l.n(.folImpliesIntro(set, body: try l.identityProof()))))
     #expect(l.t.conclusion(of: proof) == root)
@@ -47,9 +47,9 @@ private struct L {
 /// does not.
 @Test func anInstantiationOfACitationIsOnItsSpineAndOfAHypothesisIsNot() throws {
     var l = L()
-    let s = try l.identity(), c = try l.n(.folPred("C", args: []))
+    let s = try l.identity(), c = try l.n(.folPred(.base("C"), args: []))
     #expect(misplacedLetters([try l.n(.folSchemaInst(try l.n(.use(.theorem("id"), [], s)), c))], in: l.t).isEmpty)
-    let x = try l.n(.folBound(0)), set = try l.n(.folPred("set", args: [x]))
+    let x = try l.n(.folBound(0)), set = try l.n(.folPred(.base("set"), args: [x]))
     let guarded = try l.n(.folForall(body: try l.n(.folImplies(set, s))))
     let atX = try l.n(.folImpliesElim(try l.n(.folForallElim(try l.n(.use(.theorem("gid"), [], guarded)), x)), try l.n(.hyp(0, set))))
     #expect(misplacedLetters([try l.n(.folSchemaInst(atX, c))], in: l.t).isEmpty)

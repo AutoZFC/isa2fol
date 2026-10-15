@@ -55,6 +55,20 @@ private struct FileProof {
 
 private let axioms = Dictionary(uniqueKeysWithValues: Axiom.all.map { ($0.name, $0) })
 
+private enum PureRule: String {
+    case reflexive = "Pure.reflexive", symmetric = "Pure.symmetric", transitive = "Pure.transitive"
+    case combination = "Pure.combination", abstractRule = "Pure.abstract_rule"
+    case equalIntr = "Pure.equal_intr", equalElim = "Pure.equal_elim"
+
+    var premises: Int {
+        switch self {
+        case .reflexive: return 0
+        case .symmetric, .abstractRule: return 1
+        case .transitive, .combination, .equalIntr, .equalElim: return 2
+        }
+    }
+}
+
 public struct Reader {
     private enum Source: Hashable {
         case theorem(TheoremKey)
@@ -124,8 +138,13 @@ public struct Reader {
         let key = FileProof.Key(body: body, scope: s)
         if let p = f.steps[key] { return p }
         let spine = try decode.proofSpine(body)
-        var p = try head(spine.node, s, &f)
-        for argument in spine.arguments {
+        var p: NodeID, arguments = spine.arguments[...]
+        if case let .axiom(name, types) = spine.node, let rule = PureRule(rawValue: name) {
+            (p, arguments) = try pure(rule, try types.map(f.terms.irType), arguments, s, &f)
+        } else {
+            p = try head(spine.node, s, &f)
+        }
+        for argument in arguments {
             switch argument {
             case let .term(x):
                 guard case let .ifolAll(T, _)? = table.conclusion(of: p).map({ table[$0] }) else {
@@ -174,6 +193,76 @@ public struct Reader {
         }
     }
 
+    private mutating func pure(_ rule: PureRule, _ types: [IRType], _ arguments: ArraySlice<ProofArgument>, _ s: ProofScope,
+                               _ f: inout FileProof) throws -> (NodeID, ArraySlice<ProofArgument>) {
+        var stated = try statement(Instance(source: .axiom(rule.rawValue), types: types)), rest = arguments
+        var terms: [NodeID] = []
+        while case let .ifolAll(T, body) = table[stated] {
+            guard case let .term(x)? = rest.first else {
+                throw MalformedExport.applicationArity(rule.rawValue, expected: terms.count + 1, found: terms.count)
+            }
+            let term = try f.terms.term(x, T, s.terms, in: &table)
+            terms.append(term)
+            stated = try instantiate(body, with: term, in: &table)
+            rest = rest.dropFirst()
+        }
+        var antecedents: [NodeID] = [], conclusion = stated
+        while antecedents.count < rule.premises {
+            guard case let .folImplies(a, c) = table[conclusion] else { throw TableError.principalConnective(conclusion) }
+            antecedents.append(a)
+            conclusion = c
+        }
+        var premises: [NodeID] = []
+        while premises.count < antecedents.count, case let .proof(q)? = rest.first {
+            let premise = try step(q, s, &f)
+            guard table.conclusion(of: premise) == antecedents[premises.count] else {
+                throw MalformedExport.unproved(statement: antecedents[premises.count], conclusion: table.conclusion(of: premise))
+            }
+            premises.append(premise)
+            rest = rest.dropFirst()
+        }
+        if premises.count == antecedents.count {
+            let p = try pureStep(rule, terms, premises)
+            guard table.conclusion(of: p) == conclusion else {
+                throw MalformedExport.unproved(statement: conclusion, conclusion: table.conclusion(of: p))
+            }
+            return (p, rest)
+        }
+        let n = antecedents.count
+        let hyps = try antecedents.indices.map { try table.intern(.hyp(n - 1 - $0, antecedents[$0])) }
+        var closed = try pureStep(rule, terms, hyps)
+        for a in antecedents.reversed() { closed = try table.intern(.folImpliesIntro(a, body: closed)) }
+        for q in premises { closed = try table.intern(.folImpliesElim(closed, q)) }
+        return (closed, rest)
+    }
+
+    private mutating func pureStep(_ rule: PureRule, _ terms: [NodeID], _ premises: [NodeID]) throws -> NodeID {
+        func equated(_ p: NodeID) throws -> IRType {
+            guard let c = table.conclusion(of: p), let (T, _, _) = table.sides(ofEquation: c) else {
+                throw TableError.principalConnective(p)
+            }
+            return T
+        }
+        switch rule {
+        case .reflexive:
+            return try table.intern(.isaReflexive(terms[0]))
+        case .symmetric:
+            return try table.intern(.isaSymmetric(try equated(premises[0]), premises[0]))
+        case .transitive:
+            return try table.intern(.isaTransitive(try equated(premises[0]), premises[0], premises[1]))
+        case .combination:
+            return try table.intern(.isaCombination(try equated(premises[0]), premises[0], premises[1]))
+        case .abstractRule:
+            guard let c = table.conclusion(of: premises[0]), case let .ifolAll(T, body) = table[c],
+                  let (U, _, _) = table.sides(ofEquation: body) else { throw TableError.principalConnective(premises[0]) }
+            return try table.intern(.isaAbstract(.fn(T, U), premises[0]))
+        case .equalIntr:
+            return try table.intern(.folIffIntro(premises[0], premises[1]))
+        case .equalElim:
+            return try table.intern(.folIffElimL(premises[0], premises[1]))
+        }
+    }
+
     private func cited(axiom name: String) throws -> Cited {
         if let a = axioms[name] { return .axiom(a) }
         if let d = constants.defined(byAxiom: name) { return .isaDefinition(name, of: d) }
@@ -218,12 +307,9 @@ public struct Reader {
                 return U
             }
             var terms = try Terms(decode: decode, constants: constants, classes: classes, file: e, at: instance)
-            let equation = try terms.irType(types[0])
-            let body = try terms.term(sides[1], equation, terms.closure, in: &table)
+            let body = try terms.term(sides[1], try terms.irType(types[0]), terms.closure, in: &table)
             let definiens = try terms.close(body, Node.isaAbs, in: &table)
-            let reflexive = try statement(Instance(source: .axiom(Axiom.pure(.reflexive).name), types: [equation]))
-            return Definition(constant: d, type: T, axiomTypes: instance, parameters: names.count, definiens: definiens,
-                              reflexive: reflexive)
+            return Definition(constant: d, type: T, axiomTypes: instance, parameters: names.count, definiens: definiens)
         }
     }
 

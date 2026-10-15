@@ -82,7 +82,8 @@ private struct Writer {
         switch t[id] {
         case let .folBound(k):
             return .formula(terms[terms.count - 1 - k])
-        case let .folPred(p, xs):
+        case let .folPred(predicate, xs):
+            let p = predicate.name
             try checkName(p)
             if xs.isEmpty { return .formula(p) }
             return .formula("\(p)(\(try xs.map { try formula($0) }.joined(separator: ", ")))")
@@ -144,7 +145,8 @@ private struct Writer {
             return try discharging("assume ~\(try formula(a, operand: true))", body, "classical_absurd")
 
         case .ifolAll, .ifolEx, .isaConst, .isaFree, .isaBound, .isaVarApp, .isaAbs, .isaOfClass,
-             .isaAllIntro, .isaAllElim, .isaGuard:
+             .isaAllIntro, .isaAllElim, .isaGuard, .isaExIntro, .isaExElim, .isaReflexive, .isaSymmetric, .isaTransitive, .isaCombination,
+             .isaAbstract:
             throw Pattern(t[id], in: t).dialects.contains(.fol) ? RenderError.schema(id) : RenderError.sourceKind(id)
         case .folSchemaInst:
             throw RenderError.schema(id)

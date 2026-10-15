@@ -261,11 +261,7 @@ struct Terms {
         case .metaEquality:
             let T = try irType(try typeArgument(name, types))
             let ab = try operands(name, [T, T], arguments, s, &t)
-            switch T {
-            case .o: return try t.intern(.folIff(ab[0], ab[1]))
-            case .i: return try t.intern(.isaConst(.primitive(.ifol(.eq)), .fn(.i, .fn(.i, .o)), args: ab))
-            case .fn, .variable: return try t.intern(.isaConst(.primitive(.pure(.eq)), .fn(T, .fn(T, .o)), args: ab))
-            }
+            return try t.equation(T, ab[0], ab[1])
         case .all:
             let T = try irType(try typeArgument(name, types))
             return try t.intern(.ifolAll(T, body: try binder(name, T, arguments, s, &t)))

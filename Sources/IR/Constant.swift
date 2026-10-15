@@ -68,16 +68,9 @@ public struct Defined: Hashable, Sendable {
 }
 
 @frozen public enum Axiom: Hashable, Sendable, CustomStringConvertible {
-    case pure(Pure)
     case ifol(IFOL)
     case fol(FOL)
     case zf(ZF)
-
-    @frozen public enum Pure: String, Hashable, Sendable, CaseIterable {
-        case reflexive = "Pure.reflexive", symmetric = "Pure.symmetric", transitive = "Pure.transitive"
-        case combination = "Pure.combination", abstractRule = "Pure.abstract_rule"
-        case equalIntr = "Pure.equal_intr", equalElim = "Pure.equal_elim"
-    }
 
     @frozen public enum IFOL: String, Hashable, Sendable, CaseIterable {
         case refl = "IFOL.refl", subst = "IFOL.subst", impI = "IFOL.impI", mp = "IFOL.mp"
@@ -97,12 +90,10 @@ public struct Defined: Hashable, Sendable {
         case foundation = "ZF_Base.foundation", infinity = "ZF_Base.infinity", choice = "AC.AC"
     }
 
-    public static let all = Pure.allCases.map(pure) + IFOL.allCases.map(ifol) + FOL.allCases.map(fol)
-        + ZF.allCases.map(zf)
+    public static let all = IFOL.allCases.map(ifol) + FOL.allCases.map(fol) + ZF.allCases.map(zf)
 
     public var family: Family {
         switch self {
-        case .pure: return .pure
         case .ifol: return .ifol
         case .fol: return .fol
         case .zf: return .zf
@@ -111,7 +102,6 @@ public struct Defined: Hashable, Sendable {
 
     public var name: String {
         switch self {
-        case let .pure(a): return a.rawValue
         case let .ifol(a): return a.rawValue
         case let .fol(a): return a.rawValue
         case let .zf(a): return a.rawValue
@@ -127,10 +117,11 @@ public struct Defined: Hashable, Sendable {
     case axiom(Axiom)
     case theoryAxiom(String)
     case lemma(Lemma)
+    case base(String)
 
     public var name: String {
         switch self {
-        case let .theorem(name), let .isaDefinition(name, _), let .theoryAxiom(name): return name
+        case let .theorem(name), let .isaDefinition(name, _), let .theoryAxiom(name), let .base(name): return name
         case let .axiom(a): return a.name
         case let .lemma(l): return l.name
         }

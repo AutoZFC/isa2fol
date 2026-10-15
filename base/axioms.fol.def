@@ -78,12 +78,11 @@ axiom replacement: forall F. ((forall u. (set(u) -> (forall v. (set(v) -> (foral
 # WHY THIS FORM RATHER THAN ISABELLE'S. The export states `ZF_Base.infinity` as
 #     0 : Inf  &  (ALL y:Inf. succ(y) : Inf)
 # i.e. a property of the CONSTANT `Inf`, using `zero` and `succ`. That is the
-# Skolemised half of §10's G1 table -- `Inf(r) -> phi(r)` -- and it is not
-# statable here, because `succ` is a defined constant lying deep in the
-# definitional order (succ -> cons -> Un -> Upair -> Replace). The AXIOM is the
-# existence claim `exists r. phi(r)`; `Inf` is then introduced from it as a
-# Skolem constant when the constant table reaches it. Isabelle's statement and
-# this one are the two halves of one introduction, not rivals.
+# property half -- `Inf(r) -> phi(r)` -- and it is not statable here, because
+# `succ` is a defined constant lying deep in the definitional order
+# (succ -> cons -> Un -> Upair -> Replace). The AXIOM is the existence claim
+# `exists r. phi(r)`; `Inf` is DEFINED from it as the least set with phi
+# (base/tiers/inf), which this axiom and Separation show exists.
 #
 # NOT COPIED VERBATIM, and that is why `empty_from_infinity` below exists. The
 # only prior text for this axiom is `docs/phase2_probes/vbg_derive_empty`, which

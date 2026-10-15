@@ -57,9 +57,8 @@ private func expanded(_ l: LogicTable, _ statements: [Statement], _ definitions:
     #expect(try Expand().run([used], [nand, not], in: &l.t) == [try l.imp(try l.and(c, c), try l.bottom())])
 }
 
-/// `Not ≡ λP. P ⟶ ⊥`, cited: unfolded it says `(λP. P ⟶ ⊥) ≡ (λP. P ⟶ ⊥)`, `Pure.reflexive` at `o ⇒ o`, instantiated
-/// at the definiens.
-@Test func aCitationOfADefinitionBecomesPureReflexiveAtItsDefiniens() throws {
+/// `Not ≡ λP. P ⟶ ⊥`, cited: unfolded it says `(λP. P ⟶ ⊥) ≡ (λP. P ⟶ ⊥)`, Pure's `reflexive` step at the definiens.
+@Test func aCitationOfADefinitionBecomesReflexivityAtItsDefiniens() throws {
     var l = LogicTable()
     let not = try l.not()
     let applied = try l.lam(o, try l.const(.defined(not.constant), fn(o, o), try l.bound(0, o)))
@@ -67,13 +66,12 @@ private func expanded(_ l: LogicTable, _ statements: [Statement], _ definitions:
     let proof = try l.t.intern(.use(.isaDefinition("IFOL.not_def_raw", of: not.constant), [], root))
     let unit = try expanded(l, [Statement(name: "IFOL.not_def", root: root, proof: proof)], [not])
     var m = LogicTable(t: unit.table)
-    let reflexive = try m.t.intern(.use(.axiom(.pure(.reflexive)), [fn(o, o)], not.reflexive))
     #expect(unit.statements[0].root == (try m.equal(fn(o, o), not.definiens, not.definiens)))
-    #expect(unit.statements[0].proof == (try m.t.intern(.isaAllElim(reflexive, not.definiens))))
+    #expect(unit.statements[0].proof == (try m.t.intern(.isaReflexive(not.definiens))))
 }
 
-/// `⋀A B. conjunction(A, B) ≡ b`, Pure's applied form, cited: unfolded it says `⋀A B. b ≡ b`, `Pure.reflexive` at
-/// `o`, at `b`, under a `⋀`-intro at each parameter.
+/// `⋀A B. conjunction(A, B) ≡ b`, Pure's applied form, cited: unfolded it says `⋀A B. b ≡ b`, the `reflexive` step at
+/// `b` under a `⋀`-intro at each parameter.
 @Test func aCitationOfAnAppliedDefinitionIsReflexivityUnderItsParameters() throws {
     var l = LogicTable()
     let conjunction = try l.conjunction()
@@ -83,8 +81,7 @@ private func expanded(_ l: LogicTable, _ statements: [Statement], _ definitions:
     let proof = try l.t.intern(.use(.isaDefinition("Pure.conjunction_def", of: conjunction.constant), [], root))
     let unit = try expanded(l, [Statement(name: "Pure.conjunction_def", root: root, proof: proof)], [conjunction])
     var m = LogicTable(t: unit.table)
-    let reflexive = try m.t.intern(.use(.axiom(.pure(.reflexive)), [o], conjunction.reflexive))
-    let instance = try m.t.intern(.isaAllElim(reflexive, body))
+    let instance = try m.t.intern(.isaReflexive(body))
     #expect(unit.statements[0].root == (try m.all(o, try m.all(o, try m.equal(o, body, body)))))
     #expect(unit.statements[0].proof == (try m.t.intern(.isaAllIntro(o, body: try m.t.intern(.isaAllIntro(o, body: instance))))))
 }
@@ -122,7 +119,7 @@ private func expanded(_ l: LogicTable, _ statements: [Statement], _ definitions:
 }
 
 /// FOUNDATION S1: `split ≡ λc p. c(p, p)`, declared at `'a`, is a meta-level definition, unfolded as the logic's are:
-/// `split(λx y. x ∈ y, A)` at `'a := o` is `A ∈ A`, and a citation of its definition at `[o]` is `Pure.reflexive`. An
+/// `split(λx y. x ∈ y, A)` at `'a := o` is `A ∈ A`, and a citation of its definition at `[o]` is reflexivity. An
 /// object-level ZF constant is Reify's, and Expand leaves it.
 @Test func aZFDefinitionAtTheMetaLevelUnfoldsAsTheLogicsDo() throws {
     var l = LogicTable()
@@ -142,7 +139,6 @@ private func expanded(_ l: LogicTable, _ statements: [Statement], _ definitions:
     let proof = try l.t.intern(.use(.isaDefinition("ZF_Base.split_def_raw", of: split.constant), [o], root))
     let unit = try expanded(l, [Statement(name: "ZF_Base.split_def", root: root, proof: proof)], [split])
     var m = LogicTable(t: unit.table)
-    let reflexive = try m.t.intern(.use(.axiom(.pure(.reflexive)), [T], split.reflexive))
     #expect(unit.statements[0].root == (try m.equal(T, split.definiens, split.definiens)))
-    #expect(unit.statements[0].proof == (try m.t.intern(.isaAllElim(reflexive, split.definiens))))
+    #expect(unit.statements[0].proof == (try m.t.intern(.isaReflexive(split.definiens))))
 }

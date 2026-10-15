@@ -54,7 +54,7 @@ private struct Gen {
     mutating func folAtom(_ t: inout Table, _ depth: Int) throws -> NodeID {
         let a = try t.intern(.folBound(looseFol ? rng.next(depth + 2) : 0))
         let b = try t.intern(.folBound(looseFol ? rng.next(depth + 2) : 0))
-        return try t.intern(.folPred("elem", args: [a, b]))
+        return try t.intern(.folPred(.base("elem"), args: [a, b]))
     }
 }
 

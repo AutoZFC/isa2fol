@@ -13,7 +13,7 @@ Sources/
   IR/            §4's framework: Node · Table · transform · index engine · passes · legalize
   FolDialect/    Declaration · render (formulas and proofs) — the text boundary over IR (§3)
   Reader/        the export → isa nodes, statements and proofs (§2)
-  Lowering/      the plan (§4a): Expand · Logic · Reify · Fol, and Typing's registry
+  Lowering/      the plan (§4a): the passes Expand · Logic · Fol, Reify's code in Logic's walk, and the registry
   isa2fol/       CLI
 Tests/
   YXMLTests/  FolDialectTests/  IRTests/  ReaderTests/  LoweringTests/
@@ -23,8 +23,8 @@ Tests/
   YXML  ─►  Reader  ─►  IR  ─►  Lowering  ─►  FolDialect
 ```
 
-**The reader, the unit's citations and lemmas, and Fol's binders and variables at `i` are built**; Expand, Logic,
-Reify, the provers (§4a) and the emission of a unit are not.
+**The reader, the unit's citations and lemmas, Expand, Logic's first step and Fol's binders and variables at `i` are
+built**; the rest of Logic, Reify, the provers (§4a) and the emission of a unit are not.
 
 ### Two rules that make the guarantee real
 
@@ -332,7 +332,7 @@ named theorem down to axioms: the set below is exhaustive, and there is no oracl
 | IFOL equality: `refl`, `subst` | 2 | `use` | `base/` lemmas — `eq` is a defined predicate there |
 | IFOL bridges: `eq_reflection`, `iff_reflection` | 2 | `use` | trivial: `≡` already reads as `=` at `i` and `↔` at `o` |
 | `FOL.classical` | 1 | `use` | `classical_absurd` |
-| Pure equality: `reflexive symmetric transitive combination abstract_rule equal_intr equal_elim` | 7 | `use` | `↔`/`=` reasoning and congruence — S2's CONG; `abstract_rule` under a binder. The simplifier's rewriting: 81–94% of theorems reach these |
+| Pure equality: `reflexive symmetric transitive combination abstract_rule equal_intr equal_elim` | 7 | steps: `isaReflexive`, `isaSymmetric`, `isaTransitive`, `isaCombination`, `isaAbstract`, and fol-zfc's `iff_intro`, `iff_elim_l` (§4a, "Logic's second step") | `↔`/`=` reasoning and congruence — S2's CONG; `abstract_rule` under a binder. The simplifier's rewriting: 81–94% of theorems reach these |
 | definitions: Pure `prop conjunction term`; IFOL `iff not True ex1 Let term_class`; FOL `induct_*`; ZF 984 | 997 | `use` of a `*_def` axiom | S2/S3 — conservative |
 | ZF axioms: ZF_Base's 6, `AC.AC`, 5 in the example theories `Language`, `Static`, `LList` | 12 | `use` | the target's axioms |
 
@@ -450,7 +450,9 @@ its discharge and the proof behind it (§4a, decision 4).
 only axioms constrain, or DEFINED, `c ≡ b`, built over leaves and earlier definitions for reuse. A theorem or a proof is
 a composition of these, put together with §4.3a 4's formers: variables, `λ`, ⋀/⟹ intro and elim, hypotheses, and
 citations. The input layer is the isa dialect, its patterns, its primitives (three names for one thing). It represents
-these two mechanisms and those formers, and nothing else. If every pattern is translated, every theorem is (D1).
+these two mechanisms and those formers, and nothing else. If every pattern is translated, every theorem is (D1). Pure's
+equality is the one exception: its seven rules are Pure's inference steps, and the reader reads them as steps, never as
+cited axioms (§4a, "Logic's second step").
 
 **Taken from `kinds-proposal`: kept where it did well, improved where a principle faults it.** Kept:
 - **The reading** (§4.3a 4). A leaf that FOL has is read as FOL's node. `⋀`/`∀`, `⟹`/`⟶` and `≡`/`↔` at `o` are one
@@ -707,15 +709,21 @@ public protocol Rule {   // nil = no match: rebuild the node from its rewritten 
     func enter(_ c: Context, _ binder: Node, _ binds: Binds, in t: Table) -> Context
     func narrow(_ c: Context, _ id: NodeID, in t: Table) -> Context          // default: c
     func before(_ id: NodeID, context: Context, in t: inout Table) throws -> NodeID?
-    func after(_ n: Node, context: Context, in t: inout Table) throws -> NodeID?
+    func after(_ n: Node, was id: NodeID, context: Context, in t: inout Table) throws -> NodeID?
 }
 public func transform<R: Rule>(_ roots: [NodeID], _ rule: R, in t: inout Table) throws -> [NodeID]
 public protocol Pass { var name: String { get }
                        func owns(_ p: Pattern) -> Owned?                 // .rule, .unbuilt; nil: not its own
                        func run(_ roots: [NodeID], _ definitions: [Definition], in t: inout Table) throws -> [NodeID] }
 public protocol Registry { func prove(_ lemma: Lemma, _ statement: NodeID, _ definitions: [Definition],
-                                      in t: inout Table) throws -> Proved }   // .proof(NodeID) or .unbuilt
+                                      in t: inout Table) throws -> Proved     // .proof(NodeID) or .unbuilt
+                           func define(_ c: Defined, _ definitions: [Definition],
+                                       in t: inout Table) throws -> Stated }  // .statement(NodeID) or .unbuilt
 ```
+
+- **`after` sees the node as it stood** (`was`), beside `n`, rebuilt from its rewritten children: a rule consuming a
+  term reads Isabelle's formula there, never a named form back (I1). Reify's instance reads it; every other rule
+  ignores it.
 
 - **A pass never writes its own recursion.** It supplies a rule for the kinds it handles;
   every other kind is rebuilt from its rewritten children.
@@ -952,17 +960,19 @@ and the proof must be built against the changed one.
 ⋀x. (mem(x,y) ⟹ mem(x,y))     →     ∀x. (set(x) → (mem(x,y) → mem(x,y)))
 ```
 
-**The passes.** Expand has its rules, Logic its rules for a proposition's letter and the logic's propositional axioms,
-and Fol its rules for binders and variables at `i`; the rest are declared, unbuilt ("Lowering's components", below).
+**The passes.** Expand has its rules; Logic its rules for a proposition's letter, the logic's propositional axioms and
+Pure's equality at `o` and at functions of propositions, and in its walk Reify's, a term named where it stands and an
+instance at a compound term; Fol its rules for binders and variables at every object type and `∃` at `i`; the rest are
+declared, unbuilt ("Lowering's components", below).
 
 | # | pass | FOUNDATION | status |
 |---|---|---|---|
 | — | **expand** — the logic's defined constants unfolded, a citation of their definitions as `Pure.reflexive` | — | BUILT, below |
-| — | **fol** — the binders and variables at `i`: a guard on each binder, fol-zfc's variables | R3, S6's enforceable form | BUILT, below |
-| — | **logic** — an instance at `o` as a schema's `schema_inst`, or reduced on a ⋀-intro; the logic's propositional axioms as the kernel's steps | S4 | BUILT, below |
-| — | the rest of **logic**, **reify**, the rest of **fol** — the meta level lowered onto FOUNDATION §1a; each component's business in "Lowering's components", below | S1, S3, S4, S5, R3 | DECIDED, below; not built |
+| — | **fol** — the binders and variables at every object type and `∃` at `i`: the guard Reify gives each binder, fol-zfc's variables | R3, S5, S6's enforceable form | BUILT, below |
+| — | **logic** — an instance at `o` as a schema's `schema_inst`, or reduced on a ⋀-intro; the logic's propositional axioms as the kernel's steps; Pure's equality at `o` and at functions of propositions; Reify's naming and its instance at a compound term | S1, S4 | BUILT, below |
+| — | the rest of **logic** — Lambda's instance at a class type, Pure's equality at objects — and Reify's provers, EX and UNIQ; each component's business in "Lowering's components", below | S1, S3, S4, S5, R3 | DECIDED, below; not built |
 
-### Lowering's components  **[DIVISION DECIDED 2026-10-13 (user), TYPING A REGISTRY 2026-10-14 (user); THE INTERFACE AGREED AND BUILT 2026-10-13 — `Sources/IR/Pass.swift`, `Sources/Lowering`]**
+### Lowering's components  **[DIVISION DECIDED 2026-10-13 (user), REIFY AND TYPING ONE COMPONENT, THE REGISTRY APART 2026-10-14 (user); THE INTERFACE AGREED AND BUILT 2026-10-13 — `Sources/IR/Pass.swift`, `Sources/Lowering`]**
 
 **Each component minds its own business** (user, 2026-10-13). In the reference every component knew the others'
 gaps (`kinds-proposal` DESIGN.md, "Step C by contracts", reasons 1–3). Here a piece belongs to one component, and a
@@ -970,12 +980,14 @@ component that meets another's piece calls that component or cites its lemma; it
 
 | component | its business | calls |
 |---|---|---|
-| **Logic** | the logic's own primitives. First `expand` — the reference's, kept, and extended to Pure's defined constants, which this reader reads as defined: every Pure, IFOL and FOL defined constant unfolded by its definition at the use's type, and a citation of that definition read as `Pure.reflexive`. Then IFOL's and FOL's rules as the kernel's steps, and Pure's rules and `≡` at every type, congruence included | — |
-| **Reify** | S1: a compound term becomes a variable where it stands. It states and proves the EX and UNIQ of each function it names, by one walk over a term ("The unit and its citations", point 4), and nothing more | Typing, for guards; Tuple |
-| **Lambda** | a wrapper: a λ's class is function reify's of its body | Reify |
-| **Typing** | no pass. The registry: it hands each lemma to the component that states it. The guard each binder type gets (a set, a function, and so on); the typing lemmas, the discharges and the helpers | — |
+| **Logic** | the logic's own primitives. First `expand` — the reference's, kept, and extended to Pure's defined constants, which this reader reads as defined: every Pure, IFOL and FOL defined constant unfolded by its definition at the use's type, and a citation of that definition read as `Pure.reflexive`. Then IFOL's and FOL's rules as the kernel's steps, and Pure's rules and `≡` at every type, congruence included; replacement of equivalents over a formula, its holes the caller's (`Replacement`), the one home of every congruence | — |
+| **Reify** | terms and their types ("Reify and Typing as one component"). S1: a term, and a λ in a class slot, named where it stands; a constant's class, stated by its `@def`; an instance at a compound term, citing the EX and UNIQ of the term, which its prover states and proves per term, a constant's typing lemma being its EX; the guard each binder type gets (`set`, `function`, none) and its discharge ("Reify — S1 at the site"). No pass of its own: the logic pass's walk calls its code ("Reify called from Logic's walk") | Logic's replacement walk, Tuple |
+| **Lambda** | a wrapper: a λ in a class slot is named by its definition where it stands, Reify's naming; Lambda's own are an instance at a class type, β as proof, and the λ's class existence, which EX's prover cites | Reify |
 | **Tuple** | the tuple's lemmas at every arity — the reference's, kept | base |
-| **Fol** | every isa binder and variable becomes fol-zfc's: a binder with the guard Typing gives its type, an instance and the guard of a variable discharged by that variable's guard; then `legalize` | Typing |
+| **Fol** | every isa binder and variable becomes fol-zfc's: a binder with the guard Reify gives its type, an instance and the guard of a variable discharged by that variable's guard; then `legalize` | Reify, for guards |
+
+**The registry is no component**: it hands each lemma to the prover of the component that states it (`Provers`), knows
+no type, and holds no lemma; the unit does.
 
 ⚠ **REIFY NEVER HANDLES A CONGRUENCE OR A BODY.** A congruence belongs to whatever produced it. It is Logic's where a
 proof applies Pure's or IFOL's rules, and it belongs to the translation of a Pure or FOL constant where that constant
@@ -1022,20 +1034,20 @@ own rows exactly.
 | patterns | owner |
 |---|---|
 | a Pure, IFOL or FOL defined constant, or a ZF one at the meta level ("Expand", point 6); a citation of its definition | Logic, `expand` |
-| a citation of a Pure, IFOL or FOL axiom; Pure's `≡` at a function type; an instance at `o`; a binder or an instance at a type beyond objects other than `o` (a function of propositions or of classes) | Logic |
-| an applied constant (a ZF primitive, a ZF definition at the object level, a declared constant, `IFOL.eq`); an applied variable; a `λ`, through Lambda | Reify |
-| a binder, an instance, a variable or the guard of a variable at `i`, `iⁿ ⇒ i` or `iⁿ ⇒ o` | Fol, with the guard Typing gives the type |
+| a citation of an IFOL or FOL axiom; Pure's equality steps; Pure's `≡` at a function type; an instance at `o`; a binder, an instance or a `λ` at a type beyond objects other than `o` (a function of propositions or of classes) | Logic |
+| an applied constant (a ZF primitive, a ZF definition at the object level, a declared constant, `IFOL.eq`); an applied variable; a `λ` at an object type; an instance at a class type, Lambda's | Reify, in the logic pass |
+| a binder, a variable or the guard of a variable at `i`, `iⁿ ⇒ i` or `iⁿ ⇒ o`; an instance at `i`; `∃`-intro and `∃`-elim at an isa binder at `i` | Fol, with the guard Reify gives the type |
 | a bound variable at another type | Fol, unbuilt: no such variable outlives its binder's owner |
 | the both dialect's connectives, ⟹-intro and ⟹-elim, a hypothesis, a theorem or a lemma cited at no type arguments, and a binder, its intro and its variable at `o`, the schema's letter ("Logic") | none: fol-zfc has them |
 | a type variable, `OFCLASS` or a theorem cited at type arguments (decision 4); the hidden variable; a citation of a ZF axiom, a theory axiom or a ZF definition at the object level | **no owner yet**: each is its component's design question, and is refused before the first pass |
 
-**Built.** `Lowering.plan` is the four passes in order — expand, logic, reify, fol — and `Lowering.pipeline` adds
-Typing's registry, proving after reify. Reify is unbuilt: a switch over `Pattern` stating its rows, and no rule.
-Expand and Logic have their rules ("Expand", "Logic", below). Fol has the rules for binders, instances, variables and guards of
-variables at `i`. `Pattern.dialects`
-replaces `Node.dialects` and `legalize` reads it. `RulePass` is gone: no rule writes a pattern its pass owns, so one
-walk is the whole pass. `forall_elim` takes an isa variable of any type but `o`, as `folPred` does. `lower` counts a
-statement only when it reaches fol-zfc.
+**Built.** `Lowering.plan` is the three passes in order — expand, logic, fol — and `Lowering.pipeline` adds the
+registry, `Provers`, proving after logic. Reify has no pass: the logic pass's switch asks Reify's for every pattern
+Logic's own does not claim, and Reify has no rule. Expand and Logic have their rules ("Expand", "Logic", below). Fol has
+the rules for binders, instances, variables and guards of variables at `i`. `Pattern.dialects` replaces `Node.dialects`
+and `legalize` reads it. `RulePass` is gone: no rule writes a pattern its pass owns, so one walk is the whole pass.
+`forall_elim` takes an isa variable of any type but `o`, as `folPred` does. `lower` counts a statement only when it
+reaches fol-zfc.
 
 **Measured** (`isa2fol lower data/zf_export`): of the 9,420, 0 are lowered, and each is refused where it first stops.
 No pattern has two owners.
@@ -1050,19 +1062,20 @@ No pattern has two owners.
 None reaches Fol. The pipeline takes 17.0 s after a 61.9 s read, most of it spent computing each statement's
 patterns.
 
-### The unit and its citations — the framework's other half  **[AGREED AND BUILT 2026-10-14 — points 1–3 and 5, and the four-pass plan; 4 and 6 in their own steps — `Sources/IR/Pass.swift`, `Sources/Reader/Reader.swift`, `Sources/Lowering/Typing.swift`, `Fol.swift`]**
+### The unit and its citations — the framework's other half  **[AGREED AND BUILT 2026-10-14 — points 1–3, 5 and 6, the plan, three passes since "Reify called from Logic's walk", and the `@def` since "Reify — S1 at the site"; 4 in its own step — `Sources/IR/Pass.swift`, `Sources/Reader/Reader.swift`, `Sources/Lowering/Provers.swift`, `Fol.swift`]**
 
 The pass-sets interface says which pass lowers what. This says what the reader hands lowering, and how a statement, a
 lemma and a citation meet (I2; prerequisite 2 of the pass plan). Every component after Expand meets through it: Reify
-states and proves EX and UNIQ, Typing keeps the registry, Tuple provides the tuple's lemmas. Built first, it leaves no
-component to invent its own way to request, cite or refuse a lemma.
+states and proves EX and UNIQ, the registry routes each lemma, Tuple provides the tuple's lemmas. Built first, it leaves
+no component to invent its own way to request, cite or refuse a lemma.
 
 Today `lower`'s unit holds the named theorems only, `Statement` is `(name, root, proof)`, `Cited` has the reader's four
 kinds, and nothing falls with a statement it cites.
 
-**The plan is `expand · logic · reify · fol`, with Typing's registry proving between reify and fol.** Typing is not a
-pass (the division above): Reify states and proves EX and UNIQ, and Fol walks every binder, with the guard Typing gives
-its type. The guard pass's rules are Fol's ("Fol — binders, guards and variables", below).
+**The plan is `expand · logic · fol`, with the registry proving between logic and fol.** Neither the registry nor Reify
+is a pass; the logic pass calls Reify's code ("Reify called from Logic's walk"): Reify states and proves EX and UNIQ,
+and Fol walks every binder, with the guard Reify gives its type. The guard pass's rules are Fol's
+("Fol — binders, guards and variables", below).
 
 **1. The reader provides what its theorems rest on.**
 - **Every theorem they cite at no type arguments, transitively.** `read` proves the 200 cited outside the ZF sessions,
@@ -1073,8 +1086,8 @@ its type. The guard pass's rules are Fol's ("Fol — binders, guards and variabl
   reached, at each type it occurs at: `Definition(constant, type, definiens)`, an IR value, the `b` of `c ≡ b` read at
   that instance by the reader's one reading (I1).
 - **A definition is lowered with the statements up to the pass that owns its constant, and read there.** Expand reads
-  a Pure, IFOL or FOL definition as read, to unfold its constant; Reify's prover reads a ZF definition as expand and
-  logic left it, to prove EX and UNIQ (point 4). A pattern that a pass before the owner has not built stops the
+  a Pure, IFOL or FOL definition as read, to unfold its constant; Reify's prover reads a ZF definition as Expand left
+  it, to prove EX and UNIQ (point 4). A pattern that a pass before the owner has not built stops the
   definition there, and a lemma whose proof needs it is refused at the registry.
 - An axiom a proof cites needs no provision: the citation carries its statement at its types (§4.7). The one Expand
   cites, `Pure.reflexive` at each definition's equation type, comes with the definition ("Expand", point 4).
@@ -1082,20 +1095,20 @@ its type. The guard pass's rules are Fol's ("Fol — binders, guards and variabl
   expanded, compiled and guarded each ZF definition outside the pipeline.
 
 **2. A citation of a theorem or a lemma names a statement of the unit, and falls with it.** `A` cites `B`, and `B`
-stops at reify on a term only its proof holds. `A` holds `B`'s statement but not its proof, so the pipeline lowers
+stops at logic on a term only its proof holds. `A` holds `B`'s statement but not its proof, so the pipeline lowers
 `A`, citing a claim that is never emitted. After the last pass, a statement citing a refused one is refused,
 `cites(B)`, transitively (I2). The run stops on a citation naming no statement of the unit, on one whose root is not
 its statement's root by ID, and on a cycle of citations.
 
-**3. A lemma is stated and proved by the component that owns its request; Typing's registry routes it.**
+**3. A lemma is stated and proved by the component that owns its request; the registry routes it.**
 - A component cites a lemma by a typed request (I1): `use(.lemma(r), [], root)`. IR holds `r` by an identity and a
   name and never reads it (D3). The pattern is `use(lemma, [], o)`: both dialects, owned by no pass.
 - The request's owner states `root` from `r` alone (I2), in the registry's vocabulary: no pattern that a pass before
   the registry owns. So every citer, at any pass, cites one node, and the passes before the registry leave it unchanged.
 - After each pass, the pipeline adds every lemma that pass's output cites and the unit lacks, as a statement without a
   proof, in the order the walk meets them (§4.6 R3).
-- After reify, the pipeline hands Typing's registry each lemma without a proof. The plan gives the registry one prover
-  per component that states lemmas — Reify, Tuple, Typing itself — so Typing never calls one by name. A prover owns its
+- After logic, the pipeline hands the registry each lemma without a proof. The plan gives the registry one prover per
+  component that states lemmas — Reify, Tuple — so the registry never calls one by name. A prover owns its
   requests by ONE exhaustive switch, as a pass owns its patterns, and answers each with a proof concluding its
   statement by ID, in the vocabulary of every other proof before fol and checked at once as a pass's output is; or
   with unbuilt, which refuses the lemma there. A proof may cite more lemmas; they are added and proved in turn, until none is new.
@@ -1108,9 +1121,8 @@ its statement's root by ID, and on a cycle of citations.
               T                                  L                                    unit holds
   reader      statement + proof                                                       T, what it cites, definitions
   expand      ●  unfolds by its definitions
-  logic       ●
-  reify       ●  T's proof now cites L ─────────► added: S, as L's owner states it;   T, L
-                                                  no proof
+  logic       ●  T's proof now cites L ─────────► added: S, as L's owner states it;   T, L
+                 (Reify's code, in logic's walk)  no proof
   registry                                        ● handed to L's prover: a proof     T, L
                                                     of S, or unbuilt: L refused
   fol         ●  S becomes S′ in T's proof        ●  S becomes S′: one node            T, L
@@ -1121,7 +1133,8 @@ its statement's root by ID, and on a cycle of citations.
   strings (`c + "_EX"`).
 
 **4. EX and UNIQ: one walk over a term, recursive through the registry.** Reify's prover proves `EX c` by walking c's
-body as a term, the walk Reify makes wherever Isabelle instantiates at a compound term. At each application it cites
+body as a term. A use of `c` cites `EX c` and never builds it, so the proof and the uses share no walk. At each
+application it cites
 the head's EX, which the registry proves in turn by the same walk over that head's definition, down to the primitives,
 whose EX and UNIQ come from base (S3: a body uses only constants defined before it). It walks the term only: a formula
 inside, such as a class argument `λx. φ`, stays with its owner. `UNIQ c` is the same walk, citing each head's UNIQ,
@@ -1129,7 +1142,7 @@ the tuple's UNIQ and membership's congruence (base).
 
 ```
 EX succ, succ ≡ λi. cons(i, i): for every set x, some set r with ⟨⟨x⟩, r⟩ in succ's class
-  some set r = cons(x, x)            the walk over cons(x, x), as expand and logic left it:
+  some set r = cons(x, x)            the walk over cons(x, x), as Expand left it:
     the tuple ⟨x, x⟩ exists            Tuple: the tuple's EX at 2
     cons has a value at it             EX cons, cited: the registry hands it to Reify, which walks
                                          Upair(a, a) ∪ A the same way, down to the primitives
@@ -1138,7 +1151,7 @@ EX succ, succ ≡ λi. cons(i, i): for every set x, some set r with ⟨⟨x⟩, 
 
 **5. The guard of a variable.** A proof before fol may need a guard that fol has not written yet: citing base's
 `Pow_EX: forall A. (set(A) -> …)` at its own variable `y` needs `set(y)`. It writes `isaGuard(y, G)`, the guard of `y`,
-concluding `G`, the guard Typing gives `y`'s type. The step carries its formula, as `hyp` does, so IR knows no guard.
+concluding `G`, the guard Reify gives `y`'s type. The step carries its formula, as `hyp` does, so IR knows no guard.
 Fol replaces it by the hypothesis it introduces at `y`'s binder, as it does for an instance at `y`. The guard of a
 variable whose binder brings none, or another one, is malformed and throws.
 
@@ -1155,20 +1168,27 @@ implies_elim with the guard of y            _3 = implies_elim _2, _0   ← the g
 hand (the reference's `Base.claims`); a schema, by instantiation (§4.7's `schema_inst`). Built in the first step that
 cites base.
 
-Not in this step: emission, the unit in the order its citations and definitions require; a `@def` as a prover's
-answer, which waits on decision 5; and point 4 itself, Reify's own step, which this one gives the registry, the
-definitions and the guard of a variable.
+Not in this step: emission, the unit in the order its citations and definitions require; and point 4 itself, EX's
+and UNIQ's prover, which this one gives the registry, the definitions and the guard of a variable. Since "Reify — S1 at
+the site" a use cites EX and UNIQ of its whole term, closed over the term's variables, and their prover composes the
+heads' facts.
+
+**A `@def` is a prover's answer** ("Reify — S1 at the site"). After logic, for each defined constant whose class
+predicate a statement names, the registry asks the prover that defines it, unless the constant's definition, read under
+its parameters, holds a pattern no pass owns or one a pass up to the registry leaves unbuilt: then the `@def` is
+refused there. The unit holds a `@def` as a definition: no proof, its shape checked (R1), linked to every statement
+naming the constant as to a citation, and a refusal carried to each.
 
 **The contracts (D2):**
 
 | | provides | assumes |
 |---|---|---|
 | Reader | each named theorem of the ZF sessions and each theorem they cite at no type arguments, `(statement, proof)`; each definition they reach, at every type, with what Expand cites it by ("Expand", point 4) | an export of one build |
-| the pipeline | each pass's input; each definition, as it stands at its owner's input, to that pass and to the provers; each cited lemma added once; the registry asked after reify; every citation linked, every refusal carried to its citers | each pass's `owns`; one registry |
+| the pipeline | each pass's input; each definition, as it stands at its owner's input, to that pass and to the provers; each cited lemma added once; the registry asked after logic; every citation linked, every refusal carried to its citers | each pass's `owns`; one registry |
 | a citer | `use(.lemma(r), [], root)`, `root` the owner's statement of `r` | the registry proves `r`, or refuses it there |
-| Typing's registry | each lemma handed to the one prover that owns its request | the plan's provers |
+| the registry | each lemma handed to the one prover that owns its request | the plan's provers |
 | a prover | for each request it owns, by one switch: its statement, from the request alone, and a proof of it, or unbuilt | the definitions at their owners' input; the statements of the lemmas it cites |
-| Fol | each binder with the guard Typing gives its type; each instance and each guard of a variable discharged by that variable's guard; each variable fol-zfc's | Typing's guards |
+| Fol | each binder with the guard Reify gives its type; each instance and each guard of a variable discharged by that variable's guard; each variable fol-zfc's | Reify's guards |
 
 **Tests, written first.** `PipelineTests`, on fake passes and a fake registry: a statement citing a refused one is
 refused, transitively; a lemma two statements cite is added once, unchanged until the registry, and lowered with both
@@ -1179,9 +1199,9 @@ citations, a lemma cited after the registry, a lemma holding a pattern that a pa
 lemma named as a theorem. `TableTests`: the guard of a variable concludes its formula. `ReaderTests` (`UnitTests`): the
 unit holds each theorem its theorems cite at no type arguments, and the definition of each constant they reach, at
 each type, `c ≡ λx. b` and `primrec`'s applied `c(x) ≡ b` alike. `LoweringTests`: the guard's tests, run on Fol, and
-the guard of a variable (`FolTests`); Typing's registry hands a lemma to the one prover owning its request, and a
-request no prover or two own stops the run (`TypingTests`); the plan is the four passes, the registry proving after
-reify with no prover yet (`PlanTests`).
+the guard of a variable (`FolTests`); the registry hands a lemma to the one prover owning its request, and a request
+no prover or two own stops the run (`ProversTests`); the plan is its passes, the registry proving after the
+last one before fol, with no prover yet (`PlanTests`).
 
 **Built.**
 - IR: `Statement` is a theorem or a lemma (`lemma: Lemma?`, `proof: NodeID?`); `Cited.lemma(Lemma)`, `Lemma` holding a
@@ -1191,7 +1211,7 @@ reify with no prover yet (`PlanTests`).
 - Reader: `Reader.unit()`. ⚠ **A DEFINITION IS WRITTEN IN TWO FORMS**: `c ≡ λx. b`, and the applied `c(x) ≡ b` that
   `primrec` writes, its arguments the axiom's frees in their order (`ZF.iterates.iterates_nat_def`). Both read as the
   definiens `λx. b`; a third form stops the read, `MalformedExport.notADefinition`.
-- Lowering: `Typing` is the registry, routing to `Prover`s; `Lowering.pipeline` has none yet. Fol has the guard's rules,
+- Lowering: `Provers` is the registry, routing to `Prover`s; `Lowering.pipeline` has none yet. Fol has the guard's rules,
   makes a variable at `i` fol-zfc's (`folBound(k)`), and resolves the guard of a variable.
 
 **Measured** (`isa2fol lower data/zf_export`): the unit holds the 9,420 named theorems, 133 they cite outside the ZF
@@ -1476,7 +1496,8 @@ run grew the read past 20 GB and 8 minutes before it was stopped, against 4.3 GB
 disjI2 disjE FalseE iff_reflection`; FOL's `classical`. A citation of one becomes the kernel's proof of its statement: a
 ⋀-intro at `o` per letter around the kernel's step, built from the `Axiom` alone (I1), never by reading the statement
 back. The eliminations above it reduce it (3), so each use is the kernel's own rule at its instance (FOUNDATION §3b),
-and the pipeline checks that each proof still concludes its statement, by ID.
+and the pipeline checks that each proof still concludes its statement, by ID. Since the second step Pure's five are no
+axioms but steps, and the instances are IFOL's and FOL's 11.
 
 ```
 axiom, as read after Expand                     its proof, inside a ⋀-intro per letter
@@ -1516,8 +1537,8 @@ no fol-zfc statement. `f ≡ g` at `o ⇒ o` says `⋀P. f P ↔ g P`, a proposi
 instance, `φ(A) ↔ φ(B)` from `A ↔ B`, is the context's congruence, proved per formula from `base`'s `cong_*` schemas. At
 an object function type, `f ≡ g` is pointwise, `∀x. f x ↔ g x`, a statement over classes. That design is the next
 step. Pure's rules at `i` wait with it: `≡` at `i` is `IFOL.eq`, and their proofs are base's `eq_refl`, `eq_symm` and
-`eq_trans`, cited by the first step that cites base (point 6 of "The unit and its citations"). `IFOL.TrueI`'s own proof
-rewrites by `combination` at `[o, o]`, so the 51 that fall with it stay.
+`eq_trans`, cited where Reify names their sides, in the logic pass's walk ("Reify called from Logic's walk").
+`IFOL.TrueI`'s own proof rewrites by `combination` at `[o, o]`, so the 51 that fall with it stay.
 
 **The contracts (D2):**
 
@@ -1569,18 +1590,606 @@ outside the ZF sessions lower with them, schemas the kernel's steps prove. Refus
 leave logic, 516 stop at reify; no statement reaches the letter grammar off its spine yet, since every one holding such
 a letter holds a pattern Reify owns. Read 65.8 s, lowered 20.5 s.
 
-### Fol — binders, guards and variables  **[BUILT 2026-09-28 as the guard; Fol's 2026-10-14 — `Sources/Lowering/Fol.swift`]**
+### Reify called from Logic's walk — the plan of three passes  **[AGREED AND BUILT 2026-10-14 — `Sources/Lowering/Plan.swift`, `Reify.swift`, `Logic.swift`]**
 
-**The quantified variables of type `i` get a guard, the binder becomes fol-zfc's, and so does the variable.** The
-guard was Typing's pass until 2026-10-14; Typing keeps no pass ("The unit and its citations"), so Fol writes each
-binder with the guard Typing gives its type (`Typing.guarded`). A variable keeps `isaBound(k, T)`, its type, until
-Fol: that type is how Fol tells a set binder from a class binder.
+**Reify stops being a pass.** Its code stays Reify's, and the division is unchanged: Reify names a compound term where
+it stands (S1) and states and proves EX and UNIQ. Only the plan changes. Reify no longer walks the unit: the logic pass
+calls Reify's code at each of Reify's pieces, and wherever a rule of Logic's needs a term as a variable. A component is
+how the code is organized, never a framework notion (user, 2026-10-14): the framework knows passes only, and is
+unchanged. The registry has no pass either.
 
-⚠ **A VARIABLE BECOMES `folBound` ONLY AT `i`, AND ONLY IN FOL, THE LAST PASS.** A `folBound` is typed `i`, so a class
-variable relabelled while a pass still reads types would look like a set, open to `set(P)`; the guard relabelled before
-reify until 2026-09-29. So Fol relabels a variable at `i` in the walk that guards its binder, and a variable at a class
-type stays isa with its binder, both unbuilt. An instance's discharge reads the binder's entry in the context, never
-the instance's rewritten child.
+```
+before      expand · logic · reify · fol      the registry after reify
+now         expand · logic · fol              the registry after logic; Reify's code called in logic's walk
+```
+
+**The problem, in target text.** With Reify a pass after Logic, no rule of Logic's can name a term, yet every fact Logic
+needs about one is stated over variables: base's `eq_symm`, `eq_trans` and `mfun_comb`; Reify's EX and UNIQ; a
+constant's argument congruence.
+
+```
+Isabelle   symmetric p,   p : f(a) = b                                     ⊢ b = f(a)
+wanted     eq_symm at r and b, applied to p, where r names f(a): ⟨⟨a⟩, r⟩ ∈ F
+logic      f(a) is still a term, and fol-zfc instantiates only at a variable: eq_symm cannot be cited here
+reify      names f(a), but the step is Logic's, and Logic has run
+```
+
+The only way through was a copy of each fact in Isabelle's vocabulary, which Logic states, Reify lowers and the registry
+proves; its statement would hold Reify's patterns, which point 3 of "The unit and its citations" forbids. With Reify's
+code in Logic's walk, the rule has `f(a)` named where it stands and cites `eq_symm` as base states it.
+
+**1. One walk.** The logic pass owns Logic's pieces and Reify's: an applied constant (`IFOL.eq` among them), an applied
+variable, a λ at an object type. Its `owns` answers Logic's own pieces and asks Reify's switch for every pattern Logic's
+does not claim. Reify's switch, exhaustive over `Pattern` in Reify's file (D3), lists Logic's pieces among those it does
+not claim. To the pipeline the logic pass owns patterns by one `owns`, as every pass does.
+
+**2. What Reify provides.**
+- Per constant: its class, and its lemmas, EX and UNIQ, each stated from the constant alone and proved once by the
+  registry. A use cites them and never builds one.
+- Per site: a term named where it stands (S1), and a statement instantiated at a compound term (FOUNDATION §3b's
+  `appt_complex`), citing EX, and UNIQ where two namings of one term meet.
+- No state of its own. Naming a term is a function of its site alone, its variable bound where it stands (`P(f(a))`
+  is `∃r. ⟨⟨a⟩, r⟩ ∈ F ∧ P(r)`), so interning gives one node per site whoever asks, the walk or a rule of Logic's, and
+  every consumer matches its premise by ID. The lemmas it requests are the unit's, added once by the pipeline (I2). A
+  cache would be for speed only.
+
+It assumes ZF's definitions as Expand left them: its prover walks a body as a term.
+
+**3. No rule writes an unnamed term.** No pass after logic names one. A rule of Logic's that needs a term as a variable
+asks Reify, and an instantiation at a compound term, Logic's β at a box among them, has Reify name the argument first
+and instantiates at its variable. "A pass never writes a pattern it owns" now holds Logic to Reify's pieces too.
+
+**4. Logic's rules at objects meet named premises.** In one bottom-up walk a step's premises arrive named, and those
+rules need the sides as they stood, `f(a)` rather than its naming, to hand Reify. How they read them is the design of
+the step that builds them; reading a named form back would be parsing back (I1).
+
+**5. A λ is named where it is consumed, never at its own node.** That keeps the reason the plan ran logic before reify
+("The meta level, lowered", decision 2): an IFOL rule at a λ, reduced by Logic, builds no class. In one walk the λ's node
+is reached before the step holding it, so Lambda's rule acts at that step, not at the λ. A λ is divided by its type: at
+an object type Reify's, through Lambda; beyond objects, over propositions or over classes, Logic's, a context its Pure
+step consumes. Today Reify owns every λ, which works only because Logic consumes its own before Reify runs: in one walk
+the 416's `λP. P` would be refused as Reify's unbuilt piece.
+
+**6. The registry proves after logic.** A lemma's statement still holds no pattern of a pass before the registry, now
+expand and logic, Reify's pieces included. EX and UNIQ are stated over variables, as before.
+
+**The agreed text changed with it.**
+- "Lowering's components": the plan; the owner table, Reify's pieces owned by the logic pass and dispatched to Reify's
+  code, a λ beyond objects Logic's.
+- "The unit and its citations": the plan line and the diagram, the registry after logic; point 1, Reify's prover reads
+  a ZF definition as Expand left it; point 4 loses "the walk Reify makes wherever Isabelle instantiates at a compound
+  term": a use cites EX, EX's proof walks the definition, and the two share no walk.
+- "Logic", point 7: base's `eq_*` are cited where Reify names their sides, not by the first step that cites base.
+- "The meta level, lowered": the passes table and decision 2.
+- `CLAUDE.md`: the plan.
+
+**The contracts (D2):**
+
+| | provides | assumes |
+|---|---|---|
+| Reify | per constant, its class and lemmas, proved once by the registry; per site, a term named where it stands and an instance at a compound term, one node per site | the logic pass asks it at each of its pieces; ZF's definitions as Expand left them |
+| Logic | its rules; a term it needs as a variable asked of Reify, never written | Reify's provisions |
+| the logic pass | Logic's pieces to Logic's rules, every other pattern to Reify's switch | Logic's switch and Reify's claiming no pattern in common |
+| the pipeline | the registry asked after logic | — |
+
+**Tests, written first.**
+- `PlanTests`: the plan is expand, logic, fol, the registry proving after logic; each of Reify's pieces is the logic
+  pass's, as Reify's switch answers it, and Reify's switch claims none of Logic's; a λ at an object type and one
+  beyond objects are both the logic pass's.
+- Reify's own step adds its tests: a site named twice is one node, whoever asks; a use cites EX and builds no chain.
+
+**Built.** `Reify` is no `Pass`: a struct holding its switch, which `Logic.owns` asks for every pattern Logic's own
+switch does not claim. A λ at an object type is Reify's, a λ beyond objects Logic's, unbuilt. `Lowering.plan` is
+`[Expand(), Logic(), Fol()]`, the registry proving after `logic`. Reify has no rule yet: a statement holding one of its
+pieces is refused before the logic pass. The framework is unchanged.
+
+**Measured** (`isa2fol lower data/zf_export`), as deduced from each statement being refused where it first stops: 3
+lowered, and 23 theorems cited outside; no owner 7,176; logic 2,189, the 558 and the 1,631 that stopped at reify,
+naming 277 patterns, Reify's among them (`isaConst(defined zf object, (i => i), args: [i])` 1,268, the most frequent);
+52 cite a refused statement. Read 64.9 s, lowered 20.9 s.
+
+**Kept from the reference, and changed.** The reference ran reify as a pass after logic, and carried Logic's congruence
+across it in a node, `isaCongruence`, for its reify to expand. Kept: S1 at the site; an instance at a compound term by
+EX (`appt_complex`); UNIQ where two namings meet. Changed: no reify pass and no node crossing one; Reify's code is called
+where its piece stands.
+
+### Reify and Typing as one component; the registry apart  **[AGREED AND BUILT 2026-10-14 — `Sources/Lowering/Provers.swift`, `Reify.swift`, `Fol.swift`]**
+
+**The problem: one fact proved twice, one concept in two homes (D3).** The division gives Typing "the typing lemmas" and
+the guard each type gets, and Reify EX and UNIQ:
+- A constant's typing lemma, its value at sets a set (the reference's `Typing.statement`, `∀x. set(x) → ∃y. set(y) ∧
+  y = c(x)`), is its EX, in the class form `∃r. set(r) ∧ ⟨⟨x⟩, r⟩ ∈ F`. Both components would walk the constant's
+  definition to prove it.
+- The guard of a variable at `iⁿ ⇒ i` is `mfun`, a class that is a function on the tuples; a constant's EX and UNIQ are
+  its class's `mfun` ("The meta level, lowered", decision 5). Typing's discharge of that guard at a constant's class
+  would cite Reify's lemmas.
+- Naming a term needs EX, and the guard `set(r)` of the variable that names it: Reify would call Typing for the guard.
+
+**The replacing rule: Reify is the one component for terms and their types.**
+
+| Reify | provides |
+|---|---|
+| per site | a term named where it stands (S1); a statement instantiated at a compound term (§3b's `appt_complex`) |
+| per constant | its class, stated by its `@def`; EX and UNIQ, stated per term an instance meets ("Reify — S1 at the site", the build's refinements) and proved from the definitions, cited by every use |
+| per type | the guard: `set(x)` at `i`, `function(F)` at `iⁿ ⇒ i` (single-valued, no arity: a function variable's application is base's `apply`), none at `iⁿ ⇒ o`; and its discharge: at a variable by its binder's hypothesis (Fol's), at a named term by S1's `∃`, at a constant's class by its EX and UNIQ |
+
+It keeps no state of its own ("Reify called from Logic's walk", point 2).
+
+**The registry stays apart.** It routes a lemma request to the one prover owning it, Reify's or Tuple's, knows no type
+and holds no lemma, the unit does. That is the pipeline's plumbing, not a component's business, so it is named
+for what it is. In code `Typing`, the `Registry` the pipeline asks, becomes `Provers`, and `TypingError` becomes
+`ProversError`; `Typing.guarded` moves to Reify, which Fol asks for a binder's guard.
+
+**The agreed text changed with it.**
+- "Lowering's components": the division table loses Typing's row; Reify's gains the guards and their discharge, and the
+  typing lemma as its EX; Fol "calls Reify, for guards"; the registry gets a line of its own. The owner table's Fol
+  row: "with the guard Reify gives the type".
+- "The unit and its citations": "Typing's registry" becomes "the registry", and the provers per component are Reify's
+  and Tuple's; point 5, "the guard Reify gives `y`'s type"; the contracts.
+- "Fol": `Reify.guarded`; "Reify has no guard for the type yet".
+- §1 and `CLAUDE.md`: Typing's registry becomes the registry.
+
+**The contracts (D2):**
+
+| | provides | assumes |
+|---|---|---|
+| Reify | per site, per constant and per type, as above | ZF's definitions as Expand left them; Tuple's lemmas; base |
+| the registry | each lemma handed to the one prover owning its request | the plan's provers |
+| Fol | each binder with the guard Reify gives its type; each instance and each guard of a variable discharged by that variable's guard | Reify's guards |
+
+**Tests, written first.** `TypingTests` become `ProversTests`, unchanged in what they check: one owner proves, none or
+two stop the run, an unbuilt prover refuses the lemma. `FolTests` unchanged: Fol's guard is now asked of Reify.
+
+**Built.** `Typing.swift` is `Provers.swift`: `Provers`, the registry, routes to the plan's `Prover`s and throws
+`ProversError.owners` when none or two own a request. `Reify.guarded` gives the guard at `i`, which Fol asks for. No
+pattern changes owner.
+
+**Measured** (`isa2fol lower data/zf_export`): unchanged, 3 lowered; no owner 7,176; logic 2,189; 52 cite a refused
+statement.
+
+**Kept from the reference, and changed.** The reference's `Typing` built the statements of per-constant lemmas
+(`statement`, `argumentCongruence`) that its reify proved and its other passes cited. Here the component that walks a
+definition states and proves the constant's facts, and the router is not named for a type.
+
+### Logic's second step — Pure's equality read as the kernel's steps; the congruence at a function of propositions  **[AGREED AND BUILT 2026-10-14 — `Sources/Reader/Reader.swift`, `Sources/IR/Table.swift`, `Sources/FolDialect/Parse.swift`, `Sources/Lowering/Logic.swift`, `Base.swift`]**
+
+**Logic's 558 are Pure's equality: `≡` at a function type, and Pure's rules at `i` and at a function type** ("Logic",
+point 7). This step takes the bulk, Pure's rules at `o` and at a function of propositions, which 416 of the 558 hold.
+It needs one change upstream first: Pure's equality rules read as steps.
+
+**The problem, in target text.** The simplifier rewrites `fact ⊢ B` by a rule `q ⊢ A ≡ B` as `equal_elim (symmetric
+(combination (reflexive Trueprop) q)) fact`. The reader erases `Trueprop` and reads `≡` at `o` as `↔`:
+
+```
+R = isaAllElim(use(axiom Pure.reflexive, [o ⇒ o], …), λP. P)                   ⊢ (λP. P) ≡ (λP. P)
+C = isaAllElim⁴(use(axiom Pure.combination, [o, o], …), λP. P, λP. P, A, B)    ⊢ (λP. P) ≡ (λP. P) ⟹ (A ↔ B) ⟹ (A ↔ B)
+    folImpliesElim(folImpliesElim(C, R), q)                                     ⊢ A ↔ B
+```
+
+`R` concludes an equation between functions of propositions, which has no fol-zfc formula: FOUNDATION S4 gives a
+function of propositions no rendering. An equation between object functions has one, pointwise ("The meta level,
+lowered"); beyond objects, at a function of propositions or of classes, there is none. Yet `R` reaches `combination`
+through `⟹`-elim, fol-zfc's own step, which needs its antecedent as a formula. A rule local to `use combination` sees
+neither `R` nor the `λ` it is instantiated at: both stand above it. So `combination` at a function of propositions has
+no local translation in today's reading (D1: design work, raised). The reference evaluated the chain below a base-type
+conclusion into `isaCongruence`: a walk down the chain's shape.
+
+**The replacing rule: Pure's equality rules are read as Pure's own inference steps**, as the reader reads Pure's `⟹` and
+`⋀` (§4.7) and as Isabelle's kernel has them (`Thm.reflexive` … `Thm.equal_elim`). An application is one node whose
+premises are its children, so each rule meets its premises where it stands:
+
+| Pure's rule | read as |
+|---|---|
+| `equal_intr`, `equal_elim` | `folIffIntro(p, q)`, `folIffElimL(p, q)`: `≡` at `o` is `↔`, so they are fol-zfc's own steps, read downstream-first |
+| `reflexive` at `t` | `isaReflexive(t)`, concluding `t ≡ t` |
+| `symmetric`, `transitive` at `T` | `isaSymmetric(T, p)`, `isaTransitive(T, p, q)` |
+| `combination` at `[T, U]` | `isaCombination(T ⇒ U, p, q)`: from `f ≡ g` and `x ≡ y`, `f x ≡ g y`, β-reduced |
+| `abstract_rule` at `[T, U]` | `isaAbstract(T ⇒ U, p)`: from `⋀x. f x ≡ g x`, `(λx. f x) ≡ (λx. g x)` |
+
+The reading of `≡` (`↔` at `o`, `IFOL.eq` at `i`, `Pure.eq` elsewhere) moves from the reader to IR, one home for the
+reader and for the table, which computes these steps' conclusions. Every application in the unit's proofs is complete
+(`combination` 107,827, `transitive` 38,541, `symmetric` 34,953, `reflexive` 19,783, `abstract_rule` 4,069,
+`equal_intr` 51), but for 14 of `equal_elim`'s 45,005, which lack its last premise; those are η-expanded at read (a
+scratch count, not kept). §4.3b changes with it: Pure contributes its equality as inference rules, not axioms; the
+`Axiom.pure` cases and the previous step's kernel proofs of them go.
+
+**A proof of an equation between functions of propositions becomes the congruence it carries.** At `o⃗ ⇒ o`, Logic writes
+it as
+
+```
+ΛP₁ Q₁ … Pₙ Qₙ. (P₁ ↔ Q₁) ⟹ … ⟹ (Pₙ ↔ Qₙ) ⟹ (f P⃗ ↔ g Q⃗)
+```
+
+the letters first, then the hypotheses. It is no reading: the equation is never stated, and this proof stands only
+where its consumer reduces it in the same walk — a `combination`, or a `symmetric` or `transitive` that builds another.
+A stated equation between functions of propositions (a theorem's, a hypothesis's, a cited statement's) has no rule;
+Logic owns it unbuilt, since a definition's citation carries one in its statement, which Expand replaces.
+
+- `isaReflexive(λP⃗. φ)`: φ's congruence, by a walk over φ. A hole is its hypothesis; a subformula with no hole is base's
+  `iff_refl`; a connective is base's `cong_and`, `cong_or`, `cong_imp`, `cong_iff` or `cong_not` at its sides; a `⋀` at
+  `o` is the letter's own steps, whose letters then stand off their spine and are refused after the last pass, as
+  Expand's `&&&` makes them. Any other node above a hole stops the run, `LogicError.context`: no refusal, but a reading
+  missing upstream. A context of propositions is a head: `Trueprop`'s identity, a connective or a partial application of
+  one (its fixed arguments hold no hole), or the body Expand unfolds of one of the logic's constants taking
+  propositions — `prop`, `&&&`, `TERM`, `Not`, `iff`, FOL's `induct_implies` and `induct_conj` — each holding its
+  arguments only under connectives and a `⋀` at `o`. A hole under a binder or inside an argument comes through
+  `abstract_rule` or a `combination` at a class or term type. Measured over the 416: a hole is the whole context, the
+  identity `Trueprop` erases to, 407 times; it stands under connectives 314 times, under a `⋀` at `o` 59 times, and
+  nowhere else.
+- `isaCombination(o ⇒ U, E, q)`: `E`'s first letter pair instantiated at `x`, `y` (β), and `q` applied as its first
+  hypothesis below the letters that remain. At `U = o` the result is fol-zfc.
+- `isaSymmetric`, `isaTransitive` at `o⃗ ⇒ o`: the same form, built from `E`'s with base's `iff_symm` and `iff_trans`,
+  applied through `⟹`-elim, so no proof moves under a new hypothesis.
+- At `o`: `isaReflexive` is base's `iff_refl`, `isaSymmetric` its `iff_symm`, `isaTransitive` its `iff_trans`.
+
+```
+Isabelle   equal_elim (symmetric (combination (reflexive Trueprop) q)) fact
+read       folIffElimL(isaSymmetric(o, isaCombination(o ⇒ o, isaReflexive(λP. P), q)), fact)
+logic      folIffElimL(⟨iff_symm at A, B⟩ applied to ⟨(ΛP Q. λh. h) at A, B⟩ applied to q, fact)
+emitted    _1 = schema_inst iff_symm {A: A, B: B}
+           _2 = implies_elim _1, ⟨(A ↔ B) ⟹ (A ↔ B) by its hypothesis, applied to q⟩
+           _3 = iff_elim_l _2, fact
+```
+
+**Base, cited by its own text** (point 6 of "The unit and its citations"): this step is the first to cite base, so it
+builds point 6. FolDialect parses a base schema from its line, so `schema cong_and [A(0), A2(0), B(0), B2(0)]: …` becomes
+`⋀A A2 B B2::o. …`, the letters' own binders. `Cited.base(name)` cites it at no type arguments: fol-zfc's, and linked to
+no statement of the unit, since base is checked on its own. Its letters are instantiated by `folSchemaInst`. The parser
+reads letters of arity 0 only: a predicate letter (`cong_forall`'s `P(1)`) has no binder in the table, and the step that
+first cites one gives it one.
+
+**Expand: a definition's citation becomes `isaReflexive` at its definiens**, under a `⋀`-intro per parameter for Pure's
+applied form. `Definition.reflexive`, `Pure.reflexive` read at the equation's type, goes.
+
+**Logic's rows after this step:**
+
+| pattern | answer |
+|---|---|
+| `use(axiom a, [], o)`, IFOL's and FOL's 11 propositional instances; `isaAllElim(o, o)` | rule, unchanged |
+| `isaReflexive(T)`, `isaSymmetric(T, o)`, `isaTransitive(T, o, o)`, `T` = `o` or `o⃗ ⇒ o` | rule |
+| `isaCombination(o ⇒ U, o, o)`, `U` = `o` or `o⃗ ⇒ o` | rule |
+| `isaAbs` at a function of propositions | rule: the context its `reflexive` step consumes, never translated at its own node |
+| the same at `i`, at a function of sets or of classes; `isaAbstract`; a `λ` over classes; any other axiom of the logic | unbuilt |
+| `isaConst(primitive Pure.eq, …)` at a function type | unbuilt, unchanged. At an object function type pointwise ("The meta level, lowered"); beyond objects no rule translates a stated one, yet Logic owns it: a definition's citation carries one in its statement, which Expand replaces, and only an owner refuses after Expand |
+| a binder or an instance beyond objects other than `o` | unbuilt, unchanged |
+
+**Unbuilt, for the next step: equality at objects.** At `i` and at an object function type `≡` is first-order, and
+Pure's rules there are theorems base proves from NBG ("The meta level, lowered"): at `i`, `eq_refl`, `eq_symm` and
+`eq_trans`; at a function type, `↔` reasoning under `∀t r`, and `combination` is `mfun_comb`, then β as proof. IFOL's
+`refl` at `[i]` is `eq_refl`, and its `subst` is membership's congruence at the λ's class, then β as proof. Each is
+stated over variables, so a rule citing one needs its sides named, `f(a)` as `r`, in the walk that translates it:
+"Reify called from Logic's walk", above, which this step does not need. Beyond objects, at a function of classes, a hole
+needs a constant's argument congruence, Reify's lemma per constant. IFOL's quantifier rules at `[i]` (`allI`, `spec`,
+`exI`, `exE`) are the kernel's steps, and `eq_reflection` the identity, as the reference had them. The 142 of the 558
+that hold no congruence of propositions stay.
+
+**The contracts (D2):**
+
+| | provides | assumes |
+|---|---|---|
+| Reader | Pure's equality rules as steps, their partial applications η-expanded | an export of one build |
+| FolDialect | a base schema parsed from its text, at the letters' binders | base's files |
+| Expand | a definition's citation as `isaReflexive` at its definiens | the definitions it is handed |
+| Logic | every Pure step at `o` and at a function of propositions as base's schemas and fol-zfc steps; a proof of an equation between functions of propositions in the congruence form, always consumed in the same walk | the reader's row; Expand's; base's `iff_*` and `cong_*` |
+
+**Tests, written first.**
+- `ProofReaderTests`: `combination`, `reflexive`, `symmetric`, `transitive`, `abstract_rule` read as their steps;
+  `equal_intr` and `equal_elim` as `iff_intro` and `iff_elim_l`; an `equal_elim` lacking its last premise η-expanded.
+- `TableTests`: each step concludes by the reading of `≡`, at `o`, at `i` and at a function type; `isaCombination`
+  β-reduces.
+- `ParseTests` (FolDialect): `cong_and`'s line parses to its letters' binders; a malformed line is refused.
+- `LogicTests`: the `Trueprop` identity, so that `equal_elim (symmetric (combination (reflexive Trueprop) q)) fact`
+  concludes as Isabelle's; a section of `∧` taking two equations, through `cong_and`; `symmetric` and `transitive` at
+  `o ⇒ o`; a hole under a `⋀` at `o`, its letters left off their spine; a hole under a constant, `LogicError.context`.
+- `ExpandTests`: a definition's citation is `isaReflexive` at its definiens, and Pure's applied form the same under its
+  parameters' `⋀`-intros.
+- `PlanTests`: the rows above. `PipelineTests`: a base citation is linked to no statement.
+
+**Kept from the reference, and changed** (`kinds-proposal`: `Sources/Lowering/Logic.swift`,
+`Sources/Walk/Congruence.swift`). Kept, the mathematics:
+- `equal_intr` and `equal_elim` are the kernel's `iff_intro` and `iff_elim_l` (its `KernelRule`).
+- `reflexive`, `symmetric` and `transitive` are `↔`'s at `o`, and at `i` base's `eq_refl`, `eq_symm` and `eq_trans`,
+  proved from NBG. The reference proved those at `o` by hand, and reached `symmetric` and `transitive` at `i` through the
+  congruence of `λz. z = a` and of `λz. a = z`; base's own are one citation each.
+- A congruence at a context of propositions is a replacement walk (its `Replacement`): a hole is its equation, a part
+  holding none `iff_refl`, a connective base's `cong_*`.
+- A class hole is `abstract_rule`'s premise with the constant's argument congruence (its `ClassHoles`, `c_ARG_CONG`); an
+  argument whose equation has one node for both sides is substituted, not a hole (its `headCongruence`), for the step
+  that builds arguments beyond `o`.
+
+Changed, the code:
+- No walk down a chain of `⟹`-eliminations from a conclusion at a base type (`application`, `evaluate`): a shape (D1).
+  Pure's rules are steps whose premises are their children, each translated where it stands.
+- No `isaCongruence` node carried across a pass for Reify to expand: the congruence is Logic's, built in its walk, and
+  where it meets a term Reify names the term in the same walk ("Reify called from Logic's walk").
+- Base is cited by its own text, parsed, never by `Base.claims` built by hand.
+- No `LogicRefusal.functionEquality`: a stated equation between functions is Logic's, unbuilt; one between object
+  functions is pointwise.
+
+**Built.**
+- Reader: Pure's seven rules are read as steps, each taking as many premises as the rule has, never as its instance's
+  statement peels (`equal_elim` at `B := C ⟹ D` takes two), and each checked against the rule's statement at its
+  instances, by ID. `equal_intr` and `equal_elim` are `iff_intro` and `iff_elim_l`; a rule missing premises is its
+  closed proof applied to those it has.
+- IR: `isaReflexive`, `isaSymmetric`, `isaTransitive`, `isaCombination`, `isaAbstract`, their conclusions by
+  `Table.equation`, the reading of `≡` at a type, and `sides(ofEquation:)`, its inverse; `iff_intro` and `iff_elim_l`
+  both dialects; `Cited.base`, linked to no statement. `Axiom.pure` and `Definition.reflexive` are gone.
+- FolDialect: `parse(schema:in:)` reads a schema of letters of arity 0 over the connectives; `parse(schemas:from:in:)`
+  finds base's lines by name; `baseTexts` reads base's files.
+- Lowering: `Base`, the schemas Logic cites as a typed enum, `BaseSchema`; `plan(_:)` and `pipeline(_:)` take it.
+  Logic's equality rules at `o` and at a function of propositions; Expand's citation of a definition the `reflexive`
+  step.
+- CLI: `lower` parses base's schemas into the unit's table before the pipeline runs.
+
+**Measured** (`isa2fol lower data/zf_export`): 55 named theorems lowered to fol-zfc, 3 before, and 27 theorems cited
+outside; refused at no owner 7,176, logic 2,188; 1 cites a refused statement (`FOL.disj_mono`). `IFOL.TrueI` and the 51
+citing it lower. The table holds 6.55M nodes, 7.22M before; read 70.5 s, lowered 13.9 s. `isa2fol read` proves all
+9,420. `SOURCE_SURFACE.md` and `CLOSURE.md` are regenerated: Pure's rules are steps there, no axioms.
+
+### Reify — S1 at the site  **[AGREED 2026-10-14 (user), decision by decision: the scope, the `@def`, `Rule.after`, the guard with no arity; BUILT 2026-10-14 — `Sources/Lowering/Reify.swift`, `Instance.swift`, `Chain.swift`, `Tuple.swift`, `Scope.swift`, `Logic.swift`, `Fol.swift`, `Sources/IR/Pass.swift`, `Node.swift`, `Table.swift`, `base/tiers/metafun`, `inf`, `zf`]**
+
+**Reify's provisions as their consumers see them** ("Reify and Typing as one component"): a term named where it stands
+(S1), a constant's class and its `@def`, EX and UNIQ as the lemmas every use cites, the guard per type. Their provers —
+class existence per formula (FOUNDATION §3, R5) — are the next step: consumers cite the lemmas now and the registry
+refuses them until then (I2, D2). Three facts fix the scope:
+- **Every constant beyond the primitives reaches a λ.** `Upair ≡ Replace(Pow(Pow(0)), λx y. …)`, and `cons`, `succ`,
+  `Pair`, `∪` rest on `Upair`; `⊆` is `Ball(A, λx. x ∈ B)`. No constant's class is stated unless a λ in a class slot is
+  named, so this step names it (FOUNDATION S1, "a λ is a wrapper"). An instance at a class type stays Lambda's.
+- **An instance at a compound term has the pattern of an instance at a variable**, `isaAllElim(o, i)`. It cannot stay
+  unbuilt while terms are named at atoms, so this step builds it, citing EX and UNIQ.
+- **The surface is the reason, the survey only the order** (a scratch survey of the 2,188 refused at logic, not kept):
+  1,894 hold Reify's pieces and no row of Logic's; 1,132 hold only constants applied to sets, `mem` and `eq`, and of these
+  3 hold primitives alone. 421 of the 1,894 instantiate at a compound term.
+
+**The problem, in target text.** The signature has no function symbols: a term becomes a variable at its atom, and an
+instance at a term has no variable to instantiate at.
+
+```
+Isabelle   x ∈ succ(y)
+fol-zfc    ∃S. ZF_Base.succ(S) ∧ ∃t. set(t) ∧ (⟨y⟩ = t ∧ ∃r. set(r) ∧ (pmem(t, r, S) ∧ elem(x, r)))
+@def       ZF_Base.succ(S) ↔ ∀t. set(t) → ∀r. set(r) → (pmem(t, r, S) ↔ ∃i. set(i) ∧ (⟨i⟩ = t ∧ ⟦r = cons(i, i)⟧))
+
+Isabelle   p ⊢ ⋀x. x ∈ A ⟹ x ∈ B,  p at succ(a)       ⊢ succ(a) ∈ A ⟹ succ(a) ∈ B
+wanted     ⟦succ(a) ∈ A⟧ → ⟦succ(a) ∈ B⟧               each atom naming succ(a) itself
+proof      EX succ at a: ∃y. set(y) ∧ ⟦y = succ(a)⟧; ∃-elim y; p at y ⊢ y ∈ A → y ∈ B;
+           y ∈ A ↔ ⟦succ(a) ∈ A⟧ — → by EX's naming, ← by UNIQ succ — and at B the same; joined by cong_imp
+```
+
+`⟨y⟩ = t` is Tuple's formula, `∃e. set(e) ∧ (zero(e) ∧ snoc(e, e, y, t))`: a 1-tuple at arity 1 (decision 1).
+
+**1. A term is named where it stands** (FOUNDATION S1; decision 3; decision 5 as the user refined it on the reference,
+2026-09-30: "a constant is named where it appears, like any term"). One rule per piece:
+
+| piece | named where it stands |
+|---|---|
+| `mem(a, b)` · `IFOL.eq(a, b)` at `i` | `elem(a, b)` · `eq(a, b)` |
+| a predicate constant applied, `c(a⃗, P⃗)` | `∃C. c(C, P⃗) ∧ ∃t. ⟨a⃗⟩ = t ∧ elem(t, C)` |
+| a predicate variable applied, `P(a⃗)` | `∃t. ⟨a⃗⟩ = t ∧ elem(t, P)` |
+| a set constant `c` | `∃v. c(v) ∧ …v…` |
+| a function constant applied, `c(a⃗, P⃗)` | `∃C. c(C, P⃗) ∧ ∃t. ⟨a⃗⟩ = t ∧ ∃r. pmem(t, r, C) ∧ …r…` |
+| a function variable applied, `f(a⃗)` | `∃t. ⟨a⃗⟩ = t ∧ ∃r. apply(t, r, f) ∧ …r…` (5) |
+| a λ in a class slot, `λx⃗. φ` · `λx⃗. b` | `∃K. (∀t. elem(t, K) ↔ ∃x⃗. ⟨x⃗⟩ = t ∧ ⟦φ⟧) ∧ …K…` · `∃K. (∀t r. pmem(t, r, K) ↔ ∃x⃗. ⟨x⃗⟩ = t ∧ ⟦r = b⟧) ∧ …K…` |
+
+`a⃗` are the set arguments, each named first, left to right; `P⃗` the class arguments, named next and kept outside the
+tuple (R4). `c(C, …)` is `c`'s `@def` predicate under Isabelle's name (rule 5); a ZF primitive's is base's. The table
+elides the set guards, which Fol writes (R3).
+- **A term is named at the node holding it, never at its own**: the walk reaches it first and leaves it. That node is
+  Reify's own piece (an atom, a term, a class slot), or an instance at `i` (3).
+- **A value, a tuple and its indices are sets**: Reify binds them by isa binders at `i`, and Fol guards them (R3, "the
+  ones S1 invents"). **A class Reify names, a constant's or a λ's, is bound by fol-zfc's own `∃`, bare**: it translates
+  no Isabelle variable, and a guard on it is false or redundant.
+- ⚠ **ONE VARIABLE PER OCCURRENCE, NEVER PER DISTINCT TERM** (the reference's): shared per term, instantiating
+  `⋀y. f(y) ∈ f(x)` at `x` makes the instance of the translation differ from the translation of the instance.
+
+**2. A constant's class: its `@def`** (decision 5: `@def` is the checker's one global naming form).
+
+```
+a function     ∀C P⃗. c(C, P⃗) ↔ ∀t. set(t) → ∀r. set(r) → (pmem(t, r, C) ↔ ∃x⃗. set(x⃗) ∧ (⟨x⃗⟩ = t ∧ ⟦r = b⟧))
+a predicate    ∀C P⃗. c(C, P⃗) ↔ ∀t. set(t) → (elem(t, C) ↔ ∃x⃗. set(x⃗) ∧ (⟨x⃗⟩ = t ∧ ⟦φ⟧))
+a set          ∀v. c(v) ↔ ⟦v = b⟧
+```
+
+Reify states it from `c`'s definition as Expand left it ("The unit and its citations", point 1), its body named by the
+rules of 1: one translation wherever a formula stands. Its own variables are the target's `∀`, unguarded: they translate
+no Isabelle variable. It is named as Reify's lemmas are, by the constant and a suffix the export never uses,
+`ZF_Base.succ_DEF`. Isabelle's definition axiom cannot name it: 346 of the 999 are a package's, registered as a theorem
+of the same name too (the reference's ⚠). A body uses only earlier constants (S3), so `@def`s nest without a cycle.
+
+**What the framework gains** — each a change to agree:
+- **`folPred`'s predicate is typed** (I1: it crosses Reify, the pipeline and FolDialect). `Predicate.base(String)` is
+  one of base's own (`set`, `elem`, `eq`, `pmem`, `zero`, `nsucc`, `snoc`, …); `Predicate.constant(Constant)` is a
+  constant's class. A primitive's class is base's (`base/tiers/zf`) and linked to no statement; a defined constant's is
+  its `@def`, a statement of the unit.
+- **The registry states a `@def`** ("a `@def` as a prover's answer", "The unit and its citations"). After logic, for
+  each defined constant an output names and the unit lacks, the prover owning it answers its statement, or unbuilt.
+  That prover is Reify's, reading the definition as Expand left it. The `@def` joins the unit as a definition: it has no
+  proof and is never proved. The pipeline checks it as a lemma's statement (no pattern a pass up to the registry owns)
+  and checks its shape: `∀v⃗. c(v⃗) ↔ body`, `c` absent from the body (R1, which the checker does not check). Its
+  body names earlier constants, whose `@def`s are stated in turn until none is new.
+- **A statement naming a constant is linked to its `@def` as to a citation**: one the prover leaves unbuilt refuses every
+  statement naming the constant, transitively. A `@def`'s own left side is no link.
+- **`Rule.after` receives the node as it stood**, beside the node rebuilt from its rewritten children:
+  `after(_ n: Node, was id: NodeID, context:, in:)`, the `id` the traversal holds where it calls `after`. An instance
+  reads Isabelle's formula there and never reads a named form back (I1). Point 4 of "Reify called from Logic's walk" left
+  this reading to the step that needs it; its consumers are Reify's instance here and Logic's equality steps at objects
+  next. Every other rule ignores it.
+
+**3. An instance at a compound term** (FOUNDATION §3b's `appt_complex`). Isabelle instantiates `p ⊢ ⋀x. φ(x)` at `t`, and
+the step after it expects `⟦φ(t)⟧`, with `t` named at each atom.
+- **EX of `t`** gives `y` with `⟦y = t⟧`: each head's EX at its named arguments, inner first — a constant's lemma (4),
+  base's `apply_EX` at a function variable (5), and for a λ argument its class, Lambda's lemma. That lemma is closed
+  over the λ's free variables (user, 2026-10-14): `∀v⃗. ∃K. def(K)`, cited by instantiating it at the variables the λ
+  mentions, where it concludes the λ's naming in its class slot by ID. Its prover is the next step's.
+- **`∃`-elim `y`**; `p` at `y` concludes `⟦φ(y)⟧`, an instance at a variable: Fol's.
+- **`⟦φ(y)⟧ ↔ ⟦φ(t)⟧` by replacement of equivalents over Isabelle's `φ`**: Logic's walk, its `Context` today, made the
+  one home for it, with holes the caller gives (⚠ REIFY NEVER HANDLES A CONGRUENCE). A hole is an atom where `x` stood:
+  `α(y) ↔ ⟦α(t)⟧`, `→` by EX's naming, `←` by UNIQ of `t` (a constant's lemma, `apply_UNIQ` at a variable's guard),
+  and membership's congruence at the atom (base's `cong_elem_*`,
+  `cong_eq_*`, `cong_snoc_v`). Where `x` stands inside a λ argument, the λ's definition is walked the same way and
+  its class is kept.
+
+**4. EX and UNIQ per constant: its typing and its value's uniqueness**: Isabelle statements named by 1 and built from the
+constant alone (I2). They are the two facts base's `apply_EX` and `apply_UNIQ` give a function variable (5).
+
+```
+EX c      ⋀P⃗ x⃗. ∃y. y = c(x⃗, P⃗)                         a set constant: ∃y. y = c
+UNIQ c    ⋀P⃗ P⃗′ x⃗ y y′. y = c(x⃗, P⃗) ⟹ y′ = c(x⃗, P⃗′) ⟹ y = y′
+```
+
+In UNIQ each class argument in `P⃗′` agrees with its counterpart in `P⃗` on the tuples, as two namings of one λ do by
+their definitions. Both assume each function class argument's guard (5). They are Reify's requests, named `c_EX` and
+`c_UNIQ`. Its prover is the next step, so the registry refuses them and their citers fall. A predicate constant needs
+neither, since no instance is at a predicate.
+
+**5. The guard per type: one atom, with lemmas on it** (user, 2026-10-14: the guard is an atom chosen by the type, base's
+lemmas on it keep its uses short, and it carries no arity — a function is its pairs).
+
+| type | its guard | discharged at an instance |
+|---|---|---|
+| `i` | `set(x)` | at a variable, its binder's hypothesis (Fol); at a compound term, EX's `∃y. set(y) ∧ …` |
+| `iⁿ ⇒ o` | none | — |
+| `iⁿ ⇒ i` | `function(F)`: `F` single-valued, Isabelle/ZF's `function` of a class | at a variable, its binder's hypothesis (Fol); at a λ, Lambda's |
+
+**A function variable's application is read as Isabelle/ZF reads `f`a ≡ ⋃(f``{a})`**: its value where `F` has one, `∅`
+where it has none. Base defines it, so totality leaves the guard and the guard needs no arity:
+
+```
+function(F)    ↔ ∀t r s. pmem(t, r, F) → pmem(t, s, F) → eq(r, s)
+apply(t, r, F) ↔ pmem(t, r, F) ∨ (¬(∃s. pmem(t, s, F)) ∧ zero(r))
+apply_EX       ∀F t. ∃r. set(r) ∧ apply(t, r, F)                                       a value, with no guard
+apply_UNIQ     ∀F. function(F) → ∀t r s. apply(t, r, F) → apply(t, s, F) → eq(r, s)     and only one
+```
+
+Base proves the two lemmas once, for every arity. They state of a variable what EX c and UNIQ c state of a constant: an
+instance at `f(a⃗)` cites them where one at `c(a⃗)` cites `c`'s lemmas. A constant's application stays `pmem`, since a
+constant is total by its definition; at an instance of `∀F` at a λ (Lambda's step) the λ's class is total, and one base
+lemma reads `apply` as `pmem` there. Faithful (N2): every single-valued `F`, read through `apply`, is a total function
+on sets, and every Isabelle function is such an `F`.
+
+⚠ **`function` REPLACES `mfun` AT `iⁿ ⇒ i`** ("Reify and Typing as one component"). `mfun(F, D)`, like the reference's
+`Func(F, n)`, promises totality, so it needs the domain at every binder: a class `D` of the n-tuples, or the numeral `n`.
+The reference's binder guard (`functionVariableGuard`) wrote its two clauses out instead, over the arguments.
+
+Fol gains its rows: a binder, an intro and a variable at `iⁿ ⇒ o` (bare) and at `iⁿ ⇒ i` (with Reify's guard); an
+`∃`-intro and an `∃`-elim at an isa binder at `i`, which Reify's proofs write. The witness's guard goes into the `∧`, and
+the hypothesis becomes `set(y) ∧ φ` (prerequisite 1's open item). An instance at a class type moves from Fol to the logic
+pass, where it is Lambda's and unbuilt; its argument is always a λ.
+
+**Owned, unbuilt — each its own step:** an instance at a class type (Lambda: the λ's class and β as proof); a proposition
+in a class slot (`If`'s) and a constant at `o` (FOUNDATION S4's class of the empty tuple, the reference's paragraph); a
+declared constant (no definition, so no `@def`); the provers of EX and UNIQ, and of the λ's class and guard (class
+existence per formula, R5's opening, R4's lift).
+
+**FOUNDATION first.** This step rests on two of the reference's paragraphs, from the open docs commit: S1's "a λ is a
+wrapper" (the stash's text, 2026-10-13), and S5 changed: a function variable owes single-valuedness, its application
+read as Isabelle/ZF's `f`a`. From base it
+needs the reference's `zf` tier (the primitives' class predicates `ZF_Base.zero`, `Pow`, `Union`, `PrimReplace` and
+`Inf`), the `inf` tier `zf` rests on, which replaces `skolem`'s admitted `Inf`, and `tuples`' `cong_snoc_v`; and new,
+`function`, `apply`, `apply_EX` and `apply_UNIQ`.
+
+**The agreed text changes with it.** "Lowering's components": Reify's row and Lambda's (a λ in a class slot is named
+here); Logic's replacement walk, which Reify calls; the owner table (an instance at a class type goes to the logic
+pass). "Reify and Typing as one component": `function` at `iⁿ ⇒ i`, and `apply`. "The unit and its citations": a `@def` cited by a
+predicate. "The meta level, lowered": decision 5. "Fol": its rows. §4.5: `Rule.after`. `CLAUDE.md`.
+
+**The contracts (D2):**
+
+| | provides | assumes |
+|---|---|---|
+| Reify | every term named where it stands; each constant's `@def`; EX and UNIQ requests built from the constant; an instance at a compound term concluding Isabelle's formula named, by ID; the guard per type | Expand's row; Tuple's formula; base's predicates for the primitives, `function` and `apply` with their lemmas; Logic's replacement walk; its requests proved by its prover or refused there |
+| Logic | replacement of equivalents over a formula, its holes the caller's | — |
+| Fol | binders, intros and variables at every object type, with the guard Reify gives; `∃` at `i`, guarded | Reify's guards |
+| the pipeline | each named defined constant's `@def`, stated by the registry after logic and linked to every statement naming it | a typed predicate; the registry's `define` |
+
+**Tests, written first.**
+- `ReifyTests`: each row of 1 named where it stands, by ID; one term twice is two variables; naming commutes with an
+  instance at a variable, by ID; a constant's `@def` from its definition, a set constant's, a class argument as a
+  parameter.
+- `ReifyTests`: an instance at `succ(a)` concludes Isabelle's formula named, by ID, citing EX and UNIQ of `succ`; one
+  at an applied function variable cites `apply_EX` and `apply_UNIQ` at its guard; one with `x` inside a λ argument keeps
+  the λ's class.
+- `PipelineTests`: a statement naming a constant is linked to its `@def`; a `@def` that cannot be stated refuses its
+  users; a `@def` of the wrong shape stops the run; a `@def` naming itself is no cycle.
+- `FolTests`: a binder at `i ⇒ o` is bare and one at `i ⇒ i` guarded; `∃`-intro and `∃`-elim at `i` are guarded.
+- `PlanTests`: Reify's rows; an instance at a class type is the logic pass's, unbuilt; a constant at `o` or with an `o`
+  slot, and a declared constant, are unbuilt.
+- `TraversalTests`: `after` sees the node as it stood. `LogicTests`: the replacement walk with a caller's holes, and
+  Logic's own uses unchanged.
+
+**Kept from the reference, and changed** (`kinds-proposal`: `Sources/Encoding/Spelling.swift`,
+`Sources/Lowering/Reify.swift`, `Value.swift`; DESIGN "Reify — first cut", "The constant chain's `@def`s", decisions
+5–7). Kept: a constant named where it appears, by its `@def` predicate; one variable per occurrence; the spelling
+(`Chain`: arguments, class, tuple, value); a set constant as a predicate of its value; class arguments as the `@def`'s
+parameters; an instance at a term by EX, `∃`-elim and UNIQ; the primitives' classes in base. Changed:
+- A function variable owes single-valuedness alone, and its application reads Isabelle/ZF's `f`a`: the reference's guard
+  promised totality (`Func(F, n)`, its two clauses written out from 2026-10-04).
+- The `@def` is `c_DEF`, not named by Isabelle's axiom, which a package also gives a theorem.
+- No `IRType.cls` and no `sorts` pass: a class Reify names is fol-zfc's own binder (the root of "One class, one form").
+- No guard pass opening terms, no `isaCongruence` node, no value walk of Reify's own: the instance is Reify's rule where
+  the term stands, and the lifting is Logic's walk.
+- No driver adding `@def`s (`constantsToDefine`): the pipeline adds one where a predicate first names it, and a refusal
+  reaches the users.
+- Two lemmas per constant cited by its uses, stated in Isabelle's terms and named by 1, where the reference cited five
+  (`c_EX`, `c_UNIQ`, `c_FUNC`, `c_typing`, `c_value_UNIQ`).
+- A λ in a class slot is named at its site by its definition (the stash's wrapper), never as a constant `L` (Step (4)).
+
+**Built.** Reify's switch gives its pieces rules: a ZF primitive, a ZF definition at the object level of a type whose
+slots are objects and whose value is a set or, given an argument, a proposition; an applied variable of an object head;
+a λ at an object type. A constant at `o`, a proposition slot (`If`'s) and a declared constant stay unbuilt, and so does
+an instance at a class type, now the logic pass's. The logic pass's walk asks Reify at every node Logic's switch
+leaves: an atom is named where it stands (`Naming`: one `Chain` per atom, set binders isa `∃` at `i`, classes
+fol-zfc's own), and an instance at a compound term is `TermInstance`'s proof. `ReifyProver` states each `@def` from the
+definition Expand left; the pipeline asks it after logic for each defined constant a statement names, and links them.
+Fol writes every binder, intro and variable at an object type with the guard `Reify.guarded` gives it; its context
+holds, for each entry of its output, a variable with its isa type, an assumption, or a hypothesis Fol inserted (a
+guard, or the `∧` an `∃` at `i` opens to). Base's `function`, `apply`, `apply_EX`, `apply_UNIQ`, `cong_snoc_v` and the
+reference's `inf` and `zf` tiers are kernel-checked (`scripts/check-base.sh`); `skolem` is gone.
+
+**Refinements made in the build** (no checker change; delegated, for review):
+- **EX and UNIQ per term, not per constant.** An instance cites one EX and one UNIQ of the whole term `a`, closed over
+  its variables in the order they first occur: `EX_⟨a⟩ = ∀v⃗. g(v⃗) → ∃y. ⟦y = a⟧`. Their prover composes the
+  constants' facts once per term; the per-constant lemmas of 4 are these at `c(x⃗)`. Each is named by an FNV-1a
+  fingerprint of the closed term's structure (`Table.fingerprint`), `EX_…` and `UNIQ_…`: Swift's `Hasher` is seeded
+  per process, and a name must be the same every run.
+- **UNIQ in chain form**: `∀v⃗. ∀b⃗. c⃗ → ∀b⃗′. c⃗′ → r = r′`, two namings of `a` with their binders as variables
+  and their constraints as premises. Isabelle's `⟦y = a⟧ → ⟦y′ = a⟧ → y = y′` cannot be met: an occurrence's value
+  is a witness of its own chain, and closing that chain again at it captures the value on both sides of `⟦r = a⟧`.
+- **A lemma's variables** are fol-zfc's `∀`, each guard written out, the variable a typed isa one; a use eliminates
+  each by `forall_elim` and discharges its guard by `isaGuard`, which Fol resolves to the variable's own. An isa `⋀` at a
+  class type could not be eliminated at a variable: the table admits only a λ there.
+- **`∃` at an isa binder is a step of its own, `isaExIntro` and `isaExElim`** (IR nodes, isa only, Fol's at `i`). The
+  fol-zfc steps bind fol-zfc's `∃` only: `Pattern` cannot tell an isa `∃` at `i` from fol-zfc's, and Fol dispatches
+  by `Pattern` (I3). IFOL's `exI` and `exE` are these steps when Logic builds them.
+- **The conversion** `⟦φ(y)⟧ ↔ ⟦φ(a)⟧` is Logic's replacement walk (`Replacement`, its `Context` made one home, with
+  quantifiers at `i` and a hole the caller gives) over Isabelle's `φ`. At an atom where `x` stood it converts one unit
+  at a time: `x` itself, or a λ argument holding it. For `x` itself, each side's chain is opened and the other closed at
+  the same witnesses (`Scope`, `opening`, `closing`; a `Chain` opened names at given variables): `→` with `⟦y = a⟧`'s
+  witnesses in the unit's place, `←` with UNIQ, `eq_trans` and `eq_symm`; the one constraint where `y` and `a`'s value
+  meet is converted by membership's congruence (`cong_elem_*`, `cong_eq_*`, `cong_snoc_v`), the same walk with the
+  differing atom as its hole. For a λ, its class is kept and its definition converted by the walk over the definition
+  with Isabelle's body. The λ's lemma is EX's prover's: the instance cites none.
+- **A `@def` whose definition holds a pattern no pass owns, or one a pass up to the registry leaves unbuilt, is refused
+  before the registry is asked**, read from the definition's body under its parameters: an abstraction over a class
+  parameter is the `@def`'s own variable, no λ of its body. The pipeline checks a `@def`'s shape by its arguments'
+  indices, a class parameter staying a typed isa variable until Fol.
+
+**Measured** (`isa2fol lower data/zf_export`): 59 lowered; 451 `@def`s stated and 107 refused, of which 22 hold a
+piece not built (12 `If`'s proposition slot, 9 a declared constant) and 85 cite one of them; 400 lemma requests, EX and
+UNIQ, refused as their prover is the next step's. Of the named, refused where each first stops: no owner 7,176; logic
+924 (`isaAllElim(o, (i => i))` 458, Lambda's instance at a class type, the most frequent); a letter off its spine 94;
+1,167 cite a refused statement, a `@def` or a lemma. No statement stops at Fol. Read 70.5 s, lowered 25.5 s.
+
+### Fol — binders, guards and variables  **[BUILT 2026-09-28 as the guard; Fol's 2026-10-14; every object type and `∃` at `i` with "Reify — S1 at the site" — `Sources/Lowering/Fol.swift`]**
+
+**Every isa binder at an object type, its intro, its variable and the guard of its variable become fol-zfc's, with the
+guard Reify gives the type** (`Reify.guarded`): `set` at `i`, `function` at `iⁿ ⇒ i`, none at `iⁿ ⇒ o`. The guard
+was a pass of its own until 2026-10-14. A variable keeps `isaBound(k, T)`, its type, until Fol: that type is how Fol
+tells a set binder from a class binder.
+
+⚠ **A VARIABLE BECOMES `folBound` ONLY IN FOL, THE LAST PASS.** A `folBound` is typed `i`, so a class variable
+relabelled while a pass still reads types would look like a set, open to `set(P)`; the guard relabelled before reify
+until 2026-09-29. So Fol relabels a variable in the walk that writes its binder, and an instance's or a guard's
+discharge reads the binder's entry in the context, never the rewritten child.
 
 ⚠ **`set(t)` CANNOT BE WRITTEN FOR A COMPOUND `t`** — `folPred` takes only variables, S1 as a
 check. So a compound instantiation is not discharged by a closure lemma over terms
@@ -1589,40 +2198,41 @@ EX delivers `set(r)` with it.
 
 | before | after |
 |---|---|
-| `ifolAll(i, φ)` | `folForall(folImplies(set(0), φ′))` |
-| `ifolEx(i, φ)` | `folExists(folAnd(set(0), φ′))` |
-| `isaAllIntro(i, body)` | `folForallIntro(folImpliesIntro(set(0), body′))` — the guard is a hypothesis the fixed variable brings |
-| `isaAllElim(p, x)`, `x` a bound variable | `folImpliesElim(folForallElim(p′, x′), hyp(j, set(x′)))` — discharged by `x`'s own guard |
+| `ifolAll(T, φ)` · `ifolEx(T, φ)`, `T` an object type, `G` its guard | `folForall(folImplies(G(0), φ′))` · `folExists(folAnd(G(0), φ′))`; at `iⁿ ⇒ o`, no guard: `folForall(φ′)` · `folExists(φ′)` |
+| `isaAllIntro(T, body)` | `folForallIntro(folImpliesIntro(G(0), body′))`, or `folForallIntro(body′)` — the guard is a hypothesis the fixed variable brings |
+| `isaAllElim(p, x)`, `x` a bound variable at `i` | `folImpliesElim(folForallElim(p′, x′), hyp(j, set(x′)))` — discharged by `x`'s own guard |
 | `isaGuard(x, G)`, the guard of a variable | `hyp(j, G′)`, the same discharge; `G` not `x`'s guard (`notItsGuard`), or `x`'s binder bringing none (`unguardedBinder`), is malformed |
-| `isaBound(k, i)` | `folBound(k)` |
-| `isaAllElim(p, t)`, `t` a compound term | never reaches Fol: `t` is Reify's, an earlier pass; an instance at anything but a bound variable throws `instanceNotAVariable` |
-| `hyp(k, A)` | `hyp(k + g, A′)` — `g` the guards inserted between it and its binder |
-| a quantifier, `⋀`-intro or `⋀`-elim, a variable or the guard of a variable at `iⁿ ⇒ i` or `iⁿ ⇒ o` | Fol's, unbuilt: Typing has no guard for the type yet |
+| `isaExIntro(q, x)`, at `i` | `folExistsIntro(folAndIntro(hyp(j, set(x′)), q′), x′)` — the witness's guard into the `∧` |
+| `isaExElim(i, p, body)` | `folExistsElim(p′, implies_elim(implies_elim(implies_intro(set(0), implies_intro(φ′, body′)), and_elim_l(hyp(0, set(0) ∧ φ′))), and_elim_r(hyp(0, …))))` — the `∧` opened to the guard and `φ′` |
+| `isaBound(k, T)`, `T` an object type | `folBound(k)` |
+| `isaAllElim(p, t)`, `t` a compound term | never reaches Fol: the logic pass proves it (Reify's instance); an instance at anything but a bound variable throws `instanceNotAVariable` |
+| `hyp(k, A)` | `hyp(k + g, A′)` — `g` the hypotheses Fol inserted between it and its binder |
+| a variable at a type beyond objects other than `o` | Fol's, unbuilt: no such variable outlives its binder's owner |
+| an instance at a class type | not Fol's: the logic pass's, Lambda's, unbuilt |
 | … at `o`, at a function of propositions, at a type variable; a `λ` | not Fol's: Logic's, no owner's (decision 4), Reify's |
 
 The walk rewrites every `use`'s root too, so a cited statement and the theorem's own lowered
 statement are one node.
 
-**Its context is a stack of binder entries**, nearest last:
+**Its context is a stack of the output's binder entries**, nearest last:
 
 ```swift
-enum Entry: Hashable { case fix(guarded: Bool), assume }
+enum Entry: Hashable { case fix(IRType?), assume, inserted(guard: Bool) }
 ```
 
-`enter` pushes one `.fix` per term the binder binds — `guarded` exactly when Fol's switch over `Pattern` gives the
-binder a rule: `isaAllIntro`, `ifolAll` or `ifolEx` at `i` — and one `.assume` per hypothesis. `narrow` keeps the top
-of the stack down to the deepest binder the node reaches (`looseBound`, `looseHyps`); a closed node keeps nothing.
-Reading it, "above" meaning nearer the top:
+`enter` pushes what Fol's switch writes at the binder: `.fix(T)` and, where `T` has a guard, `.inserted(guard: true)`
+at an intro; `.fix(.i)`, the `∧`, the guard and the input's hypothesis at an isa `∃`-elim; `.fix(nil)` per term and
+`.assume` per hypothesis at any other binder. `narrow` keeps the top of the stack down to the deepest binder the node
+reaches (`looseBound`, `looseHyps`); a closed node keeps nothing. Reading it, "above" meaning nearer the top:
 
-- **the guard of `x`, bound `k`**: its entry is the `(k+1)`-th `.fix` from the top, and `j` = the `.assume`s above it +
-  the guarded `.fix`es above it. An unguarded entry there — a binder bringing no guard — is MALFORMED and throws; it is
-  not a refusal.
-- **`hyp(k, A)`**: its binder is the `(k+1)`-th `.assume` from the top, and `g` = the guarded
-  `.fix`es above it.
+- **the guard of `x`, bound `k`**: its entry is the `(k+1)`-th `.fix` from the top, its guard the `.inserted(guard:
+  true)` between it and the next `.fix`, and `j` = the hypotheses above that guard. An entry with no guard there — a
+  binder bringing none — is MALFORMED and throws; it is not a refusal.
+- **`hyp(k, A)`**: its binder is the `(k+1)`-th `.assume` from the top, and its index the hypotheses above it.
 
 ```
-fix x, assume P(x), lem at x              stack [x✓, h]      above x: 1 assume     → hyp(1, set(x))
-assume C, fix x, assume P(x), hyp(1, C)   stack [c, x✓, h]   above c: 1 guard      → hyp(2, C)
+fix x, assume P(x), lem at x              stack [x, gx, h]      above gx: 1     → hyp(1, set(x))
+assume C, fix x, assume P(x), hyp(1, C)   stack [c, x, gx, h]   above c: 2      → hyp(2, C)
 ```
 
 **One walk.** Fol writes fol-zfc's binders and variables, never a pattern it owns, so nothing is left for a second.
@@ -1630,12 +2240,14 @@ assume C, fix x, assume P(x), hyp(1, C)   stack [c, x✓, h]   above c: 1 guard 
 **Where it lives:** a module `Lowering`, depending on `IR` — the framework never sees a pass.
 
 **Tests** (`FolTests`): Fol is run alone, each proof checked to conclude its statement BY ID. The pipeline over the plan
-stops every fixture that has `P(x)` at Reify, and lowers `⋀x. ⊥ ⟹ ⊥` whole (`PlanTests`).
+lowers `⋀x. ⊥ ⟹ ⊥` whole (`PlanTests`).
 
-1. `∀`/`∃` at `i` is guarded and its variable becomes fol-zfc's; at `o`, `i ⇒ o` and a type variable it is unchanged.
+1. `∀`/`∃` at an object type takes its type's guard and its variable becomes fol-zfc's; at `o` and a type variable it
+   is unchanged.
 2. fix x, assume P(x), lem at x: the lowered proof concludes the lowered statement by ID; the discharge is `hyp(1, set(x))`.
 3. assume C, fix x, assume P(x), `hyp(1, C)`: it becomes `hyp(2, C)`, and the proof concludes.
-4. an elimination at `Pow(a)` stops at Reify, the term's owner (`PlanTests`).
+4. `(∃y. P(y)) ⟹ ∃y. Q(y)`: `∃`-elim and `∃`-intro at `i` are guarded, and an instance at the witness is discharged
+   by its guard.
 5. a cited statement and the cited theorem's own lowered statement are one node.
 6. `⋀x y`: an elimination at `x` skips `y`'s guard — `hyp(2, set(x))`.
 7. `C ⟹ ⋀P::o. P ⟹ C`: a binder at `o` inserts nothing and renumbers nothing.
@@ -1663,13 +2275,13 @@ proof step — "β as proof".
 
 | # | pass | removes |
 |---|---|---|
-| 1 | **logic** — IFOL's ND rules and `FOL.classical` to the kernel's own steps; an inlined box instantiated at once, reduced at the proof level (`instantiate`) | every `⋀P::o` but a schema's letter; those rules' and boxes' class instantiations |
-| 2 | **reify** — every compound term becomes a variable with its defining atom; every function becomes a class | `isaConst` at `i` or a function type, `isaVarApp`, `isaAbs`, `Pure.eq` at a function type, `isaAllElim` at a function type |
-| 3 | **fol** — `set(x)` on every set binder, Isabelle's and reify's, a class binder bare, each written as fol-zfc's binder; every variable to `folBound`; then `legalize`. Until 2026-10-14 the guard was a pass of its own, before fol | the isa binders at `i`, `iⁿ ⇒ i`, `iⁿ ⇒ o`, and the rest of the isa dialect |
+| 1 | **logic** — IFOL's ND rules and `FOL.classical` to the kernel's own steps; an inlined box instantiated at once, reduced at the proof level (`instantiate`); and, by Reify's code in the same walk, every compound term a variable with its defining atom, every function a class | every `⋀P::o` but a schema's letter; those rules' and boxes' class instantiations; `isaConst` at `i` or a function type, `isaVarApp`, `isaAbs`, `Pure.eq` at a function type, `isaAllElim` at a function type |
+| 2 | **fol** — `set(x)` on every set binder, Isabelle's and reify's, a class binder bare, each written as fol-zfc's binder; every variable to `folBound`; then `legalize`. Until 2026-10-14 the guard was a pass of its own, before fol | the isa binders at `i`, `iⁿ ⇒ i`, `iⁿ ⇒ o`, and the rest of the isa dialect |
 
-- **logic before reify**: an IFOL rule at a λ becomes the kernel's step and no class is built. `spec` at
+- **reify in logic's walk** (2026-10-14, "Reify called from Logic's walk"): a λ is named where it is consumed, never at
+  its own node, so an IFOL rule at a λ still becomes the kernel's step and no class is built. `spec` at
   `λx. x∈A ⟶ x∈B`, then at `c`, is `isaAllElim` at `c`: `∀` and `⋀` are one node.
-- **reify before fol**: reify's variables are set binders too, and R3 guards "the ones S1 invents".
+- **logic before fol**: Reify's variables are set binders too, and R3 guards "the ones S1 invents".
 - **the guard in fol, the last pass** (2026-10-14): fol reads the binder's IR type — `i` guarded, a class bare — and
   writes `folForall`, which carries none; each variable keeps its type until fol relabels it, in the same walk.
 
@@ -1695,7 +2307,7 @@ membership's congruence (`g3_pmem_cong1`), then β as proof — reify's.
 | isa | becomes |
 |---|---|
 | a bound variable at `i` | a set variable, guarded (R3) |
-| … at `i^n ⇒ i` | a class variable `F`, bare, owing `mfun(F, D)` (S5) |
+| … at `i^n ⇒ i` | a class variable `F`, guarded by `function(F)`, its application base's `apply` (S5) |
 | … at `i^n ⇒ o` | a class variable `P`, bare (S4) |
 | … at `o` | a schema letter at a statement's top, `schema_inst` at a citation; the logic's rules' are the kernel's own (S4; "Logic") |
 | a constant — a function or a predicate | a class, cited globally (decision 5) |
@@ -1727,7 +2339,8 @@ membership's congruence (`g3_pmem_cong1`), then β as proof — reify's.
 
 1. **Arity 1 is a 1-tuple**, as R7 reads every arity. The value itself would save a tuple per unary
    application — a later size optimisation.
-2. **Order: logic → reify → guard → fol**, on prerequisite 1; the guard is fol's since 2026-10-14.
+2. **Order: logic → reify → guard → fol**, on prerequisite 1; the guard is fol's since 2026-10-14, and reify runs in
+   logic's walk since 2026-10-14 ("Reify called from Logic's walk").
 3. **A compound term's variable is bound where the term appears, never wider**, written with S1's `∃`:
    `P(f(x))` is `∃r. fn_apply(F, t, r) ∧ P(r)` in place. Isabelle's local variables stay local: a λ or a
    compound term is never lifted into a global claim, which would close it over its locals and need a fresh
@@ -1744,21 +2357,22 @@ membership's congruence (`g3_pmem_cong1`), then β as proof — reify's.
    used, and put a generic proof in place at the type of its use — no new name; `MetaExists`, defined over
    all propositions, separately.
 5. **A constant is a class, cited globally by Isabelle's name.** The checker's one global naming form is
-   `@def`, so what is named is the constant's defining property, and a claim using the constant binds its
-   class with that property as a hypothesis. Of the relation form's four per-constant lemmas (FOUNDATION §2
-   S2, R5), two go and two merge:
+   `@def`, so what is named is the constant's defining property, and a statement using the constant binds its
+   class where it stands, `∃C. c(C) ∧ …` ("Reify — S1 at the site"). Of the relation form's four per-constant lemmas
+   (FOUNDATION §2 S2, R5), two go and two merge:
 
    | relation form | class form |
    |---|---|
    | GRAPH | the constant is its class |
    | CONG | membership respects `=` for every class — `g1_pmem_cong`, proved once |
-   | EX, UNIQ | `mfun(C, D)` |
+   | EX, UNIQ | EX and UNIQ of the term an instance meets, stated per term; a function variable's are base's `apply_EX` and, under `function(F)`, `apply_UNIQ` |
    | — | the class exists: class existence from the definition's body, the classes of the constants it uses as parameters (R5) |
 
    **The translator builds this definition/lemma graph** — during reify, as helpers, in definitional order
    (S3) — not as a phase before or after the passes. Not built: the per-formula class existence proof
    (FOUNDATION §3, "per-formula generation stays"). `base/` states the five primitives as relations
-   (`primitives`, `skolem`: `Pow(A, r)`); their classes are built from those.
+   (`primitives`: `Pow(A, r)`; `inf`: `Inf(r)`, the least inductive set) and their class predicates from those
+   (`zf`).
 
 ### Pass-level questions — for the passes, not the framework
 

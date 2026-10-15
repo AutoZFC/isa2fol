@@ -44,7 +44,7 @@ private let collect = Constant.defined(Defined(.zf, "ZF_Base.Collect", .object))
     var t = Table()
     let b0 = try t.intern(.folBound(0))
     let b1 = try t.intern(.folBound(1))
-    let elem = try t.intern(.folPred("elem", args: [b1, b0]))
+    let elem = try t.intern(.folPred(.base("elem"), args: [b1, b0]))
     let inner = try t.intern(.folForall(body: elem))
     let outer = try t.intern(.folForall(body: inner))
     #expect(t.looseBound(of: elem) == 2)
@@ -107,7 +107,7 @@ private let collect = Constant.defined(Defined(.zf, "ZF_Base.Collect", .object))
     var t = Table()
     let a = try t.intern(.isaFree(.named("a"), i))
     #expect(throws: TableError.predicateArgumentNotVariable(a)) {
-        try t.intern(.folPred("elem", args: [a, a]))
+        try t.intern(.folPred(.base("elem"), args: [a, a]))
     }
 }
 
@@ -118,10 +118,10 @@ private let collect = Constant.defined(Defined(.zf, "ZF_Base.Collect", .object))
     let x = try t.intern(.isaBound(0, i))
     let P = try t.intern(.isaBound(1, fn(i, o)))
     let F = try t.intern(.isaBound(2, fn(i, i)))
-    let set = try t.intern(.folPred("set", args: [x]))
-    _ = try t.intern(.folPred("elem", args: [x, P]))
-    _ = try t.intern(.folPred("pmem", args: [x, x, F]))
-    _ = try t.intern(.folPred("set", args: [try t.intern(.folBound(0))]))
+    let set = try t.intern(.folPred(.base("set"), args: [x]))
+    _ = try t.intern(.folPred(.base("elem"), args: [x, P]))
+    _ = try t.intern(.folPred(.base("pmem"), args: [x, x, F]))
+    _ = try t.intern(.folPred(.base("set"), args: [try t.intern(.folBound(0))]))
     #expect(throws: IRRefusal.sourceKindSurvived(x)) { try legalize(set, in: t) }
 }
 
@@ -129,10 +129,10 @@ private let collect = Constant.defined(Defined(.zf, "ZF_Base.Collect", .object))
 @Test func aForallEliminationTakesAVariableOfEveryTermType() throws {
     var t = Table()
     let x = try t.intern(.isaBound(0, i)), P = try t.intern(.isaBound(1, fn(i, o)))
-    let body = try t.intern(.folPred("elem", args: [try t.intern(.isaBound(0, i)), try t.intern(.isaBound(2, fn(i, o)))]))
+    let body = try t.intern(.folPred(.base("elem"), args: [try t.intern(.isaBound(0, i)), try t.intern(.isaBound(2, fn(i, o)))]))
     let all = try t.intern(.folForall(body: body))
     let atX = try t.intern(.folForallElim(try t.intern(.hyp(0, all)), x))
-    #expect(t.conclusion(of: atX) == (try t.intern(.folPred("elem", args: [x, P]))))
+    #expect(t.conclusion(of: atX) == (try t.intern(.folPred(.base("elem"), args: [x, P]))))
     let p = try t.intern(.isaBound(0, o))
     #expect(throws: TableError.propositionAsTerm(p)) { try t.intern(.folForallElim(try t.intern(.hyp(0, all)), p)) }
 }
@@ -142,7 +142,7 @@ private let collect = Constant.defined(Defined(.zf, "ZF_Base.Collect", .object))
     var t = Table()
     let p = try t.intern(.isaBound(0, o))
     #expect(throws: TableError.propositionAsTerm(p)) {
-        try t.intern(.folPred("set", args: [p]))
+        try t.intern(.folPred(.base("set"), args: [p]))
     }
 }
 
@@ -188,7 +188,7 @@ private let collect = Constant.defined(Defined(.zf, "ZF_Base.Collect", .object))
 @Test func theGuardOfAVariableConcludesItsFormula() throws {
     var t = Table()
     let x = try t.intern(.isaBound(0, i))
-    let set = try t.intern(.folPred("set", args: [x]))
+    let set = try t.intern(.folPred(.base("set"), args: [x]))
     let g = try t.intern(.isaGuard(x, set))
     #expect(t.conclusion(of: g) == set)
     let a = try t.intern(.isaConst(.declared("a"), i, args: []))
@@ -202,9 +202,70 @@ private let collect = Constant.defined(Defined(.zf, "ZF_Base.Collect", .object))
     var t = Table()
     let p = try t.intern(.isaBound(0, o))
     let schema = try t.intern(.ifolAll(o, body: try t.intern(.folImplies(p, p))))
-    let c = try t.intern(.folPred("C", args: []))
+    let c = try t.intern(.folPred(.base("C"), args: []))
     let instance = try t.intern(.folSchemaInst(try t.intern(.use(.theorem("id"), [], schema)), c))
     #expect(t.conclusion(of: instance) == (try t.intern(.folImplies(c, c))))
     let atI = try t.intern(.use(.theorem("lem"), [], try t.intern(.ifolAll(i, body: try t.intern(.folBottom)))))
     #expect(throws: TableError.principalConnective(atI)) { try t.intern(.folSchemaInst(atI, c)) }
+}
+
+/// Pure's `≡` is read by its type: `↔` at `o`, `IFOL.eq` at `i`, `Pure.eq` at a function type; `sides(ofEquation:)`
+/// reads it back with its type.
+@Test func anEquationIsReadByItsType() throws {
+    var t = Table()
+    let A = try t.intern(.folPred(.base("A"), args: [])), a = try t.intern(.isaConst(.declared("a"), i, args: []))
+    let f = try t.intern(.isaAbs(i, body: try t.intern(.isaBound(0, i))))
+    #expect(try t.equation(o, A, A) == t.intern(.folIff(A, A)))
+    #expect(try t.equation(i, a, a) == t.intern(.isaConst(.primitive(.ifol(.eq)), fn(i, fn(i, o)), args: [a, a])))
+    let atF = try t.equation(fn(i, i), f, f)
+    #expect(atF == (try t.intern(.isaConst(.primitive(.pure(.eq)), fn(fn(i, i), fn(fn(i, i), o)), args: [f, f]))))
+    #expect(t.sides(ofEquation: atF).map { [$0.type] } == [fn(i, i)])
+    let conjunction = try t.intern(.folAnd(A, A))
+    #expect(t.sides(ofEquation: conjunction) == nil)
+}
+
+/// Pure's equality rules are steps: each concludes by the reading of `≡` at its type.
+@Test func pureEqualityStepsConcludeByTheReadingOfEquality() throws {
+    var t = Table()
+    let A = try t.intern(.folPred(.base("A"), args: [])), B = try t.intern(.folPred(.base("B"), args: []))
+    let C = try t.intern(.folPred(.base("C"), args: []))
+    let a = try t.intern(.isaConst(.declared("a"), i, args: [])), b = try t.intern(.isaConst(.declared("b"), i, args: []))
+    let reflO = try t.intern(.isaReflexive(A)), reflI = try t.intern(.isaReflexive(a))
+    #expect(t.conclusion(of: reflO) == (try t.equation(o, A, A)))
+    #expect(t.conclusion(of: reflI) == (try t.equation(i, a, a)))
+    let ab = try t.intern(.hyp(0, try t.equation(o, A, B))), bc = try t.intern(.hyp(1, try t.equation(o, B, C)))
+    let sym = try t.intern(.isaSymmetric(o, ab)), trans = try t.intern(.isaTransitive(o, ab, bc))
+    #expect(t.conclusion(of: sym) == (try t.equation(o, B, A)))
+    #expect(t.conclusion(of: trans) == (try t.equation(o, A, C)))
+    #expect(throws: TableError.premiseMismatch(expected: B, found: A)) { try t.intern(.isaTransitive(o, ab, ab)) }
+    let atI = try t.intern(.hyp(0, try t.equation(i, a, b)))
+    let symI = try t.intern(.isaSymmetric(i, atI))
+    #expect(t.conclusion(of: symI) == (try t.equation(i, b, a)))
+    #expect(throws: TableError.childType(expected: o, found: i)) { try t.intern(.isaSymmetric(o, atI)) }
+    let notEquation = try t.intern(.hyp(0, A))
+    #expect(throws: TableError.principalConnective(notEquation)) { try t.intern(.isaSymmetric(o, notEquation)) }
+}
+
+/// `combination` concludes `f x ≡ g y` β-reduced: at `λP. P ∧ C`, from `A ↔ B`, `A ∧ C ↔ B ∧ C`.
+@Test func aCombinationConcludesTheApplicationsBetaReduced() throws {
+    var t = Table()
+    let A = try t.intern(.folPred(.base("A"), args: [])), B = try t.intern(.folPred(.base("B"), args: []))
+    let C = try t.intern(.folPred(.base("C"), args: []))
+    let context = try t.intern(.isaAbs(o, body: try t.intern(.folAnd(try t.intern(.isaBound(0, o)), C))))
+    let q = try t.intern(.hyp(0, try t.equation(o, A, B)))
+    let step = try t.intern(.isaCombination(fn(o, o), try t.intern(.isaReflexive(context)), q))
+    #expect(t.conclusion(of: step) == (try t.equation(o, try t.intern(.folAnd(A, C)), try t.intern(.folAnd(B, C)))))
+    #expect(throws: TableError.notAFunctionType(o)) { try t.intern(.isaCombination(o, q, q)) }
+}
+
+/// `abstract_rule` concludes the equation of the two λs from `⋀x. f x ≡ g x`.
+@Test func anAbstractionConcludesTheEquationOfItsLambdas() throws {
+    var t = Table()
+    let x = try t.intern(.isaBound(0, i))
+    let fx = try t.intern(.isaConst(.declared("F"), fn(i, o), args: [x]))
+    let gx = try t.intern(.isaConst(.declared("G"), fn(i, o), args: [x]))
+    let pointwise = try t.intern(.hyp(0, try t.intern(.ifolAll(i, body: try t.equation(o, fx, gx)))))
+    let step = try t.intern(.isaAbstract(fn(i, o), pointwise))
+    let (f, g) = (try t.intern(.isaAbs(i, body: fx)), try t.intern(.isaAbs(i, body: gx)))
+    #expect(t.conclusion(of: step) == (try t.equation(fn(i, o), f, g)))
 }

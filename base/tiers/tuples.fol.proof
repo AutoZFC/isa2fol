@@ -1354,3 +1354,49 @@ proof snoc_CONG:
     _g6 = forall_intro _g5
     _g7 = forall_intro _g6
     qed _g7
+
+proof cong_snoc_v:
+    _sc = use snoc_CONG
+    _rf = use eq_refl
+    _sym = use eq_symm
+    fix t
+    fix n
+    fix a
+    fix b
+    fix s
+    _h = assume eq(a,b)
+    _rt = forall_elim _rf, t
+    _rn = forall_elim _rf, n
+    _s1 = forall_elim _sym, a
+    _s2 = forall_elim _s1, b
+    _sba = implies_elim _s2, _h
+    _c1 = forall_elim _sc, t
+    _c2 = forall_elim _c1, t
+    _c3 = forall_elim _c2, n
+    _c4 = forall_elim _c3, n
+    _c5 = forall_elim _c4, a
+    _c6 = forall_elim _c5, b
+    _c7 = forall_elim _c6, s
+    _c8 = implies_elim _c7, _rt
+    _c9 = implies_elim _c8, _rn
+    _c10 = implies_elim _c9, _h
+    _d5 = forall_elim _c4, b
+    _d6 = forall_elim _d5, a
+    _d7 = forall_elim _d6, s
+    _d8 = implies_elim _d7, _rt
+    _d9 = implies_elim _d8, _rn
+    _d10 = implies_elim _d9, _sba
+    _p = assume snoc(t,n,a,s)
+    _c11 = implies_elim _c10, _p
+    _f = implies_intro _c11
+    _p2 = assume snoc(t,n,b,s)
+    _d11 = implies_elim _d10, _p2
+    _g = implies_intro _d11
+    _r = iff_intro _f, _g
+    _i = implies_intro _r
+    _q1 = forall_intro _i
+    _q2 = forall_intro _q1
+    _q3 = forall_intro _q2
+    _q4 = forall_intro _q3
+    _q5 = forall_intro _q4
+    qed _q5

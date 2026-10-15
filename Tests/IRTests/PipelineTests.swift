@@ -42,12 +42,22 @@ private func lemma(_ name: String) -> Lemma { Lemma(Named(name: name)) }
 private final class Proving: Registry {
     var asked: [String] = []
     let answer: (Lemma, NodeID, inout Table) throws -> Proved
+    let defining: (Defined, inout Table) throws -> Stated
 
-    init(_ answer: @escaping (Lemma, NodeID, inout Table) throws -> Proved) { self.answer = answer }
+    init(_ answer: @escaping (Lemma, NodeID, inout Table) throws -> Proved,
+         defining: @escaping (Defined, inout Table) throws -> Stated = { _, _ in .unbuilt }) {
+        self.answer = answer
+        self.defining = defining
+    }
 
     func prove(_ lemma: Lemma, _ statement: NodeID, _ definitions: [Definition], in t: inout Table) throws -> Proved {
         asked.append(lemma.name)
         return try answer(lemma, statement, &t)
+    }
+
+    func define(_ c: Defined, _ definitions: [Definition], in t: inout Table) throws -> Stated {
+        asked.append(c.name + "_DEF")
+        return try defining(c, &t)
     }
 }
 
@@ -76,9 +86,9 @@ private struct Reopen: Rule {
 }
 
 private struct Elem: Rule {
-    func after(_ n: Node, context depth: Depth, in t: inout Table) throws -> NodeID? {
+    func after(_ n: Node, was id: NodeID, context depth: Depth, in t: inout Table) throws -> NodeID? {
         guard case let .isaConst(.primitive(.zf(.mem)), _, xs) = n else { return nil }
-        return try t.intern(.folPred("elem", args: xs))
+        return try t.intern(.folPred(.base("elem"), args: xs))
     }
 }
 
@@ -98,7 +108,7 @@ private struct BottomToC: Rule {
 
 /// Every citation of a theory axiom becomes a citation of the lemma of the same name, at the same statement.
 private struct CiteLemma: Rule {
-    func after(_ n: Node, context depth: Depth, in t: inout Table) throws -> NodeID? {
+    func after(_ n: Node, was id: NodeID, context depth: Depth, in t: inout Table) throws -> NodeID? {
         guard case let .use(.theoryAxiom(name), [], root) = n else { return nil }
         return try t.intern(.use(.lemma(lemma(name)), [], root))
     }
@@ -146,7 +156,7 @@ private func refusals(_ unit: Unit) -> [String: PipelineRefusal] {
     var unit = Unit(table: t, statements: [s])
     try Pipeline(passes: [close, elem]).run(&unit)
     let b0 = try unit.table.intern(.folBound(0))
-    let A = try unit.table.intern(.folPred("elem", args: [b0, b0]))
+    let A = try unit.table.intern(.folPred(.base("elem"), args: [b0, b0]))
     #expect(unit.statements.map(\.root) == [try unit.table.intern(.folImplies(A, A))])
     #expect(unit.statements.map(\.proof) == [try unit.table.intern(.folImpliesIntro(A, body: try unit.table.intern(.hyp(0, A))))])
     #expect(unit.refused.isEmpty)
@@ -263,7 +273,7 @@ private func refusals(_ unit: Unit) -> [String: PipelineRefusal] {
     #expect(registry.asked == ["L"])
     #expect(unit.statements.map(\.name) == ["S1", "S2", "L"])
     let x = try unit.table.intern(.folBound(0))
-    let e = try unit.table.intern(.folPred("elem", args: [x, x]))
+    let e = try unit.table.intern(.folPred(.base("elem"), args: [x, x]))
     let lowered = try unit.table.intern(.folForall(body: try unit.table.intern(.folImplies(e, e))))
     #expect(unit.statements.map(\.root)[2] == lowered)
     #expect(unit.statements[0].proof == (try unit.table.intern(.use(.lemma(lemma("L")), [], lowered))))
@@ -293,13 +303,6 @@ private func refusals(_ unit: Unit) -> [String: PipelineRefusal] {
     #expect(refusals(unit) == ["L": .lemmaUnbuilt, "S": .cites("L")])
 }
 
-/// `⋀f::i ⇒ i. f ≡ f`, `f` η-long: `Pure.reflexive` as the reader reads it at `i ⇒ i`.
-private func reflexiveAtFunction(_ t: inout Table) throws -> NodeID {
-    let T = IRType.fn(i, i)
-    let f = try t.intern(.isaAbs(i, body: try t.intern(.isaVarApp(head: try t.intern(.isaBound(1, T)), args: [try t.intern(.isaBound(0, i))]))))
-    return try t.intern(.ifolAll(T, body: try t.intern(.isaConst(.primitive(.pure(.eq)), .fn(T, .fn(T, o)), args: [f, f]))))
-}
-
 /// `T.d ≡ λx. K(x ∈ x)`: `elem` lowers it before `reading`, which owns `T.d`, reads it; nothing lowers it after.
 @Test func aPassReadsTheDefinitionsOfTheConstantsItOwnsAsTheyStandAtItsInput() throws {
     var t = Table()
@@ -307,20 +310,34 @@ private func reflexiveAtFunction(_ t: inout Table) throws -> NodeID {
     let k = { (a: NodeID, t: inout Table) in try t.intern(.isaConst(.declared("K"), .fn(o, i), args: [a])) }
     let m = try t.intern(.isaConst(.primitive(.zf(.mem)), memT, args: [x, x]))
     let definiens = try t.intern(.isaAbs(i, body: try k(m, &t)))
-    let reflexive = try reflexiveAtFunction(&t)
     let d = Defined(.zf, "T.d", .object)
-    let read = Definition(constant: d, type: .fn(i, i), axiomTypes: [], parameters: 0, definiens: definiens, reflexive: reflexive)
+    let read = Definition(constant: d, type: .fn(i, i), axiomTypes: [], parameters: 0, definiens: definiens)
     var unit = Unit(table: t, statements: [], definitions: [read])
     let reading = Reading(owned: [
         .isaConst(.defined(.zf, .object), .fn(i, i), args: [i]): .unbuilt, .isaAbs(i, body: i): .unbuilt,
         .isaConst(.declared, .fn(o, i), args: [o]): .unbuilt, .isaBound(i): .unbuilt,
     ])
     try Pipeline(passes: [elem, reading]).run(&unit)
-    let e = try unit.table.intern(.folPred("elem", args: [x, x]))
+    let e = try unit.table.intern(.folPred(.base("elem"), args: [x, x]))
     var lowered = read
     lowered.definiens = try unit.table.intern(.isaAbs(i, body: try k(e, &unit.table)))
     #expect(reading.received == [lowered])
     #expect(unit.definitions == [lowered])
+}
+
+/// Base is checked on its own: a citation of a base schema names no statement of the unit, and the statement citing it
+/// is kept.
+@Test func aBaseCitationIsLinkedToNoStatement() throws {
+    var t = Table()
+    let p = try t.intern(.isaBound(0, o))
+    let schema = try t.intern(.ifolAll(o, body: try t.intern(.folIff(p, p))))
+    let bottom = try t.intern(.folBottom)
+    let proof = try t.intern(.folSchemaInst(try t.intern(.use(.base("iff_refl"), [], schema)), bottom))
+    let s = Statement(name: "S", root: try t.intern(.folIff(bottom, bottom)), proof: proof)
+    var unit = Unit(table: t, statements: [s])
+    try Pipeline(passes: []).run(&unit)
+    #expect(unit.refused.isEmpty)
+    #expect(unit.statements.map(\.name) == ["S"])
 }
 
 @Test func aCitationOfNoStatementStopsTheRun() throws {
@@ -401,4 +418,108 @@ private func reflexiveAtFunction(_ t: inout Table) throws -> NodeID {
     try Pipeline(passes: []).run(&unit)
     #expect(unit.statements.isEmpty)
     #expect(refusals(unit) == ["bad": .letterOffSpine([.ifolAll(o, body: o)]), "citer": .letterOffSpine([.ifolAll(o, body: o)])])
+}
+
+private let d = Defined(.zf, "T.d", .object)
+private let e = Defined(.zf, "T.e", .object)
+
+/// `c(x)` at the innermost bound variable, `c` a defined constant's class.
+private func named(_ c: Defined, _ k: Int, _ t: inout Table) throws -> NodeID {
+    try t.intern(.folPred(.constant(.defined(c)), args: [try t.intern(.folBound(k))]))
+}
+
+/// `∀x. d(x) → d(x)`, proved by assuming `d(x)`.
+private func namingD(_ t: inout Table) throws -> Statement {
+    let a = try named(d, 0, &t)
+    let root = try t.intern(.folForall(body: try t.intern(.folImplies(a, a))))
+    let proof = try t.intern(.folForallIntro(body: try t.intern(.folImpliesIntro(a, body: try t.intern(.hyp(0, a))))))
+    return Statement(name: "S", root: root, proof: proof)
+}
+
+/// `∀v. c(v) ↔ body`, `body` at the bound `v`.
+private func definition(_ c: Defined, _ body: (inout Table) throws -> NodeID, _ t: inout Table) throws -> NodeID {
+    try t.intern(.folForall(body: try t.intern(.folIff(try named(c, 0, &t), try body(&t)))))
+}
+
+private func selfMember(_ t: inout Table) throws -> NodeID {
+    let v = try t.intern(.folBound(0))
+    return try t.intern(.folPred(.base("elem"), args: [v, v]))
+}
+
+private let idle = Owning(name: "idle", owned: [:], rule: NoMatch())
+
+/// A statement naming `d` holds `d`'s class predicate: the registry states `d`'s `@def` after its pass, the unit holds it
+/// as a definition with no proof, and the statement is kept.
+@Test func aStatementNamingAConstantIsLinkedToItsDefinitionWhichTheRegistryStates() throws {
+    var t = Table()
+    let s = try namingD(&t)
+    let defined = try definition(d, selfMember, &t)
+    var unit = Unit(table: t, statements: [s])
+    let registry = Proving({ _, _, _ in .unbuilt }, defining: { _, _ in .statement(defined) })
+    try Pipeline(passes: [idle], registry: registry, provingAfter: "idle").run(&unit)
+    #expect(registry.asked == ["T.d_DEF"])
+    #expect(unit.refused.isEmpty)
+    #expect(unit.statements.map(\.name) == ["S", "T.d_DEF"])
+    #expect(unit.statements[1].defines == d)
+    #expect(unit.statements[1].root == defined)
+    #expect(unit.statements[1].proof == nil)
+}
+
+@Test func aDefinitionItsProverCannotStateRefusesEveryStatementNamingTheConstant() throws {
+    var t = Table()
+    let s = try namingD(&t)
+    var unit = Unit(table: t, statements: [s])
+    try Pipeline(passes: [idle], registry: Proving({ _, _, _ in .unbuilt }), provingAfter: "idle").run(&unit)
+    #expect(unit.statements.isEmpty)
+    #expect(refusals(unit) == ["T.d_DEF": .lemmaUnbuilt, "S": .cites("T.d_DEF")])
+}
+
+/// The checker trusts a `@def` as an axiom: the pipeline checks that it defines its predicate (R1).
+@Test func aDefinitionOfTheWrongShapeStopsTheRun() throws {
+    var t = Table()
+    let s = try namingD(&t)
+    let wrong = try t.intern(.folForall(body: try selfMember(&t)))
+    var unit = Unit(table: t, statements: [s])
+    let registry = Proving({ _, _, _ in .unbuilt }, defining: { _, _ in .statement(wrong) })
+    #expect(throws: PipelineError.notADefinition("T.d_DEF")) {
+        try Pipeline(passes: [idle], registry: registry, provingAfter: "idle").run(&unit)
+    }
+}
+
+/// `d`'s body names `e`: `e`'s `@def` is stated in turn. `d`'s own left side is no link, so it is no cycle.
+@Test func aDefinitionsBodyBringsTheDefinitionsOfTheConstantsItNames() throws {
+    var t = Table()
+    let s = try namingD(&t)
+    let dDefined = try definition(d, { t in try named(e, 0, &t) }, &t)
+    let eDefined = try definition(e, selfMember, &t)
+    var unit = Unit(table: t, statements: [s])
+    let registry = Proving({ _, _, _ in .unbuilt }, defining: { c, _ in .statement(c == d ? dDefined : eDefined) })
+    try Pipeline(passes: [idle], registry: registry, provingAfter: "idle").run(&unit)
+    #expect(registry.asked == ["T.d_DEF", "T.e_DEF"])
+    #expect(unit.refused.isEmpty)
+    #expect(unit.statements.map(\.name) == ["S", "T.d_DEF", "T.e_DEF"])
+}
+
+@Test func aConstantNamedWithNoRegistryToDefineItStopsTheRun() throws {
+    var t = Table()
+    let s = try namingD(&t)
+    var unit = Unit(table: t, statements: [s])
+    #expect(throws: PipelineError.citesNothing(name: "S", cited: "T.d_DEF")) { try Pipeline(passes: []).run(&unit) }
+}
+
+/// A definition holding a pattern a pass leaves unbuilt cannot be stated: its `@def` is refused before the registry is
+/// asked, and every statement naming the constant falls with it.
+@Test func aDefinitionHoldingAnUnbuiltPatternIsRefusedBeforeTheRegistry() throws {
+    var t = Table()
+    let s = try namingD(&t)
+    let x = try t.intern(.isaBound(0, i))
+    let definiens = try t.intern(.isaAbs(i, body: try t.intern(.isaConst(.primitive(.zf(.mem)), memT, args: [x, x]))))
+    let read = Definition(constant: d, type: .fn(i, o), axiomTypes: [], parameters: 0, definiens: definiens)
+    var unit = Unit(table: t, statements: [s], definitions: [read])
+    let owned: [Pattern: Owned] = [.isaConst(.defined(.zf, .object), .fn(i, o), args: [i]): .rule, .isaAbs(i, body: o): .rule,
+                                   .isaBound(i): .rule, memAtom: .unbuilt]
+    let registry = Proving({ _, _, _ in .unbuilt }, defining: { _, _ in .unbuilt })
+    try Pipeline(passes: [Owning(name: "owner", owned: owned, rule: NoMatch())], registry: registry, provingAfter: "owner").run(&unit)
+    #expect(registry.asked.isEmpty)
+    #expect(refusals(unit) == ["T.d_DEF": .unbuilt(pass: "owner", [memAtom]), "S": .cites("T.d_DEF")])
 }

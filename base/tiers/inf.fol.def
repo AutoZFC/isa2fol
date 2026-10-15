@@ -1,0 +1,29 @@
+# base/tiers/inf -- Isabelle/ZF's Inf as NBG DEFINES it: the least inductive set.
+#
+# ZF_Base AXIOMATISES Inf: `0 : Inf & (ALL y:Inf. succ(y) : Inf)`. Many sets satisfy that, so the axiom
+# alone fixes no object and gives no UNIQ. The least such set is unique, and every Isabelle proof about
+# Inf uses only the axiom, which the least one satisfies -- so Inf is DEFINED here, nothing admitted.
+#
+#   ind       infinity's own matrix: an empty member, closed under y |-> y u {y}
+#   Inf       inductive, and a subset of every inductive set
+#   Inf_EX    infinity's witness, cut down by separation to the sets in every inductive set
+#   Inf_UNIQ  two least inductive sets are subsets of each other: extensionality
+#
+# The class of inductive sets, and of the sets in all of them, are built by Goedel's operations
+# (base/tiers/classes' cls_* and g*): both formulas quantify over sets only.
+#
+# Depends on base/axioms, pairs, witness, logic, cong, s2s3, tuples, classes. Admits nothing: two
+# definitional introductions, content zero.
+
+@def(ind) axiom ind_def: forall z. (ind(z) <-> ((exists e. (set(e) & (elem(e,z) & (forall u. (set(u) -> (~ elem(u,e))))))) & (forall y. (set(y) -> (elem(y,z) -> (exists s. (set(s) & (elem(s,z) & (forall w. (set(w) -> (elem(w,s) <-> (elem(w,y) | eq(w,y)))))))))))))
+@def(Inf) axiom Inf_def: forall r. (Inf(r) <-> (ind(r) & (forall z. (set(z) -> (ind(z) -> (forall x. (set(x) -> (elem(x,r) -> elem(x,z)))))))))
+
+schema nimp_as_and [A(0), B(0)]: ((A & (~ B)) <-> (~ (A -> B)))
+claim empty_eq: forall e. forall e2. ((forall u. (set(u) -> (~ elem(u,e)))) -> ((forall u. (set(u) -> (~ elem(u,e2)))) -> eq(e,e2)))
+claim succ_eq: forall y. forall s. forall s2. ((forall w. (set(w) -> (elem(w,s) <-> (elem(w,y) | eq(w,y))))) -> ((forall w. (set(w) -> (elem(w,s2) <-> (elem(w,y) | eq(w,y))))) -> eq(s,s2)))
+claim succ_class: exists S. (forall y. (set(y) -> (forall s. (set(s) -> (pmem(y,s,S) <-> (forall w. (set(w) -> (elem(w,s) <-> (elem(w,y) | eq(w,y))))))))))
+claim ind_class: exists I. (forall z. (set(z) -> (elem(z,I) <-> ind(z))))
+claim ind_meet_class: exists W. (forall x. (set(x) -> (elem(x,W) <-> (forall z. (set(z) -> (ind(z) -> elem(x,z)))))))
+
+claim Inf_EX: exists r. (set(r) & Inf(r))
+claim Inf_UNIQ: forall r. (set(r) -> (forall s. (set(s) -> (Inf(r) -> (Inf(s) -> eq(r,s))))))

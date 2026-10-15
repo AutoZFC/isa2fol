@@ -381,7 +381,7 @@ From `ZF_Base` and `func`:
 |---|---|---|
 | `Pair(a,b)` | `{{a,a},{a,b}}` | `kpair` — the one primitive, unchanged |
 | `function(r)` | `∀x y. ⟨x,y⟩ ∈ r ⟶ (∀y'. ⟨x,y'⟩ ∈ r ⟶ y = y')` | the same, of a class |
-| `f`a` | `⋃(f``{a})` — for a function, the `b` with `⟨a,b⟩ ∈ f` | `⟨a, r⟩ ∈ F`: application is membership |
+| `f`a` | `⋃(f``{a})` — for a function, the `b` with `⟨a,b⟩ ∈ f` | `⟨a, r⟩ ∈ F`: application is membership; a function variable's reads `⋃(f``{a})` itself, `∅` where `F` has no value (S5) |
 | `Lambda(A,b)` | `{⟨x, b(x)⟩. x ∈ A}` | a λ over every set: the class `{⟨x,r⟩ : φ_b(x,r)}`, by §3 |
 | `beta`, `eta`, `fun_extension` | theorems of `func` | Pure's β, η, `abstract_rule` — theorems about such classes |
 | `n → A`, i.e. `Pi(n, λ_. A)` | the n-tuples over `A` | **an n-tuple is a function with domain `n`** — a set, so it can stand in a pair |
@@ -395,8 +395,9 @@ From `ZF_Base` and `func`:
 - **One atom at every arity**, `pmem` on a tuple. No arity-indexed predicate, no
   position, nothing to permute.
 - **A constant is a closed meta function** (R7), its graph a class function on
-  tuples; a λ is one built at its use site by §3; a meta-function variable is a
-  class parameter that owes being a function (S5).
+  tuples; a λ is a wrapper, its class its body's, stated where it stands (S1); a
+  meta-function variable is a class parameter that owes being single-valued, its
+  application read as Isabelle/ZF's `f`a` (S5).
 - **Isabelle's own `⟨x,y,z⟩ = ⟨x,⟨y,z⟩⟩` is the OBJECT language's pair** — a value,
   translated like any constant — never the meta level's tuple (§3).
 
@@ -447,8 +448,8 @@ provably exists and is unique — i.e. only where S2 is discharged.
 
 **S1 IS PAID WHERE THE TERM STANDS, NEVER WIDER.** `θ(f(x))` is stated with
 `∃r.(F(x,r) ∧ …)` AT THE ATOM where `f(x)` stood. A variable Isabelle binds
-locally stays local, and a compound term or a λ is never lifted into a global
-claim, which would close it over its locals and need a fresh name. Isabelle's
+locally stays local, and no statement names a compound term or a λ globally,
+which would close it over its locals and need a fresh name. Isabelle's
 proof treats `f(x)` as opaque and this one treats `r` as opaque, so the
 interiors correspond step for step. Where two forms of one term meet — a
 hypothesis's and a conclusion's, a λ's body unfolded at its argument — EX and
@@ -462,6 +463,22 @@ that. It also DELIVERS the R3 guard, the existential carrying `set(·)`.
 > variable out of the scope Isabelle gave it, and a λ's body unfolded at its
 > argument puts `r` back at the atom — two formulas for one statement, to be
 > reconciled at every such site.
+
+**A λ IS A WRAPPER** (decided 2026-10-13; its class closed over its free variables,
+2026-10-14). `λx⃗. φ` names nothing: its class is its body's, `{⟨x⃗⟩ : φ}` — a
+function's `{⟨⟨x⃗⟩, r⟩ : r = b}` — stated by that definition where the λ stands, as
+the class argument of the constant holding it; S1 names φ's own terms where they
+stand inside it. That the class exists is §3 over the λ closed over its free
+variables, `∀v⃗. ∃K. def(K)`: one statement per closed λ, proved once, and cited at
+the variables the λ mentions — variables wherever it stands, so the citation
+concludes the λ's own definition at its site. β is that definition at the
+arguments: Isabelle stores `φ(t⃗)`, and the class is `φ`'s. Nothing is added to the
+language; every class is §3's.
+
+> **⚠ THE REFERENCE MADE A λ AN ANONYMOUS CONSTANT `L` THAT STATEMENTS NAMED**
+> (2026-10-12). Isabelle stores the body at every application, so one statement
+> held the λ in two forms — `L` in a class slot, the body where it was applied —
+> joined at every atom. A wrapper has one form, its body's.
 
 **⚠ THE GRAPH IS PER CONSTANT; THE VARIABLE INTRODUCTION IS PER SITE, AND AN
 EARLIER WORDING HERE SAID "PER CONSTANT, NOT PER PROOF STEP" OF BOTH.**
@@ -656,9 +673,17 @@ schema, no new admission, and no arity index anywhere.
 **S3 — The obligations reduce by definitional order.** Isabelle introduces
 constants in order, so EX/UNIQ/CONG propagate by induction. Three base cases:
 
-- **primitive constants** (`Inf`) are *introduced*, not defined. Introducing a
-  constant means `∃!r. C(r)` — conservative because `⊢ ∃x. φ(x)`. Emitting
-  `∃r. C(r)` is strictly weaker and does not name a constant at all.
+- **primitive constants** are NBG's own notions, *defined*, each with EX and
+  UNIQ proved. `Inf` is axiomatised in Isabelle by a property many sets have,
+  `0 ∈ Inf ∧ ∀y∈Inf. succ(y) ∈ Inf`, so it is defined as the LEAST such set:
+  unique by Extensionality, existing by Infinity and Separation over the class of
+  sets in every inductive set (`base/tiers/inf`). Every Isabelle proof about
+  `Inf` uses only the axiom, which the least set satisfies. Emitting `∃r. C(r)`
+  without UNIQ is strictly weaker and does not name a constant at all.
+
+  > **⚠ THIS SAID A PRIMITIVE IS *INTRODUCED*, `∃!r. C(r)` ADMITTED BECAUSE
+  > `⊢ ∃x. φ(x)`.** Existence does not license uniqueness, and `base/` admitted
+  > `Inf` by Skolemisation: an axiom outside the 19, against R1.
 - **definite descriptions** are total and single-valued *provided* the
   `∅`-default is present; a bare Hilbert `ι` loses totality. **`The` is not one
   of these**, and an earlier version of this list said it was. Isabelle *defines*
@@ -715,10 +740,27 @@ its argument.
 
 **S5 — Set-valued meta-function arguments compile to classes**, then to sets by
 Replacement where the domain is a set. No graph is ever passed as an argument.
-`f(x⃗) = r` becomes a lookup in a class parameter — `⟨t, r⟩ ∈ C`, `pmem(t,r,C)`,
-with `t` the n-tuple of `x⃗` (R7) — and `C` owes being a function on n-tuples
-(§1a). **One atom at every arity**: there is no arity family, and no arity
-refuses.
+`f(x⃗) = r` becomes a lookup in a class parameter — `apply(t, r, C)`, `t` the n-tuple
+of `x⃗` (R7) — and `C` owes being single-valued. **One atom at every arity**: there
+is no arity family, and no arity refuses.
+
+**A function variable owes single-valuedness, and its application reads as
+Isabelle/ZF reads `f`a`** (decided 2026-10-14). `apply(t, r, C)` holds when
+`⟨t, r⟩ ∈ C`, and when `C` has no value at `t` and `r = ∅`: `⋃(f``{a})`,
+Isabelle/ZF's own application, in class form. A quantifier over `f` is relativized
+to `function(C)`, `C` single-valued — Isabelle/ZF's `function`, of a class — which
+carries no arity, since a function is its pairs. Faithful: every single-valued `C`
+read through `apply` is a total function on sets, and every Isabelle function is
+such a `C`, so `∀C. function(C) → θ*(C)` holds iff `⋀f. θ(f)` does. Every
+application has a value with no guard (`apply_EX`), and only one under it
+(`apply_UNIQ`), both proved once in `base/tiers/metafun`. A constant's application
+stays plain membership, `pmem(t, r, C)`: a constant is total on its tuples by its
+definition, and so is a λ's class (S1).
+
+> **⚠ THIS SAID `C` OWES BEING A FUNCTION ON n-TUPLES** — total there, which needs
+> the domain at every binder: a class of the n-tuples, or the numeral `n` (the
+> reference's `Func(F, n)`, and its two clauses written out). Totality moved into
+> the application's default, as Isabelle/ZF's own `f`a` has it.
 
 > **⚠ THIS SAID `pmem(x,r,C)` AT ARITY 1, `tmem(a,b,r,C)` AT ARITY 2, "`elem`/
 > `pmem`/`tmem` ARE THE WHOLE VOCABULARY" AND "ARITY ≥ 3 REFUSES".** `tmem` put the

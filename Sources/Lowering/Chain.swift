@@ -1,0 +1,85 @@
+import IR
+
+enum Ref: Hashable {
+    case outer(NodeID)
+    case bound(Int)
+}
+
+enum Binder: Hashable {
+    case set
+    case cls
+}
+
+struct Chain {
+    private(set) var binders: [Binder] = []
+    private(set) var constraints: [NodeID?] = []
+    private let opened: (variables: [NodeID], shift: Int)?
+
+    init() { opened = nil }
+
+    init(opened variables: [NodeID], shift: Int) { opened = (variables, shift) }
+
+    mutating func bind(_ b: Binder) -> Ref {
+        binders.append(b)
+        constraints.append(nil)
+        return .bound(binders.count - 1)
+    }
+
+    mutating func constrain(_ r: Ref, _ constraint: NodeID) {
+        guard case let .bound(k) = r else { return }
+        constraints[k] = constraint
+    }
+
+    func here(_ r: Ref, in t: inout Table) throws -> NodeID {
+        switch (r, opened) {
+        case let (.outer(x), o?): return try shift(x, by: o.shift, in: &t)
+        case let (.bound(k), o?): return o.variables[k]
+        case let (.outer(x), nil): return try shift(x, by: binders.count, in: &t)
+        case let (.bound(k), nil):
+            let d = binders.count - 1 - k
+            return try t.intern(binders[k] == .set ? .isaBound(d, .i) : .folBound(d))
+        }
+    }
+
+    func stated() throws -> [NodeID] {
+        try constraints.indices.map { k in
+            guard let c = constraints[k] else { throw ChainError.unconstrained(k) }
+            return c
+        }
+    }
+
+    func predicate(_ p: Predicate, _ refs: [Ref], in t: inout Table) throws -> NodeID {
+        try t.intern(.folPred(p, args: try refs.map { try here($0, in: &t) }))
+    }
+
+    func formula(_ core: NodeID, in t: inout Table) throws -> NodeID {
+        try folded(core, in: &t) { b, c, body, t in
+            let both = try t.intern(.folAnd(c, body))
+            return try t.intern(b == .set ? .ifolEx(.i, body: both) : .folExists(body: both))
+        }
+    }
+
+    func premises(_ core: NodeID, in t: inout Table) throws -> NodeID {
+        try folded(core, in: &t) { b, c, body, t in
+            var premised = try t.intern(.folImplies(c, body))
+            if b == .set, let g = try Reify.guarded(try t.intern(.isaBound(0, .i)), .i, in: &t) {
+                premised = try t.intern(.folImplies(g, premised))
+            }
+            return try t.intern(.folForall(body: premised))
+        }
+    }
+
+    private func folded(_ core: NodeID, in t: inout Table,
+                        _ wrap: (Binder, NodeID, NodeID, inout Table) throws -> NodeID) throws -> NodeID {
+        var body = core
+        for k in binders.indices.reversed() {
+            guard let constraint = constraints[k] else { throw ChainError.unconstrained(k) }
+            body = try wrap(binders[k], constraint, body, &t)
+        }
+        return body
+    }
+}
+
+@frozen public enum ChainError: Error, Equatable, Sendable {
+    case unconstrained(Int)
+}
