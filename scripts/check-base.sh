@@ -15,6 +15,7 @@ TIERS=(
   "cong axioms"
   "s2s3 axioms pairs witness"
   "primitives axioms"
+  "truth axioms pairs cong primitives"
   "regroup"
   "tuples axioms pairs witness"
   "classes axioms pairs witness logic cong s2s3 primitives tuples"

@@ -63,13 +63,18 @@ private struct Formulas {
 @Test func theSchemasLogicCitesParseFromBase() throws {
     let tiers = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
         .deletingLastPathComponent().appendingPathComponent("base/tiers")
-    let texts = try ["cong.fol.def", "logic.fol.def"].map { try String(contentsOf: tiers.appendingPathComponent($0), encoding: .utf8) }
+    let texts = try ["cong.fol.def", "logic.fol.def", "truth.fol.def"].map { try String(contentsOf: tiers.appendingPathComponent($0), encoding: .utf8) }
     var f = Formulas()
-    let names = ["iff_refl", "iff_symm", "iff_trans", "cong_not", "cong_and", "cong_or", "cong_imp", "cong_iff"]
+    let names = ["iff_refl", "iff_symm", "iff_trans", "cong_not", "cong_and", "cong_or", "cong_imp", "cong_iff", "truth_EX",
+                 "weaken"]
     let parsed = try parse(statements: names, from: texts, in: &f.t)
     #expect(Set(parsed.keys) == Set(names))
     let A = try f.v(0)
     #expect(parsed["iff_refl"] == (try f.letters(1, try f.n(.folIff(A, A)))))
+    let E = try f.n(.folBound(0))
+    let (truth, holds) = (try f.n(.folPred(.base("truth"), args: [E])), try f.n(.folPred(.base("holds"), args: [E])))
+    let named = try f.n(.folExists(body: try f.n(.folAnd(truth, try f.n(.folIff(holds, try f.v(1)))))))
+    #expect(parsed["truth_EX"] == (try f.letters(1, named)), "a truth set's binder is guarded by truth, so it is fol-zfc's")
     #expect(throws: ParseError.self) { try parse(statements: ["no_such_schema"], from: texts, in: &f.t) }
 }
 

@@ -19,28 +19,28 @@ private let ballDef = app(const("Pure.eq", ballT), const("ZF_Base.Ball"),
 ///   T.M  (named)   False                 axiom T.onlyInM, a theory's own axiom
 ///   T.N  (named)   False                 cite T.M: N's closure holds M's
 ///   box 30         OFCLASS(i, term)      axiom T.termI
-///   T.Q  (named)   b = b                 refl[i] %% box 30 % b
+///   T.Q  (named)   b = b                 reflAx[i] %% box 30 % b, a theory's own axiom
 ///   T.B  (named)   Ball(A, λx. x ∈ A)    axiom T.ballAx % A: Ball OCCURS, so its definition is in the closure
 ///   T.D  (named)   Ball ≡ λA P. …        axiom ZF_Base.Ball_def_raw: the definition CITED
 ///   T.O  (named)   False                 oracle: refused, not followed
-///   T.P  (named)   OFCLASS('a, term) ⟹ x = x   polymorphic: λH. refl['a] %% H % x
+///   T.P  (named)   OFCLASS('a, term) ⟹ x = x   polymorphic, restricted to term, so read at i: λH. reflAx['a] %% H % x
 private func census() throws -> Census {
     let theorems: [(String, Int, String)] = [
         ("T.N", 10, proofFile(frees: [], prop: falsum, proof: pcite(20, "ZF.T", "T.M"))),
         ("T.M", 20, proofFile(frees: [], prop: falsum, proof: paxiom("T.onlyInM"))),
         ("T.Q", 40, proofFile(frees: [("b", i)], prop: eq(i, free("b")),
-                              proof: pappt(pappp(paxiom("IFOL.refl", i), pcite(30, "ZF.T")), free("b")))),
+                              proof: pappt(pappp(paxiom("T.reflAx", i), pcite(30, "ZF.T")), free("b")))),
         ("T.B", 50, proofFile(frees: [("A", i)], prop: ballA, proof: pappt(paxiom("T.ballAx"), free("A")))),
         ("T.D", 60, proofFile(frees: [], prop: ballDef, proof: paxiom("ZF_Base.Ball_def_raw"))),
         ("T.O", 70, proofFile(frees: [], prop: falsum, proof: poracle("skip_proof"))),
         ("T.P", 80, proofFile(tfrees: ["'a"], frees: [("x", typeA)], prop: imp(termClass(typeA), eq(typeA, free("x"))),
-                              proof: pabsp("H", termClass(typeA), pappt(pappp(paxiom("IFOL.refl", typeA), pbound(0)), free("x"))))),
+                              proof: pabsp("H", termClass(typeA), pappt(pappp(paxiom("T.reflAx", typeA), pbound(0)), free("x"))))),
     ]
     var files: [String: String] = [
-        "IFOL/theory/axioms": axiomEntity("IFOL.refl", tfrees: ["'a"], prop: imp(termClass(typeA), all("a", typeA, eq(typeA, bound(0))))),
         "ZF.ZF_Base/theory/axioms": axiomEntity("ZF_Base.Ball_def_raw", prop: ballDef),
         "ZF.T/theory/axioms": axiomEntity("T.onlyInM", prop: falsum) + axiomEntity("T.termI", prop: termClass(i))
-            + axiomEntity("T.ballAx", frees: [("A", i)], prop: ballA),
+            + axiomEntity("T.ballAx", frees: [("A", i)], prop: ballA)
+            + axiomEntity("T.reflAx", tfrees: ["'a"], prop: imp(termClass(typeA), all("a", typeA, eq(typeA, bound(0))))),
         "ZF.T/theory/thms": thmsFile(theorems.map { ($0.0, $0.1) }),
         "ZF.T/proofs/30": proofFile(frees: [], prop: termClass(i), proof: paxiom("T.termI")),
     ]
@@ -64,7 +64,7 @@ private let ballType = IRType.fn(.i, .fn(.fn(.i, .o), .o))
 @Test func aCitationIsCountedOncePerTheoremWhoseClosureHoldsIt() throws {
     let c = try census()
     #expect(c.citations[.theoryAxiom("T.onlyInM")] == 2, "M, and N through the named M")
-    #expect(c.citations[.axiom(.ifol(.refl))] == 2, "Q at i, P at 'a")
+    #expect(c.citations[.theoryAxiom("T.reflAx")] == 2, "Q, and P read at i")
     #expect(c.citations[.theoryAxiom("T.termI")] == 1, "Q, through the unnamed box 30")
     #expect(c.citations[.isaDefinition("ZF_Base.Ball_def_raw", of: Defined(.zf, "ZF_Base.Ball", .object))] == 1,
             "D cites the definition; B only uses the constant")
@@ -73,9 +73,9 @@ private let ballType = IRType.fn(.i, .fn(.fn(.i, .o), .o))
 /// A pattern is a primitive at its type; the closure holds the definition of every constant that occurs.
 @Test func aPatternIsCountedThroughCitationsBoxesAndDefinitions() throws {
     let c = try census()
-    #expect(c.patterns[.isaOfClass(.i)] == 1, "box 30's statement, part of Q's proof")
-    #expect(c.patterns[.use(.axiom(.ifol(.refl)), [.i], .o)] == 1)
-    #expect(c.patterns[.use(.axiom(.ifol(.refl)), [.variable("'a")], .o)] == 1, "an instance is its own pattern")
+    #expect(c.patterns[.isaOfClass(.i)] == 2, "box 30's statement in Q's proof, and P's premise read at i")
+    #expect(c.patterns[.use(.theoryAxiom, [.i], .o)] == 2, "Q, and P read at i")
+    #expect(c.patterns[.use(.theoryAxiom, [.variable("'a")], .o)] == nil, "no theorem is read at 'a")
     let ball = Pattern.isaConst(.defined(.zf, .object), ballType, args: [.i, .fn(.i, .o)])
     #expect(c.patterns[ball] == 2, "B's statement and D's")
     let definitionEquality = Pattern.isaConst(.primitive(.pure(.eq)), .fn(ballType, .fn(ballType, .o)), args: [ballType, ballType])

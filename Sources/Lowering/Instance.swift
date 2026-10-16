@@ -3,7 +3,6 @@ import IR
 @frozen public enum InstanceError: Error, Equatable, Sendable {
     case notAnInstance(NodeID)
     case notAnEquivalence(NodeID)
-    case noCongruence(NodeID)
 }
 
 struct TermInstance {
@@ -52,7 +51,7 @@ private func units(_ n: NodeID, _ x: Int, _ path: [Int], in t: Table) -> [Unit] 
     case .isaAbs:
         return freeVariables(n, in: t).contains { $0.index == x } ? [Unit(path: path, lambda: true)] : []
     case .ifolAll, .ifolEx, .isaFree, .isaOfClass, .isaAllIntro, .isaAllElim, .isaReflexive, .isaSymmetric, .isaTransitive,
-         .isaCombination, .isaAbstract, .folImplies, .folAnd, .folOr, .folIff, .folBottom, .folImpliesIntro, .folImpliesElim,
+         .isaCombination, .isaAbstract, .isaClassical, .isaIffReflection, .isaPropAll, .isaPropIntro, .isaPropBound, .folImplies, .folAnd, .folOr, .folIff, .folBottom, .folImpliesIntro, .folImpliesElim,
          .use, .hyp, .isaGuard, .isaExIntro, .isaExElim, .folNot, .folBound, .folPred, .folForall, .folExists,
          .folAndIntro, .folAndElimL, .folAndElimR, .folOrIntroL, .folOrIntroR, .folOrElim, .folNotIntro, .folNotElim,
          .folIffIntro, .folIffElimL, .folIffElimR, .folForallIntro, .folForallElim, .folExistsIntro, .folExistsElim,

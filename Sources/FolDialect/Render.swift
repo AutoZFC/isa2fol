@@ -202,7 +202,7 @@ private struct Writer {
 
         case .ifolAll, .ifolEx, .isaConst, .isaFree, .isaBound, .isaVarApp, .isaAbs, .isaOfClass,
              .isaAllIntro, .isaAllElim, .isaGuard, .isaExIntro, .isaExElim, .isaReflexive, .isaSymmetric, .isaTransitive, .isaCombination,
-             .isaAbstract:
+             .isaAbstract, .isaClassical, .isaIffReflection, .isaPropAll, .isaPropIntro, .isaPropBound:
             throw Pattern(t[id], in: t).dialects.contains(.fol) ? RenderError.schema(id) : RenderError.sourceKind(id)
         case .folLetterAll, .folLetter:
             throw RenderError.schema(id)

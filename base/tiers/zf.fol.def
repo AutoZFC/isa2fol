@@ -17,8 +17,9 @@
 #
 # The set constants' EX and UNIQ, the first links of their chain (decision 5), from base's own.
 #
-# IFOL.subst, IFOL's axiom with its predicate a CLASS variable, bare (FOUNDATION §2 S4): membership's
-# congruence, from cong_snoc_v -- a's 1-tuple is b's. As the pipeline renders it at i, OFCLASS dropped.
+# class_subst, IFOL's axiom subst with its predicate a CLASS variable, bare (FOUNDATION §2 S4): membership's
+# congruence, from cong_snoc_v -- a's 1-tuple is b's. As the pipeline renders it at i, OFCLASS dropped. Not named
+# IFOL.subst: that is Isabelle's fact of the axiom, a claim of the unit.
 #
 # Depends on base/axioms, pairs, witness, logic, cong, s2s3, primitives, tuples, classes, metafun, inf. Admits nothing: five definitional
 # introductions, content zero.
@@ -33,7 +34,7 @@ claim ZF_Base.zero_EX: exists v. (set(v) & ZF_Base.zero(v))
 claim ZF_Base.Inf_EX: exists v. (set(v) & ZF_Base.Inf(v))
 claim ZF_Base.zero_UNIQ: forall v. (set(v) -> (forall w. (set(w) -> (ZF_Base.zero(v) -> (ZF_Base.zero(w) -> eq(v,w))))))
 claim ZF_Base.Inf_UNIQ: forall v. (set(v) -> (forall w. (set(w) -> (ZF_Base.Inf(v) -> (ZF_Base.Inf(w) -> eq(v,w))))))
-claim IFOL.subst: forall a. (set(a) -> (forall b. (set(b) -> (forall P. (eq(a,b) -> ((exists t. (set(t) & ((exists e. (set(e) & (zero(e) & snoc(e,e,a,t)))) & elem(t,P)))) -> (exists t. (set(t) & ((exists e. (set(e) & (zero(e) & snoc(e,e,b,t)))) & elem(t,P))))))))))
+claim class_subst: forall a. (set(a) -> (forall b. (set(b) -> (forall P. (eq(a,b) -> ((exists t. (set(t) & ((exists e. (set(e) & (zero(e) & snoc(e,e,a,t)))) & elem(t,P)))) -> (exists t. (set(t) & ((exists e. (set(e) & (zero(e) & snoc(e,e,b,t)))) & elem(t,P))))))))))
 
 # PrimReplace's value: the image of A under P where P is functional on A, else 0 — Replacement (PrimReplace_EX) at
 # the class of Kuratowski pairs {<u,v> : u in A & <u,v> in P}, built by lam_class, cls_place2, cls_conv, g1_inter2.

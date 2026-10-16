@@ -19,6 +19,11 @@
     case isaTransitive(IRType, IRType, IRType)
     case isaCombination(IRType, IRType, IRType)
     case isaAbstract(IRType, IRType)
+    case isaClassical(IRType, IRType)
+    case isaIffReflection(IRType, IRType, IRType)
+    case isaPropAll
+    case isaPropIntro
+    case isaPropBound
 
     case folImplies(IRType, IRType)
     case folAnd(IRType, IRType)
@@ -31,6 +36,13 @@
     case hyp(IRType)
     case folIffIntro(IRType, IRType)
     case folIffElimL(IRType, IRType)
+    case folAndIntro(IRType, IRType)
+    case folAndElimL(IRType)
+    case folAndElimR(IRType)
+    case folOrIntroL(IRType, IRType)
+    case folOrIntroR(IRType, IRType)
+    case folOrElim(IRType, IRType, IRType)
+    case folBottomElim(IRType, IRType)
 
     case isaGuard(IRType, IRType)
     case isaExIntro(IRType, IRType)
@@ -41,12 +53,6 @@
     case folPred(args: [IRType])
     case folForall(body: IRType)
     case folExists(body: IRType)
-    case folAndIntro(IRType, IRType)
-    case folAndElimL(IRType)
-    case folAndElimR(IRType)
-    case folOrIntroL(IRType, IRType)
-    case folOrIntroR(IRType, IRType)
-    case folOrElim(IRType, IRType, IRType)
     case folNotIntro(IRType, body: IRType)
     case folNotElim(IRType, IRType)
     case folIffElimR(IRType, IRType)
@@ -54,7 +60,6 @@
     case folForallElim(IRType, IRType)
     case folExistsIntro(IRType, IRType)
     case folExistsElim(IRType, body: IRType)
-    case folBottomElim(IRType, IRType)
     case folClassicalAbsurd(IRType, body: IRType)
     case folSchemaInst(IRType, IRType)
     case folLetterAll(Int, body: IRType)
@@ -136,6 +141,11 @@
         case let .isaTransitive(U, p, q): self = .isaTransitive(U, T(p), T(q))
         case let .isaCombination(U, p, q): self = .isaCombination(U, T(p), T(q))
         case let .isaAbstract(U, p): self = .isaAbstract(U, T(p))
+        case let .isaClassical(a, h): self = .isaClassical(T(a), T(h))
+        case let .isaIffReflection(a, b, h): self = .isaIffReflection(T(a), T(b), T(h))
+        case .isaPropAll: self = .isaPropAll
+        case .isaPropIntro: self = .isaPropIntro
+        case .isaPropBound: self = .isaPropBound
 
         case let .folImplies(a, b): self = .folImplies(T(a), T(b))
         case let .folAnd(a, b): self = .folAnd(T(a), T(b))
@@ -186,7 +196,8 @@ extension Pattern {
         case let .ifolAll(T, _), let .isaAllIntro(T, _), let .isaBound(T):
             return T == .o ? [.isa, .fol] : [.isa]
         case .ifolEx, .isaConst, .isaFree, .isaVarApp, .isaAbs, .isaOfClass, .isaAllElim, .isaGuard, .isaExIntro, .isaExElim, .isaReflexive,
-             .isaSymmetric, .isaTransitive, .isaCombination, .isaAbstract:
+             .isaSymmetric, .isaTransitive, .isaCombination, .isaAbstract, .isaClassical, .isaIffReflection, .isaPropAll, .isaPropIntro,
+             .isaPropBound:
             return [.isa]
         case let .use(kind, types, _):
             switch kind {
@@ -195,11 +206,11 @@ extension Pattern {
             case .base: return [.fol]
             }
         case .folImplies, .folAnd, .folOr, .folIff, .folBottom, .folImpliesIntro, .folImpliesElim, .hyp, .folIffIntro,
-             .folIffElimL:
+             .folIffElimL, .folAndIntro, .folAndElimL, .folAndElimR, .folOrIntroL, .folOrIntroR, .folOrElim, .folBottomElim:
             return [.isa, .fol]
-        case .folNot, .folBound, .folPred, .folForall, .folExists, .folAndIntro, .folAndElimL, .folAndElimR,
-             .folOrIntroL, .folOrIntroR, .folOrElim, .folNotIntro, .folNotElim, .folIffElimR, .folForallIntro, .folForallElim, .folExistsIntro, .folExistsElim, .folBottomElim,
-             .folClassicalAbsurd, .folSchemaInst, .folLetterAll, .folLetter, .folLetterAbs:
+        case .folNot, .folBound, .folPred, .folForall, .folExists, .folNotIntro, .folNotElim, .folIffElimR, .folForallIntro,
+             .folForallElim, .folExistsIntro, .folExistsElim, .folClassicalAbsurd, .folSchemaInst, .folLetterAll, .folLetter,
+             .folLetterAbs:
             return [.fol]
         }
     }

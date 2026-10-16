@@ -66,7 +66,7 @@ func label(_ outcome: Outcome) -> String {
 }
 
 let start = Date()
-var named: [String: [String: Int]] = [:], cited: [String: Int] = [:]
+var named: [String: [String: Int]] = [:], cited: [String: Int] = [:], boxes: [String: Int] = [:]
 var reader: Reader
 do {
     reader = try Reader(try Export(root: arguments[1]))
@@ -86,7 +86,9 @@ do {
     while next < reader.cited.count {
         let theorem = reader.cited[next]
         next += 1
-        if !read.contains(theorem) { cited[try outcome(theorem), default: 0] += 1 }
+        guard !read.contains(theorem) else { continue }
+        let o = try outcome(theorem)
+        if reader.name(of: theorem) == nil { boxes[o, default: 0] += 1 } else { cited[o, default: 0] += 1 }
     }
 } catch {
     stopped(error)
@@ -100,4 +102,5 @@ func report(_ title: String, _ counts: [String: Int]) {
 report("named theorems, all ZF sessions", named.values.reduce(into: [:]) { $0.merge($1, uniquingKeysWith: +) })
 for s in named.keys.sorted() { report("  \(s)", named[s]!) }
 report("named theorems they cite outside the ZF sessions", cited)
+report("boxes binding a proposition they cite", boxes)
 print("table: \(reader.table.count) nodes; \(String(format: "%.1f", Date().timeIntervalSince(start))) s")

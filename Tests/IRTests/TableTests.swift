@@ -269,3 +269,32 @@ private let collect = Constant.defined(Defined(.zf, "ZF_Base.Collect", .object))
     let (f, g) = (try t.intern(.isaAbs(i, body: fx)), try t.intern(.isaAbs(i, body: gx)))
     #expect(t.conclusion(of: step) == (try t.equation(fn(i, o), f, g)))
 }
+
+/// `classical`'s isa step concludes `P` from `h : X → P`, and refuses an `h` concluding something else; `iff_reflection`'s
+/// concludes `P ↔ Q`.
+@Test func theLogicsIsaStepsConcludeTheirRulesConclusions() throws {
+    var t = Table()
+    let (A, B) = (try t.intern(.isaBound(1, .o)), try t.intern(.isaBound(0, .o)))
+    let premise = try t.intern(.folImplies(B, A))
+    let h = try t.intern(.hyp(0, premise))
+    let classical = try t.intern(.isaClassical(A, h))
+    #expect(t.conclusion(of: classical) == A)
+    #expect(throws: TableError.self) { try t.intern(.isaClassical(B, h)) }
+    let reflection = try t.intern(.isaIffReflection(A, B, h))
+    #expect(t.conclusion(of: reflection) == (try t.intern(.folIff(A, B))))
+}
+
+/// Pure's `⋀` over a proposition: its intro concludes it, its variable is a formula and never a predicate's argument, and
+/// it is eliminated at a formula as a letter is.
+@Test func pureAllOverAPropositionIsIntroducedAndEliminatedAtAFormula() throws {
+    var t = Table()
+    let P = try t.intern(.isaPropBound(0))
+    let implication = try t.intern(.folImplies(P, P))
+    let intro = try t.intern(.isaPropIntro(body: try t.intern(.folImpliesIntro(P, body: try t.intern(.hyp(0, P))))))
+    #expect(t.conclusion(of: intro) == (try t.intern(.isaPropAll(body: implication))))
+    #expect(t.type(of: P) == .o)
+    #expect(throws: TableError.self) { try t.intern(.folPred(.base("set"), args: [P])) }
+    let C = try t.intern(.folPred(.base("C"), args: []))
+    let instance = try t.intern(.isaAllElim(intro, C))
+    #expect(t.conclusion(of: instance) == (try t.intern(.folImplies(C, C))))
+}

@@ -12,6 +12,7 @@ private func all(_ x: String, _ T: String, _ body: String) -> String { app(const
 private let termClass = { (T: String) in ofclass(T, "IFOL.term") }
 private let falsum = trueprop(const("IFOL.False"))
 private let dummy = typeT("dummy")
+private let typeB = tfree("'b")
 
 /// A miniature export, one fixture per rule of the proof reader:
 ///   T.imp        P ⟹ P                     λH. H
@@ -20,14 +21,20 @@ private let dummy = typeT("dummy")
 ///   T.cite       a ∈ A ⟹ a ∈ A             T.fix % A % a     a named theorem is a `use`
 ///   box 50       x ∈ B ⟹ x ∈ B             λH. H
 ///   T.inline     a ∈ A ⟹ a ∈ A             box50 % a % A     an unnamed box is inlined
-///   IFOL.refl    axiom OFCLASS('a, term) ⟹ ⋀a. a = a
+///   box 250      P ⟹ P                     λH. H             binds a proposition: a statement, named by its content
+///   box 255      as box 250, at another serial
+///   T.viaBox     Q ⟹ Q                     box250 % Q;       T.viaTwin  Q ⟹ Q   box255 % Q
+///   T.boundPremise  (⋀P. P ⟹ P) ⟹ Q ⟹ Q     λH q. H % Q %% q     Pure's ⋀ over a proposition in a formula
+///   T.introProp     Q ⟹ Q                   (⋀P. λh. h) % Q      Pure's ⋀ over a proposition introduced in a proof
+///   T.reflAx     axiom OFCLASS('a, term) ⟹ ⋀a. a = a, a theory's own: cited, never read as a step
 ///   T.termI      axiom OFCLASS(i, term)
 ///   T.arity      OFCLASS(i, term)          T.termI           as arity_term_i
 ///   box 95       OFCLASS(i, term)          T.arity           as box 1792: how a proof discharges at i
-///   T.axiom      b = b                     refl[i] %% box95 % b
-///   box 80       OFCLASS('a, term) ⟹ x = x   λH. refl['a] %% H % x
+///   T.axiom      b = b                     reflAx[i] %% box95 % b
+///   box 80       OFCLASS('a, term) ⟹ x = x   λH. reflAx['a] %% H % x
 ///   T.poly       c = c                     box80[i] % c %% box95     terms first: the ∀-closure is outermost
-///   T.polyNamed  OFCLASS('a, term) ⟹ y = y   as box 80, read as stated; cited by T.usesPoly at i
+///   T.polyNamed  OFCLASS('a, term) ⟹ y = y   as box 80, read at i: every type variable restricted to term; cited by T.usesPoly at i
+///   T.polyPartial  OFCLASS('a, term) ⟹ (⋀h::'b. Q) ⟹ (⋀h::'b. Q)   'b unrestricted: read as stated; cited by T.usesPartial at i, i
 ///   T.defax      axiom with a typed free: A ∈ A;   T.useDef  a ∈ a   T.defax % a
 ///   T.vacAx      axiom (⋀h::'a. Q) ⟹ Q;          T.hidden  Q ⟹ Q   λH. vacAx[dummy] % Q %% (⋀h::dummy. H)
 ///   T.hiddenTerm (⋀x::i. Q) ⟹ Q                λH. H % dummy_pattern::i   a variable only the proof uses
@@ -39,11 +46,11 @@ private let notDef = app(const("Pure.eq", fn(o, o)), const("IFOL.Not"),
 
 private func miniReader() throws -> Reader {
     var files: [String: String] = [
-        "IFOL/theory/axioms": axiomEntity("IFOL.refl", tfrees: ["'a"], prop: imp(termClass(typeA), all("a", typeA, eq(typeA, bound(0)))))
-            + axiomEntity("IFOL.not_def_raw", prop: notDef) + axiomEntity("IFOL.bogus", prop: falsum),
+        "IFOL/theory/axioms": axiomEntity("IFOL.not_def_raw", prop: notDef) + axiomEntity("IFOL.bogus", prop: falsum),
         "ZF.T/theory/axioms": axiomEntity("T.defax", frees: [("A", i)], prop: mem(tagged(1, ["A"], [i]), tagged(1, ["A"], [i])))
             + axiomEntity("T.vacAx", tfrees: ["'a"], frees: [("Q", o)], prop: imp(all("h", typeA, Q), Q))
-            + axiomEntity("T.termI", prop: termClass(i)),
+            + axiomEntity("T.termI", prop: termClass(i))
+            + axiomEntity("T.reflAx", tfrees: ["'a"], prop: imp(termClass(typeA), all("a", typeA, eq(typeA, bound(0))))),
     ]
     let theorems: [(String?, Int, String)] = [
         ("T.imp", 10, proofFile(frees: [("P", o)], prop: imp(P, P), proof: pabsp("H", P, pbound(0)))),
@@ -57,14 +64,14 @@ private func miniReader() throws -> Reader {
         ("T.inline", 60, proofFile(frees: [("a", i), ("A", i)], prop: imp(mem(free("a"), free("A")), mem(free("a"), free("A"))),
                                    proof: pappt(pappt(pcite(50, "ZF.T"), free("a")), free("A")))),
         ("T.axiom", 70, proofFile(frees: [("b", i)], prop: eq(i, free("b")),
-                                  proof: pappt(pappp(paxiom("IFOL.refl", i), pcite(95, "ZF.T")), free("b")))),
+                                  proof: pappt(pappp(paxiom("T.reflAx", i), pcite(95, "ZF.T")), free("b")))),
         (nil, 80, proofFile(tfrees: ["'a"], frees: [("x", typeA)], prop: imp(termClass(typeA), eq(typeA, free("x"))),
-                            proof: pabsp("H", termClass(typeA), pappt(pappp(paxiom("IFOL.refl", typeA), pbound(0)), free("x"))))),
+                            proof: pabsp("H", termClass(typeA), pappt(pappp(paxiom("T.reflAx", typeA), pbound(0)), free("x"))))),
         (nil, 95, proofFile(frees: [], prop: termClass(i), proof: pcite(120, "ZF.T", "T.arity"))),
         ("T.poly", 90, proofFile(frees: [("c", i)], prop: eq(i, free("c")),
                                  proof: pappp(pappt(pcite(80, "ZF.T", "", i), free("c")), pcite(95, "ZF.T")))),
         ("T.polyNamed", 100, proofFile(tfrees: ["'a"], frees: [("y", typeA)], prop: imp(termClass(typeA), eq(typeA, free("y"))),
-                                       proof: pabsp("H", termClass(typeA), pappt(pappp(paxiom("IFOL.refl", typeA), pbound(0)), free("y"))))),
+                                       proof: pabsp("H", termClass(typeA), pappt(pappp(paxiom("T.reflAx", typeA), pbound(0)), free("y"))))),
         ("T.usesPoly", 110, proofFile(frees: [("d", i)], prop: eq(i, free("d")),
                                       proof: pappp(pappt(pcite(100, "ZF.T", "T.polyNamed", i), free("d")), pcite(95, "ZF.T")))),
         ("T.arity", 120, proofFile(frees: [], prop: termClass(i), proof: paxiom("T.termI"))),
@@ -88,6 +95,20 @@ private func miniReader() throws -> Reader {
                                         proof: pappt(pabst("x", o, pabsp("H", trueprop(bound(0)), pbound(0))), free("Z")))),
         ("T.header", 210, proofFile(frees: [("A", i), ("a", i)], prop: mem(free("a"), free("A")), proof: pnop)),
         ("T.simps(2)", 220, proofFile(frees: [("P", o)], prop: imp(P, P), proof: pabsp("H", P, pbound(0)))),
+        (nil, 250, proofFile(frees: [("P", o)], prop: imp(P, P), proof: pabsp("H", P, pbound(0)))),
+        (nil, 255, proofFile(frees: [("P", o)], prop: imp(P, P), proof: pabsp("H", P, pbound(0)))),
+        ("T.viaBox", 260, proofFile(frees: [("Q", o)], prop: imp(Q, Q), proof: pappt(pcite(250, "ZF.T"), free("Q")))),
+        ("T.viaTwin", 265, proofFile(frees: [("Q", o)], prop: imp(Q, Q), proof: pappt(pcite(255, "ZF.T"), free("Q")))),
+        ("T.boundPremise", 270, proofFile(frees: [("Q", o)], prop: imp(all("P", o, imp(trueprop(bound(0)), trueprop(bound(0)))), imp(Q, Q)),
+                                          proof: pabsp("H", all("P", o, imp(trueprop(bound(0)), trueprop(bound(0)))),
+                                                       pabsp("q", Q, pappp(pappt(pbound(1), free("Q")), pbound(0)))))),
+        ("T.introProp", 275, proofFile(frees: [("Q", o)], prop: imp(Q, Q),
+                                       proof: pappt(pabst("P", o, pabsp("h", trueprop(bound(0)), pbound(0))), free("Q")))),
+        ("T.polyPartial", 230, proofFile(tfrees: ["'a", "'b"], frees: [("Q", o)],
+                                         prop: imp(termClass(typeA), imp(all("h", typeB, Q), all("h", typeB, Q))),
+                                         proof: pabsp("C", termClass(typeA), pabsp("H", all("h", typeB, Q), pbound(0))))),
+        ("T.usesPartial", 240, proofFile(frees: [("Q", o)], prop: imp(all("h", i, Q), all("h", i, Q)),
+                                         proof: pappp(pappt(pcite(230, "ZF.T", "T.polyPartial", i, i), free("Q")), pcite(95, "ZF.T")))),
     ]
     files["ZF.T/theory/thms"] = thmsFile(theorems.compactMap { f in f.0.map { ($0, f.1) } })
     for (_, serial, text) in theorems { files["ZF.T/proofs/\(serial)"] = text }
@@ -134,7 +155,17 @@ private func citations(_ root: NodeID, _ t: Table) -> Set<Citation> {
     return found
 }
 
-private let refl = Cited.axiom(.ifol(.refl))
+private func roots(citing name: String, _ root: NodeID, _ t: Table) -> Set<NodeID> {
+    var seen: Set<NodeID> = [], found: Set<NodeID> = [], work = [root]
+    while let n = work.popLast() {
+        guard seen.insert(n).inserted else { continue }
+        if case let .use(.theorem(cited), _, stated) = t[n], cited == name { found.insert(stated) }
+        t[n].forEachChild { c, _ in work.append(c) }
+    }
+    return found
+}
+
+private let reflAx = Cited.theoryAxiom("T.reflAx")
 
 private func failure(_ r: inout Reader, _ name: String) throws -> ReadFailure? {
     do {
@@ -197,11 +228,37 @@ private func failure(_ r: inout Reader, _ name: String) throws -> ReadFailure? {
     #expect(r.cited.isEmpty)
 }
 
-/// `refl`'s class premise is discharged by an ordinary ⟹-elim, with box 95's inlined proof.
+/// A `⋀` Isabelle writes over a proposition — `Pure.all` in a formula, `ZAbst` in a proof — is Pure's `⋀`, its own nodes
+/// and its own variable; a free proposition, which the reader closes over, stays the schema letter's `ifolAll` at `o`.
+@Test func pureAllOverAPropositionIsItsOwnNodeAndAFreeOneTheLetter() throws {
+    var r = try miniReader()
+    guard let (statement, _) = try proved(&r, "T.boundPremise"), let (_, intro) = try proved(&r, "T.introProp") else { return }
+    var t = r.table
+    let P = try t.intern(.isaPropBound(0)), Q = try t.intern(.isaBound(0, .o))
+    let bound = try t.intern(.isaPropAll(body: try t.intern(.folImplies(P, P))))
+    #expect(statement == (try t.intern(.ifolAll(.o, body: try t.intern(.folImplies(bound, try t.intern(.folImplies(Q, Q))))))))
+    let inner = try t.intern(.isaPropIntro(body: try t.intern(.folImpliesIntro(P, body: try t.intern(.hyp(0, P))))))
+    #expect(intro == (try t.intern(.isaAllIntro(.o, body: try t.intern(.isaAllElim(inner, Q))))))
+}
+
+/// Box 250 binds the proposition `P`: a statement, cited by the name of its proof's content — `T.imp`'s proof, the same
+/// node — and box 255, the same box at another serial, by the same name: a serial names a box only within one build.
+@Test func aBoxBindingAPropositionIsCitedByItsContentsName() throws {
+    var r = try miniReader()
+    guard let (statement, own) = try proved(&r, "T.imp"), let (_, proof) = try proved(&r, "T.viaBox"),
+          let (_, twin) = try proved(&r, "T.viaTwin") else { return }
+    let name = "T.BOX_" + fingerprint(own, r.table)
+    #expect(uses(proof, r.table) == [name])
+    #expect(uses(twin, r.table) == [name])
+    #expect(roots(citing: name, proof, r.table) == [statement])
+    #expect(r.cited.map { r.name(of: $0) } == [nil])
+}
+
+/// `T.reflAx`'s class premise is discharged by an ordinary ⟹-elim, with box 95's inlined proof.
 @Test func aClassDischargeIsAnOrdinaryPremise() throws {
     var r = try miniReader()
     guard let (_, proof) = try proved(&r, "T.axiom") else { return }
-    #expect(citations(proof, r.table) == [Citation(cited: refl, types: [.i]), Citation(cited: .theorem("T.arity"), types: [])])
+    #expect(citations(proof, r.table) == [Citation(cited: reflAx, types: [.i]), Citation(cited: .theorem("T.arity"), types: [])])
 }
 
 @Test func anAxiomsFreesCloseLikeATheoremsAndItsTypedVariablesAgree() throws {
@@ -210,30 +267,43 @@ private func failure(_ r: inout Reader, _ name: String) throws -> ReadFailure? {
     #expect(uses(proof, r.table) == ["T.defax"])
 }
 
-/// Box 80 binds its class hypothesis and discharges refl's class premise with it: both bookkeeping.
+/// Box 80 binds its class hypothesis and discharges `T.reflAx`'s class premise with it: both bookkeeping.
 @Test func aPolymorphicBoxIsInlinedAtTheInstanceItIsCitedAt() throws {
     var r = try miniReader()
     guard let (_, proof) = try proved(&r, "T.poly") else { return }
-    #expect(citations(proof, r.table) == [Citation(cited: refl, types: [.i]), Citation(cited: .theorem("T.arity"), types: [])])
+    #expect(citations(proof, r.table) == [Citation(cited: reflAx, types: [.i]), Citation(cited: .theorem("T.arity"), types: [])])
 }
 
-@Test func aPolymorphicNamedTheoremIsReadAsStated() throws {
+/// Every type variable of `T.polyNamed` carries `OFCLASS(α, term)`, and `i` is the only type in `term`: it is read at `i`,
+/// its proof with it.
+@Test func aTheoremRestrictedToTermIsReadAtI() throws {
     var r = try miniReader()
-    guard let (statement, _) = try proved(&r, "T.polyNamed") else { return }
+    guard let (statement, proof) = try proved(&r, "T.polyNamed") else { return }
     var t = r.table
-    let a = IRType.variable("'a")
-    let y = try t.intern(.isaBound(0, a))
-    let member = try t.intern(.isaOfClass(a, "IFOL.term"))
-    let eq = try t.intern(.isaConst(.primitive(.ifol(.eq)), .fn(a, .fn(a, .o)), args: [y, y]))
-    #expect(statement == (try t.intern(.ifolAll(a, body: try t.intern(.folImplies(member, eq))))))
+    let y = try t.intern(.isaBound(0, .i))
+    let member = try t.intern(.isaOfClass(.i, "IFOL.term"))
+    let eq = try t.intern(.isaConst(.primitive(.ifol(.eq)), .fn(.i, .fn(.i, .o)), args: [y, y]))
+    #expect(statement == (try t.intern(.ifolAll(.i, body: try t.intern(.folImplies(member, eq))))))
+    #expect(citations(proof, r.table) == [Citation(cited: reflAx, types: [.i])])
 }
 
-/// Isabelle's citation carries one type per type variable of what it cites (`ZConstp`); so does `use`.
-@Test func aCitationCarriesItsTypes() throws {
+/// `T.polyPartial`'s `'b` carries no class: it is read at its variables, and a citation of it keeps its types.
+@Test func aTheoremWithATypeVariableNotRestrictedToTermIsReadAsStated() throws {
     var r = try miniReader()
-    guard let (_, generic) = try proved(&r, "T.polyNamed"), let (_, ground) = try proved(&r, "T.usesPoly") else { return }
-    #expect(citations(generic, r.table) == [Citation(cited: refl, types: [.variable("'a")])])
-    #expect(citations(ground, r.table) == [Citation(cited: .theorem("T.polyNamed"), types: [.i]), Citation(cited: .theorem("T.arity"), types: [])])
+    guard let (statement, _) = try proved(&r, "T.polyPartial"), let (_, user) = try proved(&r, "T.usesPartial") else { return }
+    var t = r.table
+    #expect(reaches(statement, try t.intern(.isaOfClass(.variable("'a"), "IFOL.term")), t))
+    #expect(citations(user, r.table) == [Citation(cited: .theorem("T.polyPartial"), types: [.i, .i]),
+                                         Citation(cited: .theorem("T.arity"), types: [])])
+}
+
+/// Isabelle's citation carries one type per type variable of what it cites (`ZConstp`), and so does `use` — but a theorem
+/// read at `i`, cited at `i`, is the unit's statement: cited with none, its root that statement exactly.
+@Test func aCitationAtIOfATheoremReadAtICitesItsStatement() throws {
+    var r = try miniReader()
+    guard let (_, ground) = try proved(&r, "T.usesPoly"), let (statement, _) = try proved(&r, "T.polyNamed") else { return }
+    #expect(citations(ground, r.table) == [Citation(cited: .theorem("T.polyNamed"), types: []), Citation(cited: .theorem("T.arity"), types: [])])
+    #expect(roots(citing: "T.polyNamed", ground, r.table) == [statement])
 }
 
 /// A ground theorem whose proof uses a type only inside: Isabelle writes it `dummy`.
@@ -293,7 +363,7 @@ private func reaches(_ root: NodeID, _ target: NodeID, _ t: Table) -> Bool {
     for theorem in r.population {
         if case let .proved(statement, proof)? = try? r.read(theorem) { roots += [statement, proof] }
     }
-    #expect(roots.count == 30)
+    #expect(roots.count == 42)
     var seen: Set<NodeID> = [], work = roots
     while let n = work.popLast() {
         guard seen.insert(n).inserted else { continue }

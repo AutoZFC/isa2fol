@@ -4,7 +4,7 @@ import YXML
 enum Reading: Equatable {
     case erased
     case implies, and, or, bottom
-    case all, ex
+    case all, ex, metaAll
     case metaEquality
     case hidden
     case constant(Constant)
@@ -13,7 +13,7 @@ enum Reading: Equatable {
 private let leaves: [String: Reading] = [
     "IFOL.Trueprop": .erased,
     "Pure.imp": .implies, "IFOL.imp": .implies, "IFOL.conj": .and, "IFOL.disj": .or, "IFOL.False": .bottom,
-    "Pure.all": .all, "IFOL.All": .all, "IFOL.Ex": .ex,
+    "Pure.all": .metaAll, "IFOL.All": .all, "IFOL.Ex": .ex,
     "Pure.eq": .metaEquality,
     "Pure.dummy_pattern": .hidden,
 ]

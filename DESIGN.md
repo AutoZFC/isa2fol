@@ -372,7 +372,7 @@ Isabelle's side:
 | | built |
 |---|---|
 | **3a. `IRType.variable(name)`** | a `tfrees` header variable, and `dummy` — ONE variable: the export no longer tells hidden variables apart, and identifying them is a type instance of the proof. No sort: the export has none, and a sorted one is malformed, as is an undeclared one or a header declaring `dummy`. A named theorem is read AS ISABELLE STATES IT, and its proof checked by ID; there is no `polymorphic` outcome. `≡` at a type variable stays `Pure.eq` — nothing covers it |
-| **3b. A citation carries its types** | `use(cited, types, root)` — `types` the citation's type arguments, possibly the citer's own variables; `root` the cited statement READ AT `types`, which is what Isabelle's citation concludes. At the cited theorem's own variables `root` IS its statement, the same node. An unnamed box is inlined as now, read at its citation's types |
+| **3b. A citation carries its types** | `use(cited, types, root)` — `types` the citation's type arguments, possibly the citer's own variables; `root` the cited statement READ AT `types`, which is what Isabelle's citation concludes. At the cited theorem's own variables `root` IS its statement, the same node. An unnamed box is inlined as now, read at its citation's types — but one binding a proposition, a statement cited by its name ("Boxes binding a proposition, read as schemas") |
 
 Unchanged: `prop` reads as `o` in every type; `itself` stays out — `OFCLASS` is the export's own
 form (5); the 7, read for the first time, refuse nothing.
@@ -395,11 +395,11 @@ FOL has it natively; it then reads as FOL's, the SAME node. A defined constant i
 | a constant applied | every other constant: ZF's; `=` (IFOL `eq`, and Pure `≡` at `i`); Pure `≡` at a function type or a type variable; the defined `↔ ¬ True Ex1 Let Uniq induct_*`; Pure's defined `PROP &&& TERM sort_constraint` | `isaConst(Constant, T instantiated)` |
 | a variable only the proof uses | `Pure.dummy_pattern` (`standard_hidden_terms`) | `isaFree(.hidden, T)` |
 | a bound variable · a variable applied · `λ` | `ZBound`, and a free `ZVar` — its statement's `∀`-closure binds it (§2) · `ZApp` headed by a variable · `ZAbs` as a function argument | `isaBound` · `isaVarApp` · `isaAbs` |
-| `⋀`-intro · `⋀`-elim | `ZAbst` · `ZAppt` | `isaAllIntro` · `isaAllElim` |
+| `⋀`-intro · `⋀`-elim | `ZAbst` · `ZAppt` | `isaAllIntro` · `isaAllElim`; at `o` below a statement's top, Pure's `⋀` over a proposition, `isaPropIntro` ("Functions of propositions and the bound `⋀P`", 6) |
 | `⟹`-intro · `⟹`-elim | `ZAbsp` · `ZAppp` | `folImpliesIntro` · `folImpliesElim` |
 | a hypothesis | `ZBoundp` (a free `ZHyp`: 0 in the export) | `hyp` |
 | a citation | `ZConstp` — an axiom or a NAMED theorem, with its type arguments; `root` is its closed statement read at them | `use(Cited, types, root)` |
-| an unnamed box | `ZConstp` of a theorem with no name — logically not a building block | INLINED: its closed proof, read at its citation's types |
+| an unnamed box | `ZConstp` of a theorem with no name — logically not a building block | INLINED: its closed proof, read at its citation's types; one binding a proposition on its spine a statement, `use(.theorem("<theory>.BOX_<fingerprint>"), …)` ("Boxes binding a proposition, read as schemas") |
 | a type variable | a `tfrees` header variable; the type `dummy` | `IRType.variable(name)` |
 | class membership | `OFCLASS(T, c)` — a class premise, a class hypothesis, a class fact | `isaOfClass(T, c)` |
 
@@ -522,7 +522,7 @@ other theory's family is `zf` when it descends from `ZF.ZF_Base`.
 
 | a constant name | read as |
 |---|---|
-| a leaf FOL covers: `Trueprop` · `Pure.imp`, `IFOL.imp` · `conj` · `disj` · `False` · `Pure.all`, `IFOL.All` · `IFOL.Ex` · `Pure.eq` at `o` | erased · `folImplies` · `folAnd` · `folOr` · `folBottom` · `ifolAll(T)` · `ifolEx(T)` · `folIff` |
+| a leaf FOL covers: `Trueprop` · `Pure.imp`, `IFOL.imp` · `conj` · `disj` · `False` · `Pure.all`, `IFOL.All` · `IFOL.Ex` · `Pure.eq` at `o` | erased · `folImplies` · `folAnd` · `folOr` · `folBottom` · `ifolAll(T)`, and `Pure.all` at `o` below a statement's top `isaPropAll` · `ifolEx(T)` · `folIff` |
 | `Pure.eq` at `i` | `isaConst(.primitive(.ifol(.eq)))` |
 | a `Primitive` | `isaConst(.primitive(p))` |
 | `Pure.dummy_pattern` | `isaFree(.hidden, T)` |
@@ -1416,7 +1416,7 @@ owner 7,178, logic 1,014, reify 1,177. 51 named theorems pass every pass, the fi
 of the 1,004 definitions reach the pass that owns their constant, against 892: a ZF definition holding a logic constant
 now passes Expand. Read 61.1 s, lowered 19.2 s.
 
-### Logic — a proposition as a schema letter, the logic's rules as the kernel's  **[AGREED AND BUILT 2026-10-14 — `Sources/Lowering/Logic.swift`, `Sources/IR/Legalize.swift`]**
+### Logic — a proposition as a schema letter, the logic's rules as the kernel's  **[AGREED AND BUILT 2026-10-14 — `Sources/Lowering/Logic.swift`, `Sources/IR/Legalize.swift`; point 3's reduction and point 4 REMOVED 2026-10-15, "Removed — the rules that consumed a proposition where it stood"]**
 
 **Logic reads Isabelle's `⋀P::o` as the one thing fol-zfc has for it, a schema letter, and makes each axiom of the logic
 that binds only propositions the kernel's own step.** It is the Logic component's pass after `expand` ("Lowering's
@@ -1469,9 +1469,11 @@ After the last pass, a statement holding a letter anywhere else is refused, `let
 68 hold one off its spine: a `⋀C::o` from `&&&`, `TERM` or `ex` unfolded; a box whose propositional parameter follows a
 set parameter (3); a proof of a `⋀`-premise.
 
-**3. An elimination at `o` is Logic's rule.** `isaAllElim(p, A)` at `o` reduces where `p` is a ⋀-intro at `o`, an inlined
+**3. An elimination at `o` is Logic's rule.** ⚠ **ITS REDUCTION AT A ⋀-INTRO IS REMOVED** ("Removed — the rules that consumed a proposition where it stood"): it read
+its premise's shape, standing in for a proposition bound below a top, which FOUNDATION S4 now renders as a truth set.
+`isaAllElim(p, A)` at `o` reduced where `p` is a ⋀-intro at `o`, an inlined
 box instantiated at once or an axiom's step (4), by `instantiate` at the proof level: the pass plan's box "reduced at
-the proof level". Anywhere else it is `schema_inst`, a new fol-zfc step `folSchemaInst(p, A)`, concluding the letter at
+the proof level". It is now `schema_inst` everywhere, a new fol-zfc step `folSchemaInst(p, A)`, concluding the letter at
 the top of `p`'s conclusion instantiated at `A`. It is a step per letter, as Isabelle's `AppT` is; emission writes one
 `schema_inst` per citation, with every letter its spine instantiates, ahead of the spine's `forall_elim`s. That is sound
 because a letter hoists across `∀` and the right of `→`.
@@ -1487,10 +1489,12 @@ emitted     _1 = schema_inst IFOL.conjE {A0: A, A1: B, A2: C}
 
 A redex at `i` stays: `forall_intro` then `forall_elim` is fol-zfc. So a box `⋀x::i. ⋀P::o. …` instantiated at once keeps
 its `P` behind the redex at `x`, and its letter is off its spine (2). Reducing through a redex at `i` is a shape (D1);
-such a box waits for boxes' own design. Reading every box at its instance in the reader is not that design: a scratch
+such a box waits for boxes' own design — since "Boxes binding a proposition, read as schemas", a statement of its own. Reading every box at its instance in the reader is not that design: a scratch
 run grew the read past 20 GB and 8 minutes before it was stopped, against 4.3 GB and 88 s.
 
-**4. An axiom of the logic binding only propositions is the kernel's step.** The 16 instances are Pure's `equal_intr` and
+**4. An axiom of the logic binding only propositions is the kernel's step.** ⚠ **REMOVED** ("Removed — the rules that consumed a proposition where it stood"): the
+kernel's proof built in place is what point 3's reduction consumed; FOUNDATION S4 reads an application of the rule as the
+kernel's step instead, and until then these axioms are Logic's, unbuilt. The 16 instances are Pure's `equal_intr` and
 `equal_elim`, and `reflexive`, `symmetric`, `transitive` at `[o]`; IFOL's `impI mp conjI conjunct1 conjunct2 disjI1
 disjI2 disjE FalseE iff_reflection`; FOL's `classical`. A citation of one becomes the kernel's proof of its statement: a
 ⋀-intro at `o` per letter around the kernel's step, built from the `Axiom` alone (I1), never by reading the statement
@@ -1751,7 +1755,7 @@ statement.
 (`statement`, `argumentCongruence`) that its reify proved and its other passes cited. Here the component that walks a
 definition states and proves the constant's facts, and the router is not named for a type.
 
-### Logic's second step — Pure's equality read as the kernel's steps; the congruence at a function of propositions  **[AGREED AND BUILT 2026-10-14 — `Sources/Reader/Reader.swift`, `Sources/IR/Table.swift`, `Sources/FolDialect/Parse.swift`, `Sources/Lowering/Logic.swift`, `Base.swift`]**
+### Logic's second step — Pure's equality read as the kernel's steps; the congruence at a function of propositions  **[AGREED AND BUILT 2026-10-14 — `Sources/Reader/Reader.swift`, `Sources/IR/Table.swift`, `Sources/FolDialect/Parse.swift`, `Sources/Lowering/Logic.swift`, `Base.swift`; the congruence at a function of propositions REMOVED 2026-10-15, "Removed — the rules that consumed a proposition where it stood"]**
 
 **Logic's 558 are Pure's equality: `≡` at a function type, and Pure's rules at `i` and at a function type** ("Logic",
 point 7). This step takes the bulk, Pure's rules at `o` and at a function of propositions, which 416 of the 558 hold.
@@ -1793,7 +1797,9 @@ reader and for the table, which computes these steps' conclusions. Every applica
 scratch count, not kept). §4.3b changes with it: Pure contributes its equality as inference rules, not axioms; the
 `Axiom.pure` cases and the previous step's kernel proofs of them go.
 
-**A proof of an equation between functions of propositions becomes the congruence it carries.** At `o⃗ ⇒ o`, Logic writes
+**A proof of an equation between functions of propositions becomes the congruence it carries.** ⚠ **REMOVED** ("Removed — the rules that consumed a proposition where it stood"):
+the form stood only where its consumer reduced it, reading its premise's shape; FOUNDATION S4 renders `f ≡ g` at `o ⇒ o`
+as `∀E. E ⊆ {∅} → (f*(E) ↔ g*(E))`, and until then these steps are Logic's, unbuilt. At `o⃗ ⇒ o`, Logic wrote
 it as
 
 ```
@@ -2513,12 +2519,21 @@ before any code cites them; then the prover, its tests first.
 Dependencies first; the reference's order where it had one, left in two places. After each step `lower` is run again,
 and its refusals order 5–8, none of which needs another.
 
+⚠ **FROM STEP 2 ON, THE ORDER IS AGREED AGAIN AROUND FOUNDATION S4** (decided 2026-10-15): "Removed — the rules that
+consumed a proposition where it stood" took out what steps 1 and 2 built on a proposition with no object. Step 1's reading
+at `i` and step 2's equality at `i` and `class_subst` stand; the rest of 2–4 is designed again from its pieces. Agreed
+since, in order: **2′, the logic's rules read as steps** ("The logic's rules read as steps", below), **BUILT 2026-10-16**;
+then **boxes binding a proposition, read as schemas** ("Boxes binding a proposition, read as schemas", below), **BUILT
+2026-10-16**; then **functions of propositions and the bound `⋀P`** ("Functions of propositions and the bound `⋀P` — S4's truth
+set, applied", below), **BUILT 2026-10-16**.
+
 0. **Emission** (below): no statement of the corpus has met the checker, and class existence's proofs are unmeasured.
 1. **Decision 4** (§4a): a theorem cited at a type instance. Restricted to `term`, it is read at `i` and `OFCLASS(i,
-   term)` is dropped: the rule is decided, its owner is not. Built in the reference (its reader and `ClassRule`).
+   term)` is dropped. **BUILT 2026-10-15** ("Step 1", below): the reader reads it, Logic drops the class fact.
 2. **IFOL's own rules at `[i]`**: `allI`, `spec`, `exI`, `exE` the kernel's steps, `refl` base's `eq_refl`, `subst`
-   base's `IFOL.subst`, `eq_reflection` the identity. Every citation of one discharges `OFCLASS(i, term)`, so none is
-   reached before 1.
+   base's claim, `eq_reflection` the identity. Every citation of one discharges `OFCLASS(i, term)`, so none is
+   reached before 1. **BUILT 2026-10-15** ("Step 2", below), with Pure's equality at `i` folded in and base's claim
+   renamed `class_subst`.
 3. **An instance at a class type**, Lambda's: the λ's class (`CLASS ⟨λ⟩`) and β as proof. `spec` and `subst` at a λ need
    it; the function λ at `i`, the reference's largest refusal, is designed in.
 4. **Pure's equality at an object function type**: `combination` is `mfun_comb`, then β (3). The reference walked these
@@ -2667,6 +2682,581 @@ proofs' trees and 879,656 distinct. By kind, written: a constant's class 483,045
 lift 123,625 (27), UNIQ of a term 48,717 (338), a constant's function 43,491 (106), EX of a term 28,924 (278), a λ's
 function 22,595 (73), the rest under 10,000 each; the 86 theorems, the 59 named and the 27 they cite outside, 609. The
 named theorems lie in 33 theories' parts; 1,388 lemmas, cited by refused statements alone, in `_uncited`.
+
+### Step 1 — a theorem cited at a type instance (§4a, decision 4)  **[AGREED 2026-10-15 (user), the two decisions one by one; BUILT 2026-10-15, its decisions in the build for the user's review — `Sources/Reader/Reader.swift`, `Sources/Lowering/Logic.swift`, `Sources/IR/Index.swift`, `docs/SOURCE_SURFACE.md`; decision 2 REMOVED 2026-10-15, "Removed — the rules that consumed a proposition where it stood"]**
+
+**The step.** IFOL and FOL state their rules once, for every type of class `term`, and the export makes the class a
+premise (`unconstrainT`, §4.3a 5): `IFOL.sym` is `OFCLASS('a, term) ⟹ a = b ⟹ b = a`, and a ZF proof cites it at `i`,
+discharging the premise with a box that cites `ZF_Base.arity_term_i : OFCLASS(i, term)`. The reader keeps both as
+written, `use(theorem, [i], o)` and `isaOfClass(i)`; no pass owns either, so a statement holding one is refused before
+the first pass. The unit holds no theorem read at `i`: `Reader.unit()` takes a cited theorem only when it is cited with
+no type arguments. `i :: term` is the export's only arity (`ZF.ZF_Base/theory/arities`; every other theory's is
+empty), so a theorem restricted to `term` has one instance, at `i`.
+
+**How the reference builds it** (`kinds-proposal`, its §4a decision 4, built 2026-10-05): its reader reads a theorem
+whose every type variable carries `OFCLASS(α, term)` at `i` (`Reader.typeVariables`), cited by name; Logic first drops
+`OFCLASS(i, term)` in a walk of its own (`ClassRule`) — the premise, its discharge, its hypothesis — and a hypothesis
+still used refuses (`classHypothesisUsed`). It records two warnings: its drop could not share a walk with its Logic's
+rule, whose `before` hooks left a replacement's subtree for the next round; and Isabelle registers each axiom as a fact
+of the same name (`IFOL.subst`), which, read at `i`, declared base's claim again (`declaresAxiom`).
+
+**1. The reader reads a theorem at `i` when every one of its type variables is restricted to `term`.** **AGREED
+2026-10-15 (user).** Under its own name, a theorem a ZF proof cites at `i` (`IFOL.sym`) and a named ZF theorem generic
+over `term` alike, so a name is one statement; it is read by `prove(key, at:)`, as an unnamed box is read at its
+citation's types (§4.3a 3). `Reader.unit()` takes it when cited, and the citation is written `use(.theorem(name), [],
+root)`: it cites the unit's statement, `root` exactly. The reader makes no translation choice: the citation names `i`,
+the only type in `term`. `OFCLASS(i, term)` is then an ordinary premise, hypothesis and discharge (§4.3a 5b). A theorem
+with a type variable not restricted to `term` is read at its variables and stays refused: decision 4's deferred half.
+
+**2. Logic drops `OFCLASS(i, term)` where the reader reads it as an ordinary construct.** **AGREED 2026-10-15 (user).**
+⚠ **REMOVED** ("Removed — the rules that consumed a proposition where it stood"): the drop is a rule on the implication around the class fact, not on the fact; FOUNDATION
+S4 renders `OFCLASS(i, term)` by its definition, `⋀P::prop. P ⟹ P`, and until then `isaOfClass(i)` has no owner.
+The class fact `isaOfClass(i)` is Logic's piece and has no formula: the implication it stands in removes it, at the three
+places §4.3a 5b names.
+
+| where | before | after |
+|---|---|---|
+| a premise | `isaOfClass(i) → φ` | `φ` |
+| an assumption | `folImpliesIntro(isaOfClass(i), body)` | `body`, its hypotheses renumbered |
+| a discharge | `folImpliesElim(p, q)`, `q` concluding `isaOfClass(i)` | `p` |
+
+`piece(_:)` maps `isaOfClass(i)` to `.classFact`, owned, and the implication's three kinds to `.implication`, not owned:
+fol-zfc's own. The drop is a walk of its own, `ClassFacts`, before Logic's rules' walk, `Steps`: bottom-up, `after`
+alone, so a discharge is gone before its assumption closes, and a citation's root loses its premise by the rule its
+statement does — the same ID. ⚠ **THE DROP CANNOT SHARE `Steps`' WALK**, as proposed: Reify's instance at a compound
+term, called there, reads the formulas the walk was given (`was: id`) and expects only its own naming to change them.
+Sharing the walk, a class-premised theorem cited at `Pow(0)` met the class fact on one side only, and the corpus's run
+stopped (`LogicError.context`; `aClassPremiseIsDroppedBeforeAnInstanceAtACompoundTerm`). Every other rule of `Steps`
+keeps a formula; the drop is the first that removes one. The proof behind a discharge, `arity_term_i`, is never lowered: its own proof cites
+`IFOL.term_class.intro` at `[i]`, whose `'a` is unrestricted, so it stays refused, and nothing cites it once the
+discharges are gone. `isaOfClass` at a type variable has no owner; a class fact anywhere else has no rule and stops the
+run (`PipelineError.survived`).
+- **The contract.** The reader provides a class fact at `i` only where it is true — Isabelle proved it, or the reader
+  read at `i` a theorem restricted to `term` — so Logic drops one without naming its class.
+- **The framework's one addition.** `unshift` takes the namespace: over hypotheses it renumbers what a removed assumption
+  leaves, and throws if the removed hypothesis is still used.
+
+**Built** (`Sources/Reader/Reader.swift`, `Sources/Lowering/Logic.swift`, `Sources/IR/Index.swift`). The reader's
+`types(of:)` gives a theorem's instance once: `i` for each type variable when the statement's leading premises, under its
+`∀`-closure, restrict every one to `IFOL.term`, else its own variables; `read` proves it there, and a citation at that
+instance is written with no types. Logic's `piece(_:)` answers `.classFact` and `.implication`; `ClassFacts`, run ahead
+of `Steps`, applies `dropped(_:in:)`, the table above. Tests: `aTheoremRestrictedToTermIsReadAtI`,
+`aTheoremWithATypeVariableNotRestrictedToTermIsReadAsStated`, `aCitationAtIOfATheoremReadAtICitesItsStatement`,
+`theUnitHoldsATheoremRestrictedToTermReadAtI`, `unshiftOverHypothesesRenumbersWhatARemovedAssumptionLeaves`,
+`aClassPremiseItsAssumptionAndItsDischargesAreDropped` and `aClassPremiseIsDroppedBeforeAnInstanceAtACompoundTerm`, the
+kernel proving each one's unit; the census counts `T.P` at `i`.
+
+**Decisions made in the build**, for the user's review:
+1. **The restriction is read from the statement at its own variables**, read once more for a theorem with a type variable:
+   the leading `OFCLASS` premises under the `∀`-closure, where `unconstrainT` puts them. A leading class premise other
+   than `IFOL.term` at a type variable restricts nothing, so the theorem is read as stated.
+2. **The reader alone names `IFOL.term`**; Logic drops a class fact at `i` of any class, as the contract allows.
+3. **`kernelChecks(_:)` takes a lowered unit**, emitted and checked whole; the claims form builds one and calls it.
+- ⚠ **`IFOL.subst` IS BOTH BASE'S CLAIM AND ISABELLE'S FACT OF ITS AXIOM**: read at `i` it is a statement of the unit,
+  refused at Logic while the axiom at `[i]` is unbuilt. Lowered, it would declare base's name again, which emission
+  refuses (`EmitError.declaredByBase`): step 2's, which renames base's claim `class_subst`.
+
+**Measured** (`MEM=32G scripts/capped.sh .build/release/isa2fol lower data/zf_export --emit DIR`: 5:18, peak 14.6 GB; read
+71.4 s, lowered 74.1 s, emitted 171.2 s; 17,340,411 nodes. Then `scripts/check-unit.sh DIR`: 10.5 s, peak 520 MB):
+- **The kernel proves the unit**: 39 parts, each exit 0 and empty stderr; claims 2,179 of 2,179, schemas 30 of 30;
+  451 `@def`s; 81 MB, 1,208,747 steps written against 1,273,349 as trees and 1,025,066 distinct.
+- **Named theorems lowered: 59, as before.** The unit gains 61 theorems cited outside the ZF sessions (194) and 735
+  statements reaching fol-zfc (2,601 beside the 59). Refused named theorems move from no owner (7,176 → 4,003) to
+  Logic's unbuilt (924 → 3,822), a letter off its spine (94 → 222) and a refused citation (1,167 → 1,314).
+- **What no pass owns now** is led by `use(theorem, [i], o)`, 1,731: a theorem whose type variable is not restricted to
+  `term`, cited at `i` — `FOL.meta_simps.1`, `(⋀x::'a. PROP P) ≡ PROP P`, by 1,662 named theorems at `[i]` and 309 at
+  `[i ⇒ o]`; `Inductive.def_trans` at `[i, i]`, 126; `ZF_Base.split_def` and `pair.split` at `i`, `o`, `i ⇒ i` and
+  `i ⇒ o`; `Pure.meta_spec` at `[i]`, 14 (a count over the read unit, not kept). Then `use(definition zf object, [],
+  o)` 1,542 and `isaFree(i)` 1,489.
+- **What Logic leaves unbuilt** is an instance at a class type — `isaAllElim(o, (i ⇒ o))` 2,859 (step 3) — and Pure's
+  equality at an object function type — `isaCombination((i ⇒ o), o, o)` 2,308, `isaReflexive(i)` 2,147,
+  `isaAbstract((i ⇒ o), o)` 2,133 (step 4); `isaAbs((i ⇒ o), body: o)`, a `λ` over a class, 2,044. No citation of an
+  axiom stops a named theorem there: IFOL's rules at `[i]` (step 2) stand in the proofs of the IFOL theorems ZF cites
+  by name, so they surface only once those theorems' citers pass Logic.
+- `docs/SOURCE_SURFACE.md`, regenerated, still counts `isaOfClass('a)` in 7,965 closures: the census walks the closure as
+  read, where every discharge reaches `arity_term_i` and through it `IFOL.term_class.intro` at its own `'a`. Logic's
+  drop takes both out of every lowered proof. `docs/CLOSURE.md` regenerates unchanged.
+
+### Step 2 — IFOL's rules and Pure's equality at `i`  **[AGREED 2026-10-15 (user), the three decisions one by one; BUILT 2026-10-15, its decisions in the build for the user's review — `Sources/Lowering/Logic.swift`, `Reify.swift`, `Base.swift`, `base/tiers/zf`; decision 1 REMOVED 2026-10-15, "Removed — the rules that consumed a proposition where it stood"]**
+
+**The step.** IFOL states its quantifier and equality rules once, over a type in `term`; read at `i` (step 1), a
+citation of one is `use(axiom IFOL.spec, [i], o)`, which Logic owns unbuilt, and every IFOL theorem built on it falls
+with every ZF theorem citing those. Pure's `reflexive`, `symmetric` and `transitive` at `i` (`x ≡ x`, read `x = x`) are
+unbuilt too: in step 1's run 2,147, 986 and 88 named theorems hold them. `⋀` and `∀` read as one node, `ifolAll`, and
+`≡` at `i` as `=`. Isabelle registers each axiom as a fact of its name (`IFOL.subst`, proved through a box citing the
+axiom), and base already states one claim under an Isabelle name: `IFOL.subst`, the axiom as the pipeline renders it at
+`i`. Folded in at the user's agreement (2026-10-15): Pure's equality at `i`, which no step of the order named. Step 2
+alone lowers few named theorems: a citation of `spec` mostly instantiates `P` at a λ, step 3's.
+
+**How the reference builds it** (`kinds-proposal`, `Sources/Lowering/Logic.swift`): a table of kernel rules, each a
+core over the citation's premises, `kernelProof(name, rule, root)` taking the binders and premises off the cited
+statement; `allI` and `eq_reflection` the identity, `spec` an instance, `exI` and `exE` the kernel's `∃` rules; Pure's
+`reflexive`, `symmetric`, `transitive` at `[i]` base's `eq_refl`, `eq_symm`, `eq_trans`, in its walk's `before`. It
+records that an axiom and its fact share a name (`IFOL.exE`): a citation is paired with a proof by ID.
+
+**1. IFOL's quantifier rules and `eq_reflection` at `[i]` are the kernel's steps, built from the statement.** **AGREED
+2026-10-15 (user).** ⚠ **REMOVED** ("Removed — the rules that consumed a proposition where it stood"): built in place, each proof stood to be reduced by an elimination at
+`o` reading it; IFOL's `refl` goes with it, its proof the same construction. `allI` and `eq_reflection` read as `A → A`, the identity; `spec` is `λh. h x`, a `forall_elim`;
+`exI` is `λh. ∃-intro(h, x)`; `exE` is `λh k. ∃-elim(h, λy hy. k y hy)`. Every kernel proof, the propositional rules'
+included, is built from the citation's statement as the walk hands it: its binders and premises taken off, the rule's
+core inside. That statement carries Reify's naming (`P(x)` is `x`'s 1-tuple's membership in `P`), which a proof from a
+fixed template would not conclude; one construction for every rule is rule 4. Nothing is admitted: each of these
+statements is a theorem of first-order logic, proved by the checker's own inference rules.
+
+**2. `refl`, and Pure's `reflexive`, `symmetric` and `transitive` at `i`, are base's `eq_refl`, `eq_symm` and
+`eq_trans`.** **AGREED 2026-10-15 (user).** At variables, one base citation each — claims base proves from
+`extensionality`. A side is mostly a compound term, and fol-zfc has none: Reify names each side of an equation where it
+stands, so `f(x) = f(x)` needs `f(x)`'s uniqueness, and a predicate at a non-variable is refused by the table. The rule
+at variables (`∀y. y = y`, `∀y z. y = z → z = y`, …) is instantiated at the sides by the instance Reify proves at a
+compound term (`TermInstance`, EX and UNIQ of the term); at a variable it is a `forall_elim`. `equality(_:_:)` builds
+`i` as it builds `o`; the sides are read off the step the walk was given, as Reify's instance reads its node. IFOL's
+`refl`, `∀a. a = a`, is decision 1's construction with `eq_refl` at the bound variable as its core.
+
+**3. `subst` is base's claim, under a base name.** **AGREED 2026-10-15 (user).** Base's `IFOL.subst` is renamed
+`class_subst`, its statement and proof unchanged: Isabelle's fact `IFOL.subst`, read at `i` since step 1, lowers to a
+claim of the unit, which emission would refuse beside base's (`EmitError.declaredByBase`). Of base's 11 qualified names
+it is the only one that is also an Isabelle fact or axiom; no base proof cites it and no code names it. Rejected:
+skipping the unit's statement at emission (a special case), and reading every axiom's fact as the axiom (a reader change
+for all of them, taking the IFOL schemas out of the unit). Both work around the name; the rename removes it.
+
+**Built** (`Sources/Lowering/Logic.swift`, `Reify.swift`, `Base.swift`, `base/tiers/zf`). Logic maps each logic axiom to
+its piece in one function, `rule(_:)`: the kernel's step, `.kernel`, or base's claim, `.claimed`. A kernel step's proof
+takes its binders and as many premises as its core uses (`Kernel.premises`) off the cited statement. Pure's equality at
+`i`, `Equalities.atI`, states the rule at variables twice — the isa step, and base's lemma over Reify's naming — and
+instantiates the second at each side by `Reify.instance`, the first standing as the node it reads. Tests:
+`ifolsRulesAtIAreTheKernelsStepsAndBasesClaims` (the seven statements, each proved by citing its axiom, `IFOL.subst`
+the unit's own claim beside base's), `puresEqualityAtIIsBasesEqualityAtVariablesAndAtACompoundTerm` (at variables and
+at `Pow(0)`) and `puresReflexiveAtITakesItsSideAsRead`, the kernel proving each unit; the ownership rows. ⚠ **A SIDE IS
+READ OFF THE STEP AS THE WALK WAS GIVEN IT, NEVER OFF THE REBUILT ONE**: a term holding a λ over a formula is rewritten
+by the walk, Reify naming the atoms inside the λ, and the λ's class is built from the λ as read. Taking `reflexive`'s
+side from the rebuilt step stopped the corpus's run (`ComprehensionError.unread` at `PrimReplace`'s λ).
+
+**Decisions made in the build**, for the user's review:
+1. **`subst` is a citation of base's `class_subst` that keeps the statement the walk hands it** — not decision 1's
+   construction around a core citing it. Base's statement is fol-zfc and the walk's is isa until Fol (Reify's chain
+   writes `∃` at `i` as an isa binder, Fol adds `set(t)`), so a core citing base at Logic would need a bridge between the
+   two forms; the statement Fol lowers is base's, as base's comment says and the kernel confirms.
+2. **A kernel step takes off as many premises as its core uses**, so `impI`, `mp`, `allI` and `eq_reflection` share the
+   identity, as the first two did.
+3. **Reify's instance is one function**, `Reify.instance(_:was:base:in:)`, which Reify's walk and the equality at `i` call.
+- **Found:** Isabelle's facts of these axioms (`IFOL.spec`, `IFOL.exE`, …) cite their axiom at an η-expanded class
+  variable, `λx. P x` — an instance at a class type, step 3's, so they stay refused until then.
+
+**Measured** (`MEM=32G scripts/capped.sh .build/release/isa2fol lower data/zf_export --emit DIR`: 5:57, peak 15.1 GB;
+read 70.9 s, lowered 75.7 s, emitted 209.3 s; 17,817,150 nodes. Then `scripts/check-unit.sh DIR`: 11.6 s, peak 512 MB):
+- **The kernel proves the unit**: 39 parts, each exit 0 and empty stderr; claims 2,221 of 2,221, schemas 30 of 30;
+  88 MB, 1,276,817 steps written against 1,345,015 as trees and 1,082,260 distinct.
+- **Named theorems lowered: 63**, four more — `DC.DC0_imp.RR_def`, `XX_def`, `DC.imp_DC0.RR_def`, `XX_def` — and
+  2,639 other statements. Refused: no owner 4,003, Logic 3,812 (−10), a letter off its spine 222, a refused citation
+  1,320 (+6). IFOL's part proves `IFOL.refl` and `IFOL.eq_reflection`; `IFOL.spec`, `exI`, `exE`, `allI` and `subst`
+  are not among its claims (the instance at `λx. P x`, step 3).
+- `isaReflexive(i)` and `isaTransitive(i, o, o)` leave what stops at Logic; the theorems that held them stop at an
+  instance at a class type (`isaAllElim(o, (i ⇒ o))` 2,859) or at Pure's equality at an object function type
+  (`isaCombination((i ⇒ o), o, o)` 2,308) — steps 3 and 4.
+
+### Removed — the rules that consumed a proposition where it stood  **[AGREED 2026-10-15 (user); BUILT 2026-10-15 — `Sources/Lowering/Logic.swift`, `Congruence.swift`, `Instance.swift`, `Sources/IR/Index.swift`]**
+
+**The step.** FOUNDATION S4 gave a proposition no object, so a proposition bound below a statement's top, and a function
+of propositions, had no rendering. Four rules stood in for one, each reading a node beside its own piece — the intro it
+reduced, the form it consumed, the implication around it — which D1 forbids. S4 now makes a proposition an object as its
+truth set, so each of those pieces is owed a rule of its own. The four go first, and S4's steps are designed from the
+pieces, never reconciled with the rules that consumed them.
+
+| removed | built in | it read | the piece now |
+|---|---|---|---|
+| an elimination at `o` reduced into a ⋀-intro by `instantiate` | "Logic", point 3 | its premise's shape | `isaAllElim(o, o)` is `schema_inst` wherever it stands; a box's letter is then off its spine, refused `letterOffSpine` |
+| the logic's axioms proved in place from the cited statement, a ⋀-intro per letter (`proof(_:of:)`), at `[i]` too | "Logic", point 4; "Step 2", decision 1 | — the intros the reduction consumed | a citation of an axiom of the logic is Logic's, unbuilt; `subst`, base's `class_subst`, stays |
+| an equation between functions of propositions as the congruence it carries, `combination`, `symmetric` and `transitive` consuming it, a λ over propositions owned as their context | "Logic's second step" | its premise's shape | `isaReflexive`, `isaSymmetric`, `isaTransitive` and `isaCombination` at a function of propositions, and `isaAbs` there: Logic's, unbuilt |
+| `OFCLASS(i, term)` dropped as a premise, an assumption and a discharge (`ClassFacts`), with `unshift` over hypotheses | "Step 1", decision 2 | the implication around the class fact | `isaOfClass(i)`: no owner, as before step 1 |
+
+**Kept.** A letter at a statement's top and `schema_inst` at a citation ("Logic", points 1–3); Pure's rules read as steps;
+`≡` at `o` as base's `iff_*` and at `i` as `eq_*` (step 2, decision 2); `subst` as base's `class_subst` (step 2, decision
+3); the reader reading a theorem restricted to `term` at `i` (step 1, decision 1); Reify, the registry and emission.
+
+**Moved (D3).** `Replacement`, the congruence walk, leaves `Logic.swift` for `Congruence.swift`: after the removal only
+Reify's instance and the provers walk it. Its failure is `CongruenceError.noCongruence`, which `congruent` throws too;
+`InstanceError.noCongruence` and `LogicError.context` go.
+
+**Tests.** Deleted with their rules: eight of `LogicTests` (the kernel's proofs, the reduction, a box behind a redex at
+`i`, the congruence form and its holes); five of `PlanTests` (`aClassPremiseItsAssumptionAndItsDischargesAreDropped`,
+`aClassPremiseIsDroppedBeforeAnInstanceAtACompoundTerm`, `theLogicsOwnTheoremIsLoweredAsASchemaProvedByTheKernelsStep`,
+`theSimplifiersRewriteIsLoweredWhole`, `aDefinitionsCitationAtAFunctionOfPropositionsIsLoweredWhole`); `IndexTests`'
+`unshift` over hypotheses. Rewritten: `anEliminationAtAPropositionIsSchemaInstAndABoxsLetterIsOffItsSpine`,
+`ifolsSubstAtIIsBasesClassSubstAndItsOtherRulesAreUnbuilt` (the kernel proving `IFOL.subst`), and the ownership rows.
+
+**Measured** (`MEM=32G scripts/capped.sh .build/release/isa2fol lower data/zf_export --emit DIR`: 5:31, peak 12.9 GB; read
+70.9 s, lowered 59.6 s, emitted 199.2 s; 14,701,772 nodes. Then `scripts/check-unit.sh DIR`: 10.0 s, peak 543 MB):
+- **The kernel proves the unit**: 4 parts, each exit 0 and empty stderr; claims 1,326 of 1,326, schemas 0 of 0; 437
+  `@def`s; 76 MB.
+- **Named theorems lowered: 8** (63 before) — `AC_Equiv.AC18_def`, `AC_Equiv.AC18.intro`, `DC.DC0_imp.XX_def`, `RR_def`,
+  `DC.imp_DC0.XX_def`, `RR_def`, `allRR_def`, `Group.group.is_group` — and 1,755 other statements (2,639).
+- Refused: no owner 7,176 (4,003), `isaOfClass(i)` in 6,046 of them; Logic 1,089 (3,812), led by an instance at a class
+  type (`isaAllElim(o, (i ⇒ i))` 458, `(i ⇒ o)` 351) and Pure's equality at `o ⇒ o` (`isaCombination` 416, `isaAbs(o,
+  body: o)` 416, `isaReflexive` 412); a letter off its spine 40 (222); a refused citation 1,107 (1,320), led by
+  `Formula.satisfies_DEF` 58, `FOL.ccontr` 57 and `IFOL.TrueI` 51.
+
+**Next.** The order from step 2 on is agreed again around FOUNDATION S4 ("The steps after class existence, in order").
+
+### The logic's rules read as steps  **[AGREED 2026-10-16 (user), the five decisions; BUILT 2026-10-16, its decisions in the build for the user's review — `Sources/Reader/Reader.swift`, `Sources/IR/Node.swift`, `Pattern.swift`, `Table.swift`, `Sources/Lowering/Logic.swift`]**
+
+**The step.** FOUNDATION S4: an application of one of IFOL's or FOL's rules is the kernel's step at its premises, never a
+substitution into a translated rule. The rules are the 18 axioms of `IFOL.thy` and `FOL.thy` (`Axiom.ifol`, `Axiom.fol`),
+natural deduction's: fourteen are introductions and eliminations fol-zfc has as steps, `refl` and `subst` are equality's,
+which fol-zfc defines, and `eq_reflection` and `iff_reflection` take IFOL's `=` and `⟷` to Pure's `≡`. Since "Removed", a
+citation of one is Logic's, unbuilt (but `subst`), and every statement whose proof applies one falls. Rejected (user,
+2026-10-15): each axiom a schema base proves once, cited and instantiated at every use.
+
+**The problem, in target text.** `conjI` at `A` and `B`, applied to `p ⊢ A` and `q ⊢ B`:
+
+```
+Isabelle    conjI · A · B ∙ p ∙ q
+read        folImpliesElim(folImpliesElim(isaAllElim(isaAllElim(use(axiom IFOL.conjI), A), B), p), q)
+wanted      folAndIntro(p, q)                                    emitted   and_intro _p, _q
+```
+
+Read, the application is five nodes and the rule stands at the bottom one; a rule there making `and_intro p q` would read
+the four above it, which "Removed" took out (D1). In the proof term it is one application, the axiom and its arguments in
+order, which the reader decodes as one spine (`decode.proofSpine`) — the one place it is one thing. The reader reads Pure's
+seven rules there already (`Reader.pure`, "Logic's second step"), and reads IFOL's `∧`, `∨`, `⟶` and `False` as fol-zfc's
+own nodes (§4.3b): a rule fol-zfc has is read as its step on the same ground.
+
+**1. The reader reads an application of a rule fol-zfc has as that rule's step.** As for Pure's: the rule's statement is
+instantiated at the application's terms, its premises are taken, the step is built, and it must conclude what the
+statement does at those terms, by ID. A rule missing premises is its closed proof applied to those it has; a rule missing
+a term stops the read (`MalformedExport.applicationArity`), and `isa2fol read` proving all 9,420 checks that none does.
+
+| rule | read, at its terms | its step |
+|---|---|---|
+| `conjI` | `P → Q → P ∧ Q` | `folAndIntro(p, q)` |
+| `conjunct1`, `conjunct2` | `P ∧ Q → P`, `P ∧ Q → Q` | `folAndElimL(h)`, `folAndElimR(h)` |
+| `disjI1`, `disjI2` | `P → P ∨ Q`, `Q → P ∨ Q` | `folOrIntroL(h, Q)`, `folOrIntroR(P, h)` |
+| `disjE` | `P ∨ Q → (P → R) → (Q → R) → R` | `folOrElim(h, k, l)` |
+| `impI` | `(P → Q) → (P → Q)` | its premise: `⟹` and `⟶` are one node |
+| `mp` | `(P → Q) → P → Q` | `folImpliesElim(h, p)` |
+| `FalseE` | `⊥ → P` | `folBottomElim(h, P)` |
+| `allI` | `(∀x. P x) → (∀x. P x)` | its premise: `⋀` and `∀` are one node |
+| `spec` | `(∀y. P y) → P x` | `isaAllElim(h, x)`: Fol's `forall_elim` at a variable, Reify's instance at a compound term |
+| `exE` | `(∃x. P x) → (∀x. P x → R) → R` | `isaExElim(i, …)`: the minor premise at the witness, applied to its hypothesis |
+| `refl` | `a = a` | `isaReflexive(a)`: Logic's, base's `eq_refl` (step 2) |
+| `eq_reflection` | `x = y → x = y` | its premise: `≡` at `i` is `=` |
+
+The steps the reader now writes become both dialects, as `iff_intro` and `iff_elim_l` did for Pure's `equal_intr` and
+`equal_elim`: `and_intro`, `and_elim_l`, `and_elim_r`, `or_intro_l`, `or_intro_r`, `or_elim`, `bottom_elim`. No pass owns
+them. A citation of one of these rules is then never read; Logic keeps its row, unbuilt.
+
+**2. The class premise of a rule at `[i]` is not the step's.** `refl`, `subst`, `allI`, `spec`, `exI`, `exE` and
+`eq_reflection` are stated at `'a :: term`, and the export makes the class their first premise, `OFCLASS('a, term) ⟹ …`
+(§4.3a 5): an application at `[i]` takes the class's discharge first. The kernel's step takes the logical premises only —
+the guard its `forall_elim` needs is Fol's (R3) — so the reader reads the application past its discharge and does not read
+the discharge. ⚠ This is not the removed class drop: a theorem's own class premise, its assumption and the discharges of
+its citations stay as Isabelle states them, no pass's until S4's rule for `OFCLASS`.
+
+**3. `classical` and `iff_reflection` are read as isa steps, Logic's after Expand.** Their statements hold IFOL's `¬` and
+`⟷`, which are defined: the reader keeps them and Expand unfolds them, `¬P` to `P ⟶ False` and `P ⟷ Q` to
+`(P ⟶ Q) ∧ (Q ⟶ P)`. Their kernel step exists over the unfolded form only, so the reader reads each application as one
+isa step, as it reads Pure's `reflexive` — `isaClassical(P, h)` concluding `P`, `isaIffReflection(P, Q, h)` concluding
+`P ↔ Q` — and Logic makes it the kernel's step: `classical_absurd` over `h : (P → ⊥) → P`, and `iff_intro` of
+`h : (P → Q) ∧ (Q → P)`'s two conjuncts. Alternative: base proves each as a schema, cited as `subst` cites `class_subst`;
+S4's "never a substitution into a translated rule" would then need these two as its exception.
+
+**4. `exI` stays a citation, Logic's unbuilt: its step needs its body.** The IR's `isaExIntro(p, x)`, as fol-zfc's
+`exists_intro`, abstracts every occurrence of its witness, so `∃y. y = x` from `x = x` is not one step: the step must
+take `P`, which the application has. That design waits — an ∃-intro carrying its body, written as base's schema
+`ex_intro [P(1)]` at the body, then `forall_elim` at the witness, is one candidate. Nothing is lost meanwhile: `exI`
+is stated at `'a :: term`, so its uses stand in theorems over `'a`, read at `i`, whose own class premise holds them back.
+
+**5. `subst` stays base's `class_subst`** (step 2, decision 3): fol-zfc has no step for it, and its application at a λ
+is an instance at a class type. Its citation keeps the axiom's statement, class premise included, so it waits on S4's rule
+for `OFCLASS` too.
+
+**The contracts (D2):**
+
+| | provides | assumes |
+|---|---|---|
+| Reader | an application of a rule of 1 as its step, of `classical` and `iff_reflection` as their isa step, each concluding the rule's statement at its terms by ID; a rule at `[i]` without its class's discharge | an export of one build |
+| Logic | `isaClassical` and `isaIffReflection` as the kernel's steps | Expand's row: `¬` and `⟷` unfolded |
+| Fol, Reify | `isaAllElim` and `isaExElim` at `i` as today, at a compound term too | — |
+
+**Tests, written first.**
+- `LogicRuleTests` (Reader), over an export stating the rules as `IFOL.thy` and `FOL.thy` do: each propositional rule
+  applied is its step, and `conjI` missing its premises is its closed proof, the same node
+  (`aPropositionalRuleAppliedIsItsStep`); `allI`, `spec`, `refl` and `eq_reflection` at `[i]` are their steps past a
+  discharge the reader would refuse if it read it (`aQuantifierOrEqualityRuleAtIIsItsStepPastItsClassDischarge`); `exE`
+  is an `isaExElim` with no citation left; `classical` and `iff_reflection` are their isa steps; `exI` and `subst` stay
+  citations; a rule missing a term stops the read.
+- `PatternTests`: the seven steps are both dialects; `isaClassical`, `isaIffReflection` are isa. `TableTests`: their
+  conclusions, and `classical`'s refusal of a premise concluding something else.
+- `LogicTests`: `isaClassical` and `isaIffReflection` after Expand are the kernel's steps, concluding as read.
+- `PlanTests`: the ownership rows; `conjI`, `disjE` and `classical` as the reader reads them lower through the plan, and
+  the kernel proves the three (`theLogicsRulesReadAsStepsAreLoweredAndProved`).
+
+**Built.** Reader: `Reader.pure` is `applied`, reading Pure's seven (`PureRule`) and the logic's sixteen (`LogicRule`, from
+`Axiom` by one exhaustive switch, `nil` for `subst`, `exI` and ZF's) by one construction; `logicStep` builds each step.
+IR: `isaClassical(P, h)` and `isaIffReflection(P, Q, h)`, the reader's, their conclusions at `intern`; `and_intro`,
+`and_elim_l`, `and_elim_r`, `or_intro_l`, `or_intro_r`, `or_elim` and `bottom_elim` in the both-dialects group. Logic:
+`classical`'s reductio and `iff_reflection`'s `iff_intro`.
+
+**Decisions made in the build**, for the user's review:
+1. **A leading class premise is skipped for every rule**, by one loop over the statement: only the logic's rules at `[i]`
+   have one, Pure's none.
+2. **`exE` is always its closed proof, applied to its premises**: its minor premise stands under the witness's binder,
+   and built at a premise holding hypotheses it would be read under one binder too many. Logic's `classical` is likewise
+   closed over `h`'s statement and applied to `h`, its reductio binding `¬A`.
+3. **Every step's conclusion is checked against the statement at its terms, by ID, on both routes** — the closed one,
+   Pure's included, was not.
+4. **The reader's and the census's tests of a cited axiom's class discharge cite a theory axiom, `T.reflAx`**, stated as
+   `refl` is: `refl` is now read as a step, so it no longer exercises a citation's discharge.
+- ⚠ Rule 13 struck in the build: `concluding(conclusion, try ruleStep(…))` read a copy of the reader taken before the
+  step was interned — index out of range on every new step. The step is bound first.
+
+**Measured** (`MEM=32G scripts/capped.sh .build/release/isa2fol read data/zf_export`: all 9,420 proved, 66.1 s — no rule
+misses a term. `lower data/zf_export --emit DIR`: 5:10, peak 12.9 GB; read 65.8 s, lowered 55.2 s, emitted 188.6 s. Then
+`scripts/check-unit.sh DIR`: 9.3 s, peak 543 MB):
+- **The kernel proves the unit**: 4 parts, each exit 0 and empty stderr; claims 1,326 of 1,326, schemas 0 of 0.
+- **Nothing more lowers**: 8 named theorems and 1,755 other statements, refused as before ("Removed", Measured). The
+  logic's own facts are proved through unnamed boxes: `IFOL.conjunct1` (`IFOL/proofs/246`) is box 228 at `P` and `Q`, and
+  box 228 is the axiom at its terms, now `and_elim_l`. The reader inlines the box, so its `⋀P ⋀Q`, instantiated at once,
+  is `schema_inst` on no citation: a letter off its spine — what the removed reduction absorbed. Every citer of a fact
+  falls with it (`FOL.ccontr` 57, `IFOL.TrueI` 51, `IFOL.conjunct1` 6 named theorems).
+- `SOURCE_SURFACE.md` and `CLOSURE.md` regenerated: the sixteen rules' citations leave the surface (1,503 patterns to
+  1,497) and the closure's axioms, their steps entering the surface in their place.
+- ⚠ **A BOX IS AN UNNAMED THEOREM**: the `⋀P` at its top, which Isabelle instantiates by substitution, is schematic by
+  S4's own test, yet the reader's inlining puts it inside a proof. How a box binding propositions is read is boxes' own
+  design ("Logic", point 3) — decided in "Boxes binding a proposition, read as schemas", below.
+
+### Boxes binding a proposition, read as schemas  **[DECIDED 2026-10-16 (user: "make them schema, give them a name"), its three decisions delegated; BUILT 2026-10-16, its decisions for the user's review — `Sources/Reader/Reader.swift`, `Sources/IR/Legalize.swift`, `Table.swift`, `Sources/FolDialect/Emit.swift`, `Sources/Lowering/Facts.swift`, `Sources/isa2fol/main.swift`, `Lower.swift`, `SurfaceReport.swift`]**
+
+**The step.** A box is a theorem a proof cites by its serial, its proof a file of its own (`ZConstp`, §4.3b). `thms` names
+some; the rest, the unnamed boxes, the reader inlines: their closed proof, read at the citation's types. A box binding a
+proposition is a statement with its `⋀P` at the top, schematic by FOUNDATION S4's own test; inlined, the `⋀P` stands
+inside its citer's proof, and its instance is `schema_inst` on no citation — a letter off its spine. The proofs are in
+the boxes: 8,934 of the 9,420 named proofs are a box applied, and the 9,420 reach 961 boxes with a free proposition, 939
+of them with no type variable (a throwaway count over the export's files). Decided (user, 2026-10-16): such a box is a
+schema of the unit, and it has a name.
+
+**The problem, in target text.** `IFOL.conjunct1` is box 228 at `P` and `Q`, and box 228 the axiom at its terms:
+
+```
+Isabelle   IFOL.conjunct1 = box228 · P · Q          box228 = conjunct1 · P · Q        P Q :: o, ⋀-closed
+read now   ⋀P Q. (⋀P' Q'. λh. and_elim_l h) · P · Q    the box's ⋀ over propositions inside conjunct1's proof
+wanted     schema IFOL.BOX_… [A0(0), A1(0)]: ((A0 & A1) -> A0)          proved by and_elim_l
+           schema IFOL.conjunct1 [A0(0), A1(0)]: ((A0 & A1) -> A0)      proved by schema_inst IFOL.BOX_… { A0: A0, A1: A1 }
+```
+
+**1. A box whose statement binds a proposition on its spine is a statement of the unit, cited as a named theorem is:**
+`use(.theorem(name), types, root)`. Its spine is the one emission reads a schema's letters from — one function,
+`spineLetters`, IR's, for both — so it is exactly a box emission writes as a `schema`. Every other box is inlined as now:
+its `⋀` over objects instantiated at once is `forall_intro` then `forall_elim`, which fol-zfc has.
+
+**2. Its name is `<theory>.BOX_<fingerprint of its proof>`**: its theory's base name, as Isabelle qualifies the theory's
+facts, and its proof's content, as `EX_…` and `UNIQ_…` are named — never its serial, which names a box only within one
+build (§4.6 R2). The proof concludes its statement by ID, so a name is one content: two such boxes in one theory are one
+statement.
+
+**3. It is read as a named theorem is**: at its own type variables, at `i` when each is restricted to `term` (Step 1),
+cited at its citation's types. Its theory is its file's: emission places it in that theory's part, a `schema`, cited by
+`schema_inst`.
+
+**The contracts (D2):**
+
+| | provides | assumes |
+|---|---|---|
+| Reader | a box binding a proposition on its spine as a citation of its name and a statement of the unit, proved; every other box inlined at its citation's types | an export of one build |
+| Logic, Emit | unchanged: a `⋀P::o` on a statement's spine a schema letter, its instance `schema_inst` on the citation (Logic, 1–3) | — |
+
+**Tests, written first.**
+- `ProofReaderTests`: a box binding a proposition is a citation of its name, and the same box at another serial is the
+  same name (`aBoxBindingAPropositionIsCitedByItsContentsName`); a box binding none stays inlined (`anUnnamedBoxIsInlined`).
+- `UnitTests`: the unit holds such a box as a statement of its theory (`theUnitHoldsABoxBindingAPropositionInItsTheory`).
+- `PlanTests`: a theorem proved through such a box lowers to `schema_inst` of the box's schema, and the kernel proves both
+  (`aTheoremProvedThroughABoxIsASchemaInstanceOfItsSchema`).
+
+**Built.** Reader: `claim(_:)` names every theorem a proof cites — a named one by `claimName`, a box binding a proposition
+by its content, any other box `nil`, inlined; a citation is built the one way from that name. IR: `spineLetters`, from
+emission's, and the fingerprint's text, from Lowering's (D3: the reader uses both now). Logic, Fol, Expand and emission
+are unchanged.
+
+**Decisions made in the build**, for the user's review:
+1. **`prove` is memoised per instance**, replacing the box memo: a box binding a proposition is read to be named, then as
+   the unit's statement — once.
+2. **A name keeps the first theorem given it** (`citedAs`): two boxes of one content are then one statement that the
+   unit and the census read alike. It kept the last, and `cited` the first: one name, two theorems, silently.
+3. **`spineLetters` passes `ifolAll` at any type, counting those at `o`**: the reader's statements bind objects with
+   `ifolAll`, lowered ones with `folForall`.
+4. **`read` and `lower` count the boxes cited apart** from the named theorems cited outside the ZF sessions, and the
+   surface's population note says a box binding a proposition is a theorem cited.
+
+**Measured** (`MEM=32G scripts/capped.sh .build/release/isa2fol read data/zf_export`: all 9,420 proved, and the 200
+named theorems and 956 boxes binding a proposition they cite, 76.6 s. `lower data/zf_export --emit DIR`: 5:30, peak
+13.2 GB; read 73.6 s, lowered 59.4 s, emitted 195.7 s; two runs emit byte-identical units. Then `scripts/check-unit.sh
+DIR`: 9.3 s, peak 543 MB):
+- **The kernel proves the unit**: 8 parts, each exit 0 and empty stderr; claims 1,326 of 1,326, **schemas 28 of 28** —
+  the first: `IFOL.conjunct1`, `conjunct2`, `conjI`, `disjI1`, `disjI2`, `disjE`, `impI`, `mp`, `FalseE`,
+  `iff_reflection`, `strip.1`, `FOL.classical` and `ZF_Base.strip.1`, each through its box, and the boxes.
+- **9 named theorems lowered** (8), `ZF_Base.strip.1` the new one; the unit holds 194 theorems cited outside the ZF
+  sessions and 951 boxes. A named theorem stops at its box now where it stopped inside its proof: refused at no owner
+  6,722 (7,176), logic 1,258 (1,089), a letter off its spine 12 (40), a refused citation 1,419 (1,107).
+- **The logic's facts stop at S4's other pieces** (a throwaway diagnostic following each refused citation down): `TrueI`,
+  `notE`, `notI`, `iffI`, `iffD1` at a function of propositions, `isaAbs(o, body: o)` and `isaCombination((o => o), o,
+  o)`, where a proof rewrites under `¬`, `⟷` or `True`; `FOL.ccontr` through `Pure.protectD` at a letter off its spine,
+  the `⋀A` Expand's reflexive step for `Pure.prop_def` binds inside a proof; `spec` and `allE` at `isaOfClass(i)`.
+- `SOURCE_SURFACE.md` regenerated: 1,497 patterns to 1,502 — five binders over a function of propositions, now at a
+  box's statement's top as well as in its proof (`ifolAll((o => o), body: o)`, 7,819 theorems). `CLOSURE.md` unchanged.
+
+### Functions of propositions and the bound `⋀P` — S4's truth set, applied  **[AGREED 2026-10-16 (user: "Agree to all, include the bound ⋀P"; the reader's kinds in place of position, "yes"); BUILT 2026-10-16, its decisions in the build for the user's review — `base/tiers/truth`, `Sources/Lowering/Truth.swift`, `Logic.swift`, `Base.swift`, `Sources/Reader/Terms.swift`, `Reader.swift`, `Constants.swift`, `Statements.swift`, `Sources/IR/Node.swift`, `Pattern.swift`, `Table.swift`, `scripts/check-base.sh`]**
+
+**The step.** A function of propositions is a value at `o⃗ ⇒ o`. The reader meets one wherever Isabelle rewrites under
+a proposition: `Trueprop`, erased where applied, stands unapplied as `λP. P`; `≡` at `o` as `λP Q. P ↔ Q`; a
+connective's section as a λ over its open operand. Since "Removed" each piece at such a type is Logic's, unbuilt, and
+they stand in nearly every named theorem's closure (`SOURCE_SURFACE.md`): `isaAbs(o, body: o)` 8,828, `isaAbs(o, body:
+(o ⇒ o))` 8,409; `isaCombination` at `o ⇒ o` 8,432 and at `o ⇒ (o ⇒ o)` 8,323; `isaReflexive` at the two 8,170 and
+8,323; `isaTransitive` 7,819 and 7,841; `Pure.eq` 8,473 and 8,099. FOUNDATION S4 renders `f ≡ g` at `o ⇒ o` as
+`∀E. E ⊆ {∅} → (f*(E) ↔ g*(E))`.
+
+**The problem, in target text.** `TrueI`'s proof unfolds `True_def` under `Trueprop`:
+
+```
+Isabelle   combination (reflexive Trueprop) True_def        ⊢ Trueprop True ≡ Trueprop (False ⟶ False)
+read       R = isaReflexive(λP. P)                          ⊢ (λP. P) ≡ (λP. P)       at o ⇒ o: no formula
+           isaCombination(o ⇒ o, R, q)                      ⊢ A ↔ B                   q : A ↔ B, β-reduced
+wanted     R = ∀E. set(E) → truth(E) → (holds(E) ↔ holds(E))     iff_refl under the binder and its premises
+           A ↔ B: truth_EX at A opened to E; R at E; holds(E) ↔ A, then holds(E) ↔ B by q, under λP. P's body
+```
+
+**1. FOUNDATION first.** S4's sentence on a function of propositions gains three and is corrected once:
+- applied to truth sets, a function of propositions is its body with each argument read `∅ ∈ Eᵢ`:
+  `(λP⃗. φ)*(E⃗) = φ[∅ ∈ E⃗]` — a λ is a wrapper (S1), no class named for an equation;
+- at `o⃗ ⇒ o` the equation is pointwise in every argument: `∀E⃗. E⃗ ⊆ {∅} → (f*(E⃗) ↔ g*(E⃗))`;
+- `combination` instantiates it at its argument's truth set, then β: `f*(E(a)) ↔ f(a)`, `∅ ∈ E(a)` replaced by `a`
+  under `f`'s connectives — the replacement S4 already counts in an instance's twenty steps;
+- corrected: "the corpus binds none at a statement's top" held of the named theorems. A box binding a proposition is a
+  statement since "Boxes binding a proposition, read as schemas", and seven bind a function of propositions besides —
+  those deriving the applied definitions of `IFOL.not_def`, `iff_def`, `FOL.induct_conj_def`, `induct_implies_def`,
+  `If`, `bool_of_o` and `is_bool_of_o`, each with its constant as a variable. Bound at a top it is a class variable of
+  tuples of truth sets, as at arity ≥ 1 (4).
+
+**2. Base proves the truth set**, a tier `truth` after `primitives` and `pairs`: `holds(E)` (`∅ ∈ E`) and `truth(E)`
+(`set(E)` and `E ⊆ {∅}`) by definition, `schema truth_EX [A(0)]: exists E. (truth(E) & (holds(E) <-> A))`, by excluded
+middle — `{∅}` if `A`, `∅` if not — from `zero_EX` and `upair_ex`, and `schema weaken [A(0), B(0)]: (A -> (B -> A))`.
+It admits nothing. UNIQ waits for a step that meets two namings of one truth set.
+
+**3. Logic's rules, one per piece, at `o⃗ ⇒ o`.** `E⃗` are the pointwise binders, each `∀E` with the premise
+`truth(E)` ("The truth set in the target", below). `f*(E⃗)` is `f`'s body at `holds(E⃗)`.
+
+| piece | rule |
+|---|---|
+| `isaAbs(o, body)` | a wrapper: no node of its own; where it stands it is applied, its body at the argument |
+| `Pure.eq` at `o⃗ ⇒ o` | `∀E⃗. truth(E⃗) → (f*(E⃗) ↔ g*(E⃗))` |
+| `isaReflexive`, `isaSymmetric`, `isaTransitive` | under `E⃗` and their premises: base's `iff_refl`, `iff_symm`, `iff_trans`, the premises instantiated at `E⃗` |
+| `isaCombination(o ⇒ U, p, q)`, `U` = `o⃗′ ⇒ o` | under `U`'s `E⃗′`: `truth_EX` at `a` opened by `exists_elim` (S1 at the site); `p` at `E, E⃗′`; β on each side by the replacement walk, its hole `holds(E)`, its equations `a ↔ holds(E)` and, through `q`, `holds(E) ↔ b`; `iff_trans` |
+
+Each concludes as the table does — `combination` concludes `f(a) ↔ g(b)`, β-reduced — and reads its premises'
+conclusions, never their proofs: "Removed" took out the form a consumer reduced by its premise's shape.
+
+**4. Out of scope, each Logic's unbuilt, with what it waits on.**
+- A variable at `o⃗ ⇒ o` — the seven boxes' top binder, its application `isaVarApp`, its instance at a λ: the λ's class
+  over truth-set records, an instance at a class type (step 3).
+- `≡` at `o ⇒ o` used as a function in those boxes, `isaAbs((o ⇒ o), …)` and `isaCombination(((o ⇒ o) ⇒ o), …)`: a λ
+  over classes (step 9).
+- A function of propositions valued in sets, `If` and `bool_of_o` (step 6).
+
+**5. What it unblocks: the scope, the user's to choose.** By "Boxes…", Measured, `TrueI`, `notI`, `notE`, `iffI` and
+`iffD1` hold 3's pieces — but each also cites `Pure.protectD` or `protectI`, both `equal_elim` over `Pure.prop_def · A`,
+whose `⋀A` Expand's reflexive step binds inside a proof, refused off its spine; and `notI`, `notE`, `iffI`, `iffD1` cite
+`IFOL.not_def` or `iff_def`, whose boxes are 4's. So this step alone moves none of the logic's facts. A `⋀P` bound inside
+a proof is S4's other rendering of the same truth set — `∀E. E ⊆ {∅} → θ*(E)`, `P` read `∅ ∈ E`, an instance at `E(φ)`
+then β — and built with this step it reuses 2's base and 3's binder and instance: `protectD`, `protectI` and
+`FOL.ccontr` would then reach the kernel, and `TrueI` with them (believed from the diagnostic, not run). **Decided
+(user): with the bound `⋀P`**, 6.
+
+**6. The bound `⋀P`: Pure's `⋀` over a proposition is a truth set.** A statement's own variables are its letters —
+`ifolAll`, `isaAllIntro` and `isaBound` at `o`, as before: its top `⋀`s as Isabelle states them, frees for a theorem
+(which the reader closes over), a leading `⋀` chain for an axiom (`IFOL.conjI`: `⋀P Q. P ⟹ Q ⟹ P ∧ Q`, no frees). Pure's
+`⋀` over a proposition below that top — `Pure.all` in a formula, `ZAbst` in a proof, and so every `⋀` a definition's body
+holds, wherever Expand unfolds it — the reader reads as nodes of its own, and Logic reads them by kind:
+
+| piece | rule |
+|---|---|
+| `isaPropAll(φ)` | `∀E. truth(E) → φ*`, `φ*` its body with its variable read `holds(E)` |
+| `isaPropIntro(p)` | `∀E`-intro of `truth(E) → φ*` from `p*` by base's `weaken` (`A → (B → A)`): no hypothesis is inserted above `p*` |
+| `isaPropBound(k)` | `holds(E)` |
+| `isaAllElim(p, A)` at `o` | `schema_inst` where `p` concludes a letter — a citation's top; where it concludes a truth set, the instance: `truth_EX` at `A` opened, `p` at `E`, β by the replacement walk, its hole `holds(E)` with equation `holds(E) ↔ A` |
+
+A letter never meets a truth set: every citation instantiates all the propositions among its frees at its head
+(358,349 of 358,349 sites, a throwaway count over the export's files; 94 partial ones leave none), and a proof's leading
+intros are its statement's letters, the reader closing both over the same frees. ⚠ A citation consumed whole with a
+letter left would meet a truth set at its consumer's premise, and the table refuses that step — a stop, named, never a
+silent fallback.
+
+**The truth set in the target.** `holds(E)` (`∅ ∈ E`, over base's `zero`) and `truth(E)` (`set(E)` and `E ⊆ {∅}`) are
+base's predicates; a truth-set binder is fol-zfc's own `∀E`, its premise `truth(E)` — not a binder at `i` that Fol
+guards, as 3 had it: `truth_EX` is base's, fol-zfc, so the `E` it opens has no type of the walk's for Fol to discharge
+`set(E)` at. Logic writes the binder, its intro, its instance and `holds` in fol-zfc; Fol meets none of them.
+
+**The contracts (D2):**
+
+| | provides | assumes |
+|---|---|---|
+| Base | `holds`, `truth`, `truth_EX`, `weaken`, kernel-checked | NBG; `zero_EX`, `upair_ex` |
+| Logic | the pieces of 3 and 6 as fol-zfc steps and base's citations, each concluding as the table does; 4's unbuilt | Expand's unfolding; base's `iff_*`, `cong_*`, `truth_EX`, `weaken` |
+| Fol | unchanged: it meets no truth-set binder | — |
+
+**Tests, written first.**
+- `check-base.sh`: the `truth` tier proves `truth_EX` and `weaken`.
+- `ParseTests`: `truth_EX`'s line parses to its letter's binder.
+- `LogicTests`: `isaReflexive(λP. P)` concludes `∀E. truth(E) → (holds(E) ↔ holds(E))`; its `combination` with
+  `q : A ↔ B` concludes `A ↔ B`; a section of `∧` through two `combination`s at `o ⇒ (o ⇒ o)`; `isaTransitive` at
+  `o ⇒ o`; a stated `f ≡ g` at `o ⇒ o` is its pointwise formula.
+- `LogicTests` (6): Pure's `⋀` in a premise is `∀E. truth(E) → …`; introduced in a proof and instantiated, the truth
+  instance, concluding as read; a citation's letter instance stays `schema_inst`.
+- Reader: `Pure.all` and `ZAbst` at `o` below a top are the three kinds, a free proposition the letter
+  (`pureAllOverAPropositionIsItsOwnNodeAndAFreeOneTheLetter`, `aMetaQuantifierOverAPropositionIsPuresBoundAll`);
+  `TableTests` and `PatternTests` for the three kinds.
+- `PlanTests`: `equal_elim (symmetric (combination (reflexive Trueprop) q)) fact` lowers through the plan and the kernel
+  proves it; so do Pure's `⋀` introduced and instantiated, in a premise, and `TERM`'s unfolded `⋀C` at one statement's top
+  passed to another's premise — the stop's shape; the ownership rows of 3, 4 and 6.
+
+**Built.** Base: the tier `truth` — `holds_def`, `truth_def`, `truth_EX`, `weaken` — kernel-checked, in
+`check-base.sh`'s order after `primitives`. Reader: `Pure.all` reads `metaAll`; at `o` below a statement's top it is
+`isaPropAll`, `ZAbst` there `isaPropIntro`, their variable `isaPropBound`; the rule reader takes a term at either binder.
+IR: the three kinds, isa only, `isaAllElim` eliminating either binder. Lowering: `Truth.swift`'s `Truths` — the pointwise
+formula, `reflexive`, `symmetric`, `transitive`, `combination`, the truth instance, and `fill`, a truth variable's
+`holds` read as a proposition; Logic's pieces gain `proposition` (the three kinds) and `function` (wrapper, equation,
+combination), each read by kind.
+
+**Decisions made in the build**, for the user's review:
+1. **The reader decides a letter, never a position after Expand** (agreed in the build, user). Built first by position —
+   a `⋀P::o` on its root's leading chain a letter — the corpus run stopped at the table: Expand unfolds `&&&`
+   (`⋀C. (A ⟹ B ⟹ C) ⟹ C`) at `FOL.BOX_1e90…`'s top (`PROP (A &&& B)`), putting a `⋀C` on the chain, and a proof passing
+   it to `Pure.conjunctionD2`'s premise met both readings of one formula. Position decided one pattern's translation by
+   its surroundings (D1); the reader's kinds decide it by the piece.
+2. **A statement's top is its leading `⋀` chain as stated**, through `⋀` and nothing else: an axiom's `⋀` after its
+   class premise (`exE`'s `R`) is below the top, Pure's, and the rule reader reads a term at it as at a letter.
+3. **Expand's per-parameter intros stay letters**: Expand replaces a definition's citation by a proof of the citation's
+   own statement, whose binders are the definition's frees. An instance of one inside a proof (`protectD`'s
+   `prop_def · A`) stays a letter off its spine until a definition's citation stays a citation — Expand's design, a
+   separate step.
+4. **`Pure.all` has its own reading, `metaAll`**, apart from `IFOL.All`: no constant's name is compared outside the
+   reading table.
+5. **Every truth-set construction is built closed over its premises' statements and applied to them**, as `reductio`
+   is, its hole's equation a hypothesis rebuilt at each scope (`Frame`): no proof moves under a new binder.
+6. **β takes its hole by its two sides** — `holds(E)` and the argument, or the argument and its equal — never by a
+   marker in the formula: outside a hole the two sides are one node.
+7. **Comprehension's `sides` and `iff` serve Truth too**: one home for an equivalence's sides.
+
+**Measured** (`check-base.sh`: 14 tiers, `truth` Schemas proved 2 of 2. `read`: all 9,420 proved, and the 200 named
+theorems and 956 boxes they cite, 73.6 s. `lower data/zf_export --emit DIR`: 5:20, peak 14.4 GB; read 69.6 s, lowered
+59.7 s, emitted 189.7 s; two runs emit byte-identical units. Then `scripts/check-unit.sh DIR`: 10.5 s, peak 556 MB):
+- **The kernel proves the unit**: 8 parts, each exit 0 and empty stderr; claims 1,433 of 1,433 (1,326), schemas 29 of 29
+  (28); 453 `@def`s (439). Newly lowered among the theorems: `IFOL.True_def`, through its box, whose proof rewrites under
+  `λP Q. P ↔ Q` at `o ⇒ o ⇒ o` — the first function of propositions in the kernel; the rest are the lemmas of statements
+  whose own pieces now pass Logic.
+- **Named theorems lowered: 9**, as before. Refused at no owner 6,722 (6,722), logic 1,084 (1,258), a letter off its
+  spine 13 (12), a refused citation 1,592 (1,419): a theorem whose own pieces now pass stops at what it cites.
+  `IFOL.TrueI` (51 citers) and `FOL.ccontr` wait on decision 3: `protectD` and `protectI` instantiate `prop_def`'s letter
+  inside a proof.
+- `SOURCE_SURFACE.md` regenerated: 1,502 patterns to 1,505 — the three kinds, in 8,070, 8,070 and 8,067 named theorems'
+  closures. `CLOSURE.md` unchanged.
 
 ### Fol — binders, guards and variables  **[BUILT 2026-09-28 as the guard; Fol's 2026-10-14; every object type and `∃` at `i` with "Reify — S1 at the site" — `Sources/Lowering/Fol.swift`]**
 

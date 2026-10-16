@@ -97,7 +97,7 @@ private func fnT(_ x: IsaType, _ y: IsaType) -> IsaType { .type("fun", [x, y]) }
     let c = try testConstants()
     #expect(try c.reading("IFOL.Trueprop") == .erased)
     #expect(try c.reading("IFOL.conj") == .and)
-    #expect(try c.reading("Pure.all") == .all)
+    #expect(try c.reading("Pure.all") == .metaAll)
     #expect(try c.reading("Pure.eq") == .metaEquality)
     #expect(try c.reading("Pure.dummy_pattern") == .hidden)
     #expect(try c.reading("ZF_Base.mem") == .constant(.primitive(.zf(.mem))))

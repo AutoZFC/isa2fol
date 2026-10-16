@@ -61,6 +61,7 @@ struct Scope: Hashable {
     private struct Binder: Hashable {
         let type: IRType
         let level: Int
+        let proposition: Bool
     }
 
     private var binders: [Binder] = []
@@ -68,9 +69,9 @@ struct Scope: Hashable {
 
     init(frees: Int) { depth = frees }
 
-    func source(_ T: IRType) -> Scope {
+    func source(_ T: IRType, proposition: Bool = false) -> Scope {
         var s = self
-        s.binders.append(Binder(type: T, level: depth))
+        s.binders.append(Binder(type: T, level: depth, proposition: proposition))
         s.depth += 1
         return s
     }
@@ -81,10 +82,10 @@ struct Scope: Hashable {
         return s
     }
 
-    func bound(_ k: Int) throws -> (index: Int, type: IRType) {
+    func bound(_ k: Int) throws -> (index: Int, type: IRType, proposition: Bool) {
         guard k >= 0, k < binders.count else { throw MalformedExport.unboundBound(k) }
         let b = binders[binders.count - 1 - k]
-        return (depth - 1 - b.level, b.type)
+        return (depth - 1 - b.level, b.type, b.proposition)
     }
 }
 
@@ -98,6 +99,7 @@ struct Terms {
         let body: Body
         let type: IRType
         let scope: Scope
+        let top: Bool
     }
 
     let decode: Decode
@@ -134,18 +136,18 @@ struct Terms {
 
     func irType(_ T: IsaType) throws -> IRType { try T.irType().substituting(types) }
 
-    mutating func proposition(_ body: Body, _ s: Scope, in t: inout Table) throws -> NodeID {
-        try source(body, .o, s, &t)
+    mutating func proposition(_ body: Body, _ s: Scope, top: Bool = false, in t: inout Table) throws -> NodeID {
+        try source(body, .o, s, &t, top: top)
     }
 
     mutating func term(_ body: Body, _ U: IRType, _ s: Scope, in t: inout Table) throws -> NodeID {
         try source(body, U, s, &t)
     }
 
-    private mutating func source(_ body: Body, _ U: IRType, _ s: Scope, _ t: inout Table) throws -> NodeID {
-        let key = Memo(body: body, type: U, scope: s)
+    private mutating func source(_ body: Body, _ U: IRType, _ s: Scope, _ t: inout Table, top: Bool = false) throws -> NodeID {
+        let key = Memo(body: body, type: U, scope: s, top: top)
         if let n = memo[key] { return n }
-        let n = try applied(body, [], U, s, &t)
+        let n = try applied(body, [], U, s, &t, top: top)
         memo[key] = n
         return n
     }
@@ -157,21 +159,22 @@ struct Terms {
         }
     }
 
-    private mutating func applied(_ body: Body, _ extra: [NodeID], _ U: IRType, _ s: Scope, _ t: inout Table) throws -> NodeID {
-        guard case let .fn(T, rest) = U else { return try spine(body, extra, U, s, &t) }
+    private mutating func applied(_ body: Body, _ extra: [NodeID], _ U: IRType, _ s: Scope, _ t: inout Table,
+                                  top: Bool = false) throws -> NodeID {
+        guard case let .fn(T, rest) = U else { return try spine(body, extra, U, s, &t, top: top) }
         return try t.intern(.isaAbs(T, body: try abstraction(body, extra, T, rest, s, &t)))
     }
 
     private mutating func abstraction(_ body: Body, _ extra: [NodeID], _ T: IRType, _ rest: IRType,
-                                      _ s: Scope, _ t: inout Table) throws -> NodeID {
+                                      _ s: Scope, _ t: inout Table, proposition: Bool = false, top: Bool = false) throws -> NodeID {
         if extra.isEmpty, case let (domain, inner)? = try lambda(body) {
             let D = try irType(domain)
             guard D == T else { throw MalformedExport.typeMismatch(expected: T, found: D) }
-            return try source(inner, rest, s.source(T), &t)
+            return try source(inner, rest, s.source(T, proposition: proposition), &t, top: top)
         }
-        let y = try etaLong(try t.intern(.isaBound(0, T)), [], T, &t)
+        let y = proposition ? try t.intern(.isaPropBound(0)) : try etaLong(try t.intern(.isaBound(0, T)), [], T, &t)
         let shifted = try extra.map { try shift($0, by: 1, in: &t) }
-        return try applied(body, shifted + [y], rest, s.eta(), &t)
+        return try applied(body, shifted + [y], rest, s.eta(), &t, top: top)
     }
 
     private func etaLong(_ v: NodeID, _ args: [NodeID], _ U: IRType, _ t: inout Table) throws -> NodeID {
@@ -187,13 +190,14 @@ struct Terms {
         return (domain, inner)
     }
 
-    private mutating func spine(_ body: Body, _ extra: [NodeID], _ U: IRType, _ s: Scope, _ t: inout Table) throws -> NodeID {
+    private mutating func spine(_ body: Body, _ extra: [NodeID], _ U: IRType, _ s: Scope, _ t: inout Table,
+                                top: Bool = false) throws -> NodeID {
         let (head, sources) = try decode.spine(body)
         let arguments = sources.map(Argument.source) + extra.map(Argument.decoded)
         let n: NodeID
         switch head {
         case let .constant(name, types):
-            n = try constant(name, types, arguments, s, &t)
+            n = try constant(name, types, arguments, s, &t, top: top)
         case let .free(name, declared):
             guard let f = frees[name] else { throw MalformedExport.undeclaredFree(name) }
             if let declared, try irType(declared) != f.type {
@@ -201,8 +205,9 @@ struct Terms {
             }
             n = try variable(name, try t.intern(.isaBound(s.depth - 1 - f.level, f.type)), f.type, arguments, s, &t)
         case let .bound(k):
-            let (index, T) = try s.bound(k)
-            n = try variable("ZBound \(k)", try t.intern(.isaBound(index, T)), T, arguments, s, &t)
+            let (index, T, proposition) = try s.bound(k)
+            let v = try t.intern(proposition ? .isaPropBound(index) : .isaBound(index, T))
+            n = try variable("ZBound \(k)", v, T, arguments, s, &t)
         case .abstraction:
             guard arguments.isEmpty else { throw ReaderRefusal.betaRedex }
             throw MalformedExport.unexpectedAbstraction(expected: U)
@@ -235,7 +240,7 @@ struct Terms {
     }
 
     private mutating func constant(_ name: String, _ types: [IsaType], _ arguments: [Argument],
-                                   _ s: Scope, _ t: inout Table) throws -> NodeID {
+                                   _ s: Scope, _ t: inout Table, top: Bool = false) throws -> NodeID {
         let scheme = try constants.instantiate(name, types)
         switch try constants.reading(name) {
         case let .constant(c):
@@ -265,22 +270,27 @@ struct Terms {
         case .all:
             let T = try irType(try typeArgument(name, types))
             return try t.intern(.ifolAll(T, body: try binder(name, T, arguments, s, &t)))
+        case .metaAll:
+            let T = try irType(try typeArgument(name, types))
+            guard T == .o, !top else { return try t.intern(.ifolAll(T, body: try binder(name, T, arguments, s, &t, top: top))) }
+            return try t.intern(.isaPropAll(body: try binder(name, T, arguments, s, &t, proposition: true)))
         case .ex:
             let T = try irType(try typeArgument(name, types))
             return try t.intern(.ifolEx(T, body: try binder(name, T, arguments, s, &t)))
         }
     }
 
-    private mutating func binder(_ name: String, _ T: IRType, _ arguments: [Argument], _ s: Scope, _ t: inout Table) throws -> NodeID {
+    private mutating func binder(_ name: String, _ T: IRType, _ arguments: [Argument], _ s: Scope, _ t: inout Table,
+                                 proposition: Bool = false, top: Bool = false) throws -> NodeID {
         guard arguments.count == 1 else { throw MalformedExport.applicationArity(name, expected: 1, found: arguments.count) }
         switch arguments[0] {
         case let .source(body):
-            return try abstraction(body, [], T, .o, s, &t)
+            return try abstraction(body, [], T, .o, s, &t, proposition: proposition, top: top)
         case let .decoded(n):
             guard case let .isaAbs(D, body) = t[n], D == T else {
                 throw MalformedExport.typeMismatch(expected: .fn(T, .o), found: t.type(of: n))
             }
-            return body
+            return proposition ? try transform(body, Proposition(), in: &t) : body
         }
     }
 
@@ -299,5 +309,13 @@ extension IRType {
             guard let T = s[v] else { throw MalformedExport.undeclaredTypeVariable(v) }
             return T
         }
+    }
+}
+
+private struct Proposition: Rule {
+    func before(_ id: NodeID, context depth: Depth, in t: inout Table) throws -> NodeID? {
+        if t.looseBound(of: id) <= depth.terms { return id }
+        guard case let .isaBound(k, .o) = t[id], k == depth.terms else { return nil }
+        return try t.intern(.isaPropBound(k))
     }
 }

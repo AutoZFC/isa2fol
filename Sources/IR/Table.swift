@@ -69,7 +69,7 @@ public struct Table: Sendable {
         case let .isaConst(.primitive(.pure(.eq)), .fn(T, _), args) where args.count == 2:
             return (T, args[0], args[1])
         case .ifolAll, .ifolEx, .isaConst, .isaFree, .isaBound, .isaVarApp, .isaAbs, .isaOfClass, .isaAllIntro,
-             .isaAllElim, .isaReflexive, .isaSymmetric, .isaTransitive, .isaCombination, .isaAbstract, .folImplies,
+             .isaAllElim, .isaReflexive, .isaSymmetric, .isaTransitive, .isaCombination, .isaAbstract, .isaClassical, .isaIffReflection, .isaPropAll, .isaPropIntro, .isaPropBound, .folImplies,
              .folAnd, .folOr, .folBottom, .folImpliesIntro, .folImpliesElim, .use, .hyp, .folIffIntro, .folIffElimL,
              .isaGuard, .isaExIntro, .isaExElim, .folNot, .folBound, .folPred, .folForall, .folExists, .folAndIntro, .folAndElimL, .folAndElimR,
              .folOrIntroL, .folOrIntroR, .folOrElim, .folNotIntro, .folNotElim, .folIffElimR, .folForallIntro,
@@ -255,9 +255,30 @@ public struct Table: Sendable {
             guard case let .ifolAll(T2, body) = self[try premise(p)], T2 == T, let (V, a, b) = sides(ofEquation: body), V == U
             else { throw TableError.principalConnective(p) }
             return .step(concluding: try equation(F, try intern(.isaAbs(T, body: a)), try intern(.isaAbs(T, body: b))))
+        case let .isaClassical(a, h):
+            try expect(.o, a)
+            guard case let .folImplies(_, c) = self[try premise(h)] else { throw TableError.principalConnective(h) }
+            try same(a, c)
+            return .step(concluding: a)
+        case let .isaIffReflection(a, b, h):
+            try expect(.o, a)
+            try expect(.o, b)
+            _ = try premise(h)
+            return .step(concluding: try intern(.folIff(a, b)))
         case let .isaAllIntro(T, body):
             return .step(concluding: try intern(.ifolAll(T, body: try premise(body))))
+        case let .isaPropIntro(body):
+            return .step(concluding: try intern(.isaPropAll(body: try premise(body))))
+        case let .isaPropAll(b):
+            try expect(.o, b)
+            return .value(.o)
+        case .isaPropBound:
+            return .value(.o)
         case let .isaAllElim(p, x):
+            if case let .isaPropAll(body) = self[try premise(p)] {
+                try expect(.o, x)
+                return .step(concluding: try instantiate(body, with: x, in: &self))
+            }
             guard case let .ifolAll(T, body) = self[try premise(p)] else { throw TableError.principalConnective(p) }
             try expect(T, x)
             if case .fn = T, !isAbstraction(x) { throw TableError.functionArgumentNotAbstraction(x) }
@@ -369,4 +390,9 @@ public struct Table: Sendable {
         if case let .fn(_, rest) = T { return 1 + arity(rest) }
         return 0
     }
+}
+
+public func fingerprint(_ x: NodeID, _ t: Table) -> String {
+    let hex = String(t.fingerprint(of: x), radix: 16)
+    return String(repeating: "0", count: 16 - hex.count) + hex
 }

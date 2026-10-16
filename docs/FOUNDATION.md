@@ -539,8 +539,8 @@ by family whatever their type.
 
 > **⚠ UNFOLDING `ex` IN A PREMISE BINDS A PROPOSITION THERE.** `ex(P) ≡
 > ⋀Q. (⋀x. P(x) ⟹ Q) ⟹ Q`, so a premise `REFLECTS[P,Q]` unfolds to a `⋀Q::prop`
-> inside a premise — not a schema (§2 S4). That is Pure's `⋀` over `prop`, not
-> this border: in a conclusion the same unfolding is a schema.
+> inside a premise — a truth-set variable, not a schema (§2 S4). That is Pure's `⋀`
+> over `prop`, not this border: in a conclusion the same unfolding is a schema.
 
 **S2 — Every constant carries EX, UNIQ, and — when it takes arguments — CONG.**
 The three are claims about an `F` **that encodes a function** `f`, `F(x⃗,r)`
@@ -700,12 +700,64 @@ constants in order, so EX/UNIQ/CONG propagate by induction. Three base cases:
   four dependencies are already in the induction.
 - **recursion** needs the recursion theorem, which routes back to `The`.
 
-**S4 — Propositions are never reified.** `o` is not `i`; there is no canonical
-injection. Truth-as-nonempty is necessarily non-unique, so a reified proposition
-can never satisfy UNIQ and `ι v. Prop(args,v)` denotes nothing. A concrete `i⇒o`
-argument is β-substituted. Not repairable by
-choosing a canonical truth-value set — that manufactures structure the
-mathematics does not have.
+**S4 — A proposition is an object only as its truth set, `{t : t = ∅ ∧ φ}`** (decided
+2026-10-15, the user; the rest of S4 is read through it).
+`o` is not `i`, and a set standing for a proposition's truth by being nonempty is
+necessarily non-unique: such a reification can never satisfy UNIQ, and
+`ι v. Prop(args,v)` denotes nothing. That stays refused.
+
+A predicate of `n` arguments is the class of its argument tuples (R7). At `n = 0` the
+only tuple is the empty one, `⟨⟩ = ∅`, so a proposition `φ` is its **truth set**
+`E(φ) = {t : t = ∅ ∧ φ}`, and `φ` holds iff `∅ ∈ E(φ)`.
+- It is a set: `E(φ) ⊆ {∅}`. It is unique by extensionality, two truth sets with the
+  same truth having the same members. It is not a chosen representative: it is the
+  arity-0 case of the class of argument tuples every predicate already is.
+- It exists for every `φ`, by cases: `{∅}` if `φ`, `∅` if not. That is excluded
+  middle, not comprehension, so predicativity never arises at arity 0.
+- β is a proof step, `∅ ∈ E(φ) ↔ φ`, from its defining property and `∅`'s.
+- It is read only through `∅ ∈ E`, which is equivalent to `φ`. Its guard `E ⊆ {∅}` and
+  its place in an argument tuple say what it is; nothing is stated of a truth set beyond
+  its truth.
+
+**Two kinds of proposition variable, two renderings** (decided 2026-10-15, the user,
+over one rendering for both). A proposition variable is at `o` or at `prop`: the target
+writes both as formulas, `Trueprop` the crossing, so both kinds hold at either type —
+`OFCLASS`, `&&&`, `TERM` and `ex` bind theirs at `prop`.
+- **A schematic variable** — a `⋀P` a statement binds at its top, which Isabelle
+  instantiates by substitution — is a **schema letter** `A(0)`, as the arity-0
+  paragraph below has it.
+- **A bound variable** — a `⋀P` inside a proof or a formula — is a **truth-set
+  variable**: `⋀P. θ(P)` renders `∀E. E ⊆ {∅} → θ*(E)`, `P` renders `∅ ∈ E`, and an
+  instance at `φ` is the instance at `E(φ)`, then β.
+- Why two: substitution is what a schema letter's instance costs the kernel, one
+  `schema_inst`. Read as a truth set, each instance proves its substitution — the
+  class named, its instance, β over the instantiated statement, about twenty steps.
+
+**Its consequences, each a rendering where S4 had none.**
+- A proposition as a constant's argument (`If(φ, a, b)`) or a constant's value
+  (`AC1 :: o`) is its truth set, a set entry of the argument tuple (R7).
+- A function of propositions, `o ⇒ …`, is a class of tuples of truth sets; an equation
+  between two, `f ≡ g` at `o ⇒ o`, renders `∀E. E ⊆ {∅} → (f*(E) ↔ g*(E))`. Applied to
+  truth sets, a function of propositions is its body with each argument read `∅ ∈ Eᵢ`,
+  `(λP⃗. φ)*(E⃗) = φ[∅ ∈ E⃗]`: a λ is a wrapper (S1), and no class is named for an equation.
+  At `o⃗ ⇒ o` the equation is pointwise in every argument, `∀E⃗. E⃗ ⊆ {∅} → (f*(E⃗) ↔ g*(E⃗))`.
+  `combination` instantiates it at its argument's truth set, then β: `f*(E(a)) ↔ f(a)`,
+  `∅ ∈ E(a)` replaced by `a` under `f`'s connectives — the replacement an instance's
+  twenty steps already count.
+- `OFCLASS(T, c) ≡ ⋀P :: prop. P ⟹ P` binds a proposition inside a formula and
+  renders `∀E. E ⊆ {∅} → (∅ ∈ E → ∅ ∈ E)`: true, and stated.
+- **The logic's primitive rules are the kernel's own**: an application of one of
+  IFOL's or FOL's inference rules (`conjI`, `mp`, `spec`, `exE`, …) is the kernel's
+  step at its premises, never a substitution into a translated rule.
+
+> **⚠ THIS SECTION SAID "PROPOSITIONS ARE NEVER REIFIED … NOT REPAIRABLE BY CHOOSING
+> A CANONICAL TRUTH-VALUE SET — THAT MANUFACTURES STRUCTURE THE MATHEMATICS DOES NOT
+> HAVE".** The truth set is not chosen; it is every predicate's own reading at arity 0,
+> unique, and read only by `∅ ∈ E`. Without it, a proposition bound below a
+> statement's top had no rendering, and the translation substituted, consumed or
+> dropped each one where it was used — three rules reading a neighbouring node
+> instead of their own piece. A concrete `i⇒o` argument is a class (S4's arity ≥ 1
+> paragraph, below), never β-substituted.
 
 **⚠ THIS SECTION IS ABOUT ARITY ZERO, AND USED TO SAY `?P` STAYS A SCHEMA AT
 EVERY ARITY.** At arity ≥ 1 a schematic `?P` is a CLASS VARIABLE: `P x` renders
@@ -730,8 +782,14 @@ for a formula, never for an object, so this is not the truth-value set refused
 above, and R2 holds because a proof over uninterpreted letters is parametric by
 construction. The `⋀P::o` of IFOL's primitive rules (`disjE`, `exE`) stay the
 kernel's own ND rules. A variable of a type built over `o` — a function of
-propositions, `o ⇒ o` — has neither rendering: no letter takes a proposition as
-its argument.
+propositions, `o ⇒ o` — takes no letter: no letter takes a proposition as its
+argument. Bound, at a statement's top or below it, it is a class of tuples of truth
+sets (S4's first paragraphs), a class variable as at arity ≥ 1.
+
+> **⚠ THIS SAID "THE CORPUS BINDS NONE AT A STATEMENT'S TOP".** It held of the named
+> theorems. An unnamed theorem a proof cites is a statement too when it binds a
+> proposition, and seven of those bind a function of propositions besides — each
+> deriving a defined connective's applied definition, the constant a variable.
 
 > **⚠ THIS SECTION SAID "AT ARITY 0 THERE IS NO SUCH RENDERING AND NONE IS
 > WANTED", AND THAT "A SCHEMA FORCES A PROOF PER INSTANTIATION".** The second is
@@ -1169,8 +1227,9 @@ specialisation at `kpair`.
 | `AbsT` / `AppT` at a VARIABLE | `forall_intro` / `forall_elim`, **plus the R3 guard step** |
 | `AppT` at a compound term | `appt_complex` / `appt_nested` |
 | `Thm` | `use` |
-| `⋀P :: o` at the head of a logical rule | the kernel's OWN ND rule; never translated (S4) |
-| `⋀P :: o` at a statement's top, `AppT` at it | a schema letter, `schema_inst` (S4) |
+| an application of a logical rule (`conjI`, `mp`, `spec`, `exE`, …) | the kernel's OWN step at its premises; never translated (S4) |
+| `⋀P` over a proposition, `o` or `prop`, at a statement's top, `AppT` at it | a schema letter, `schema_inst` (S4) |
+| `⋀P` over a proposition anywhere else, `AppT` at it | a truth-set variable; `forall_elim` at `E(φ)`, then β (S4) |
 
 **⚠ THE GUARD STEP HAS NO COUNTERPART IN THE PROOF TERM.** Isabelle gets `a : i`
 from its type system — decided, never proved — so every `forall_elim` needs a
@@ -1238,7 +1297,7 @@ to do:
 |---|---|
 | S1 | emitted `ι`-terms for `i`-terms without discharging the extension's cost |
 | S2 | `_exists`/`_unique`/`_relmem` partial; constants got `∃` where S3 needs `∃!` |
-| S4 | propositions reified as truth-value sets |
+| S4 | propositions reified as truth-value sets, a nonempty set standing for truth |
 | S5 | the meta-function graph was reified and passed as an argument |
 | S6 | unrelativized throughout |
 | R1 | 214 Isabelle theorems emitted as `axiom`, buying 144 `Proved`; plus 113 prop-bridge axioms |
@@ -1394,7 +1453,7 @@ these are raw bodies, and R5 compiles them against earlier graphs.
 | nothing admitted but the 19 | §1 R1 |
 | every schema has a non-`UNPROVED` proof | §1 R2 |
 | every operation has EX/UNIQ/CONG, closed over definitional order | §2 S2, S3 |
-| no term-former beyond variables; no reified proposition; no reified graph | §2 S1, S4, S5 |
+| no term-former beyond variables; a proposition an object only as its truth set; no reified graph | §2 S1, S4, S5 |
 | every quantifier and description relativized, and **interleaved** — swept over checked-in artifacts, not only generated ones | §1 R3, §2 S6 |
 
 `docs/phase2_probes/` holds standalone `.fol.def`/`.fol.proof` pairs that the

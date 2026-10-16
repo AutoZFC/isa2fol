@@ -7,6 +7,22 @@ public func legalize(_ root: NodeID, in t: Table) throws {
     }
 }
 
+public func spineLetters(_ root: NodeID, in t: Table) -> Int {
+    var count = 0, at = root
+    while true {
+        if case let .ifolAll(T, body) = t[at] {
+            if T == .o { count += 1 }
+            at = body
+        } else if case let .folForall(body) = t[at] {
+            at = body
+        } else if case let .folImplies(_, b) = t[at] {
+            at = b
+        } else {
+            return count
+        }
+    }
+}
+
 public func misplacedLetters(_ roots: [NodeID], in t: Table) -> Set<Pattern> {
     var seen: Set<Place> = [], misplaced: Set<Pattern> = [], pending = roots.map { Place(id: $0, spine: true) }
     while let at = pending.popLast() {
@@ -26,7 +42,7 @@ public func misplacedLetters(_ roots: [NodeID], in t: Table) -> Set<Pattern> {
             if !citesAtItsHead(p, t) { misplaced.insert(Pattern(n, in: t)) }
             pending += [Place(id: p, spine: false), Place(id: a, spine: false)]
         case .ifolAll, .ifolEx, .isaConst, .isaFree, .isaBound, .isaVarApp, .isaAbs, .isaOfClass, .isaAllIntro,
-             .isaAllElim, .isaReflexive, .isaSymmetric, .isaTransitive, .isaCombination, .isaAbstract, .folAnd, .folOr, .folIff, .folBottom, .folImpliesElim, .hyp, .isaGuard, .isaExIntro, .isaExElim, .folNot, .folBound,
+             .isaAllElim, .isaReflexive, .isaSymmetric, .isaTransitive, .isaCombination, .isaAbstract, .isaClassical, .isaIffReflection, .isaPropAll, .isaPropIntro, .isaPropBound, .folAnd, .folOr, .folIff, .folBottom, .folImpliesElim, .hyp, .isaGuard, .isaExIntro, .isaExElim, .folNot, .folBound,
              .folPred, .folExists, .folAndIntro, .folAndElimL, .folAndElimR, .folOrIntroL, .folOrIntroR, .folOrElim,
              .folNotIntro, .folNotElim, .folIffIntro, .folIffElimL, .folIffElimR, .folForallElim, .folExistsIntro,
              .folExistsElim, .folBottomElim, .folClassicalAbsurd, .folLetter, .folLetterAbs:

@@ -30,9 +30,9 @@ struct ProofScope: Hashable {
 
     init(_ terms: Scope) { self.terms = terms }
 
-    func fixing(_ T: IRType) -> ProofScope {
+    func fixing(_ T: IRType, proposition: Bool = false) -> ProofScope {
         var s = self
-        s.terms = terms.source(T)
+        s.terms = terms.source(T, proposition: proposition)
         return s
     }
 
@@ -47,6 +47,7 @@ private struct FileProof {
     struct Key: Hashable {
         let body: Body
         let scope: ProofScope
+        let top: Bool
     }
 
     var terms: Terms
@@ -54,6 +55,7 @@ private struct FileProof {
 }
 
 private let axioms = Dictionary(uniqueKeysWithValues: Axiom.all.map { ($0.name, $0) })
+private let termClass = "IFOL.term"
 
 private enum PureRule: String {
     case reflexive = "Pure.reflexive", symmetric = "Pure.symmetric", transitive = "Pure.transitive"
@@ -66,6 +68,79 @@ private enum PureRule: String {
         case .symmetric, .abstractRule: return 1
         case .transitive, .combination, .equalIntr, .equalElim: return 2
         }
+    }
+}
+
+private enum LogicRule {
+    case conjI, conjunct1, conjunct2, disjI1, disjI2, disjE, impI, mp, falseE, allI, spec, exE, refl, eqReflection
+    case classical, iffReflection
+
+    init?(_ a: Axiom) {
+        switch a {
+        case .ifol(.conjI): self = .conjI
+        case .ifol(.conjunct1): self = .conjunct1
+        case .ifol(.conjunct2): self = .conjunct2
+        case .ifol(.disjI1): self = .disjI1
+        case .ifol(.disjI2): self = .disjI2
+        case .ifol(.disjE): self = .disjE
+        case .ifol(.impI): self = .impI
+        case .ifol(.mp): self = .mp
+        case .ifol(.falseE): self = .falseE
+        case .ifol(.allI): self = .allI
+        case .ifol(.spec): self = .spec
+        case .ifol(.exE): self = .exE
+        case .ifol(.refl): self = .refl
+        case .ifol(.eqReflection): self = .eqReflection
+        case .fol(.classical): self = .classical
+        case .ifol(.iffReflection): self = .iffReflection
+        case .ifol(.subst), .ifol(.exI), .zf: return nil
+        }
+    }
+
+    var premises: Int {
+        switch self {
+        case .refl: return 0
+        case .conjunct1, .conjunct2, .disjI1, .disjI2, .impI, .falseE, .allI, .spec, .eqReflection, .classical, .iffReflection:
+            return 1
+        case .conjI, .mp, .exE: return 2
+        case .disjE: return 3
+        }
+    }
+}
+
+private enum Rule {
+    case pure(PureRule)
+    case logic(Axiom, LogicRule)
+
+    init?(_ name: String) {
+        if let r = PureRule(rawValue: name) {
+            self = .pure(r)
+        } else if let a = axioms[name], let r = LogicRule(a) {
+            self = .logic(a, r)
+        } else {
+            return nil
+        }
+    }
+
+    var name: String {
+        switch self {
+        case let .pure(r): return r.rawValue
+        case let .logic(a, _): return a.name
+        }
+    }
+
+    var premises: Int {
+        switch self {
+        case let .pure(r): return r.premises
+        case let .logic(_, r): return r.premises
+        }
+    }
+
+    /// ⚠ `exE`'S STEP BINDS ITS WITNESS OVER ITS MINOR PREMISE: built at the premises themselves, a premise holding a
+    /// hypothesis would be read under one binder too many. It is its closed proof, applied to them.
+    var bindsOverPremises: Bool {
+        guard case .logic(_, .exE) = self else { return false }
+        return true
     }
 }
 
@@ -90,7 +165,9 @@ public struct Reader {
     private let families: Families
     private let corpus: Corpus
     private var statements: [Instance: NodeID] = [:]
-    private var boxes: [Instance: NodeID] = [:]
+    private var proofs: [Instance: (statement: NodeID, proof: NodeID)] = [:]
+    private var claims: [TheoremKey: String?] = [:]
+    private var readAt: [TheoremKey: [IRType]] = [:]
 
     public init(_ export: Export) throws {
         var export = export
@@ -112,42 +189,87 @@ public struct Reader {
 
     public mutating func read(_ theorem: Theorem) throws -> Outcome {
         do {
-            let (e, _) = try located(theorem.key.path) { try decode.proofFile(try corpus.file(theorem.key)) }
-            let (statement, proof) = try prove(theorem.key, at: e.tfrees.map(IRType.variable))
+            let (statement, proof) = try prove(theorem.key, at: try types(of: theorem.key))
             return .proved(statement: statement, proof: proof)
         } catch let refusal as ReaderRefusal {
             return .refused(refusal)
         }
     }
 
+    private mutating func types(of key: TheoremKey) throws -> [IRType] {
+        if let types = readAt[key] { return types }
+        let tfrees = try typeVariables(of: Theorem(key))
+        var types = tfrees.map(IRType.variable)
+        if !tfrees.isEmpty {
+            let stated = try statement(Instance(source: .theorem(key), types: types))
+            if restrictedToTerm(stated) == Set(tfrees) { types = tfrees.map { _ in .i } }
+        }
+        readAt[key] = types
+        return types
+    }
+
+    private func restrictedToTerm(_ statement: NodeID) -> Set<String> {
+        var x = statement, restricted: Set<String> = []
+        while case let .ifolAll(_, body) = table[x] { x = body }
+        while case let .folImplies(premise, rest) = table[x], case let .isaOfClass(T, c) = table[premise] {
+            guard case let .variable(v) = T, c == termClass else { return [] }
+            restricted.insert(v)
+            x = rest
+        }
+        return restricted
+    }
+
     private mutating func prove(_ key: TheoremKey, at types: [IRType]) throws -> (statement: NodeID, proof: NodeID) {
-        try located(key.path) {
+        let instance = Instance(source: .theorem(key), types: types)
+        if let proved = proofs[instance] { return proved }
+        let proved = try located(key.path) {
             let (e, proof) = try decode.proofFile(try corpus.file(key))
             var f = FileProof(terms: try Terms(decode: decode, constants: constants, classes: classes, file: e, at: types))
             let root = try f.terms.statement(e.prop, in: &table)
-            let body = try step(proof, ProofScope(f.terms.closure), &f)
+            let body = try step(proof, ProofScope(f.terms.closure), &f, top: true)
             let p = try f.terms.close(body, Node.isaAllIntro, in: &table)
             guard table.conclusion(of: p) == root else {
                 throw MalformedExport.unproved(statement: root, conclusion: table.conclusion(of: p))
             }
-            return (root, p)
+            return (statement: root, proof: p)
         }
+        proofs[instance] = proved
+        return proved
     }
 
-    private mutating func step(_ body: Body, _ s: ProofScope, _ f: inout FileProof) throws -> NodeID {
-        let key = FileProof.Key(body: body, scope: s)
+    /// ⚠ A BOX IS NAMED BY ITS CONTENT, NEVER ITS SERIAL: a serial names a box only within one build of the export.
+    private mutating func claim(_ key: TheoremKey) throws -> String? {
+        if let c = claims[key] { return c }
+        var c: String?
+        if let name = corpus.names[key] {
+            c = try claimName(name)
+        } else {
+            let read = try types(of: key)
+            let stated = try statement(Instance(source: .theorem(key), types: read))
+            if spineLetters(stated, in: table) > 0 {
+                let proof = try prove(key, at: read).proof
+                c = "\(key.theory.split(separator: ".").last!).BOX_\(fingerprint(proof, table))"
+            }
+        }
+        claims[key] = c
+        return c
+    }
+
+    private mutating func step(_ body: Body, _ s: ProofScope, _ f: inout FileProof, top: Bool = false) throws -> NodeID {
+        let key = FileProof.Key(body: body, scope: s, top: top)
         if let p = f.steps[key] { return p }
         let spine = try decode.proofSpine(body)
         var p: NodeID, arguments = spine.arguments[...]
-        if case let .axiom(name, types) = spine.node, let rule = PureRule(rawValue: name) {
-            (p, arguments) = try pure(rule, try types.map(f.terms.irType), arguments, s, &f)
+        if case let .axiom(name, types) = spine.node, let rule = Rule(name) {
+            (p, arguments) = try applied(rule, try types.map(f.terms.irType), arguments, s, &f)
         } else {
-            p = try head(spine.node, s, &f)
+            p = try head(spine.node, s, &f, top: top && arguments.isEmpty)
         }
         for argument in arguments {
             switch argument {
             case let .term(x):
-                guard case let .ifolAll(T, _)? = table.conclusion(of: p).map({ table[$0] }) else {
+                let concluded = table.conclusion(of: p).map { table[$0] }, T: IRType
+                if case let .ifolAll(U, _)? = concluded { T = U } else if case .isaPropAll? = concluded { T = .o } else {
                     throw TableError.principalConnective(p)
                 }
                 let term = try f.terms.term(x, T, s.terms, in: &table)
@@ -160,7 +282,7 @@ public struct Reader {
         return p
     }
 
-    private mutating func head(_ h: ProofHead, _ s: ProofScope, _ f: inout FileProof) throws -> NodeID {
+    private mutating func head(_ h: ProofHead, _ s: ProofScope, _ f: inout FileProof, top: Bool = false) throws -> NodeID {
         switch h {
         case .nop:
             throw ReaderRefusal.omittedProof
@@ -168,8 +290,8 @@ public struct Reader {
             return try hypothesis(k, s)
         case let .termAbstraction(T, p):
             let U = try f.terms.irType(T)
-            let body = try step(p, s.fixing(U), &f)
-            return try table.intern(.isaAllIntro(U, body: body))
+            guard U == .o, !top else { return try table.intern(.isaAllIntro(U, body: try step(p, s.fixing(U), &f, top: top))) }
+            return try table.intern(.isaPropIntro(body: try step(p, s.fixing(U, proposition: true), &f)))
         case let .hypothesisAbstraction(x, p):
             let A = try f.terms.proposition(x, s.terms, in: &table)
             let body = try step(p, s.assuming(A), &f)
@@ -186,20 +308,29 @@ public struct Reader {
         case let .theorem(c):
             let key = TheoremKey(theory: c.theory, serial: c.serial)
             let instance = Instance(source: .theorem(key), types: try c.types.map(f.terms.irType))
-            guard let name = corpus.names[key] else { return try box(key, instance) }
-            let claim = try claimName(name)
-            if citedAs.updateValue(Theorem(key), forKey: claim) == nil { cited.append(Theorem(key)) }
-            return try use(.theorem(claim), instance)
+            guard let name = try claim(key) else { return try prove(key, at: instance.types).proof }
+            if citedAs[name] == nil {
+                citedAs[name] = Theorem(key)
+                cited.append(Theorem(key))
+            }
+            let read = try types(of: key), root = try statement(instance)
+            let types = instance.types == read && read.allSatisfy { $0 == .i } ? [] : instance.types
+            return try table.intern(.use(.theorem(name), types, root))
         }
     }
 
-    private mutating func pure(_ rule: PureRule, _ types: [IRType], _ arguments: ArraySlice<ProofArgument>, _ s: ProofScope,
-                               _ f: inout FileProof) throws -> (NodeID, ArraySlice<ProofArgument>) {
-        var stated = try statement(Instance(source: .axiom(rule.rawValue), types: types)), rest = arguments
+    private mutating func applied(_ rule: Rule, _ types: [IRType], _ arguments: ArraySlice<ProofArgument>, _ s: ProofScope,
+                                  _ f: inout FileProof) throws -> (NodeID, ArraySlice<ProofArgument>) {
+        var stated = try statement(Instance(source: .axiom(rule.name), types: types)), rest = arguments
+        while case let .folImplies(premise, body) = table[stated], case .isaOfClass = table[premise] {
+            guard case .proof? = rest.first else { throw MalformedExport.applicationArity(rule.name, expected: 1, found: 0) }
+            rest = rest.dropFirst()
+            stated = body
+        }
         var terms: [NodeID] = []
-        while case let .ifolAll(T, body) = table[stated] {
+        while let (T, body) = termBinder(stated) {
             guard case let .term(x)? = rest.first else {
-                throw MalformedExport.applicationArity(rule.rawValue, expected: terms.count + 1, found: terms.count)
+                throw MalformedExport.applicationArity(rule.name, expected: terms.count + 1, found: terms.count)
             }
             let term = try f.terms.term(x, T, s.terms, in: &table)
             terms.append(term)
@@ -221,19 +352,56 @@ public struct Reader {
             premises.append(premise)
             rest = rest.dropFirst()
         }
-        if premises.count == antecedents.count {
-            let p = try pureStep(rule, terms, premises)
-            guard table.conclusion(of: p) == conclusion else {
-                throw MalformedExport.unproved(statement: conclusion, conclusion: table.conclusion(of: p))
-            }
-            return (p, rest)
+        if premises.count == antecedents.count, !rule.bindsOverPremises {
+            let p = try ruleStep(rule, terms, premises)
+            return (try concluding(conclusion, p), rest)
         }
         let n = antecedents.count
         let hyps = try antecedents.indices.map { try table.intern(.hyp(n - 1 - $0, antecedents[$0])) }
-        var closed = try pureStep(rule, terms, hyps)
+        let step = try ruleStep(rule, terms, hyps)
+        var closed = try concluding(conclusion, step)
         for a in antecedents.reversed() { closed = try table.intern(.folImpliesIntro(a, body: closed)) }
         for q in premises { closed = try table.intern(.folImpliesElim(closed, q)) }
         return (closed, rest)
+    }
+
+    private func concluding(_ conclusion: NodeID, _ p: NodeID) throws -> NodeID {
+        guard table.conclusion(of: p) == conclusion else {
+            throw MalformedExport.unproved(statement: conclusion, conclusion: table.conclusion(of: p))
+        }
+        return p
+    }
+
+    private mutating func ruleStep(_ rule: Rule, _ terms: [NodeID], _ premises: [NodeID]) throws -> NodeID {
+        switch rule {
+        case let .pure(r): return try pureStep(r, terms, premises)
+        case let .logic(_, r): return try logicStep(r, terms, premises)
+        }
+    }
+
+    private mutating func logicStep(_ rule: LogicRule, _ terms: [NodeID], _ premises: [NodeID]) throws -> NodeID {
+        switch rule {
+        case .conjI: return try table.intern(.folAndIntro(premises[0], premises[1]))
+        case .conjunct1: return try table.intern(.folAndElimL(premises[0]))
+        case .conjunct2: return try table.intern(.folAndElimR(premises[0]))
+        case .disjI1: return try table.intern(.folOrIntroL(premises[0], terms[1]))
+        case .disjI2: return try table.intern(.folOrIntroR(terms[0], premises[0]))
+        case .disjE: return try table.intern(.folOrElim(premises[0], premises[1], premises[2]))
+        case .impI, .allI, .eqReflection: return premises[0]
+        case .mp: return try table.intern(.folImpliesElim(premises[0], premises[1]))
+        case .falseE: return try table.intern(.folBottomElim(premises[0], terms[0]))
+        case .spec: return try table.intern(.isaAllElim(premises[0], terms[1]))
+        case .exE:
+            guard let major = table.conclusion(of: premises[0]), case let .ifolEx(T, body) = table[major],
+                  case let .hyp(k, minor) = table[premises[1]] else { throw TableError.principalConnective(premises[0]) }
+            let lifted = try table.intern(.hyp(k + 1, try shift(minor, by: 1, in: &table)))
+            let atWitness = try table.intern(.isaAllElim(lifted, try table.intern(.isaBound(0, T))))
+            let concluded = try table.intern(.folImpliesElim(atWitness, try table.intern(.hyp(0, body))))
+            return try table.intern(.isaExElim(T, premises[0], body: concluded))
+        case .refl: return try table.intern(.isaReflexive(terms[0]))
+        case .classical: return try table.intern(.isaClassical(terms[0], premises[0]))
+        case .iffReflection: return try table.intern(.isaIffReflection(terms[0], terms[1], premises[0]))
+        }
     }
 
     private mutating func pureStep(_ rule: PureRule, _ terms: [NodeID], _ premises: [NodeID]) throws -> NodeID {
@@ -313,11 +481,10 @@ public struct Reader {
         }
     }
 
-    private mutating func box(_ key: TheoremKey, _ instance: Instance) throws -> NodeID {
-        if let b = boxes[instance] { return b }
-        let proof = try prove(key, at: instance.types).proof
-        boxes[instance] = proof
-        return proof
+    private func termBinder(_ formula: NodeID) -> (IRType, NodeID)? {
+        if case let .ifolAll(T, body) = table[formula] { return (T, body) }
+        if case let .isaPropAll(body) = table[formula] { return (.o, body) }
+        return nil
     }
 
     private mutating func hypothesis(_ k: Int, _ s: ProofScope) throws -> NodeID {

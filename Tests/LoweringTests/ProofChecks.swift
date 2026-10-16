@@ -81,9 +81,14 @@ func kernelChecks(_ claims: [(name: String, root: NodeID, proof: NodeID)], defin
         let lowered = try Fol().run([c.root, c.proof], [], in: &t)
         statements.append(Statement(name: c.name, root: lowered[0], proof: lowered[1], theory: "Test"))
     }
+    try kernelChecks(IR.Unit(table: t, statements: statements))
+}
+
+/// A unit the pipeline lowered, emitted and checked as `kernelChecks(_:definitions:in:)` checks its claims.
+func kernelChecks(_ unit: IR.Unit) throws {
     let dir = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("isa2fol-kernel-\(UUID().uuidString)")
     defer { try? FileManager.default.removeItem(at: dir) }
-    _ = try emit(IR.Unit(table: t, statements: statements), to: dir, base: try baseTexts(repo.appendingPathComponent("base")))
+    _ = try emit(unit, to: dir, base: try baseTexts(repo.appendingPathComponent("base")))
     let (status, output) = try script("check-unit.sh", [dir.path, try baseLibraries.get().path])
     #expect(status == 0, "check-unit.sh:\n\(output)")
 }

@@ -42,11 +42,12 @@ private let memT = IRType.fn(.i, .fn(.i, .o))
     #expect(Pattern(t[withClass], in: t) == .folPred(args: [.i, .fn(.i, .o)]))
 }
 
-/// A covered construct is ONE node of both dialects: the reader reads `⟹` as the fol-zfc implication, and Pure's
-/// `equal_intr` and `equal_elim` as `iff_intro` and `iff_elim_l`. A free variable is the isa dialect's (the reader's
+/// A covered construct is ONE node of both dialects: the reader reads `⟹` as the fol-zfc implication, Pure's
+/// `equal_intr` and `equal_elim` as `iff_intro` and `iff_elim_l`, and the logic's rules fol-zfc has as its steps;
+/// `classical` and `iff_reflection`, stated over IFOL's defined `¬` and `⟷`, as isa steps. A free variable is the isa dialect's (the reader's
 /// hidden variable); `¬` is fol-zfc's only, IFOL's being defined. A citation is fol-zfc's only of a theorem at no type
-/// arguments, or of base. A binder, its intro and its variable at `o` are fol-zfc's schema letter; `schema_inst` is
-/// fol-zfc's only. Pure's other equality rules are steps of the isa dialect.
+/// arguments, or of base. A binder, its intro and its variable at `o` are fol-zfc's schema letter, and Pure's `⋀` over a
+/// proposition the isa dialect's; `schema_inst` is fol-zfc's only. Pure's other equality rules are steps of the isa dialect.
 @Test func eachPatternBelongsToTheIsaDialectTheFolDialectOrBoth() {
     #expect(Pattern.folImplies(.o, .o).dialects == [.isa, .fol])
     #expect(Pattern.folPred(args: [.i]).dialects == [.fol])
@@ -58,6 +59,9 @@ private let memT = IRType.fn(.i, .fn(.i, .o))
     #expect(Pattern.use(.theorem, [.i], .o).dialects == [.isa])
     #expect(Pattern.use(.axiom(.ifol(.subst)), [.i], .o).dialects == [.isa])
     #expect(Pattern.use(.base, [], .o).dialects == [.fol])
+    #expect(Pattern.isaPropAll.dialects == [.isa])
+    #expect(Pattern.isaPropIntro.dialects == [.isa])
+    #expect(Pattern.isaPropBound.dialects == [.isa])
     #expect(Pattern.isaReflexive(.o).dialects == [.isa])
     #expect(Pattern.isaSymmetric(.o, .o).dialects == [.isa])
     #expect(Pattern.isaTransitive(.o, .o, .o).dialects == [.isa])
@@ -65,6 +69,15 @@ private let memT = IRType.fn(.i, .fn(.i, .o))
     #expect(Pattern.isaAbstract(.fn(.i, .o), .o).dialects == [.isa])
     #expect(Pattern.folIffIntro(.o, .o).dialects == [.isa, .fol])
     #expect(Pattern.folIffElimL(.o, .o).dialects == [.isa, .fol])
+    #expect(Pattern.folAndIntro(.o, .o).dialects == [.isa, .fol])
+    #expect(Pattern.folAndElimL(.o).dialects == [.isa, .fol])
+    #expect(Pattern.folAndElimR(.o).dialects == [.isa, .fol])
+    #expect(Pattern.folOrIntroL(.o, .o).dialects == [.isa, .fol])
+    #expect(Pattern.folOrIntroR(.o, .o).dialects == [.isa, .fol])
+    #expect(Pattern.folOrElim(.o, .o, .o).dialects == [.isa, .fol])
+    #expect(Pattern.folBottomElim(.o, .o).dialects == [.isa, .fol])
+    #expect(Pattern.isaClassical(.o, .o).dialects == [.isa])
+    #expect(Pattern.isaIffReflection(.o, .o, .o).dialects == [.isa])
     #expect(Pattern.use(.isaDefinition(.zf, .object), [], .o).dialects == [.isa])
     #expect(Pattern.use(.theoryAxiom, [], .o).dialects == [.isa])
     #expect(Pattern.use(.lemma, [], .o).dialects == [.isa, .fol])

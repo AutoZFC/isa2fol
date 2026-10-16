@@ -78,7 +78,7 @@ struct Classes {
 
 extension Terms {
     mutating func statement(_ prop: Body, in t: inout Table) throws -> NodeID {
-        try close(try proposition(prop, closure, in: &t), Node.ifolAll, in: &t)
+        try close(try proposition(prop, closure, top: true, in: &t), Node.ifolAll, in: &t)
     }
 }
 

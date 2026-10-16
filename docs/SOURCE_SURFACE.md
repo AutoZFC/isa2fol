@@ -5,8 +5,8 @@ translation must satisfy; this lists what the corpus is built from, as the reade
 primitive at its type (`DESIGN.md` §4.3b). With one rule per pattern, every theorem built from them translates.
 
 - **The population** is the closure of the named ZF theorems: every theorem they cite, each read from its own
-  proof, and the definition of every constant that occurs, transitively. An unnamed box is part of its citer's
-  proof.
+  proof, and the definition of every constant that occurs, transitively. An unnamed box binding a proposition is
+  a theorem it cites; any other is part of its citer's proof.
 - **A count** is the named ZF theorems whose closure holds the pattern: the theorems that do not translate until
   it has a rule. A count orders the work; it never justifies a rule.
 
@@ -27,31 +27,37 @@ primitive at its type (`DESIGN.md` §4.3b). With one rule per pattern, every the
 
 The reader refuses none of them, nor any theorem they cite.
 
-## Patterns (1518)
+## Patterns (1505)
 
 | pattern | theorems | % |
 |---|---:|---:|
 | `folAnd(o, o)` | 9330 | 99.0% |
+| `folAndElimL(o)` | 7893 | 83.8% |
+| `folAndElimR(o)` | 7759 | 82.4% |
+| `folAndIntro(o, o)` | 8042 | 85.4% |
 | `folBottom` | 8576 | 91.0% |
+| `folBottomElim(o, o)` | 7820 | 83.0% |
 | `folIff(o, o)` | 8513 | 90.4% |
 | `folIffElimL(o, o)` | 8832 | 93.8% |
 | `folIffIntro(o, o)` | 7981 | 84.7% |
 | `folImplies(o, o)` | 9412 | 99.9% |
-| `folImpliesElim(o, o)` | 8832 | 93.8% |
-| `folImpliesIntro(o, body: o)` | 8849 | 93.9% |
+| `folImpliesElim(o, o)` | 8831 | 93.7% |
+| `folImpliesIntro(o, body: o)` | 8850 | 93.9% |
 | `folOr(o, o)` | 9211 | 97.8% |
-| `hyp(o)` | 8834 | 93.8% |
-| `ifolAll('a, body: o)` | 9179 | 97.4% |
-| `ifolAll('b, body: o)` | 4636 | 49.2% |
-| `ifolAll(('a => 'b), body: o)` | 4626 | 49.1% |
-| `ifolAll(('a => ('b => o)), body: o)` | 1195 | 12.7% |
-| `ifolAll(('a => o), body: o)` | 7941 | 84.3% |
+| `folOrElim(o, o, o)` | 7496 | 79.6% |
+| `folOrIntroL(o, o)` | 7496 | 79.6% |
+| `folOrIntroR(o, o)` | 7496 | 79.6% |
+| `hyp(o)` | 8835 | 93.8% |
+| `ifolAll('a, body: o)` | 8966 | 95.2% |
+| `ifolAll('b, body: o)` | 2386 | 25.3% |
+| `ifolAll(('a => 'b), body: o)` | 2237 | 23.7% |
+| `ifolAll(('a => o), body: o)` | 3957 | 42.0% |
 | `ifolAll(('b => 'a), body: o)` | 439 | 4.7% |
-| `ifolAll(('b => o), body: o)` | 1195 | 12.7% |
 | `ifolAll(((i => o) => (i => (i => (i => (i => o))))), body: o)` | 142 | 1.5% |
 | `ifolAll(((i => o) => (i => (i => (i => o)))), body: o)` | 123 | 1.3% |
 | `ifolAll(((i => o) => (i => (i => o))), body: o)` | 11 | 0.1% |
 | `ifolAll(((i => o) => (i => o)), body: o)` | 40 | 0.4% |
+| `ifolAll(((i => o) => (o => (i => o))), body: o)` | 92 | 1.0% |
 | `ifolAll(((i => o) => o), body: o)` | 435 | 4.6% |
 | `ifolAll((i => (i => 'a)), body: o)` | 2773 | 29.4% |
 | `ifolAll((i => (i => (i => (i => (i => i))))), body: o)` | 283 | 3.0% |
@@ -63,29 +69,31 @@ The reader refuses none of them, nor any theorem they cite.
 | `ifolAll((i => (i => i)), body: o)` | 4764 | 50.6% |
 | `ifolAll((i => (i => o)), body: o)` | 7359 | 78.1% |
 | `ifolAll((i => i), body: o)` | 6771 | 71.9% |
-| `ifolAll((i => o), body: o)` | 7917 | 84.0% |
+| `ifolAll((i => o), body: o)` | 8178 | 86.8% |
+| `ifolAll((o => (i => (i => i))), body: o)` | 5018 | 53.3% |
+| `ifolAll((o => (o => o)), body: o)` | 7841 | 83.2% |
+| `ifolAll((o => i), body: o)` | 882 | 9.4% |
+| `ifolAll((o => o), body: o)` | 7819 | 83.0% |
 | `ifolAll(dummy, body: o)` | 28 | 0.3% |
-| `ifolAll(i, body: o)` | 9163 | 97.3% |
-| `ifolAll(o, body: o)` | 8181 | 86.8% |
-| `ifolEx('a, body: o)` | 9098 | 96.6% |
-| `ifolEx('b, body: o)` | 580 | 6.2% |
-| `ifolEx(i, body: o)` | 8567 | 90.9% |
-| `isaAbs('a, body: 'b)` | 4655 | 49.4% |
-| `isaAbs('a, body: ('a => o))` | 7578 | 80.4% |
-| `isaAbs('a, body: ('b => o))` | 1195 | 12.7% |
+| `ifolAll(i, body: o)` | 9172 | 97.4% |
+| `ifolAll(o, body: o)` | 8204 | 87.1% |
+| `ifolEx('a, body: o)` | 8959 | 95.1% |
+| `ifolEx(i, body: o)` | 8597 | 91.3% |
+| `isaAbs('a, body: 'b)` | 2433 | 25.8% |
+| `isaAbs('a, body: ('a => o))` | 2077 | 22.0% |
 | `isaAbs('a, body: (('a => 'b) => 'b))` | 508 | 5.4% |
-| `isaAbs('a, body: o)` | 9167 | 97.3% |
+| `isaAbs('a, body: o)` | 8962 | 95.1% |
 | `isaAbs('b, body: 'a)` | 439 | 4.7% |
-| `isaAbs('b, body: ('b => o))` | 4626 | 49.1% |
+| `isaAbs('b, body: ('b => o))` | 2237 | 23.7% |
 | `isaAbs('b, body: (('b => 'a) => 'a))` | 439 | 4.7% |
-| `isaAbs('b, body: o)` | 4634 | 49.2% |
+| `isaAbs('b, body: o)` | 2237 | 23.7% |
 | `isaAbs(('a => 'b), body: 'b)` | 508 | 5.4% |
-| `isaAbs(('a => o), body: o)` | 8963 | 95.1% |
+| `isaAbs(('a => o), body: o)` | 8962 | 95.1% |
 | `isaAbs(('b => 'a), body: 'a)` | 439 | 4.7% |
 | `isaAbs(('b => (('b => 'a) => 'a)), body: (('b => (('b => 'a) => 'a)) => o))` | 439 | 4.7% |
 | `isaAbs(('b => (('b => 'a) => 'a)), body: o)` | 439 | 4.7% |
-| `isaAbs((('a => o) => o), body: ((('a => o) => o) => o))` | 7323 | 77.7% |
-| `isaAbs((('a => o) => o), body: o)` | 7323 | 77.7% |
+| `isaAbs((('a => o) => o), body: ((('a => o) => o) => o))` | 438 | 4.6% |
+| `isaAbs((('a => o) => o), body: o)` | 438 | 4.6% |
 | `isaAbs(((i => (i => 'a)) => (i => 'a)), body: (((i => (i => 'a)) => (i => 'a)) => o))` | 2773 | 29.4% |
 | `isaAbs(((i => (i => 'a)) => (i => 'a)), body: o)` | 2773 | 29.4% |
 | `isaAbs(((i => (i => (i => i))) => (i => i)), body: (((i => (i => (i => i))) => (i => i)) => o))` | 4 | 0.0% |
@@ -160,8 +168,8 @@ The reader refuses none of them, nor any theorem they cite.
 | `isaAbs(((i => o) => (o => (i => o))), body: o)` | 92 | 1.0% |
 | `isaAbs(((i => o) => i), body: (((i => o) => i) => o))` | 5274 | 56.0% |
 | `isaAbs(((i => o) => i), body: o)` | 5274 | 56.0% |
-| `isaAbs(((i => o) => o), body: (((i => o) => o) => o))` | 4100 | 43.5% |
-| `isaAbs(((i => o) => o), body: o)` | 4102 | 43.5% |
+| `isaAbs(((i => o) => o), body: (((i => o) => o) => o))` | 7331 | 77.8% |
+| `isaAbs(((i => o) => o), body: o)` | 7333 | 77.8% |
 | `isaAbs((i => 'a), body: ((i => 'a) => o))` | 2739 | 29.1% |
 | `isaAbs((i => 'a), body: o)` | 2739 | 29.1% |
 | `isaAbs((i => ((i => (i => (i => i))) => i)), body: ((i => ((i => (i => (i => i))) => i)) => o))` | 25 | 0.3% |
@@ -294,7 +302,7 @@ The reader refuses none of them, nor any theorem they cite.
 | `isaAbs((i => o), body: (i => o))` | 1019 | 10.8% |
 | `isaAbs((i => o), body: (o => (i => o)))` | 132 | 1.4% |
 | `isaAbs((i => o), body: i)` | 8237 | 87.4% |
-| `isaAbs((i => o), body: o)` | 8650 | 91.8% |
+| `isaAbs((i => o), body: o)` | 8652 | 91.8% |
 | `isaAbs((o => (i => (i => i))), body: ((o => (i => (i => i))) => o))` | 5018 | 53.3% |
 | `isaAbs((o => (i => (i => i))), body: o)` | 5018 | 53.3% |
 | `isaAbs((o => (o => o)), body: ((o => (o => o)) => o))` | 7841 | 83.2% |
@@ -347,15 +355,14 @@ The reader refuses none of them, nor any theorem they cite.
 | `isaAbs(i, body: (i => (i => i)))` | 3948 | 41.9% |
 | `isaAbs(i, body: (i => (i => o)))` | 1797 | 19.1% |
 | `isaAbs(i, body: (i => i))` | 8796 | 93.4% |
-| `isaAbs(i, body: (i => o))` | 9238 | 98.1% |
+| `isaAbs(i, body: (i => o))` | 9243 | 98.1% |
 | `isaAbs(i, body: i)` | 8930 | 94.8% |
-| `isaAbs(i, body: o)` | 9342 | 99.2% |
+| `isaAbs(i, body: o)` | 9351 | 99.3% |
 | `isaAbs(o, body: (i => (i => i)))` | 5590 | 59.3% |
 | `isaAbs(o, body: (i => o))` | 132 | 1.4% |
 | `isaAbs(o, body: (o => o))` | 8409 | 89.3% |
 | `isaAbs(o, body: i)` | 983 | 10.4% |
 | `isaAbs(o, body: o)` | 8828 | 93.7% |
-| `isaAbstract(('a => o), o)` | 3067 | 32.6% |
 | `isaAbstract(((i => (i => o)) => o), o)` | 429 | 4.6% |
 | `isaAbstract(((i => o) => ((i => (i => o)) => o)), o)` | 429 | 4.6% |
 | `isaAbstract(((i => o) => ((i => o) => ((i => (i => o)) => o))), o)` | 429 | 4.6% |
@@ -369,16 +376,14 @@ The reader refuses none of them, nor any theorem they cite.
 | `isaAbstract((i => (i => i)), o)` | 3034 | 32.2% |
 | `isaAbstract((i => (i => o)), o)` | 654 | 6.9% |
 | `isaAbstract((i => i), o)` | 4562 | 48.4% |
-| `isaAbstract((i => o), o)` | 7626 | 81.0% |
-| `isaAllElim(o, 'a)` | 7971 | 84.6% |
-| `isaAllElim(o, 'b)` | 4636 | 49.2% |
-| `isaAllElim(o, ('a => 'b))` | 4626 | 49.1% |
-| `isaAllElim(o, ('a => ('b => o)))` | 1195 | 12.7% |
-| `isaAllElim(o, ('a => o))` | 7941 | 84.3% |
+| `isaAbstract((i => o), o)` | 7627 | 81.0% |
+| `isaAllElim(o, 'a)` | 5314 | 56.4% |
+| `isaAllElim(o, 'b)` | 2386 | 25.3% |
+| `isaAllElim(o, ('a => 'b))` | 2237 | 23.7% |
+| `isaAllElim(o, ('a => o))` | 3957 | 42.0% |
 | `isaAllElim(o, ('b => 'a))` | 439 | 4.7% |
 | `isaAllElim(o, ('b => (('b => 'a) => 'a)))` | 439 | 4.7% |
-| `isaAllElim(o, ('b => o))` | 1195 | 12.7% |
-| `isaAllElim(o, (('a => o) => o))` | 7323 | 77.7% |
+| `isaAllElim(o, (('a => o) => o))` | 438 | 4.6% |
 | `isaAllElim(o, ((i => (i => 'a)) => (i => 'a)))` | 2773 | 29.4% |
 | `isaAllElim(o, ((i => (i => (i => i))) => (i => i)))` | 4 | 0.0% |
 | `isaAllElim(o, ((i => (i => i)) => ((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => (i => i)))))))` | 38 | 0.4% |
@@ -417,7 +422,7 @@ The reader refuses none of them, nor any theorem they cite.
 | `isaAllElim(o, ((i => o) => (i => o)))` | 827 | 8.8% |
 | `isaAllElim(o, ((i => o) => (o => (i => o))))` | 92 | 1.0% |
 | `isaAllElim(o, ((i => o) => i))` | 5274 | 56.0% |
-| `isaAllElim(o, ((i => o) => o))` | 4187 | 44.4% |
+| `isaAllElim(o, ((i => o) => o))` | 7333 | 77.8% |
 | `isaAllElim(o, (i => ((i => (i => (i => i))) => i)))` | 25 | 0.3% |
 | `isaAllElim(o, (i => ((i => (i => i)) => (i => (i => i)))))` | 53 | 0.6% |
 | `isaAllElim(o, (i => ((i => (i => i)) => (i => i))))` | 2044 | 21.7% |
@@ -446,21 +451,20 @@ The reader refuses none of them, nor any theorem they cite.
 | `isaAllElim(o, (i => (i => i)))` | 7012 | 74.4% |
 | `isaAllElim(o, (i => (i => o)))` | 7514 | 79.8% |
 | `isaAllElim(o, (i => i))` | 7172 | 76.1% |
-| `isaAllElim(o, (i => o))` | 7962 | 84.5% |
+| `isaAllElim(o, (i => o))` | 8222 | 87.3% |
 | `isaAllElim(o, (o => (i => (i => i))))` | 5018 | 53.3% |
 | `isaAllElim(o, (o => (o => o)))` | 7841 | 83.2% |
 | `isaAllElim(o, (o => i))` | 882 | 9.4% |
 | `isaAllElim(o, (o => o))` | 7819 | 83.0% |
-| `isaAllElim(o, i)` | 8948 | 95.0% |
+| `isaAllElim(o, i)` | 8958 | 95.1% |
 | `isaAllElim(o, o)` | 8204 | 87.1% |
-| `isaAllIntro('a, body: o)` | 7971 | 84.6% |
-| `isaAllIntro('b, body: o)` | 2990 | 31.7% |
-| `isaAllIntro(('a => 'b), body: o)` | 4626 | 49.1% |
-| `isaAllIntro(('a => ('b => o)), body: o)` | 1195 | 12.7% |
-| `isaAllIntro(('a => o), body: o)` | 7941 | 84.3% |
+| `isaAllIntro('a, body: o)` | 5312 | 56.4% |
+| `isaAllIntro('b, body: o)` | 2386 | 25.3% |
+| `isaAllIntro(('a => 'b), body: o)` | 2237 | 23.7% |
+| `isaAllIntro(('a => o), body: o)` | 3957 | 42.0% |
 | `isaAllIntro(('b => 'a), body: o)` | 439 | 4.7% |
 | `isaAllIntro(('b => (('b => 'a) => 'a)), body: o)` | 439 | 4.7% |
-| `isaAllIntro((('a => o) => o), body: o)` | 7323 | 77.7% |
+| `isaAllIntro((('a => o) => o), body: o)` | 438 | 4.6% |
 | `isaAllIntro(((i => (i => 'a)) => (i => 'a)), body: o)` | 2773 | 29.4% |
 | `isaAllIntro(((i => (i => (i => i))) => (i => i)), body: o)` | 4 | 0.0% |
 | `isaAllIntro(((i => (i => i)) => ((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => (i => i)))))), body: o)` | 38 | 0.4% |
@@ -499,7 +503,7 @@ The reader refuses none of them, nor any theorem they cite.
 | `isaAllIntro(((i => o) => (i => o)), body: o)` | 827 | 8.8% |
 | `isaAllIntro(((i => o) => (o => (i => o))), body: o)` | 92 | 1.0% |
 | `isaAllIntro(((i => o) => i), body: o)` | 5274 | 56.0% |
-| `isaAllIntro(((i => o) => o), body: o)` | 4185 | 44.4% |
+| `isaAllIntro(((i => o) => o), body: o)` | 7331 | 77.8% |
 | `isaAllIntro((i => ((i => (i => (i => i))) => i)), body: o)` | 25 | 0.3% |
 | `isaAllIntro((i => ((i => (i => i)) => (i => (i => i)))), body: o)` | 53 | 0.6% |
 | `isaAllIntro((i => ((i => (i => i)) => (i => i))), body: o)` | 2044 | 21.7% |
@@ -528,23 +532,21 @@ The reader refuses none of them, nor any theorem they cite.
 | `isaAllIntro((i => (i => i)), body: o)` | 7012 | 74.4% |
 | `isaAllIntro((i => (i => o)), body: o)` | 7514 | 79.8% |
 | `isaAllIntro((i => i), body: o)` | 7172 | 76.1% |
-| `isaAllIntro((i => o), body: o)` | 7948 | 84.4% |
+| `isaAllIntro((i => o), body: o)` | 8222 | 87.3% |
 | `isaAllIntro((o => (i => (i => i))), body: o)` | 5018 | 53.3% |
 | `isaAllIntro((o => (o => o)), body: o)` | 7841 | 83.2% |
 | `isaAllIntro((o => i), body: o)` | 882 | 9.4% |
 | `isaAllIntro((o => o), body: o)` | 7819 | 83.0% |
 | `isaAllIntro(dummy, body: o)` | 28 | 0.3% |
-| `isaAllIntro(i, body: o)` | 8951 | 95.0% |
-| `isaAllIntro(o, body: o)` | 8205 | 87.1% |
-| `isaBound('a)` | 9179 | 97.4% |
-| `isaBound('b)` | 4636 | 49.2% |
-| `isaBound(('a => 'b))` | 4655 | 49.4% |
-| `isaBound(('a => ('b => o)))` | 1195 | 12.7% |
-| `isaBound(('a => o))` | 9165 | 97.3% |
+| `isaAllIntro(i, body: o)` | 8958 | 95.1% |
+| `isaAllIntro(o, body: o)` | 8204 | 87.1% |
+| `isaBound('a)` | 8965 | 95.2% |
+| `isaBound('b)` | 2386 | 25.3% |
+| `isaBound(('a => 'b))` | 2433 | 25.8% |
+| `isaBound(('a => o))` | 8962 | 95.1% |
 | `isaBound(('b => 'a))` | 439 | 4.7% |
 | `isaBound(('b => (('b => 'a) => 'a)))` | 439 | 4.7% |
-| `isaBound(('b => o))` | 1195 | 12.7% |
-| `isaBound((('a => o) => o))` | 7323 | 77.7% |
+| `isaBound((('a => o) => o))` | 438 | 4.6% |
 | `isaBound(((i => (i => 'a)) => (i => 'a)))` | 2773 | 29.4% |
 | `isaBound(((i => (i => (i => i))) => (i => i)))` | 4 | 0.0% |
 | `isaBound(((i => (i => i)) => ((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => (i => i)))))))` | 38 | 0.4% |
@@ -583,7 +585,7 @@ The reader refuses none of them, nor any theorem they cite.
 | `isaBound(((i => o) => (i => o)))` | 827 | 8.8% |
 | `isaBound(((i => o) => (o => (i => o))))` | 92 | 1.0% |
 | `isaBound(((i => o) => i))` | 5274 | 56.0% |
-| `isaBound(((i => o) => o))` | 4187 | 44.4% |
+| `isaBound(((i => o) => o))` | 7333 | 77.8% |
 | `isaBound((i => 'a))` | 2739 | 29.1% |
 | `isaBound((i => ((i => (i => (i => i))) => i)))` | 25 | 0.3% |
 | `isaBound((i => ((i => (i => i)) => (i => (i => i)))))` | 53 | 0.6% |
@@ -613,25 +615,26 @@ The reader refuses none of them, nor any theorem they cite.
 | `isaBound((i => (i => i)))` | 7639 | 81.1% |
 | `isaBound((i => (i => o)))` | 9113 | 96.7% |
 | `isaBound((i => i))` | 7951 | 84.4% |
-| `isaBound((i => o))` | 8750 | 92.9% |
+| `isaBound((i => o))` | 9008 | 95.6% |
 | `isaBound((o => (i => (i => i))))` | 5018 | 53.3% |
 | `isaBound((o => (o => o)))` | 7841 | 83.2% |
 | `isaBound((o => i))` | 882 | 9.4% |
 | `isaBound((o => o))` | 7819 | 83.0% |
-| `isaBound(i)` | 9352 | 99.3% |
-| `isaBound(o)` | 8835 | 93.8% |
-| `isaCombination(('a => 'b), o, o)` | 4626 | 49.1% |
-| `isaCombination(('a => ('a => o)), o, o)` | 7578 | 80.4% |
-| `isaCombination(('a => o), o, o)` | 7724 | 82.0% |
-| `isaCombination(('b => ('b => o)), o, o)` | 4626 | 49.1% |
+| `isaBound(i)` | 9360 | 99.4% |
+| `isaBound(o)` | 8834 | 93.8% |
+| `isaClassical(o, o)` | 7756 | 82.3% |
+| `isaCombination(('a => 'b), o, o)` | 2237 | 23.7% |
+| `isaCombination(('a => ('a => o)), o, o)` | 2077 | 22.0% |
+| `isaCombination(('a => o), o, o)` | 2078 | 22.1% |
+| `isaCombination(('b => ('b => o)), o, o)` | 2237 | 23.7% |
 | `isaCombination(('b => (('b => 'a) => 'a)), o, o)` | 439 | 4.7% |
-| `isaCombination(('b => o), o, o)` | 4626 | 49.1% |
-| `isaCombination((('a => o) => o), o, o)` | 7324 | 77.7% |
+| `isaCombination(('b => o), o, o)` | 2237 | 23.7% |
+| `isaCombination((('a => o) => o), o, o)` | 438 | 4.6% |
 | `isaCombination((('b => 'a) => 'a), o, o)` | 439 | 4.7% |
 | `isaCombination((('b => (('b => 'a) => 'a)) => (('b => (('b => 'a) => 'a)) => o)), o, o)` | 439 | 4.7% |
 | `isaCombination((('b => (('b => 'a) => 'a)) => o), o, o)` | 439 | 4.7% |
-| `isaCombination(((('a => o) => o) => ((('a => o) => o) => o)), o, o)` | 7323 | 77.7% |
-| `isaCombination(((('a => o) => o) => o), o, o)` | 7323 | 77.7% |
+| `isaCombination(((('a => o) => o) => ((('a => o) => o) => o)), o, o)` | 438 | 4.6% |
+| `isaCombination(((('a => o) => o) => o), o, o)` | 438 | 4.6% |
 | `isaCombination((((i => (i => 'a)) => (i => 'a)) => (((i => (i => 'a)) => (i => 'a)) => o)), o, o)` | 2773 | 29.4% |
 | `isaCombination((((i => (i => 'a)) => (i => 'a)) => o), o, o)` | 2773 | 29.4% |
 | `isaCombination((((i => (i => (i => i))) => (i => i)) => (((i => (i => (i => i))) => (i => i)) => o)), o, o)` | 4 | 0.0% |
@@ -706,8 +709,8 @@ The reader refuses none of them, nor any theorem they cite.
 | `isaCombination((((i => o) => (o => (i => o))) => o), o, o)` | 92 | 1.0% |
 | `isaCombination((((i => o) => i) => (((i => o) => i) => o)), o, o)` | 5274 | 56.0% |
 | `isaCombination((((i => o) => i) => o), o, o)` | 5274 | 56.0% |
-| `isaCombination((((i => o) => o) => (((i => o) => o) => o)), o, o)` | 4100 | 43.5% |
-| `isaCombination((((i => o) => o) => o), o, o)` | 4102 | 43.5% |
+| `isaCombination((((i => o) => o) => (((i => o) => o) => o)), o, o)` | 7331 | 77.8% |
+| `isaCombination((((i => o) => o) => o), o, o)` | 7333 | 77.8% |
 | `isaCombination(((i => 'a) => ((i => 'a) => o)), o, o)` | 2739 | 29.1% |
 | `isaCombination(((i => 'a) => o), o, o)` | 2739 | 29.1% |
 | `isaCombination(((i => ((i => (i => (i => i))) => i)) => ((i => ((i => (i => (i => i))) => i)) => o)), o, o)` | 25 | 0.3% |
@@ -840,7 +843,7 @@ The reader refuses none of them, nor any theorem they cite.
 | `isaCombination(((i => o) => (i => o)), o, o)` | 838 | 8.9% |
 | `isaCombination(((i => o) => (o => (i => o))), o, o)` | 92 | 1.0% |
 | `isaCombination(((i => o) => i), o, o)` | 7257 | 77.0% |
-| `isaCombination(((i => o) => o), o, o)` | 7746 | 82.2% |
+| `isaCombination(((i => o) => o), o, o)` | 7748 | 82.3% |
 | `isaCombination(((o => (i => (i => i))) => ((o => (i => (i => i))) => o)), o, o)` | 5018 | 53.3% |
 | `isaCombination(((o => (i => (i => i))) => o), o, o)` | 5018 | 53.3% |
 | `isaCombination(((o => (o => o)) => ((o => (o => o)) => o)), o, o)` | 7841 | 83.2% |
@@ -893,9 +896,9 @@ The reader refuses none of them, nor any theorem they cite.
 | `isaCombination((i => (i => (i => i))), o, o)` | 3205 | 34.0% |
 | `isaCombination((i => (i => (i => o))), o, o)` | 1390 | 14.8% |
 | `isaCombination((i => (i => i)), o, o)` | 7036 | 74.7% |
-| `isaCombination((i => (i => o)), o, o)` | 7984 | 84.8% |
-| `isaCombination((i => i), o, o)` | 7446 | 79.0% |
-| `isaCombination((i => o), o, o)` | 8099 | 86.0% |
+| `isaCombination((i => (i => o)), o, o)` | 8250 | 87.6% |
+| `isaCombination((i => i), o, o)` | 7447 | 79.1% |
+| `isaCombination((i => o), o, o)` | 8407 | 89.2% |
 | `isaCombination((o => (i => (i => i))), o, o)` | 5020 | 53.3% |
 | `isaCombination((o => (i => o)), o, o)` | 92 | 1.0% |
 | `isaCombination((o => (o => o)), o, o)` | 8323 | 88.4% |
@@ -913,7 +916,7 @@ The reader refuses none of them, nor any theorem they cite.
 | `isaConst(defined ifol meta, ('a => (('a => 'b) => 'b)), args: ['a, ('a => 'b)])` | 508 | 5.4% |
 | `isaConst(defined ifol meta, ('b => (('b => 'a) => 'a)), args: ['b, ('b => 'a)])` | 439 | 4.7% |
 | `isaConst(defined ifol meta, (('a => o) => o), args: [('a => o)])` | 8959 | 95.1% |
-| `isaConst(defined ifol meta, ((i => o) => o), args: [(i => o)])` | 8958 | 95.1% |
+| `isaConst(defined ifol meta, ((i => o) => o), args: [(i => o)])` | 8959 | 95.1% |
 | `isaConst(defined ifol meta, (i => ((i => i) => i)), args: [i, (i => i)])` | 508 | 5.4% |
 | `isaConst(defined ifol object, (o => (o => o)), args: [o, o])` | 8099 | 86.0% |
 | `isaConst(defined ifol object, (o => o), args: [o])` | 8473 | 89.9% |
@@ -1036,10 +1039,10 @@ The reader refuses none of them, nor any theorem they cite.
 | `isaConst(defined zf object, (o => i), args: [o])` | 983 | 10.4% |
 | `isaConst(defined zf object, i, args: [])` | 5761 | 61.2% |
 | `isaConst(defined zf object, o, args: [])` | 87 | 0.9% |
-| `isaConst(primitive IFOL.eq, ('a => ('a => o)), args: ['a, 'a])` | 9096 | 96.6% |
-| `isaConst(primitive IFOL.eq, ('b => ('b => o)), args: ['b, 'b])` | 4626 | 49.1% |
-| `isaConst(primitive IFOL.eq, (i => (i => o)), args: [i, i])` | 9215 | 97.8% |
-| `isaConst(primitive Pure.eq, ('a => ('a => o)), args: ['a, 'a])` | 7752 | 82.3% |
+| `isaConst(primitive IFOL.eq, ('a => ('a => o)), args: ['a, 'a])` | 8959 | 95.1% |
+| `isaConst(primitive IFOL.eq, ('b => ('b => o)), args: ['b, 'b])` | 2237 | 23.7% |
+| `isaConst(primitive IFOL.eq, (i => (i => o)), args: [i, i])` | 9263 | 98.3% |
+| `isaConst(primitive Pure.eq, ('a => ('a => o)), args: ['a, 'a])` | 2077 | 22.0% |
 | `isaConst(primitive Pure.eq, ('b => ('b => o)), args: ['b, 'b])` | 2237 | 23.7% |
 | `isaConst(primitive Pure.eq, (('a => 'b) => (('a => 'b) => o)), args: [('a => 'b), ('a => 'b)])` | 2237 | 23.7% |
 | `isaConst(primitive Pure.eq, (('a => ('a => o)) => (('a => ('a => o)) => o)), args: [('a => ('a => o)), ('a => ('a => o))])` | 105 | 1.1% |
@@ -1083,7 +1086,7 @@ The reader refuses none of them, nor any theorem they cite.
 | `isaConst(primitive Pure.eq, (((i => o) => (i => o)) => (((i => o) => (i => o)) => o)), args: [((i => o) => (i => o)), ((i => o) => (i => o))])` | 851 | 9.0% |
 | `isaConst(primitive Pure.eq, (((i => o) => (o => (i => o))) => (((i => o) => (o => (i => o))) => o)), args: [((i => o) => (o => (i => o))), ((i => o) => (o => (i => o)))])` | 132 | 1.4% |
 | `isaConst(primitive Pure.eq, (((i => o) => i) => (((i => o) => i) => o)), args: [((i => o) => i), ((i => o) => i)])` | 6527 | 69.3% |
-| `isaConst(primitive Pure.eq, (((i => o) => o) => (((i => o) => o) => o)), args: [((i => o) => o), ((i => o) => o)])` | 4249 | 45.1% |
+| `isaConst(primitive Pure.eq, (((i => o) => o) => (((i => o) => o) => o)), args: [((i => o) => o), ((i => o) => o)])` | 7455 | 79.1% |
 | `isaConst(primitive Pure.eq, ((i => 'a) => ((i => 'a) => o)), args: [(i => 'a), (i => 'a)])` | 2739 | 29.1% |
 | `isaConst(primitive Pure.eq, ((i => ((i => (i => (i => i))) => i)) => ((i => ((i => (i => (i => i))) => i)) => o)), args: [(i => ((i => (i => (i => i))) => i)), (i => ((i => (i => (i => i))) => i))])` | 30 | 0.3% |
 | `isaConst(primitive Pure.eq, ((i => ((i => (i => i)) => (i => (i => i)))) => ((i => ((i => (i => i)) => (i => (i => i)))) => o)), args: [(i => ((i => (i => i)) => (i => (i => i)))), (i => ((i => (i => i)) => (i => (i => i))))])` | 55 | 0.6% |
@@ -1123,9 +1126,9 @@ The reader refuses none of them, nor any theorem they cite.
 | `isaConst(primitive ZF_Base.Union, (i => i), args: [i])` | 8879 | 94.3% |
 | `isaConst(primitive ZF_Base.mem, (i => (i => o)), args: [i, i])` | 8617 | 91.5% |
 | `isaConst(primitive ZF_Base.zero, i, args: [])` | 8835 | 93.8% |
-| `isaFree('a)` | 7418 | 78.7% |
-| `isaFree(('a => o))` | 7417 | 78.7% |
-| `isaFree((('a => o) => (o => 'a)))` | 7290 | 77.4% |
+| `isaExElim(i, o, body: o)` | 7495 | 79.6% |
+| `isaFree('a)` | 4929 | 52.3% |
+| `isaFree(((i => o) => (o => i)))` | 7290 | 77.4% |
 | `isaFree((i => (i => 'a)))` | 2 | 0.0% |
 | `isaFree((i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => i)))))))))))))))))))))))` | 10 | 0.1% |
 | `isaFree((i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => (i => i))))))))))))))))))` | 185 | 2.0% |
@@ -1141,25 +1144,28 @@ The reader refuses none of them, nor any theorem they cite.
 | `isaFree((i => (i => i)))` | 5182 | 55.0% |
 | `isaFree((i => (i => o)))` | 1488 | 15.8% |
 | `isaFree((i => i))` | 5611 | 59.6% |
-| `isaFree((i => o))` | 1362 | 14.5% |
-| `isaFree((o => 'a))` | 7417 | 78.7% |
-| `isaFree((o => (('a => o) => 'a)))` | 7290 | 77.4% |
-| `isaFree(i)` | 6969 | 74.0% |
+| `isaFree((i => o))` | 7417 | 78.7% |
+| `isaFree((o => ((i => o) => i)))` | 7290 | 77.4% |
+| `isaFree((o => i))` | 7417 | 78.7% |
+| `isaFree(i)` | 7417 | 78.7% |
 | `isaFree(o)` | 7085 | 75.2% |
-| `isaOfClass('a)` | 7973 | 84.6% |
-| `isaOfClass('b)` | 4634 | 49.2% |
-| `isaOfClass(i)` | 7965 | 84.6% |
-| `isaReflexive('a)` | 7581 | 80.5% |
-| `isaReflexive('b)` | 4628 | 49.1% |
-| `isaReflexive(('a => 'b))` | 4362 | 46.3% |
-| `isaReflexive(('a => ('a => o)))` | 7578 | 80.4% |
-| `isaReflexive(('a => o))` | 7423 | 78.8% |
+| `isaIffReflection(o, o, o)` | 7572 | 80.4% |
+| `isaOfClass('a)` | 7965 | 84.6% |
+| `isaOfClass('b)` | 2237 | 23.7% |
+| `isaOfClass(i)` | 7973 | 84.6% |
+| `isaPropAll` | 8070 | 85.7% |
+| `isaPropBound` | 8070 | 85.7% |
+| `isaPropIntro` | 8067 | 85.6% |
+| `isaReflexive('a)` | 2454 | 26.1% |
+| `isaReflexive('b)` | 2386 | 25.3% |
+| `isaReflexive(('a => ('a => o)))` | 2077 | 22.0% |
+| `isaReflexive(('a => o))` | 440 | 4.7% |
 | `isaReflexive(('b => 'a))` | 439 | 4.7% |
-| `isaReflexive(('b => ('b => o)))` | 4626 | 49.1% |
+| `isaReflexive(('b => ('b => o)))` | 2237 | 23.7% |
 | `isaReflexive(('b => (('b => 'a) => 'a)))` | 439 | 4.7% |
-| `isaReflexive((('a => o) => o))` | 7324 | 77.7% |
+| `isaReflexive((('a => o) => o))` | 438 | 4.6% |
 | `isaReflexive((('b => (('b => 'a) => 'a)) => (('b => (('b => 'a) => 'a)) => o)))` | 439 | 4.7% |
-| `isaReflexive(((('a => o) => o) => ((('a => o) => o) => o)))` | 7323 | 77.7% |
+| `isaReflexive(((('a => o) => o) => ((('a => o) => o) => o)))` | 438 | 4.6% |
 | `isaReflexive((((i => (i => 'a)) => (i => 'a)) => (((i => (i => 'a)) => (i => 'a)) => o)))` | 2773 | 29.4% |
 | `isaReflexive((((i => (i => (i => i))) => (i => i)) => (((i => (i => (i => i))) => (i => i)) => o)))` | 4 | 0.0% |
 | `isaReflexive((((i => (i => i)) => ((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => (i => i)))))) => (((i => (i => i)) => ((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => (i => i)))))) => o)))` | 38 | 0.4% |
@@ -1197,7 +1203,7 @@ The reader refuses none of them, nor any theorem they cite.
 | `isaReflexive((((i => o) => (i => o)) => (((i => o) => (i => o)) => o)))` | 670 | 7.1% |
 | `isaReflexive((((i => o) => (o => (i => o))) => (((i => o) => (o => (i => o))) => o)))` | 92 | 1.0% |
 | `isaReflexive((((i => o) => i) => (((i => o) => i) => o)))` | 5274 | 56.0% |
-| `isaReflexive((((i => o) => o) => (((i => o) => o) => o)))` | 4100 | 43.5% |
+| `isaReflexive((((i => o) => o) => (((i => o) => o) => o)))` | 7331 | 77.8% |
 | `isaReflexive((((i => o) => o) => o))` | 435 | 4.6% |
 | `isaReflexive(((i => 'a) => ((i => 'a) => o)))` | 2739 | 29.1% |
 | `isaReflexive(((i => ((i => (i => (i => i))) => i)) => ((i => ((i => (i => (i => i))) => i)) => o)))` | 25 | 0.3% |
@@ -1286,7 +1292,7 @@ The reader refuses none of them, nor any theorem they cite.
 | `isaReflexive(((i => o) => (i => o)))` | 670 | 7.1% |
 | `isaReflexive(((i => o) => (o => (i => o))))` | 92 | 1.0% |
 | `isaReflexive(((i => o) => i))` | 5323 | 56.5% |
-| `isaReflexive(((i => o) => o))` | 7632 | 81.0% |
+| `isaReflexive(((i => o) => o))` | 7635 | 81.1% |
 | `isaReflexive(((o => (i => (i => i))) => ((o => (i => (i => i))) => o)))` | 5018 | 53.3% |
 | `isaReflexive(((o => (o => o)) => ((o => (o => o)) => o)))` | 7841 | 83.2% |
 | `isaReflexive(((o => i) => ((o => i) => o)))` | 882 | 9.4% |
@@ -1324,23 +1330,22 @@ The reader refuses none of them, nor any theorem they cite.
 | `isaReflexive((i => (i => (i => i))))` | 3093 | 32.8% |
 | `isaReflexive((i => (i => (i => o))))` | 1090 | 11.6% |
 | `isaReflexive((i => (i => i)))` | 6953 | 73.8% |
-| `isaReflexive((i => (i => o)))` | 7894 | 83.8% |
-| `isaReflexive((i => i))` | 7140 | 75.8% |
-| `isaReflexive((i => o))` | 7781 | 82.6% |
+| `isaReflexive((i => (i => o)))` | 8155 | 86.6% |
+| `isaReflexive((i => i))` | 7141 | 75.8% |
+| `isaReflexive((i => o))` | 7785 | 82.6% |
 | `isaReflexive((o => (i => (i => i))))` | 5020 | 53.3% |
 | `isaReflexive((o => (i => o)))` | 67 | 0.7% |
 | `isaReflexive((o => (o => o)))` | 8323 | 88.4% |
 | `isaReflexive((o => i))` | 883 | 9.4% |
 | `isaReflexive((o => o))` | 8170 | 86.7% |
-| `isaReflexive(i)` | 8188 | 86.9% |
+| `isaReflexive(i)` | 8489 | 90.1% |
 | `isaReflexive(o)` | 8334 | 88.5% |
-| `isaSymmetric('a, o)` | 7417 | 78.7% |
-| `isaSymmetric(i, o)` | 7250 | 77.0% |
+| `isaSymmetric(i, o)` | 7419 | 78.8% |
 | `isaSymmetric(o, o)` | 8832 | 93.8% |
 | `isaTransitive('a, o, o)` | 1877 | 19.9% |
 | `isaTransitive('b, o, o)` | 2237 | 23.7% |
 | `isaTransitive(('b => (('b => 'a) => 'a)), o, o)` | 439 | 4.7% |
-| `isaTransitive((('a => o) => o), o, o)` | 7323 | 77.7% |
+| `isaTransitive((('a => o) => o), o, o)` | 438 | 4.6% |
 | `isaTransitive(((i => (i => 'a)) => (i => 'a)), o, o)` | 2773 | 29.4% |
 | `isaTransitive(((i => (i => (i => i))) => (i => i)), o, o)` | 4 | 0.0% |
 | `isaTransitive(((i => (i => i)) => ((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => (i => i)))))), o, o)` | 38 | 0.4% |
@@ -1379,7 +1384,7 @@ The reader refuses none of them, nor any theorem they cite.
 | `isaTransitive(((i => o) => (i => o)), o, o)` | 827 | 8.8% |
 | `isaTransitive(((i => o) => (o => (i => o))), o, o)` | 92 | 1.0% |
 | `isaTransitive(((i => o) => i), o, o)` | 5274 | 56.0% |
-| `isaTransitive(((i => o) => o), o, o)` | 4100 | 43.5% |
+| `isaTransitive(((i => o) => o), o, o)` | 7331 | 77.8% |
 | `isaTransitive((i => ((i => (i => (i => i))) => i)), o, o)` | 25 | 0.3% |
 | `isaTransitive((i => ((i => (i => i)) => (i => (i => i)))), o, o)` | 53 | 0.6% |
 | `isaTransitive((i => ((i => (i => i)) => (i => i))), o, o)` | 2044 | 21.7% |
@@ -1414,14 +1419,11 @@ The reader refuses none of them, nor any theorem they cite.
 | `isaTransitive((o => o), o, o)` | 7819 | 83.0% |
 | `isaTransitive(i, o, o)` | 6003 | 63.7% |
 | `isaTransitive(o, o, o)` | 7762 | 82.4% |
-| `isaVarApp(head: ('a => 'b), args: ['a])` | 4655 | 49.4% |
-| `isaVarApp(head: ('a => ('b => o)), args: ['a, 'b])` | 1195 | 12.7% |
-| `isaVarApp(head: ('a => o), args: ['a])` | 9165 | 97.3% |
+| `isaVarApp(head: ('a => 'b), args: ['a])` | 2433 | 25.8% |
+| `isaVarApp(head: ('a => o), args: ['a])` | 8962 | 95.1% |
 | `isaVarApp(head: ('b => 'a), args: ['b])` | 439 | 4.7% |
 | `isaVarApp(head: ('b => (('b => 'a) => 'a)), args: ['b, ('b => 'a)])` | 439 | 4.7% |
-| `isaVarApp(head: ('b => o), args: ['b])` | 1195 | 12.7% |
-| `isaVarApp(head: (('a => o) => (o => 'a)), args: [('a => o), o])` | 7290 | 77.4% |
-| `isaVarApp(head: (('a => o) => o), args: [('a => o)])` | 7323 | 77.7% |
+| `isaVarApp(head: (('a => o) => o), args: [('a => o)])` | 438 | 4.6% |
 | `isaVarApp(head: ((i => (i => 'a)) => (i => 'a)), args: [(i => (i => 'a)), i])` | 2773 | 29.4% |
 | `isaVarApp(head: ((i => (i => (i => i))) => (i => i)), args: [(i => (i => (i => i))), i])` | 4 | 0.0% |
 | `isaVarApp(head: ((i => (i => i)) => ((i => (i => i)) => ((i => (i => (i => (i => i)))) => ((i => (i => i)) => (i => (i => i)))))), args: [(i => (i => i)), (i => (i => i)), (i => (i => (i => (i => i)))), (i => (i => i)), i, i])` | 38 | 0.4% |
@@ -1459,8 +1461,9 @@ The reader refuses none of them, nor any theorem they cite.
 | `isaVarApp(head: ((i => o) => (i => i)), args: [(i => o), i])` | 438 | 4.6% |
 | `isaVarApp(head: ((i => o) => (i => o)), args: [(i => o), i])` | 827 | 8.8% |
 | `isaVarApp(head: ((i => o) => (o => (i => o))), args: [(i => o), o, i])` | 92 | 1.0% |
+| `isaVarApp(head: ((i => o) => (o => i)), args: [(i => o), o])` | 7290 | 77.4% |
 | `isaVarApp(head: ((i => o) => i), args: [(i => o)])` | 5274 | 56.0% |
-| `isaVarApp(head: ((i => o) => o), args: [(i => o)])` | 4187 | 44.4% |
+| `isaVarApp(head: ((i => o) => o), args: [(i => o)])` | 7333 | 77.8% |
 | `isaVarApp(head: (i => 'a), args: [i])` | 2739 | 29.1% |
 | `isaVarApp(head: (i => ((i => (i => (i => i))) => i)), args: [i, (i => (i => (i => i)))])` | 25 | 0.3% |
 | `isaVarApp(head: (i => ((i => (i => i)) => (i => (i => i)))), args: [i, (i => (i => i)), i, i])` | 53 | 0.6% |
@@ -1497,32 +1500,15 @@ The reader refuses none of them, nor any theorem they cite.
 | `isaVarApp(head: (i => (i => i)), args: [i, i])` | 7688 | 81.6% |
 | `isaVarApp(head: (i => (i => o)), args: [i, i])` | 9113 | 96.7% |
 | `isaVarApp(head: (i => i), args: [i])` | 7958 | 84.5% |
-| `isaVarApp(head: (i => o), args: [i])` | 8750 | 92.9% |
-| `isaVarApp(head: (o => 'a), args: [o])` | 7417 | 78.7% |
-| `isaVarApp(head: (o => (('a => o) => 'a)), args: [o, ('a => o)])` | 7290 | 77.4% |
+| `isaVarApp(head: (i => o), args: [i])` | 9008 | 95.6% |
+| `isaVarApp(head: (o => ((i => o) => i)), args: [o, (i => o)])` | 7290 | 77.4% |
 | `isaVarApp(head: (o => (i => (i => i))), args: [o, i, i])` | 5018 | 53.3% |
 | `isaVarApp(head: (o => (o => o)), args: [o, o])` | 7841 | 83.2% |
-| `isaVarApp(head: (o => i), args: [o])` | 882 | 9.4% |
+| `isaVarApp(head: (o => i), args: [o])` | 7418 | 78.7% |
 | `isaVarApp(head: (o => o), args: [o])` | 7819 | 83.0% |
 | `use(axiom AC.AC, [], o)` | 51 | 0.5% |
-| `use(axiom FOL.classical, [], o)` | 7756 | 82.3% |
-| `use(axiom IFOL.FalseE, [], o)` | 7820 | 83.0% |
-| `use(axiom IFOL.allI, ['a], o)` | 7610 | 80.8% |
-| `use(axiom IFOL.conjI, [], o)` | 8042 | 85.4% |
-| `use(axiom IFOL.conjunct1, [], o)` | 7893 | 83.8% |
-| `use(axiom IFOL.conjunct2, [], o)` | 7759 | 82.4% |
-| `use(axiom IFOL.disjE, [], o)` | 7496 | 79.6% |
-| `use(axiom IFOL.disjI1, [], o)` | 7496 | 79.6% |
-| `use(axiom IFOL.disjI2, [], o)` | 7496 | 79.6% |
-| `use(axiom IFOL.eq_reflection, ['a], o)` | 7751 | 82.3% |
-| `use(axiom IFOL.exE, ['a], o)` | 7495 | 79.6% |
-| `use(axiom IFOL.exI, ['a], o)` | 7497 | 79.6% |
-| `use(axiom IFOL.iff_reflection, [], o)` | 7572 | 80.4% |
-| `use(axiom IFOL.impI, [], o)` | 8047 | 85.4% |
-| `use(axiom IFOL.mp, [], o)` | 7960 | 84.5% |
-| `use(axiom IFOL.refl, ['a], o)` | 7767 | 82.5% |
-| `use(axiom IFOL.spec, ['a], o)` | 7668 | 81.4% |
-| `use(axiom IFOL.subst, ['a], o)` | 7607 | 80.8% |
+| `use(axiom IFOL.exI, [i], o)` | 7497 | 79.6% |
+| `use(axiom IFOL.subst, [i], o)` | 7607 | 80.8% |
 | `use(axiom ZF_Base.Pow_iff, [], o)` | 7023 | 74.6% |
 | `use(axiom ZF_Base.Union_iff, [], o)` | 7069 | 75.0% |
 | `use(axiom ZF_Base.extension, [], o)` | 7048 | 74.8% |
@@ -1531,21 +1517,22 @@ The reader refuses none of them, nor any theorem they cite.
 | `use(axiom ZF_Base.replacement, [], o)` | 7313 | 77.6% |
 | `use(definition fol meta, [i], o)` | 3947 | 41.9% |
 | `use(definition fol object, [], o)` | 4022 | 42.7% |
-| `use(definition ifol meta, ['a], o)` | 7966 | 84.6% |
+| `use(definition ifol meta, ['a], o)` | 7965 | 84.6% |
 | `use(definition ifol meta, ['b, 'a], o)` | 439 | 4.7% |
+| `use(definition ifol meta, [i], o)` | 7316 | 77.7% |
 | `use(definition ifol object, [], o)` | 7940 | 84.3% |
 | `use(definition pure meta, ['a], o)` | 28 | 0.3% |
 | `use(definition pure meta, [], o)` | 8174 | 86.8% |
 | `use(definition zf meta, ['a], o)` | 2791 | 29.6% |
 | `use(definition zf meta, [], o)` | 440 | 4.7% |
 | `use(definition zf object, [], o)` | 9299 | 98.7% |
-| `use(theorem, ['a], o)` | 7974 | 84.6% |
-| `use(theorem, ['b], o)` | 4634 | 49.2% |
+| `use(theorem, ['a], o)` | 7967 | 84.6% |
+| `use(theorem, ['b], o)` | 2237 | 23.7% |
 | `use(theorem, [(i => i)], o)` | 128 | 1.4% |
 | `use(theorem, [(i => o)], o)` | 741 | 7.9% |
-| `use(theorem, [], o)` | 8346 | 88.6% |
+| `use(theorem, [], o)` | 8376 | 88.9% |
 | `use(theorem, [dummy], o)` | 28 | 0.3% |
-| `use(theorem, [i, i], o)` | 4635 | 49.2% |
+| `use(theorem, [i, i], o)` | 2385 | 25.3% |
 | `use(theorem, [i], o)` | 7965 | 84.6% |
 | `use(theorem, [o], o)` | 345 | 3.7% |
 | `use(theory axiom, [], o)` | 20 | 0.2% |

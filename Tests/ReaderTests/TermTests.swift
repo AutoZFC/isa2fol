@@ -160,11 +160,13 @@ private let mem = Constant.primitive(.zf(.mem))
     #expect(got == (try r.n(.ifolAll(oT, body: try r.bound(0, oT)))))
 }
 
-@Test func aMetaQuantifierOverAPropositionIsAFormulaQuantifier() throws {
+/// Below a statement's top, Pure's `⋀` over a proposition is its own node, its variable its own: a bound proposition,
+/// never the statement's letter.
+@Test func aMetaQuantifierOverAPropositionIsPuresBoundAll() throws {
     var r = try Reading()
     let got = try r.proposition(app(const("Pure.all", prop), lam("W", prop, app(const("Pure.imp"), bound(0), bound(0)))))
-    let W = try r.bound(0, oT)
-    #expect(got == (try r.n(.ifolAll(oT, body: try r.n(.folImplies(W, W))))))
+    let W = try r.n(.isaPropBound(0))
+    #expect(got == (try r.n(.isaPropAll(body: try r.n(.folImplies(W, W))))))
 }
 
 @Test func aPropositionValuedConstantReadsAsAFormulaConstant() throws {

@@ -32,27 +32,12 @@ The reader refuses none of them, nor any theorem they cite.
 
 | axiom | theorems reaching it | % |
 |---|---:|---:|
-| `IFOL.impI` | 8047 | 85.4% |
-| `IFOL.conjI` | 8042 | 85.4% |
 | `IFOL.term_class_def` | 7965 | 84.6% |
-| `IFOL.mp` | 7960 | 84.5% |
-| `IFOL.conjunct1` | 7893 | 83.8% |
 | `IFOL.iff_def_raw` | 7841 | 83.2% |
-| `IFOL.FalseE` | 7820 | 83.0% |
 | `IFOL.not_def_raw` | 7819 | 83.0% |
-| `IFOL.refl` | 7767 | 82.5% |
-| `IFOL.conjunct2` | 7759 | 82.4% |
-| `IFOL.eq_reflection` | 7751 | 82.3% |
-| `IFOL.spec` | 7668 | 81.4% |
 | `IFOL.True_def_raw` | 7619 | 80.9% |
-| `IFOL.allI` | 7610 | 80.8% |
 | `IFOL.subst` | 7607 | 80.8% |
-| `IFOL.iff_reflection` | 7572 | 80.4% |
 | `IFOL.exI` | 7497 | 79.6% |
-| `IFOL.disjE` | 7496 | 79.6% |
-| `IFOL.disjI1` | 7496 | 79.6% |
-| `IFOL.disjI2` | 7496 | 79.6% |
-| `IFOL.exE` | 7495 | 79.6% |
 | `IFOL.ex1_def_raw` | 7316 | 77.7% |
 | `IFOL.Let_def_raw` | 439 | 4.7% |
 
@@ -60,7 +45,6 @@ The reader refuses none of them, nor any theorem they cite.
 
 | axiom | theorems reaching it | % |
 |---|---:|---:|
-| `FOL.classical` | 7756 | 82.3% |
 | `FOL.induct_implies_def_raw` | 4022 | 42.7% |
 | `FOL.induct_forall_def_raw` | 3947 | 41.9% |
 | `FOL.induct_equal_def_raw` | 105 | 1.1% |

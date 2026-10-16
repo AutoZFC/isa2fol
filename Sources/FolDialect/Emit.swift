@@ -41,7 +41,7 @@ public func emit(_ unit: IR.Unit, to directory: URL, base texts: [String], partB
     if let clash = statements.first(where: { declared.contains($0.name) }) { throw EmitError.declaredByBase(clash.name) }
     var letters = schemaLetters(from: texts)
     for s in statements where s.defines == nil {
-        let k = spineLetters(s.root, t)
+        let k = spineLetters(s.root, in: t)
         if k > 0 { letters[s.name] = (0..<k).map { "A\($0)" } }
     }
     let cites = try citations(statements, t)
@@ -144,22 +144,6 @@ private func declaration(_ s: Statement, _ letters: [String: [String]]) -> Decla
     if let c = s.defines { return Declaration(kind: .definition(predicate: c.name), name: s.name, root: s.root) }
     if let names = letters[s.name] { return Declaration(kind: .schema(letters: names), name: s.name, root: s.root) }
     return Declaration(kind: .claim, name: s.name, root: s.root)
-}
-
-private func spineLetters(_ root: NodeID, _ t: Table) -> Int {
-    var count = 0, at = root
-    while true {
-        if case let .ifolAll(.o, body) = t[at] {
-            count += 1
-            at = body
-        } else if case let .folForall(body) = t[at] {
-            at = body
-        } else if case let .folImplies(_, b) = t[at] {
-            at = b
-        } else {
-            return count
-        }
-    }
 }
 
 private func citations(_ statements: [Statement], _ t: Table) throws -> [[Int]] {

@@ -27,11 +27,6 @@ func freeVariables(_ x: NodeID, in t: Table) -> [(index: Int, type: IRType)] {
     return found
 }
 
-func fingerprint(_ x: NodeID, _ t: Table) -> String {
-    let hex = String(t.fingerprint(of: x), radix: 16)
-    return String(repeating: "0", count: 16 - hex.count) + hex
-}
-
 struct Existence: Request {
     let term: NodeID
     let types: [IRType]

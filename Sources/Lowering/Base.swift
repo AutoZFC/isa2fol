@@ -2,8 +2,9 @@ import IR
 
 @frozen public enum BaseStatement: String, CaseIterable, Hashable, Sendable {
     case iffRefl = "iff_refl", iffSymm = "iff_symm", iffTrans = "iff_trans"
+    case truthEX = "truth_EX", weaken
     case congNot = "cong_not", congAnd = "cong_and", congOr = "cong_or", congImp = "cong_imp", congIff = "cong_iff"
-    case eqRefl = "eq_refl", eqSymm = "eq_symm", eqTrans = "eq_trans"
+    case eqRefl = "eq_refl", eqSymm = "eq_symm", eqTrans = "eq_trans", classSubst = "class_subst"
     case congElemL = "cong_elem_l", congElemR = "cong_elem_r", congEqL = "cong_eq_l", congEqR = "cong_eq_r"
     case congSnocV = "cong_snoc_v"
     case zeroEX = "zero_EX", zeroUNIQ = "zero_UNIQ", zeroDef = "zero_def"

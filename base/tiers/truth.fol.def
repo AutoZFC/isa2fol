@@ -1,0 +1,12 @@
+# base/tiers/truth -- FOUNDATION S4: a proposition as an object is its truth set E = {t : t = 0 & phi}, read
+# only through 0 in E. `holds(E)` is 0 in E, `truth(E)` that E is a set inside {0}; `truth_EX` names a truth set
+# for every proposition, by excluded middle: {0} if A, 0 if not. `weaken` lets a truth-set intro add its premise
+# without a hypothesis above the proof it wraps.
+#
+# Depends on base/axioms, pairs (upair), cong (cong_elem_r), primitives (zero). Admits nothing: two definitional
+# introductions.
+
+@def(holds) axiom holds_def: forall E. (holds(E) <-> (exists z. (set(z) & (zero(z) & elem(z,E)))))
+@def(truth) axiom truth_def: forall E. (truth(E) <-> (set(E) & (forall u. (set(u) -> (elem(u,E) -> zero(u))))))
+schema truth_EX [A(0)]: exists E. (truth(E) & (holds(E) <-> A))
+schema weaken [A(0), B(0)]: (A -> (B -> A))

@@ -76,7 +76,7 @@ proof ZF_Base.Inf_UNIQ:
     _g2 = forall_intro _o4
     qed _g2
 
-proof IFOL.subst:
+proof class_subst:
     _cs = use cong_snoc_v
     fix a
     _sa = assume set(a)

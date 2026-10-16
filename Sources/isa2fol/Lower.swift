@@ -9,15 +9,19 @@ private let baseDirectory = URL(fileURLWithPath: #filePath).deletingLastPathComp
 
 func lower(_ root: String, emitTo directory: String?) {
     let start = Date()
-    var unit: IR.Unit, named: Set<String>
+    var unit: IR.Unit, named: Set<String>, citedNamed: Set<String>
     do {
         var reader = try Reader(try Export(root: root))
         unit = try reader.unit()
         named = Set(try reader.population.map { try claimName(reader.name(of: $0)!) })
+        citedNamed = Set(try reader.cited.compactMap { try reader.name(of: $0).map(claimName) })
     } catch {
         stopped(error)
     }
-    let read = Date(), outside = unit.statements.count + unit.refused.count - named.count, definitions = unit.definitions.count
+    let taken = unit.statements.map(\.name) + unit.refused.map(\.name)
+    let outside = taken.filter { !named.contains($0) && citedNamed.contains($0) }.count
+    let boxes = taken.filter { !named.contains($0) && !citedNamed.contains($0) }.count
+    let read = Date(), definitions = unit.definitions.count
     let lowering: Pipeline, texts: [String]
     do {
         let names = BaseStatement.allCases.map(\.rawValue)
@@ -33,9 +37,10 @@ func lower(_ root: String, emitTo directory: String?) {
     }
     let lowered = unit.statements.filter { named.contains($0.name) }
     print("named theorems, all ZF sessions: \(named.count)")
-    print("  with \(outside) theorems they cite outside the ZF sessions and \(definitions) definitions they reach")
+    print("  with \(outside) theorems they cite outside the ZF sessions, \(boxes) boxes binding a proposition and "
+          + "\(definitions) definitions they reach")
     print("lowered to fol-zfc through \(lowering.passes.map(\.name).joined(separator: ", ")): \(lowered.count) — each proof concludes its statement, by ID")
-    print("  and \(unit.statements.count - lowered.count) of the theorems cited outside and lemmas")
+    print("  and \(unit.statements.count - lowered.count) of the theorems and boxes cited, and lemmas")
     print("definitions read by the pass owning their constant: \(unit.definitions.count) of \(definitions)")
     let defs = unit.statements.filter { $0.defines != nil }.count
     let refusedDefs = unit.refused.filter { $0.name.hasSuffix("_DEF") && !named.contains($0.name) }.count

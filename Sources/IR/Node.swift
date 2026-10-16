@@ -36,7 +36,8 @@ public struct Binds: Hashable, Sendable {
 
 @frozen public enum Node: Hashable, Sendable {
     // THE READER'S OUTPUT is the next two groups and nothing else (DESIGN §4.3b).
-    // Isa only, but at `o` a binder, its intro and its variable are fol-zfc's schema letter: lowering replaces the rest.
+    // Isa only, but at `o` a binder, its intro and its variable are fol-zfc's schema letter — a free the statement is
+    // closed over; Pure's `⋀` over a proposition, written in a formula or a proof, is `isaProp*`: lowering replaces the rest.
     case ifolAll(IRType, body: NodeID)
     case ifolEx(IRType, body: NodeID)
     case isaConst(Constant, IRType, args: [NodeID])
@@ -52,6 +53,11 @@ public struct Binds: Hashable, Sendable {
     case isaTransitive(IRType, NodeID, NodeID)
     case isaCombination(IRType, NodeID, NodeID)
     case isaAbstract(IRType, NodeID)
+    case isaClassical(NodeID, NodeID)
+    case isaIffReflection(NodeID, NodeID, NodeID)
+    case isaPropAll(body: NodeID)
+    case isaPropIntro(body: NodeID)
+    case isaPropBound(Int)
 
     // Both dialects: a construct FOL covers, read as the fol-zfc node itself.
     case folImplies(NodeID, NodeID)
@@ -65,6 +71,13 @@ public struct Binds: Hashable, Sendable {
     case hyp(Int, NodeID)
     case folIffIntro(NodeID, NodeID)
     case folIffElimL(NodeID, NodeID)
+    case folAndIntro(NodeID, NodeID)
+    case folAndElimL(NodeID)
+    case folAndElimR(NodeID)
+    case folOrIntroL(NodeID, NodeID)
+    case folOrIntroR(NodeID, NodeID)
+    case folOrElim(NodeID, NodeID, NodeID)
+    case folBottomElim(NodeID, NodeID)
 
     // Isa only, lowering's: a proof before fol cites a variable's guard, which fol writes and resolves; and `∃` at an isa
     // binder, which fol guards.
@@ -78,12 +91,6 @@ public struct Binds: Hashable, Sendable {
     case folPred(Predicate, args: [NodeID])
     case folForall(body: NodeID)
     case folExists(body: NodeID)
-    case folAndIntro(NodeID, NodeID)
-    case folAndElimL(NodeID)
-    case folAndElimR(NodeID)
-    case folOrIntroL(NodeID, NodeID)
-    case folOrIntroR(NodeID, NodeID)
-    case folOrElim(NodeID, NodeID, NodeID)
     case folNotIntro(NodeID, body: NodeID)
     case folNotElim(NodeID, NodeID)
     case folIffElimR(NodeID, NodeID)
@@ -91,7 +98,6 @@ public struct Binds: Hashable, Sendable {
     case folForallElim(NodeID, NodeID)
     case folExistsIntro(NodeID, NodeID)
     case folExistsElim(NodeID, body: NodeID)
-    case folBottomElim(NodeID, NodeID)
     case folClassicalAbsurd(NodeID, body: NodeID)
     case folSchemaInst(NodeID, NodeID)
     // A base schema's letter with arguments: its binder, its application, its λ instance. Isa's binder at a class type
@@ -104,7 +110,7 @@ public struct Binds: Hashable, Sendable {
     /// and `looseBound` all read it here; a second list would let them disagree.
     public func mapChildren(_ f: (NodeID, Binds) throws -> NodeID) rethrows -> Node {
         switch self {
-        case .isaFree, .isaBound, .isaOfClass, .folBottom, .folBound:
+        case .isaFree, .isaBound, .isaOfClass, .folBottom, .folBound, .isaPropBound:
             return self
         case let .ifolAll(T, b): return .ifolAll(T, body: try f(b, .term))
         case let .ifolEx(T, b): return .ifolEx(T, body: try f(b, .term))
@@ -119,6 +125,10 @@ public struct Binds: Hashable, Sendable {
         case let .isaTransitive(T, p, q): return .isaTransitive(T, try f(p, .none), try f(q, .none))
         case let .isaCombination(T, p, q): return .isaCombination(T, try f(p, .none), try f(q, .none))
         case let .isaAbstract(T, p): return .isaAbstract(T, try f(p, .none))
+        case let .isaClassical(a, h): return .isaClassical(try f(a, .none), try f(h, .none))
+        case let .isaIffReflection(a, b, h): return .isaIffReflection(try f(a, .none), try f(b, .none), try f(h, .none))
+        case let .isaPropAll(b): return .isaPropAll(body: try f(b, .term))
+        case let .isaPropIntro(b): return .isaPropIntro(body: try f(b, .term))
 
         case let .folImplies(a, b): return .folImplies(try f(a, .none), try f(b, .none))
         case let .folAnd(a, b): return .folAnd(try f(a, .none), try f(b, .none))
@@ -169,8 +179,9 @@ public struct Binds: Hashable, Sendable {
         case let .isaBound(k, T): return (.term, k, { .isaBound($0, T) })
         case let .hyp(k, a): return (.hyp, k, { .hyp($0, a) })
         case let .folBound(k): return (.term, k, { .folBound($0) })
+        case let .isaPropBound(k): return (.term, k, { .isaPropBound($0) })
         case .ifolAll, .ifolEx, .isaConst, .isaFree, .isaVarApp, .isaAbs, .isaOfClass, .isaAllIntro, .isaAllElim,
-             .isaReflexive, .isaSymmetric, .isaTransitive, .isaCombination, .isaAbstract,
+             .isaReflexive, .isaSymmetric, .isaTransitive, .isaCombination, .isaAbstract, .isaClassical, .isaIffReflection, .isaPropAll, .isaPropIntro,
              .folImplies, .folAnd, .folOr, .folIff, .folNot, .folBottom, .folImpliesIntro, .folImpliesElim,
              .use, .isaGuard, .isaExIntro, .isaExElim, .folPred, .folForall, .folExists, .folAndIntro, .folAndElimL, .folAndElimR,
              .folOrIntroL, .folOrIntroR, .folOrElim, .folNotIntro, .folNotElim, .folIffIntro, .folIffElimL,
