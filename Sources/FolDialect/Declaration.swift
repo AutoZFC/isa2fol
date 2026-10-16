@@ -3,6 +3,7 @@ import IR
 @frozen public enum DeclarationKind: Equatable, Sendable {
     case claim
     case definition(predicate: String)
+    case schema(letters: [String])
 }
 
 public struct Declaration: Sendable {

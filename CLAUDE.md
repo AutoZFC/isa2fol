@@ -37,8 +37,11 @@ constant's from its `@def` and a primitive's from base. **Class existence has it
 `member_class` or `graph_class`; a class binder a hypothesis of what lies under it; one lift per class-taking constant,
 uniform in the record's length, re-keyed by `REKEY`. Every lemma the corpus requests is proved: 1,866 statements beside
 the 59 reach fol-zfc, among them 165 `_CLASS`, 99 `CLASS ⟨λ⟩`, 27 `_LIFT`, 278 EX and 338 UNIQ, and no named theorem
-waited on class existence alone — most stop at a theorem cited at a type instance, `use(theorem, [i], o)`. Emission is
-not built; tests render and kernel-check every lemma kind they prove. `DESIGN.md` is the plan.
+waited on class existence alone — most stop at a theorem cited at a type instance, `use(theorem, [i], o)`. **Emission
+is built** (`DESIGN.md` "Emission"): `isa2fol lower data/zf_export --emit DIR` writes the unit as parts — a theory's
+theorems, a lemma in its first citer's part — and `scripts/check-unit.sh DIR` kernel-checks each against the libraries
+of base and of the parts it cites: all 1,445 claims and 29 schemas Proved. `DESIGN.md` is the plan; its "The steps
+after class existence, in order" is the agreed order of work.
 
 ## Build
 
@@ -54,12 +57,17 @@ Swift 6.4, language mode 5. `scripts/02-install-swift.sh` installs it into
 ## Verification
 
 ```bash
-PROOF_CHECKER_MAX_WARNINGS=100000 proof_checker unit.fol.def unit.fol.proof
+MEM=32G scripts/capped.sh .build/release/isa2fol lower data/zf_export --emit DIR
+MEM=32G scripts/capped.sh scripts/check-unit.sh DIR        # each part, against base's and its parts' libraries
+MEM=16G scripts/capped.sh scripts/check-base.sh [LIBDIR]   # base alone, each tier once
 ```
 
 The checker is at **`~/repos/fol-zfc-comb/bazel-bin/src/tools/proof_checker`**
 and its source at `~/repos/fol-zfc-comb` (C++, Bazel). Tests find it via
-`PROOF_CHECKER`, falling back to that path.
+`PROOF_CHECKER`, falling back to that path. It must have `--lib` (fol-zfc-comb 340e700,
+branch `libraries-and-streaming`) and quoted name segments. ⚠ **BUILD IT ONLY WITH
+`bazel build -c opt`**: a plain build repoints `bazel-bin` to the fastbuild outputs,
+where no `proof_checker` is.
 
 **A unit is valid only when the checker exits 0 AND stderr is empty.** The
 checker reports three states and they are not interchangeable:
@@ -202,7 +210,7 @@ determinism R1–R3 (§4.6).
    print(f'{c}/{t} = {100*c/t:.1f}%')"
    ```
 
-   ✓ **CURRENTLY 27/7511 = 0.4%, under the cap.** Keep it there: a breach is
+   ✓ **CURRENTLY 34/7895 = 0.4%, under the cap.** Keep it there: a breach is
    fixed by deleting prose, never by raising the cap.
 
    Does not apply to `base/**/*.fol.def` headers: those record provenance of
@@ -264,8 +272,8 @@ data/zf_export/  the Isabelle export — a LOCAL CACHE, never committed: scripts
 The reader (YXML → IR) reads statements and proofs (`Sources/Reader`); `Sources/Lowering` holds
 the plan, Expand, Logic and Fol its passes with rules, Reify's code, which the logic pass calls, and the registry's provers,
 Reify's (EX and UNIQ of a term, a constant's and a λ's facts), Tuple's and the class prover's (`CLASS ⟨λ⟩`, `c_CLASS`,
-`c_LIFT`, `REKEY`, from Comprehension's classes of records); Lambda's instance at a class type, the rest of Logic's, and
-the emitter (IR → FolDialect) are unbuilt.
+`c_LIFT`, `REKEY`, from Comprehension's classes of records); the emitter (`Sources/FolDialect/Emit.swift`) writes a unit
+as parts; Lambda's instance at a class type and the rest of Logic's are unbuilt.
 
 **There is ONE formula table per unit, holding isa and fol nodes together** —
 interned, immutable, de Bruijn; proof steps live in scope regions and point into

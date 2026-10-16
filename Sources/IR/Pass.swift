@@ -73,13 +73,15 @@ public struct Statement: Sendable {
     public var proof: NodeID?
     public let lemma: Lemma?
     public let defines: Defined?
+    public let theory: String?
 
-    public init(name: String, root: NodeID, proof: NodeID) {
+    public init(name: String, root: NodeID, proof: NodeID, theory: String? = nil) {
         self.name = name
         self.root = root
         self.proof = proof
         lemma = nil
         defines = nil
+        self.theory = theory
     }
 
     public init(lemma: Lemma, root: NodeID) {
@@ -88,6 +90,7 @@ public struct Statement: Sendable {
         proof = nil
         self.lemma = lemma
         defines = nil
+        theory = nil
     }
 
     public init(defining c: Defined, root: NodeID) {
@@ -96,6 +99,7 @@ public struct Statement: Sendable {
         proof = nil
         lemma = nil
         defines = c
+        theory = nil
     }
 
     public var cited: Cited { lemma.map(Cited.lemma) ?? .theorem(name) }
@@ -444,6 +448,11 @@ private func scan(_ roots: [NodeID], _ t: Table) -> (Set<Pattern>, [(Lemma, Node
         t[id].forEachChild { c, _ in work.append(c) }
     }
     return (found, lemmas)
+}
+
+public func cited(by s: Statement, in t: Table) -> [String] {
+    (s.proof.map { citations(under: $0, t).map(\.0.name) } ?? [])
+        + constantsNamed(under: s.walked, t).filter { $0 != s.defines }.map(\.definitionName)
 }
 
 private func citations(under proof: NodeID, _ t: Table) -> [(Cited, NodeID)] {

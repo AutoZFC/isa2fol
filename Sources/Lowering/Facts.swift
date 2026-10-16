@@ -102,6 +102,18 @@ struct TupleFact: Request {
     }
 }
 
+public func kind(of lemma: Lemma) -> String {
+    switch lemma.request {
+    case let f as ConstantFact: return "constant \(f.fact)"
+    case let f as LambdaFact: return "λ \(f.fact)"
+    case let f as TupleFact: return "tuple \(f.fact)"
+    case is RekeyFact: return "rekey"
+    case is Existence: return "term existence"
+    case is Uniqueness: return "term uniqueness"
+    default: return "\(type(of: lemma.request))"
+    }
+}
+
 func existence(of a: NodeID, in t: inout Table) throws -> Existence {
     let c = try closed(a, in: &t)
     return Existence(term: c.term, types: c.types, name: "EX_" + fingerprint(c.term, t))

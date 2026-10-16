@@ -2508,6 +2508,166 @@ before any code cites them; then the prover, its tests first.
    `CLASS ⟨λ⟩`, `c_LIFT` and the re-keying lemma; Reify's keeps the rest and proves `ZF_Base.PrimReplace_TOTAL` by the
    graph rule. The boundary is already in the lemmas: EX cites `c_CLASS` and calls none of its code.
 
+### The steps after class existence, in order  **[AGREED 2026-10-15 (user)]**
+
+Dependencies first; the reference's order where it had one, left in two places. After each step `lower` is run again,
+and its refusals order 5–8, none of which needs another.
+
+0. **Emission** (below): no statement of the corpus has met the checker, and class existence's proofs are unmeasured.
+1. **Decision 4** (§4a): a theorem cited at a type instance. Restricted to `term`, it is read at `i` and `OFCLASS(i,
+   term)` is dropped: the rule is decided, its owner is not. Built in the reference (its reader and `ClassRule`).
+2. **IFOL's own rules at `[i]`**: `allI`, `spec`, `exI`, `exE` the kernel's steps, `refl` base's `eq_refl`, `subst`
+   base's `IFOL.subst`, `eq_reflection` the identity. Every citation of one discharges `OFCLASS(i, term)`, so none is
+   reached before 1.
+3. **An instance at a class type**, Lambda's: the λ's class (`CLASS ⟨λ⟩`) and β as proof. `spec` and `subst` at a λ need
+   it; the function λ at `i`, the reference's largest refusal, is designed in.
+4. **Pure's equality at an object function type**: `combination` is `mfun_comb`, then β (3). The reference walked these
+   chains before it had a λ's class; here β comes first.
+5. **A ZF definition cited**: pointwise, from the `@def` and EX, most often at a chain's leaf (4).
+6. **A proposition argument**, `If` and `bool_of_o`: a class of the empty tuple (FOUNDATION S4), as the reference read it.
+7. **The hidden variable**, `Pure.dummy_pattern`: the reference refused it, so its design is new.
+8. **ZF's axioms**: base derives `extension`, `Pow_iff`, `Union_iff`, `replacement` and `infinity` from NBG;
+   `foundation` and `AC.AC` wait for FOUNDATION to pin Regularity and Choice, which `base/axioms` leaves out.
+9. **Later**: a declared constant; a λ or a binder over classes; a proposition quantified below a statement's top; an
+   unrestricted type variable.
+
+### Emission — the unit as text, checked by the kernel  **[AGREED 2026-10-15 (user), the three decisions one by one; BUILT 2026-10-15, its decisions in the build for the user's review — `Sources/FolDialect/Emit.swift`, `Render.swift`, `Declaration.swift`, `Parse.swift`, `Sources/IR/Pass.swift`, `Sources/Reader/Reader.swift`, `Sources/Lowering/Logic.swift`, `Base.swift`, `Facts.swift`, `Sources/isa2fol/Lower.swift`, `scripts/check-base.sh`, `check-unit.sh`, `base/tiers/cong`; the checker's changes in fol-zfc-comb, 340e700 and the quoted segment]**
+
+**The step.** Nothing writes the unit. `render` writes one declaration and one proof, a base schema's instance among
+its steps, and the tests' `kernelChecks` writes the claims each test proves and runs the checker on them, chained on
+base. The corpus's 59 theorems and 1,866 other statements conclude their statements by ID and no more: none has met the
+checker, and one whose spine binds a letter cannot be written at all (`RenderError.schema`). Their size is unknown: the
+table holds 15.6M nodes, and `render` writes a subproof again at each use (§4.7).
+
+**How the reference builds it** (`kinds-proposal`: `Sources/FolDialect/Emit.swift`, `scripts/check-unit.sh`,
+`Sources/IR/Measure.swift`, `Compress.swift`; its DESIGN §4.9):
+- `emit` writes every statement as a claim, a schema or a `@def` and a proof for each claim and schema, in citation
+  order. A name the checker cannot spell is left out with every statement citing it (`open`); a name base declares
+  stops it (`declaredByBase`). `lower --emit DIR`, then `check-unit.sh DIR`: exit 0 and empty stderr.
+- `compress` proves each repeated fact once, at the outermost scope its binders allow (`share`, one analysis and one
+  rebuild), then by a greedy in rounds where two proofs of one fact compete: 1,765,403 steps to 1,382,428.
+
+**1. Parts, each checked once against the libraries of what it cites.** **AGREED 2026-10-15 (user)**, over one unit
+checked whole. Checked whole, a unit is held whole: `proof_checker` read its proof file into one string and parsed every
+proof before running one, 687 MB of memory for a 21 MB proof file (base's `classes` tier, 100 times). So the unit is
+written as parts. Each part is checked once, against the compiled libraries (`.fol.lib`) of the parts it cites and of
+base, and the same run writes its own library (`proof_checker --lib`). A part citing it loads its declarations, never
+its proofs. A check therefore holds one part's proofs, one block at a time, and the declarations below it; parts that
+cite each other in neither direction check in parallel, and base is compiled once. A part holds its statements in the
+unit's order:
+- a `@def` as `@def(c) axiom c_DEF: φ`;
+- a theorem or a lemma as `claim N: φ` and `proof N:`;
+- one whose spine binds letters as `schema N [A0(0), …]: φ`, its proof without their intros, and a citation of it as one
+  `schema_inst N { A0: ψ, … }` ahead of the spine's `forall_elim`s ("Logic", 2 and 3). A letter is named by its place on
+  the spine.
+
+Within a part the checker loads every header before it runs a proof, resolves `use` against all of them, and decides
+Proved once every proof has run (`proof_checker.cpp`), so it is owed no order; the unit's is deterministic (§4.6). A
+name base declares stops the run: base is never declared again (G1). **What a part is**, proposed: one Isabelle
+theory's theorems. A generated lemma cites only lemmas and base, never a theorem; it goes in the part of the first
+statement citing it in the unit's order, so citations point only backwards. A part over a size bound is split.
+
+**The checker's three changes** (`~/repos/fol-zfc-comb` 340e700, branch `libraries-and-streaming`, reviewed by the user 2026-10-15):
+- `fol_compiler` builds with `-c opt`: GCC 11's false `-Wstringop-overflow` in `src/library/library.cpp` is gone.
+- A library holds the sentences of its new named entries only. A running proof registers each quantified formula it
+  builds, one over an outer fixed variable among them, and base's `classes` tier could not be saved ("FixedVar in
+  stored formula"). A claim interned to a dependency's sentence was dropped from its library, silently.
+  `test/library_test.cpp`, never wired into the build, now runs: two new tests fail on the old writer.
+- `proof_checker --lib OUT` writes the library after a check that exits 0.
+- `proof_checker` reads a proof file one block at a time (`stream_proofs`): 687 MB to 56 MB on the file above, the
+  same report. A proof file holds proof blocks only, as its format says; another statement is now an error.
+
+Verified with the new binary: the checker's 30 tests, base's 13 tiers and this repository's tests; base's chain built
+by `--lib`, each tier checked against the libraries below it. ⚠ **THE FORMULA ARENA STILL GROWS WITH EVERY DISTINCT
+FORMULA OF A PART**: streaming bounds the text and the parse, the part bounds the arena.
+
+**2. A subproof is written once while its step is in scope.** **AGREED 2026-10-15 (user).** Emission only: the table
+and the passes are unchanged, and a step is cited by its local handle (`_1`), never a new claim. `render` writes the proof's tree: a node the table shares
+is written at each use, k uses k copies, and nesting multiplies. The renderer keeps each step it writes, keyed by its
+node and by the names its loose indices resolve to (⚠ a node is not a fact: `hyp(0, set(#0))` under two `fix`es is two
+facts), and forgets it when its scope closes; a node found there is cited by its step's name. The text is then linear in
+the proof's DAG per scope and never longer than the tree, with no checker change. Not the reference's `share`: a repeat in
+two sibling scopes, or one fact proved two ways, stays — that is compress, decided on this step's measurement.
+
+**3. The check is the checker's report, part by part, by a script.** **AGREED 2026-10-15 (user).** Today `check-base.sh` checks each tier against
+the text of the tiers below, re-running every one of their proofs, the tests' `kernelChecks` re-run all of base at each
+call, and nothing checks an emitted unit or measures what it writes.
+- `isa2fol lower EXPORT --emit DIR` writes `DIR/P.fol.def` and `DIR/P.fol.proof` for each part `P`, and `DIR/parts`:
+  one line per part in citation order, naming the parts whose libraries it loads, in loading order. It prints what it
+  wrote — claims, schemas and `@def`s per part — and the steps written beside the tree's, by statement kind (a theorem,
+  a lemma by its suffix): decision 2's measurement, and compress's input.
+- `scripts/check-base.sh` compiles base once: each tier checked with `--lib` against the libraries of the tiers below
+  it. The same libraries serve every unit and the tests.
+- `scripts/check-unit.sh DIR` checks the parts in `DIR/parts`' order with `--lib`, each against base's libraries and
+  those its line names. A part is valid only when the checker exits 0, stderr is empty, Proved lists every claim and
+  Schemas proved every schema; `Conditional`, `Unproved`, `Failed` or `Missing` is a failure, never a count beside
+  Proved. A part naming an invalid part is not checked, and is reported with the part it waits on, so no check ever
+  loads an invalid part's library. That also keeps out the checker's known gap: an `UNPROVED` schema saved to a library
+  loads back as proven (fol-zfc-comb 94c5db9). The script exits 0 only when every part is valid.
+
+**Tests, written first** (`FolDialectTests`), each unit kernel-checked by the real checker: a unit's statements are
+written in its order, a `@def`, a claim and a schema each as its declaration; a schema's proof has no intro for its
+letters, and a citation of it is one `schema_inst` naming them; a subproof used twice in one scope is written once, in
+two sibling scopes twice, and under two binders of one name as two facts; a name base declares stops emission; a
+statement goes in its part and a lemma in its first citer's, and two parts are checked in order, the second against the
+first's library. Then `kernelChecks` writes its units through `emit`, against base's libraries (rule 4: one way to
+write a unit).
+
+**Not in this step:** compress, the reference's `share` and rounds, decided on decision 2's measurement; checking parts
+in parallel; lowering by part, for the table's own ceiling (13.0 GB at 15.6M nodes).
+
+**Built.**
+- `Render.swift`: the writer keeps the steps it wrote, keyed by node and by the names its loose indices resolve to, and
+  a closing scope drops only those naming its variable or its assumption (decision 2, build decision 2). A letter on a
+  statement's spine is the schema's, `A0, A1, …` by place, its intro writing no line; a citation of a schema is one
+  `schema_inst` with every letter, then the spine's eliminations in order. `Declaration.schema(letters:)`.
+- `Emit.swift`: `emit(unit, to:, base:, partBytes:)` — a theorem in its theory's part; a lemma or a `@def` in the first
+  part among its citers', or `_uncited`; theories ordered by their theorems' citations; in a part a cited statement
+  before its citers; a part over `partBytes` (64 MiB) split, `P.2`, `P.3`; `DIR/parts`, each part with the parts whose
+  libraries it loads, transitively, in loading order; each statement streamed to its part's files; per statement the
+  steps written, its tree's and its DAG's. A name base declares stops it.
+- IR: `Statement.theory`, the reader's; `cited(by:in:)`, the unit's citation graph, on the helpers `linked` uses.
+- `lower EXPORT --emit DIR`, its report by kind from Lowering's typed requests (`kind(of:)`).
+- `scripts/check-base.sh [LIBDIR]` checks each tier once with `--lib`, against the libraries of the tiers it lists;
+  `scripts/check-unit.sh DIR [BASE_LIBS]` checks each part of `DIR/parts` in order, against base's and its parts'
+  libraries, and does not check a part naming an invalid one.
+- Tests: `EmissionTests`; `kernelChecks` writes through `emit` and checks through `check-unit.sh`; `WalkTests` pins
+  the walk's linearity.
+
+**Decisions made in the build** (no checker change unless said; for the user's review):
+1. **A lemma or a `@def` no statement cites goes in a last part, `_uncited`.** The registry proves a statement's lemmas
+   before the statement is refused for a letter off its spine or at link, so the unit holds lemmas nothing cites; they
+   are proved, so they are emitted and checked, after every theory.
+2. **A step stays citable until a scope it depends on closes** — decision 2's scope made the checker's: a closing scope
+   drops only the steps naming its variable or its assumption (`cleanup_scope`, `src/proof/nd/stack.cpp`; a step's
+   name is the proof's). Per block, `WF.wfrec_on_AGREE` wrote 6.0M steps for its 453 distinct.
+3. **The replacement walk proves a binder's equivalence once and carries it by the binder's schema** (`Logic.swift`,
+   `quantified`): `cong_forall`, `cong_exists`, `cong_exists_bare`, and `cong_forall_bare`, added to `base/tiers/cong`.
+   It proved both directions, each under its own witness, from one node the checker derived twice per binder:
+   `WF_absolute.rtrancl_alt_FUNC` was 1,238 distinct steps and 3.4·10¹² as a tree, `Limit.cf_FUNC` 1,714 and
+   3.6·10¹², `ZF_Base.Pair_FUNC` 3.6M written. `WalkTests`: through n nested `∃`, 48, 118, 258, 538, 1,098, 2,218
+   steps before; a constant step per binder now. A `∀` over a proposition's letter keeps both directions: no
+   first-order schema quantifies over a letter.
+4. **A reserved word as a segment after the first is written quoted**, `Com.bexp."false"` (the user, 2026-10-15: a
+   checker change, `qualified_name DOT STRING_LITERAL` in `src/parser/formula.y`): a keyword token carries no spelling
+   (`false` and `bottom` are both `BOTTOM`), so the grammar could not take the word itself, and a lexer that did would
+   read `forall x.false` by its whitespace. The export's seven: `Bool.and`, `Bool.not`, `Bool.or`, `Com.bexp.false`,
+   `Com.evalb.false`, `FOL.excluded_middle`, `IFOL.iff` (Expand's). ⚠ An earlier count named the three `Bool` ones
+   alone — it read one session's constants, not the export's names.
+5. **A theorem's part is the reader's theory**, `Statement.theory`: a name's first segment can be a locale's.
+6. **The report's kinds are Lowering's typed requests** (`kind(of:)`), not the names' suffixes.
+7. **Base is checked once, by libraries**: `check-base.sh` checks each tier against its listed tiers' libraries; the
+   text chain re-ran every lower tier's proofs.
+
+**Measured** (`MEM=32G scripts/capped.sh .build/release/isa2fol lower data/zf_export --emit DIR`, 303 s, peak 13.4 GB, the
+emission 169 s; then `scripts/check-unit.sh DIR`, 9.9 s, peak 551 MB): every statement the pipeline leaves is emitted
+and **every one is Proved by the kernel** — 39 parts, 1,445 claims of 1,445 and 29 schemas of 29, exit 0 and empty
+stderr in each, base checked first; 451 `@def`s. 72 MB of text, 1,033,187 steps written against 1,107,750 in the
+proofs' trees and 879,656 distinct. By kind, written: a constant's class 483,045 (165), a λ's class 259,536 (99), a
+lift 123,625 (27), UNIQ of a term 48,717 (338), a constant's function 43,491 (106), EX of a term 28,924 (278), a λ's
+function 22,595 (73), the rest under 10,000 each; the 86 theorems, the 59 named and the 27 they cite outside, 609. The
+named theorems lie in 33 theories' parts; 1,388 lemmas, cited by refused statements alone, in `_uncited`.
+
 ### Fol — binders, guards and variables  **[BUILT 2026-09-28 as the guard; Fol's 2026-10-14; every object type and `∃` at `i` with "Reify — S1 at the site" — `Sources/Lowering/Fol.swift`]**
 
 **Every isa binder at an object type, its intro, its variable and the guard of its variable become fol-zfc's, with the

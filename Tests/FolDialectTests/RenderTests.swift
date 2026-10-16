@@ -56,9 +56,18 @@ private struct Fol {
     }
 }
 
+/// A segment after the first that the checker reads as a keyword is written quoted; the name is unchanged.
+@Test func aReservedSegmentAfterTheFirstIsQuoted() throws {
+    var f = Fol()
+    for (name, written) in [("Com.bexp.false", "Com.bexp.\"false\""), ("FOL.excluded_middle", "FOL.\"excluded_middle\""),
+                            ("Bool.not", "Bool.\"not\""), ("T.use.4", "T.\"use\".4")] {
+        #expect(try f.text(try f.p(name)) == written)
+    }
+}
+
 @Test func aMalformedNameIsRefused() throws {
     var f = Fol()
-    for bad in ["1bad", "forall", "a..b", "a.", ".a", "ZF Base", "a'b", "mem(4)", "T.use", "use.T"] {
+    for bad in ["1bad", "forall", "a..b", "a.", ".a", "ZF Base", "a'b", "mem(4)", "use.T"] {
         #expect(throws: RenderError.notAName(bad)) { try f.text(try f.p(bad)) }
     }
     let body = try f.p("set", try f.b(0))
@@ -81,8 +90,8 @@ private struct Fol {
     #expect(throws: RenderError.sourceKind(atom)) { try f.text(root) }
 }
 
-/// A letter is fol-zfc's, but `render` writes a claim, never a schema: a letter is refused until emission writes them.
-@Test func aLetterIsRefusedUntilSchemasAreEmitted() throws {
+/// A letter is a schema's alone: a formula or a claim holding one is refused, a schema declaration binds it.
+@Test func aLetterOutsideASchemaIsRefused() throws {
     var f = Fol()
     let letter = try f.t.intern(.isaBound(0, .o))
     let schema = try f.t.intern(.ifolAll(.o, body: try f.imp(letter, letter)))

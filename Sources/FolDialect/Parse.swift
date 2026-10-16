@@ -72,6 +72,16 @@ public func parse(statements names: [String], from texts: [String], in t: inout 
     return parsed
 }
 
+public func declaredNames(from texts: [String]) -> Set<String> {
+    var names: Set<String> = []
+    for text in texts {
+        for line in text.split(separator: "\n") {
+            if let (_, name) = statementName(String(line)) { names.insert(name) }
+        }
+    }
+    return names
+}
+
 private enum Kind { case schema, claim }
 
 private func statementName(_ line: String) -> (Kind, String)? {

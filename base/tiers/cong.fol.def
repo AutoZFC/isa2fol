@@ -32,6 +32,7 @@ schema cong_forall [P(1), Q(1)]: ((forall z. (set(z) -> (P(z) <-> Q(z)))) -> ((f
 # A CLASS binder is BARE (R4 — `set(C)` is false, not redundant), so the guarded
 # kernels above do not apply to it. Pure first-order logic; no set theory.
 schema cong_exists_bare [P(1), Q(1)]: ((forall z. (P(z) <-> Q(z))) -> ((exists z. P(z)) <-> (exists z. Q(z))))
+schema cong_forall_bare [P(1), Q(1)]: ((forall z. (P(z) <-> Q(z))) -> ((forall z. P(z)) <-> (forall z. Q(z))))
 
 claim cong_elem_l: forall a. forall b. forall t. (eq(a,b) -> (elem(a,t) <-> elem(b,t)))
 claim cong_elem_r: forall s. forall a. forall b. (eq(a,b) -> (elem(s,a) <-> elem(s,b)))

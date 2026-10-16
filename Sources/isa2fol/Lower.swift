@@ -7,7 +7,7 @@ import Reader
 private let baseDirectory = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
     .deletingLastPathComponent().appendingPathComponent("base")
 
-func lower(_ root: String) {
+func lower(_ root: String, emitTo directory: String?) {
     let start = Date()
     var unit: IR.Unit, named: Set<String>
     do {
@@ -18,10 +18,11 @@ func lower(_ root: String) {
         stopped(error)
     }
     let read = Date(), outside = unit.statements.count + unit.refused.count - named.count, definitions = unit.definitions.count
-    let lowering: Pipeline
+    let lowering: Pipeline, texts: [String]
     do {
         let names = BaseStatement.allCases.map(\.rawValue)
-        lowering = pipeline(try Base(try parse(statements: names, from: try baseTexts(baseDirectory), in: &unit.table)))
+        texts = try baseTexts(baseDirectory)
+        lowering = pipeline(try Base(try parse(statements: names, from: texts, in: &unit.table)))
     } catch {
         fail("base: \(error)", 1)
     }
@@ -68,4 +69,41 @@ func lower(_ root: String) {
     }
     print(String(format: "table: %d nodes; read %.1f s, lowered %.1f s",
                  unit.table.count, read.timeIntervalSince(start), Date().timeIntervalSince(read)))
+    guard let directory else { return }
+    let emitting = Date(), emission: Emission
+    do {
+        emission = try emit(unit, to: URL(fileURLWithPath: directory), base: texts)
+    } catch {
+        fail("emit: \(error)", 1)
+    }
+    report(emission, unit, directory, Date().timeIntervalSince(emitting))
+}
+
+private func report(_ e: Emission, _ unit: IR.Unit, _ directory: String, _ seconds: TimeInterval) {
+    let sum = { (f: (EmittedPart) -> Int) in e.parts.map(f).reduce(0, +) }
+    print("emitted to \(directory) in \(e.parts.count) parts: \(sum(\.claims)) claims, \(sum(\.schemas)) schemas, "
+          + "\(sum(\.definitions)) @defs, \(sum(\.bytes)) bytes, \(String(format: "%.1f", seconds)) s; "
+          + "check with scripts/check-unit.sh \(directory)")
+    var statements: [String: Statement] = [:]
+    for s in unit.statements { statements[s.name] = s }
+    var rows: [String: (count: Int, written: Int, tree: Int, dag: Int)] = [:]
+    let add = { (a: Int, b: Int) -> Int in
+        let (sum, overflow) = a.addingReportingOverflow(b)
+        return overflow ? Int.max : sum
+    }
+    for s in e.statements {
+        guard let statement = statements[s.name] else { continue }
+        let kind = statement.defines != nil ? "@def" : statement.lemma.map { Lowering.kind(of: $0) } ?? "theorem"
+        let r = rows[kind] ?? (0, 0, 0, 0)
+        rows[kind] = (r.count + 1, add(r.written, s.written), add(r.tree, s.tree), add(r.dag, s.dag))
+    }
+    let total = rows.values.reduce((count: 0, written: 0, tree: 0, dag: 0)) {
+        ($0.count + $1.count, add($0.written, $1.written), add($0.tree, $1.tree), add($0.dag, $1.dag))
+    }
+    print("steps by kind: statements, written, as a tree, distinct")
+    for kind in rows.keys.sorted(by: { (rows[$0]!.written, $1) > (rows[$1]!.written, $0) }) {
+        let r = rows[kind]!
+        print("    \(kind): \(r.count), \(r.written), \(r.tree), \(r.dag)")
+    }
+    print("    all: \(total.count), \(total.written), \(total.tree), \(total.dag)")
 }

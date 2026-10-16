@@ -276,6 +276,7 @@ struct Replacement {
             guard T == .o || T == .i, case .ifolAll(T, let lb) = t[l], case .ifolAll(T, let rb) = t[r] else {
                 throw LogicError.context(phi)
             }
+            if T == .i { return try quantified(.congForall, .i, body, lb, rb, s, &t) }
             var inner = s
             _ = inner.assume(l)
             _ = inner.fix(T)
@@ -290,43 +291,13 @@ struct Replacement {
             return try t.intern(.folIffIntro(forward, backward))
         case let .ifolEx(.i, body):
             guard case let .ifolEx(.i, lb) = t[l], case let .ifolEx(.i, rb) = t[r] else { throw LogicError.context(phi) }
-            var inner = s
-            _ = inner.assume(l)
-            _ = inner.fix(.i)
-            _ = inner.assume(lb)
-            let p = try proof(body, lb, rb, in: inner, &t)
-            let x = try t.intern(.isaBound(0, .i))
-            let forward = try t.intern(.isaExIntro(try t.intern(.folIffElimL(p, try t.intern(.hyp(0, lb)))), x))
-            let backward = try t.intern(.isaExIntro(try t.intern(.folIffElimR(p, try t.intern(.hyp(0, rb)))), x))
-            let there = try t.intern(.isaExElim(.i, try t.intern(.hyp(0, l)), body: forward))
-            let back = try t.intern(.isaExElim(.i, try t.intern(.hyp(0, r)), body: backward))
-            return try t.intern(.folIffIntro(try t.intern(.folImpliesIntro(l, body: there)), try t.intern(.folImpliesIntro(r, body: back))))
+            return try quantified(.congExists, .i, body, lb, rb, s, &t)
         case let .folExists(body):
             guard case let .folExists(lb) = t[l], case let .folExists(rb) = t[r] else { throw LogicError.context(phi) }
-            var inner = s
-            _ = inner.assume(l)
-            _ = inner.fix(nil)
-            _ = inner.assume(lb)
-            let p = try proof(body, lb, rb, in: inner, &t)
-            let x = try t.intern(.folBound(0))
-            let forward = try t.intern(.folExistsIntro(try t.intern(.folIffElimL(p, try t.intern(.hyp(0, lb)))), x))
-            let backward = try t.intern(.folExistsIntro(try t.intern(.folIffElimR(p, try t.intern(.hyp(0, rb)))), x))
-            let there = try t.intern(.folExistsElim(try t.intern(.hyp(0, l)), body: forward))
-            let back = try t.intern(.folExistsElim(try t.intern(.hyp(0, r)), body: backward))
-            return try t.intern(.folIffIntro(try t.intern(.folImpliesIntro(l, body: there)), try t.intern(.folImpliesIntro(r, body: back))))
+            return try quantified(.congExistsBare, nil, body, lb, rb, s, &t)
         case let .folForall(body):
             guard case let .folForall(lb) = t[l], case let .folForall(rb) = t[r] else { throw LogicError.context(phi) }
-            var inner = s
-            _ = inner.assume(l)
-            _ = inner.fix(nil)
-            let p = try proof(body, lb, rb, in: inner, &t)
-            let x = try t.intern(.folBound(0))
-            let at = { (side: NodeID, t: inout Table) throws -> NodeID in
-                try t.intern(.folForallElim(try t.intern(.hyp(0, try shift(side, by: 1, in: &t))), x))
-            }
-            let forward = try t.intern(.folImpliesIntro(l, body: try t.intern(.folForallIntro(body: try t.intern(.folIffElimL(p, try at(l, &t)))))))
-            let backward = try t.intern(.folImpliesIntro(r, body: try t.intern(.folForallIntro(body: try t.intern(.folIffElimR(p, try at(r, &t)))))))
-            return try t.intern(.folIffIntro(forward, backward))
+            return try quantified(.congForallBare, nil, body, lb, rb, s, &t)
         case .ifolEx, .isaConst, .isaFree, .isaBound, .isaVarApp, .isaAbs, .isaOfClass, .isaAllIntro, .isaAllElim, .isaReflexive,
              .isaSymmetric, .isaTransitive, .isaCombination, .isaAbstract, .folBottom, .folImpliesIntro, .folImpliesElim,
              .use, .hyp, .folIffIntro, .folIffElimL, .isaGuard, .isaExIntro, .isaExElim, .folBound, .folPred,
@@ -335,6 +306,18 @@ struct Replacement {
              .folClassicalAbsurd, .folSchemaInst, .folLetterAll, .folLetter, .folLetterAbs:
             throw LogicError.context(phi)
         }
+    }
+
+    /// ⚠ THE BODY'S EQUIVALENCE IS PROVED ONCE, UNDER ONE VARIABLE, AND THE BINDER'S SCHEMA CARRIES IT: proved in each
+    /// direction instead, under each direction's own witness, it is one node the checker derives twice, and twice again
+    /// at every binder within (`WF_absolute.rtrancl_alt_FUNC`: 1,238 distinct steps, 3.4·10¹² written).
+    private func quantified(_ schema: BaseStatement, _ T: IRType?, _ body: NodeID, _ lb: NodeID, _ rb: NodeID, _ s: Scope,
+                            _ t: inout Table) throws -> NodeID {
+        var inner = s
+        _ = inner.fix(T)
+        let p = try proof(body, lb, rb, in: inner, &t)
+        let every = try t.intern(T == .i ? .isaAllIntro(.i, body: p) : .folForallIntro(body: p))
+        return try base.applied(schema, [try t.intern(.folLetterAbs(body: lb)), try t.intern(.folLetterAbs(body: rb))], [every], in: &t)
     }
 }
 

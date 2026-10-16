@@ -375,7 +375,7 @@ extension Reader {
             guard taken.insert(name).inserted else { return }
             switch try read(theorem) {
             case let .proved(statement, proof):
-                statements.append(Statement(name: name, root: statement, proof: proof))
+                statements.append(Statement(name: name, root: statement, proof: proof, theory: theorem.theory))
                 work += [proof, statement]
             case .refused:
                 unread.append(name)

@@ -333,3 +333,23 @@ proof cong_exists_bare:
     _bi = iff_intro _f, _g
     _out = implies_intro _bi
     qed _out
+
+proof cong_forall_bare:
+    _h = assume (forall z. (P(z) <-> Q(z)))
+    _p = assume (forall z. P(z))
+    fix z0
+    _a = forall_elim _p, z0
+    _a1 = forall_elim _h, z0
+    _qz = iff_elim_l _a1, _a
+    _all = forall_intro _qz
+    _f = implies_intro _all
+    _p2 = assume (forall z. Q(z))
+    fix z1
+    _b = forall_elim _p2, z1
+    _b1 = forall_elim _h, z1
+    _pz = iff_elim_r _b1, _b
+    _all2 = forall_intro _pz
+    _g = implies_intro _all2
+    _bi = iff_intro _f, _g
+    _out = implies_intro _bi
+    qed _out

@@ -3,7 +3,7 @@ import Testing
 import IR
 @testable import FolDialect
 
-private struct Pf {
+struct Pf {
     var t = Table()
     mutating func n(_ node: Node) throws -> NodeID { try t.intern(node) }
     mutating func b(_ k: Int) throws -> NodeID { try n(.folBound(k)) }

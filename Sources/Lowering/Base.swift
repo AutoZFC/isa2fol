@@ -17,7 +17,8 @@ import IR
     case zfPrimReplaceValue = "ZF_Base.PrimReplace_value"
     case powEX = "Pow_EX", powUNIQ = "Pow_UNIQ", powCONG = "Pow_CONG"
     case unionEX = "Union_EX", unionUNIQ = "Union_UNIQ", unionCONG = "Union_CONG"
-    case congExists = "cong_exists", forallAsNexists = "forall_as_nexists"
+    case congExists = "cong_exists", congForall = "cong_forall", congExistsBare = "cong_exists_bare", congForallBare = "cong_forall_bare"
+    case forallAsNexists = "forall_as_nexists"
     case read1, read2, read4
     case b1 = "B1", b2 = "B2", b3 = "B3", bOr = "B_or", bIff = "B_iff", rowEx = "row_ex"
     case clsZero = "cls_zero", clsNsucc = "cls_nsucc", clsSnoc4 = "cls_snoc4", clsDiag = "cls_diag", rsKey = "rs_key"
