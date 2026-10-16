@@ -67,9 +67,10 @@ private func lowered(_ t: Table, _ statements: [Statement]) throws -> Unit {
     let expected: [(Pattern, String?, Owned?)] = [
         (.isaConst(.defined(.ifol, .object), fn(o, fn(o, o)), args: [o, o]), "expand", .rule),
         (.isaConst(.defined(.pure, .meta), fn(o, o), args: [o]), "expand", .rule),
-        (.use(.isaDefinition(.fol, .object), [], o), "expand", .rule),
+        (.isaDefinition(.fol, .object, [], args: []), "expand", .rule),
+        (.isaDefinition(.pure, .meta, [], args: [o]), "expand", .rule),
         (.isaConst(.defined(.zf, .meta), fn(fn(i, fn(i, o)), fn(i, o)), args: [fn(i, fn(i, o)), i]), "expand", .rule),
-        (.use(.isaDefinition(.zf, .meta), [o], o), "expand", .rule),
+        (.isaDefinition(.zf, .meta, [o], args: []), "expand", .rule),
         (.use(.axiom(.ifol(.conjI)), [], o), "logic", .unbuilt),
         (.use(.axiom(.fol(.classical)), [], o), "logic", .unbuilt),
         (.isaAllElim(o, o), "logic", .rule),
@@ -158,7 +159,8 @@ private func lowered(_ t: Table, _ statements: [Statement]) throws -> Unit {
         (.isaConst(.defined(.zf, .object), fn(a, a), args: [a]), nil, nil),
         (.isaConst(.defined(.zf, .meta), fn(a, a), args: [a]), nil, nil),
         (.use(.axiom(.ifol(.refl)), [a], o), nil, nil),
-        (.isaOfClass(i), nil, nil),
+        (.isaOfClass(i), "expand", .rule),
+        (.isaDefinition(.ifol, .meta, [i], args: []), "expand", .rule),
         (.isaClassical(o, o), "logic", .rule),
         (.isaIffReflection(o, o, o), "logic", .rule),
         (.folAndIntro(o, o), nil, nil),
@@ -171,7 +173,8 @@ private func lowered(_ t: Table, _ statements: [Statement]) throws -> Unit {
         (.use(.theorem, [i], o), nil, nil),
         (.use(.axiom(.zf(.replacement)), [], o), nil, nil),
         (.use(.theoryAxiom, [], o), nil, nil),
-        (.use(.isaDefinition(.zf, .object), [], o), nil, nil),
+        (.isaDefinition(.zf, .object, [], args: [i]), nil, nil),
+        (.isaDefinition(.pure, .meta, [a], args: [a]), nil, nil),
     ]
     for (p, owner, owned) in expected {
         #expect(try owners(p) == (owner.map { [$0] } ?? []), "\(p)")
@@ -563,6 +566,112 @@ private struct Unbuilt: Prover {
                             theory: "Test")
     let b = try base(in: &l.t)
     var unit = Unit(table: l.t, statements: [protect, use, term, useTerm])
+    try pipeline(b).run(&unit)
+    #expect(unit.refused.isEmpty)
+    try kernelChecks(unit)
+}
+
+/// `protectD`'s box, `⋀A. PROP A ⟹ A`, by `equal_elim` of `prop_def` at its letter: the definition at its term is
+/// `reflexive` there, base's `iff_refl`, and no binder stands in the box's proof. The kernel proves it.
+@Test func aDefinitionAtItsTermsIsLoweredAndProved() throws {
+    var l = LogicTable()
+    let prop = Defined(.pure, "Pure.prop", .meta)
+    let definition = try l.definition(prop, oo, parameters: 1, try l.lam(o, try l.bound(0, o)))
+    let A = try l.bound(0, o)
+    let protected = try l.const(.defined(prop), oo, A)
+    let stated = try l.all(o, try l.equal(o, protected, A))
+    let unfolded = try l.t.intern(.isaDefinition("Pure.prop_def", of: .constant(prop), [], stated, args: [A]))
+    let body = try l.t.intern(.folImpliesIntro(protected, body: try l.t.intern(.folIffElimL(unfolded, try l.t.intern(.hyp(0, protected))))))
+    let box = Statement(name: "T.protectD", root: try l.all(o, try l.imp(protected, A)),
+                        proof: try l.t.intern(.isaAllIntro(o, body: body)), theory: "Test")
+    let b = try base(in: &l.t)
+    var unit = Unit(table: l.t, statements: [box], definitions: [definition])
+    try pipeline(b).run(&unit)
+    #expect(unit.refused.isEmpty)
+    try kernelChecks(unit)
+}
+
+/// `arity_term_i`'s shape: `OFCLASS(i, term)` by `term_class.intro` in place at `[i]`, `equal_elim` of the class's
+/// definition made symmetric, at `⋀P. λH. H`; and a theorem whose class premise its citer discharges with it. Expand
+/// states the membership by its definition, `⋀P. P ⟹ P`, a truth set; the kernel proves all three.
+@Test func aClassMembershipIsLoweredByItsDefinitionAndProved() throws {
+    var l = LogicTable()
+    let term = TypeClass(.ifol, "IFOL.term")
+    let P = try l.t.intern(.isaPropBound(0))
+    let definiens = try l.t.intern(.isaPropAll(body: try l.imp(P, P)))
+    let definition = Definition(defines: .ofClass(term), type: o, axiomTypes: [i], parameters: 0, definiens: definiens)
+    let member = try l.t.intern(.isaOfClass(i, term))
+    let stated = try l.equal(o, member, definiens)
+    let cited = try l.t.intern(.isaDefinition("IFOL.term_class_def", of: .ofClass(term), [i], stated, args: []))
+    let identity = try l.t.intern(.isaPropIntro(body: try l.t.intern(.folImpliesIntro(P, body: try l.t.intern(.hyp(0, P))))))
+    let intro = try l.t.intern(.folIffElimL(try l.t.intern(.isaSymmetric(o, cited)), identity))
+    let arity = Statement(name: "T.arity", root: member, proof: intro, theory: "Test")
+    let x = try l.bound(0, i)
+    let selfEqual = try l.equal(i, x, x)
+    let premisedProof = try l.t.intern(.folImpliesIntro(member, body: try l.t.intern(.isaReflexive(x))))
+    let premised = Statement(name: "T.premised", root: try l.all(i, try l.imp(member, selfEqual)),
+                             proof: try l.t.intern(.isaAllIntro(i, body: premisedProof)), theory: "Test")
+    let atX = try l.t.intern(.isaAllElim(try l.t.intern(.use(.theorem("T.premised"), [], premised.root)), x))
+    let discharged = try l.t.intern(.folImpliesElim(atX, try l.t.intern(.use(.theorem("T.arity"), [], member))))
+    let user = Statement(name: "T.discharges", root: try l.all(i, selfEqual),
+                         proof: try l.t.intern(.isaAllIntro(i, body: discharged)), theory: "Test")
+    let b = try base(in: &l.t)
+    var unit = Unit(table: l.t, statements: [arity, premised, user], definitions: [definition])
+    try pipeline(b).run(&unit)
+    #expect(unit.refused.isEmpty)
+    try kernelChecks(unit)
+}
+
+/// Reify's instance at a compound term concludes the walk's own rendering of the instance: a theorem whose class
+/// premise is a truth set after Expand, cited at `Pow(A)`, has the premise rendered on both sides of the instance.
+@Test func aClassPremiseCitedAtACompoundTermIsLoweredAndProved() throws {
+    var l = LogicTable()
+    let term = TypeClass(.ifol, "IFOL.term")
+    let P = try l.t.intern(.isaPropBound(0))
+    let definiens = try l.t.intern(.isaPropAll(body: try l.imp(P, P)))
+    let definition = Definition(defines: .ofClass(term), type: o, axiomTypes: [i], parameters: 0, definiens: definiens)
+    let member = try l.t.intern(.isaOfClass(i, term))
+    let cited = try l.t.intern(.isaDefinition("IFOL.term_class_def", of: .ofClass(term), [i], try l.equal(o, member, definiens), args: []))
+    let identity = try l.t.intern(.isaPropIntro(body: try l.t.intern(.folImpliesIntro(P, body: try l.t.intern(.hyp(0, P))))))
+    let arity = Statement(name: "T.arity", root: member, proof: try l.t.intern(.folIffElimL(try l.t.intern(.isaSymmetric(o, cited)), identity)),
+                          theory: "Test")
+    let x = try l.bound(0, i)
+    let premised = Statement(name: "T.premised", root: try l.all(i, try l.imp(member, try l.equal(i, x, x))),
+                             proof: try l.t.intern(.isaAllIntro(i, body: try l.t.intern(.folImpliesIntro(member, body: try l.t.intern(.isaReflexive(x)))))),
+                             theory: "Test")
+    let pow = try l.const(.primitive(.zf(.pow)), fn(i, i), x)
+    let atPow = try l.t.intern(.isaAllElim(try l.t.intern(.use(.theorem("T.premised"), [], premised.root)), pow))
+    let discharged = try l.t.intern(.folImpliesElim(atPow, try l.t.intern(.use(.theorem("T.arity"), [], member))))
+    let user = Statement(name: "T.atPow", root: try l.all(i, try l.equal(i, pow, pow)), proof: try l.t.intern(.isaAllIntro(i, body: discharged)),
+                         theory: "Test")
+    let b = try base(in: &l.t)
+    var unit = Unit(table: l.t, statements: [arity, premised, user], definitions: [definition])
+    try pipeline(b).run(&unit)
+    #expect(unit.refused.isEmpty)
+    try kernelChecks(unit)
+}
+
+/// `⋀P. x = x ⟹ P ⟹ P`, a truth set holding the variable an instance replaces: cited at `Pow(A)`, the instance's
+/// congruence walks under the truth set's binder as under the `∀` it renders.
+@Test func aTruthSetHoldingTheInstantiatedVariableIsLoweredAndProvedAtACompoundTerm() throws {
+    var l = LogicTable()
+    let P = try l.t.intern(.isaPropBound(0))
+    let truthSet = { (x: NodeID, l: inout LogicTable) throws -> NodeID in
+        try l.t.intern(.isaPropAll(body: try l.imp(try l.equal(i, x, x), try l.imp(P, P))))
+    }
+    let x = try l.bound(0, i), inner = try l.bound(1, i)
+    let phi = try truthSet(inner, &l)
+    let boundOver = Statement(name: "T.boundOver", root: try l.all(i, try l.imp(phi, phi)),
+                              proof: try l.t.intern(.isaAllIntro(i, body: try l.t.intern(.folImpliesIntro(phi, body: try l.t.intern(.hyp(0, phi)))))),
+                              theory: "Test")
+    let powInner = try l.const(.primitive(.zf(.pow)), fn(i, i), inner)
+    let phiAtPow = try truthSet(powInner, &l)
+    let pow = try l.const(.primitive(.zf(.pow)), fn(i, i), x)
+    let atPow = try l.t.intern(.isaAllElim(try l.t.intern(.use(.theorem("T.boundOver"), [], boundOver.root)), pow))
+    let user = Statement(name: "T.boundAtPow", root: try l.all(i, try l.imp(phiAtPow, phiAtPow)),
+                         proof: try l.t.intern(.isaAllIntro(i, body: atPow)), theory: "Test")
+    let b = try base(in: &l.t)
+    var unit = Unit(table: l.t, statements: [boundOver, user])
     try pipeline(b).run(&unit)
     #expect(unit.refused.isEmpty)
     try kernelChecks(unit)

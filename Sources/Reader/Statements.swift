@@ -57,9 +57,9 @@ extension Decode {
 }
 
 struct Classes {
-    private var declared: Set<String> = []
+    private var declared: [String: TypeClass] = [:]
 
-    mutating func load(_ body: [Ref], in forest: Forest) throws {
+    mutating func load(_ body: [Ref], family: Family, in forest: Forest) throws {
         let d = Decode(forest: forest)
         for r in body {
             guard case let .element(entity) = forest[r], entity.tag == "entity" else {
@@ -67,12 +67,15 @@ struct Classes {
             }
             let name = try entity.attribute("name")
             _ = try d.pair({ $0 }, { $0 }, entity.children)
-            guard declared.insert(name).inserted else { throw MalformedExport.duplicateClass(name) }
+            guard declared.updateValue(TypeClass(family, name), forKey: name) == nil else {
+                throw MalformedExport.duplicateClass(name)
+            }
         }
     }
 
-    func check(_ c: String) throws {
-        guard declared.contains(c) else { throw MalformedExport.undeclaredClass(c) }
+    func typeClass(_ c: String) throws -> TypeClass {
+        guard let k = declared[c] else { throw MalformedExport.undeclaredClass(c) }
+        return k
     }
 }
 

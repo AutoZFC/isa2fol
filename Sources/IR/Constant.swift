@@ -53,6 +53,46 @@ public struct Defined: Hashable, Sendable {
     }
 }
 
+public struct TypeClass: Hashable, Sendable, CustomStringConvertible {
+    public let family: Family
+    public let name: String
+
+    public init(_ family: Family, _ name: String) {
+        self.family = family
+        self.name = name
+    }
+
+    public var description: String { name }
+}
+
+@frozen public enum Definiendum: Hashable, Sendable, CustomStringConvertible {
+    case constant(Defined)
+    case ofClass(TypeClass)
+
+    public var family: Family {
+        switch self {
+        case let .constant(d): return d.family
+        case let .ofClass(c): return c.family
+        }
+    }
+
+    public var level: Level {
+        switch self {
+        case let .constant(d): return d.level
+        case .ofClass: return .meta
+        }
+    }
+
+    public var name: String {
+        switch self {
+        case let .constant(d): return d.name
+        case let .ofClass(c): return c.name
+        }
+    }
+
+    public var description: String { name }
+}
+
 @frozen public enum Constant: Hashable, Sendable {
     case primitive(Primitive)
     case defined(Defined)
@@ -113,7 +153,6 @@ public struct Defined: Hashable, Sendable {
 
 @frozen public enum Cited: Hashable, Sendable {
     case theorem(String)
-    case isaDefinition(String, of: Defined)
     case axiom(Axiom)
     case theoryAxiom(String)
     case lemma(Lemma)
@@ -122,7 +161,7 @@ public struct Defined: Hashable, Sendable {
 
     public var name: String {
         switch self {
-        case let .theorem(name), let .isaDefinition(name, _), let .theoryAxiom(name), let .base(name): return name
+        case let .theorem(name), let .theoryAxiom(name), let .base(name): return name
         case let .axiom(a): return a.name
         case let .lemma(l): return l.name
         case let .definition(c): return c.definitionName

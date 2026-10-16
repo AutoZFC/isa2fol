@@ -48,14 +48,14 @@ public protocol Registry {
 }
 
 public struct Definition: Hashable, Sendable {
-    public let constant: Defined
+    public let defines: Definiendum
     public let type: IRType
     public let axiomTypes: [IRType]
     public let parameters: Int
     public var definiens: NodeID
 
-    public init(constant: Defined, type: IRType, axiomTypes: [IRType], parameters: Int, definiens: NodeID) {
-        self.constant = constant
+    public init(defines: Definiendum, type: IRType, axiomTypes: [IRType], parameters: Int, definiens: NodeID) {
+        self.defines = defines
         self.type = type
         self.axiomTypes = axiomTypes
         self.parameters = parameters
@@ -159,6 +159,15 @@ private struct Lowering {
     var held: Set<Pattern>
 }
 
+private func definiendum(_ d: Definition) throws -> Pattern {
+    switch d.defines {
+    case let .constant(c): return .isaConst(.init(.defined(c)), d.type, args: d.type.domains)
+    case .ofClass:
+        guard d.axiomTypes.count == 1 else { throw PipelineError.notADefinition(d.defines.name) }
+        return .isaOfClass(d.axiomTypes[0])
+    }
+}
+
 private struct Run {
     let passes: [Pass]
     let registry: (any Registry)?
@@ -193,8 +202,7 @@ private struct Run {
             if unowned.isEmpty { live.append(Live(statement: s, held: held)) } else { self.unit.refuse(s.name, .noOwner(named(unowned))) }
         }
         for d in unit.definitions {
-            let constant = Pattern.isaConst(.init(.defined(d.constant)), d.type, args: d.type.domains)
-            guard let k = owner(of: constant) else { continue }
+            guard let k = owner(of: try definiendum(d)) else { continue }
             let held = try check(patterns(under: [d.definiens], in: unit.table))
             guard held.allSatisfy({ $0.dialects.contains(.fol) || owner(of: $0) != nil }) else { continue }
             lowering.append(Lowering(definition: d, owner: k, held: held))
@@ -258,7 +266,7 @@ private struct Run {
                 let definiens = next.next()!
                 if definiens != d.definition.definiens { d.held = try check(patterns(under: [definiens], in: unit.table)) }
                 if let p = survivor(d.held, through: k) {
-                    throw PipelineError.survived(name: d.definition.constant.name, pass: pass.name, pattern: p)
+                    throw PipelineError.survived(name: d.definition.defines.name, pass: pass.name, pattern: p)
                 }
                 d.definition.definiens = definiens
                 lowering.append(d)
@@ -313,7 +321,7 @@ private struct Run {
         for c in constants where definitionsAsked.insert(c).inserted {
             let name = c.definitionName
             guard names.insert(name).inserted else { throw PipelineError.duplicateName(name) }
-            if let d = reached.first(where: { $0.constant == c }) ?? unit.definitions.first(where: { $0.constant == c }),
+            if let d = reached.first(where: { $0.defines == .constant(c) }) ?? unit.definitions.first(where: { $0.defines == .constant(c) }),
                let refusal = blocked(try check(patterns(under: [body(of: d, in: unit.table)], in: unit.table)), through: r) {
                 unit.refuse(name, refusal)
                 definitionsRefused.insert(c)
@@ -463,7 +471,7 @@ private func citations(under proof: NodeID, _ t: Table) -> [(Cited, NodeID)] {
             switch c {
             case .theorem, .lemma, .definition:
                 if cited.insert(c).inserted { found.append((c, root)) }
-            case .isaDefinition, .axiom, .theoryAxiom, .base:
+            case .axiom, .theoryAxiom, .base:
                 break
             }
             continue

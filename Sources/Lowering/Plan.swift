@@ -16,14 +16,6 @@ func isObject(_ T: IRType) -> Bool {
     }
 }
 
-func mentionsTypeVariable(_ T: IRType) -> Bool {
-    switch T {
-    case .i, .o: return false
-    case .variable: return true
-    case let .fn(a, b): return mentionsTypeVariable(a) || mentionsTypeVariable(b)
-    }
-}
-
 func unfolds(_ f: Family, _ level: Level) -> Bool {
     switch (f, level) {
     case (.pure, _), (.ifol, _), (.fol, _), (.zf, .meta): return true

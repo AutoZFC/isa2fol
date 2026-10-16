@@ -217,8 +217,7 @@ struct Terms {
             guard arguments.isEmpty else {
                 throw MalformedExport.applicationArity("OFCLASS", expected: 0, found: arguments.count)
             }
-            try classes.check(c)
-            n = try t.intern(.isaOfClass(try irType(T), c))
+            n = try t.intern(.isaOfClass(try irType(T), try classes.typeClass(c)))
         }
         let found = t.type(of: n)
         guard found == U else { throw MalformedExport.typeMismatch(expected: U, found: found) }

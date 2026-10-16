@@ -298,3 +298,21 @@ private let collect = Constant.defined(Defined(.zf, "ZF_Base.Collect", .object))
     let instance = try t.intern(.isaAllElim(intro, C))
     #expect(t.conclusion(of: instance) == (try t.intern(.folImplies(C, C))))
 }
+
+/// A definition at its terms concludes its statement instantiated at them, `prop_def` at `C` concluding `PROP C ≡ C`; at
+/// no terms, its statement; a term of another type than its parameter's is refused.
+@Test func aDefinitionConcludesItsStatementAtItsTerms() throws {
+    var t = Table()
+    let prop = Defined(.pure, "Pure.prop", .meta)
+    let A = try t.intern(.isaBound(0, o))
+    let stated = try t.intern(.ifolAll(o, body: try t.intern(.folIff(try t.intern(.isaConst(.defined(prop), fn(o, o), args: [A])), A))))
+    let C = try t.intern(.folPred(.base("C"), args: []))
+    let at = try t.intern(.isaDefinition("Pure.prop_def", of: .constant(prop), [], stated, args: [C]))
+    #expect(t.conclusion(of: at) == (try t.intern(.folIff(try t.intern(.isaConst(.defined(prop), fn(o, o), args: [C])), C))))
+    let bare = try t.intern(.isaDefinition("Pure.prop_def", of: .constant(prop), [], stated, args: []))
+    #expect(t.conclusion(of: bare) == stated)
+    let x = try t.intern(.isaFree(.named("x"), i))
+    #expect(throws: TableError.childType(expected: o, found: i)) {
+        try t.intern(.isaDefinition("Pure.prop_def", of: .constant(prop), [], stated, args: [x]))
+    }
+}

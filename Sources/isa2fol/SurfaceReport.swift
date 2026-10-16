@@ -62,11 +62,11 @@ func closureReport(_ c: Census, command: String) -> String {
     for (cited, n) in c.citations {
         switch cited {
         case let .axiom(a): axioms[a.family, default: []].append((a.name, n))
-        case let .isaDefinition(name, d): definitions[d.family, default: []].append((name, n))
         case let .theoryAxiom(name): theory.append((name, n))
         case .theorem, .lemma, .base, .definition: break
         }
     }
+    for (cited, n) in c.definitions { definitions[cited.defines.family, default: []].append((cited.axiom, n)) }
 
     line("# CLOSURE — what every named ZF theorem rests on")
     line("")

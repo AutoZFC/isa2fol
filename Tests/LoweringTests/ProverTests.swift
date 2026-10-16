@@ -31,7 +31,7 @@ private func fn(_ a: IRType, _ b: IRType) -> IRType { .fn(a, b) }
 @Test func exAndUniqOfAConstantAtAVariableAreProvedToTheEnd() throws {
     var r = Terms()
     let s = Defined(.zf, "T.s", .object)
-    let d = Definition(constant: s, type: fn(i, i), axiomTypes: [], parameters: 0, definiens: try r.lam(i, try r.pow(try r.x(0))))
+    let d = Definition(defines: .constant(s), type: fn(i, i), axiomTypes: [], parameters: 0, definiens: try r.lam(i, try r.pow(try r.x(0))))
     let term = try r.n(.isaConst(.defined(s), fn(i, i), args: [try r.x(0)]))
     let (proved, unbuilt) = try proveAll(try r.requests(term), [d], in: &r.t)
     let names = Set(proved.map(\.name))
@@ -46,7 +46,7 @@ private func fn(_ a: IRType, _ b: IRType) -> IRType { .fn(a, b) }
 @Test func aDefinedSetConstantsFactsComeFromItsBody() throws {
     var r = Terms()
     let e = Defined(.zf, "T.e", .object)
-    let d = Definition(constant: e, type: i, axiomTypes: [], parameters: 0, definiens: try r.pow(try r.zero()))
+    let d = Definition(defines: .constant(e), type: i, axiomTypes: [], parameters: 0, definiens: try r.pow(try r.zero()))
     let term = try r.n(.isaConst(.defined(e), i, args: []))
     let (proved, unbuilt) = try proveAll(try r.requests(term), [d], in: &r.t)
     #expect(Set(proved.map(\.name)).isSuperset(of: ["T.e_UNIQ", "T.e_EX", "ZF_Base.Pow_FUNC", "ZF_Base.Pow_AGREE", "ZF_Base.Pow_CLASS"]))
@@ -60,7 +60,7 @@ private func fn(_ a: IRType, _ b: IRType) -> IRType { .fn(a, b) }
     var r = Terms()
     let ap = Defined(.zf, "T.ap", .object), F = fn(i, i)
     let body = try r.n(.isaVarApp(head: try r.n(.isaBound(1, F)), args: [try r.x(0)]))
-    let d = Definition(constant: ap, type: fn(F, fn(i, i)), axiomTypes: [], parameters: 0, definiens: try r.lam(F, try r.lam(i, body)))
+    let d = Definition(defines: .constant(ap), type: fn(F, fn(i, i)), axiomTypes: [], parameters: 0, definiens: try r.lam(F, try r.lam(i, body)))
     let lambda = try r.lam(i, try r.pow(try r.x(0)))
     let term = try r.n(.isaConst(.defined(ap), fn(F, fn(i, i)), args: [lambda, try r.x(0)]))
     let (proved, unbuilt) = try proveAll(try r.requests(term), [d], in: &r.t)

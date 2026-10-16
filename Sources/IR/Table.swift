@@ -69,7 +69,7 @@ public struct Table: Sendable {
         case let .isaConst(.primitive(.pure(.eq)), .fn(T, _), args) where args.count == 2:
             return (T, args[0], args[1])
         case .ifolAll, .ifolEx, .isaConst, .isaFree, .isaBound, .isaVarApp, .isaAbs, .isaOfClass, .isaAllIntro,
-             .isaAllElim, .isaReflexive, .isaSymmetric, .isaTransitive, .isaCombination, .isaAbstract, .isaClassical, .isaIffReflection, .isaPropAll, .isaPropIntro, .isaPropBound, .folImplies,
+             .isaAllElim, .isaReflexive, .isaSymmetric, .isaTransitive, .isaCombination, .isaAbstract, .isaClassical, .isaIffReflection, .isaDefinition, .isaPropAll, .isaPropIntro, .isaPropBound, .folImplies,
              .folAnd, .folOr, .folBottom, .folImpliesIntro, .folImpliesElim, .use, .hyp, .folIffIntro, .folIffElimL,
              .isaGuard, .isaExIntro, .isaExElim, .folNot, .folBound, .folPred, .folForall, .folExists, .folAndIntro, .folAndElimL, .folAndElimR,
              .folOrIntroL, .folOrIntroR, .folOrElim, .folNotIntro, .folNotElim, .folIffElimR, .folForallIntro,
@@ -279,11 +279,20 @@ public struct Table: Sendable {
                 try expect(.o, x)
                 return .step(concluding: try instantiate(body, with: x, in: &self))
             }
-            guard case let .ifolAll(T, body) = self[try premise(p)] else { throw TableError.principalConnective(p) }
-            try expect(T, x)
-            if case .fn = T, !isAbstraction(x) { throw TableError.functionArgumentNotAbstraction(x) }
-            return .step(concluding: try instantiate(body, with: x, in: &self))
+            return .step(concluding: try instance(try premise(p), at: x, blaming: p))
+        case let .isaDefinition(_, _, _, stated, xs):
+            try expect(.o, stated)
+            var concluded = stated
+            for x in xs { concluded = try instance(concluded, at: x, blaming: stated) }
+            return .step(concluding: concluded)
         }
+    }
+
+    private mutating func instance(_ formula: NodeID, at x: NodeID, blaming step: NodeID) throws -> NodeID {
+        guard case let .ifolAll(T, body) = self[formula] else { throw TableError.principalConnective(step) }
+        try expect(T, x)
+        if case .fn = T, !isAbstraction(x) { throw TableError.functionArgumentNotAbstraction(x) }
+        return try instantiate(body, with: x, in: &self)
     }
 
     @discardableResult

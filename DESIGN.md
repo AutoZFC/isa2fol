@@ -441,9 +441,9 @@ Isabelle's side:
 because the statement's `∀`-closure is outermost. Absorption skipped proof arguments wherever they
 sat, which hid two test fixtures written the other way round; the export has none.
 
-A `ZClassp` — 0 in the export — stays refused by name. Lowering reads `OFCLASS` as METADATA —
-Isabelle's type check, which the exporter made a premise: it checks the class and drops the premise,
-its discharge and the proof behind it (§4a, decision 4).
+A `ZClassp` — 0 in the export — stays refused by name. Lowering states `OFCLASS` by its class's
+definition, `⋀P::prop. P ⟹ P` (FOUNDATION S4; "OFCLASS — a class's membership by its definition"):
+trivially true at `i`, the only type in `term`, never dropped — `arity_term_i` proves it.
 
 ### 4.3b The input layer: axioms and constants  **[DECIDED 2026-10-13 (user); BUILT 2026-10-13]**
 
@@ -1238,8 +1238,9 @@ defined constant. Before it was built, 1,048 named theorems stopped there (`isa2
 At a type variable both have no owner: decision 4's, refused before the plan. The constants are those `theory/constdefs`
 lists for Pure, IFOL and FOL (§4.3b): Pure's `PROP &&& TERM`, IFOL's `↔ ¬ True ∃! Uniq Let`, FOL's `induct_*`; and the
 five ZF ones at the meta level (6).
-`IFOL.term_class_def` defines `OFCLASS`, which the reader reads as `isaOfClass`, never as a constant: a citation of it
-holds `isaOfClass`, which no pass owns, so it never reaches Expand.
+`IFOL.term_class_def` defines the class `IFOL.term`'s membership, which the reader reads as `isaOfClass`, never as the
+constant `IFOL.term_class`: Expand unfolds it by that definition, and a citation of it is `reflexive` ("OFCLASS — a
+class's membership by its definition", 1 and 2).
 
 **2. A constant unfolds by its definition at its own type.** `c(a⃗)` at `T` becomes `c`'s definiens at `T`, `λx⃗. b`,
 applied to the rewritten `a⃗` and β-reduced: `b[a⃗/x⃗]`. An argument at a function type is a `λ`, and reduces into the
@@ -1278,6 +1279,9 @@ use Pure.prop_def                      isaAllIntro(o, isaAllElim(use Pure.reflex
 The proof is built from the definition, never by reading the citation's statement back (I1); the pipeline checks that
 it concludes the unfolded statement, by ID. `Pure.reflexive`'s statement comes from the reader, as the export states
 it, never a shape built by hand, as point 6 of "The unit and its citations" rules for base's claims.
+
+**Since "A definition read at its terms"** a definition's citation carries the terms its application has, and the rule
+is `reflexive` at them, a `⋀`-intro only for a parameter the application leaves.
 
 **4. The reader adds three things to a definition.** A citation names a definition by its axiom's type arguments, not by
 its constant's type; Pure's applied form must be told from `c ≡ λx⃗. b`; and `Pure.reflexive` is needed at a type no
@@ -2525,7 +2529,9 @@ at `i` and step 2's equality at `i` and `class_subst` stand; the rest of 2–4 i
 since, in order: **2′, the logic's rules read as steps** ("The logic's rules read as steps", below), **BUILT 2026-10-16**;
 then **boxes binding a proposition, read as schemas** ("Boxes binding a proposition, read as schemas", below), **BUILT
 2026-10-16**; then **functions of propositions and the bound `⋀P`** ("Functions of propositions and the bound `⋀P` — S4's truth
-set, applied", below), **BUILT 2026-10-16**.
+set, applied", below), **BUILT 2026-10-16**; then **a definition read at its terms** ("A definition read at its terms",
+below), **BUILT 2026-10-16**; then **`OFCLASS`, and a generic theorem in place** ("OFCLASS — a class's membership by its
+definition", below), **BUILT 2026-10-16**.
 
 0. **Emission** (below): no statement of the corpus has met the checker, and class existence's proofs are unmeasured.
 1. **Decision 4** (§4a): a theorem cited at a type instance. Restricted to `term`, it is read at `i` and `OFCLASS(i,
@@ -2949,7 +2955,8 @@ them. A citation of one of these rules is then never read; Logic keeps its row, 
 (§4.3a 5): an application at `[i]` takes the class's discharge first. The kernel's step takes the logical premises only —
 the guard its `forall_elim` needs is Fol's (R3) — so the reader reads the application past its discharge and does not read
 the discharge. ⚠ This is not the removed class drop: a theorem's own class premise, its assumption and the discharges of
-its citations stay as Isabelle states them, no pass's until S4's rule for `OFCLASS`.
+its citations stay as Isabelle states them, stated by the class's definition since "OFCLASS — a class's membership by
+its definition".
 
 **3. `classical` and `iff_reflection` are read as isa steps, Logic's after Expand.** Their statements hold IFOL's `¬` and
 `⟷`, which are defined: the reader keeps them and Expand unfolds them, `¬P` to `P ⟶ False` and `P ⟷ Q` to
@@ -2966,8 +2973,8 @@ take `P`, which the application has. That design waits — an ∃-intro carrying
 is stated at `'a :: term`, so its uses stand in theorems over `'a`, read at `i`, whose own class premise holds them back.
 
 **5. `subst` stays base's `class_subst`** (step 2, decision 3): fol-zfc has no step for it, and its application at a λ
-is an instance at a class type. Its citation keeps the axiom's statement, class premise included, so it waits on S4's rule
-for `OFCLASS` too.
+is an instance at a class type. Its citation keeps the axiom's statement, class premise included, stated by the class's
+definition ("OFCLASS — a class's membership by its definition"); its λ waits on step 3.
 
 **The contracts (D2):**
 
@@ -3235,7 +3242,8 @@ combination), each read by kind.
 3. **Expand's per-parameter intros stay letters**: Expand replaces a definition's citation by a proof of the citation's
    own statement, whose binders are the definition's frees. An instance of one inside a proof (`protectD`'s
    `prop_def · A`) stays a letter off its spine until a definition's citation stays a citation — Expand's design, a
-   separate step.
+   separate step. Built instead as "A definition read at its terms": the definition takes its terms, and no binder
+   stands.
 4. **`Pure.all` has its own reading, `metaAll`**, apart from `IFOL.All`: no constant's name is compared outside the
    reading table.
 5. **Every truth-set construction is built closed over its premises' statements and applied to them**, as `reductio`
@@ -3257,6 +3265,256 @@ theorems and 956 boxes they cite, 73.6 s. `lower data/zf_export --emit DIR`: 5:2
   inside a proof.
 - `SOURCE_SURFACE.md` regenerated: 1,502 patterns to 1,505 — the three kinds, in 8,070, 8,070 and 8,067 named theorems'
   closures. `CLOSURE.md` unchanged.
+
+### A definition read at its terms  **[AGREED 2026-10-16 (user), the direction and the node; BUILT 2026-10-16, its decisions in the build for the user's review — `Sources/IR/Node.swift`, `Pattern.swift`, `Table.swift`, `Constant.swift`, `Sources/Reader/Reader.swift`, `Census.swift`, `Sources/Lowering/Expand.swift`, `Sources/isa2fol/SurfaceReport.swift`, `docs/FOUNDATION.md`]**
+
+**The step.** A definition is an axiom, and Expand proves its citation where it stands (Expand, 3). Unfolded it says
+`b ≡ b`: Pure's `reflexive`, which Logic already makes base's `iff_refl` at `o`, `eq_refl` at `i`, the pointwise rule at
+`o⃗ ⇒ o`. An applied definition's parameters are bound by Expand's `⋀`-intros inside the citer's proof, and at `o` such an
+intro is a letter off its spine ("Functions of propositions and the bound `⋀P`", decision 3). Two definitions have one,
+both Pure's: `prop_def` (`PROP A ≡ A`) and `conjunction_def` (`A &&& B ≡ ⋀C. (A ⟹ B ⟹ C) ⟹ C`) — of the export's 999
+definitions the only ones with a free at `prop` or `o` (a throwaway scan of `theory/axioms`). IFOL's, FOL's and ZF's
+meta-level ones are `c ≡ λx⃗. b`, with no parameter. In the proof term the axiom and its terms are one application, as a
+rule's are ("The logic's rules read as steps"): read as one piece, nothing is bound.
+
+**The problem, in target text.** `Pure.protectD` is box 18 at `A`, box 18 is box 16 at `A`, and box 16 cites the axiom:
+
+```
+Isabelle   box 16 = λA. equal_elim · PROP A · A ∙ (prop_def · A)       ⊢ ⋀A. PROP A ⟹ A
+read       isaAllElim(use(definition prop_def), A)                       ⊢ PROP A ≡ A
+Expand     isaAllElim(isaAllIntro(o, reflexive(A′)), A)                  prop_def's ⋀A′ inside the box's proof
+Logic      schema_inst on an intro, not on a citation                    refused: a letter off its spine
+wanted     schema Pure.BOX_… [A0(0)]: (A0 -> A0)
+               _0 = assume A0
+               _1 = schema_inst iff_refl { A: A0 }
+               _2 = iff_elim_l _1, _0
+               _3 = implies_intro _2
+```
+
+**Decided (user): no schema and no lemma for a definition.** A schema `Pure.prop_def`, derived from the axiom, would
+restate base's `iff_refl`; one written into base would key on a name. The definition's citation is `reflexive` at its
+terms, whose helpers are base's. One rule for every definition, today's the case of no terms:
+
+| piece | rule |
+|---|---|
+| a definition at no terms: IFOL's, FOL's, ZF's meta-level | Expand: `reflexive(λx⃗. b)`, as now |
+| a definition at its terms: `prop_def · A`, `conjunction_def · A · B` | Expand: `reflexive(b[a⃗])` |
+| `isaReflexive` at `o`, `i`, `o⃗ ⇒ o` | Logic, as now: `iff_refl`, `eq_refl`, pointwise |
+| a definition at a type variable (`term_def` at `['a]`) | no owner: decision 4 |
+| a ZF definition at the object level | read at its terms too, no owner: step 5 |
+
+**1. The node** (agreed). `isaDefinition(String, of: Defined, [IRType], NodeID, args: [NodeID])`: the axiom, its
+constant, its type arguments, its statement at them — closed, as `use` holds a statement — and the terms its application
+has, in order. It concludes the statement instantiated at the terms, by the table's one instance, which `isaAllElim`
+uses; isa only. It replaces `use(.isaDefinition…)`, and `Cited.isaDefinition` goes: every definition's citation is this
+node, at no terms for the `λ`-forms.
+
+```
+before   PAxm prop_def · A  →  isaAllElim(use(.isaDefinition("Pure.prop_def", of: prop), [], ⋀A. PROP A ≡ A), A)
+after    PAxm prop_def · A  →  isaDefinition("Pure.prop_def", of: prop, [], ⋀A. PROP A ≡ A, args: [A])
+```
+
+- Its pattern is `isaDefinition(Family, Level, [IRType], args: [IRType])`, owned as the `use(definition …)` rows are now:
+  Expand's where `unfolds(family, level)` and no type variable, no owner otherwise.
+- Expand's rule: `reflexive(b[a⃗])`, under a `⋀`-intro for each parameter the application leaves.
+- The reader, in a proof's spine, gives a definition its leading terms, as `applied` gives a rule its own.
+- Not term arguments on `use`: a citation would then have two ways to be instantiated, its arguments and `isaAllElim`
+  (rule 4). Not a node around `use(definition …)`: Expand rewrites the inner citation first, and the outer would read a
+  rewritten child.
+
+**The contracts (D2):**
+
+| | provides | assumes |
+|---|---|---|
+| Reader | every definition's citation as `isaDefinition`, with the terms its application has | an export of one build |
+| Expand | `reflexive` at the unfolded instance, a `⋀`-intro for each parameter left | its definitions, as now |
+| Logic, Fol, emission | unchanged | — |
+
+**FOUNDATION first.** 3b's mapping gains a row: an application of a definition whose constant is unfolded is `reflexive`
+at its terms.
+
+**Tests, written first.**
+- `TableTests`: the node concludes its statement at its terms, and at no terms the statement; a term of the wrong type
+  is refused.
+- `ProofReaderTests`: `prop_def · A` reads as the node at `[A]`; `not_def_raw` at no terms; no proof holds a `use` of a
+  definition.
+- `ExpandTests`: the node at `[A]` becomes `reflexive(A)`; at no terms `reflexive` of the `λ`, as now.
+- `PlanTests`: a box citing `prop_def` at its letter lowers to `iff_refl`, and the kernel proves it; the ownership rows.
+
+**Built.** IR: `isaDefinition`, isa only, concluding its statement at its terms by `Table`'s one instance, which
+`isaAllElim` shares (a term of its parameter's type, a function-typed one an abstraction); `Cited.isaDefinition` and
+`CitedKind.isaDefinition` gone. Reader: a proof's spine headed by a definition gives it its leading terms, beside
+`applied`'s rules. Expand: `reflexivity(d, at: args)`. FOUNDATION 3b: the row.
+
+**Decisions made in the build**, for the user's review:
+1. **The census counts a definition apart from `Cited`** (`Census.definitions`, keyed by `CitedDefinition`, the axiom's
+   name and its constant): `Cited` is what a `use` cites, and a definition is no longer one. `CLOSURE.md` reads it.
+2. **The reader takes terms while the statement has a leading binder**: a definition has no premise, so an argument after
+   them is applied by the spine's general loop, and the table refuses it (an equation is no implication).
+- ⚠ Rule 13 struck in a test: `t.conclusion(of: try t.intern(…))` read a copy of the table taken before the node was
+  interned. The node is bound first.
+
+**Measured** (`MEM=32G scripts/capped.sh .build/release/isa2fol read data/zf_export`: all 9,420 proved, and the 200
+named theorems and 956 boxes binding a proposition they cite, 73.4 s; 6,388,887 nodes (6,389,466). `lower data/zf_export
+--emit DIR`: 5:40, peak 14.9 GB; read 74.2 s, lowered 64.9 s, emitted 199.5 s. Then `scripts/check-unit.sh DIR`: 10.3 s,
+peak 556 MB):
+- **The kernel proves the unit**: 38 parts (8), each exit 0 and empty stderr; claims 1,485 of 1,485 (1,433), schemas 104
+  of 104 (29); 453 `@def`s.
+- **Named theorems lowered: 63** (9). The 54 new: 51 `mutual_induct`s, whose statements and proofs hold `&&&` and
+  `PROP`, `Arith.iff_cong2`, `func.basic_monos.2` and `.4`. Of the theorems cited outside the ZF sessions, Pure's
+  `protectI`, `protectD`, `conjunctionI`, `conjunctionD1`, `conjunctionD2` and `meta_mp`, IFOL's `TrueI`, `rev_mp`, `impE`,
+  `conjE`, `atomize_imp`, `atomize_conj`, FOL's `ccontr`, `imp_elim`, `conj_mono`, `True_implies_equals` reach the kernel.
+- Refused at no owner 6,722 (6,722), logic 1,084 (1,084), a letter off its spine 13 (13), a refused citation 1,538
+  (1,592), led by `Formula.satisfies_DEF` 63; `IFOL.TrueI` (51) no longer among them. The 13 off their spine are no
+  definition's: `DC.imp_DC0.lemma2`, `lemma3`, `simplify_recursion`, `HH.HH_Hartog_is_x`, `Formula.lt_LsetI`,
+  `Multiset.irrefl_Memrel`, `PropLog.Imp_Fls`, `Group.subgroup_nonempty`, `Cardinal.cardinal_lt_imp_lt`,
+  `Diff_sing_eqpoll`, `OrderType.Ord_iso_implies_eq`, `Univ.VfromI`, `VsetI` (a throwaway print in `lower`, not kept);
+  their source is not traced.
+- `SOURCE_SURFACE.md` regenerated: 1,505 patterns to 1,553 — the eleven `use(definition …)` rows become `isaDefinition`
+  rows at their terms' types: `prop_def` at `[o]` 8,174, `conjunction_def` at `[o, o]` 7,700, ZF's object-level
+  definitions at each applied shape; `isaAllElim(o, i)` 8,958 to 8,778. `CLOSURE.md` unchanged.
+
+### OFCLASS — a class's membership by its definition, and a generic theorem in place  **[AGREED 2026-10-16 (user), the three decisions, 2 revised: a definition defines what its left side is; BUILT 2026-10-16, its decisions in the build for the user's review — `Sources/IR/Constant.swift`, `Node.swift`, `Pass.swift`, `IRType.swift`, `Sources/Reader/Reader.swift`, `Statements.swift`, `Terms.swift`, `Export.swift`, `Census.swift`, `Sources/Lowering/Expand.swift`, `Logic.swift`, `Instance.swift`, `Congruence.swift`, `docs/FOUNDATION.md`]**
+
+**The step.** A ZF proof cites the logic's rules and theorems at `i`, each stated over a type of class `term` with the
+class its first premise (§4.3a 5), and discharges the premise with `ZF_Base.arity_term_i`. `isaOfClass(i)` has no owner
+("Removed"), and 5,601 of the 6,722 named theorems refused at no owner hold it. Two pieces, from the export:
+
+```
+IFOL.term_class_def    OFCLASS('a, term) ≡ (⋀P::prop. P ⟹ P)                  the class's definition, an axiom
+IFOL.term_class.intro  OFCLASS('a, term)      'a unrestricted                   equal_elim (symmetric term_class_def['a]) (⋀P. λH. H)
+ZF_Base.arity_term_i   OFCLASS(i, term)                                         term_class.intro at [i]
+a ZF proof             IFOL.sym · a · b ∙ arity_term_i ∙ h                      the class premise, discharged
+```
+
+- **(A) The formula.** FOUNDATION S4: `OFCLASS(T, c)` is its definition at `T`, `⋀P::prop. P ⟹ P`, a truth set:
+  `∀E. truth(E) → (holds(E) → holds(E))`. Nothing provides the definition: the reader reads `OFCLASS` as `isaOfClass`,
+  never as the constant `IFOL.term_class` its definition defines, so it hands Expand no definition of it.
+- **(B) What proves it.** `arity_term_i` is `term_class.intro` at `[i]`, a theorem whose `'a` no class restricts:
+  `use(theorem, [i], o)`, no owner — decision 4's deferred half. `arity_term_i` stays refused, and every proof
+  discharging through it falls with it; (A) alone moves the 5,601 from no owner to a refused citation (expected).
+
+**The problem, in target text.**
+
+```
+read now   isaOfClass(i)                                      no owner
+           use(theorem IFOL.term_class.intro, [i], o)        no owner: decision 4
+wanted     claim ZF_Base.arity_term_i: forall E. (truth(E) -> (holds(E) -> holds(E)))
+               iff_symm and iff_refl at the definiens, iff_elim_l of the truth set's intro by weaken
+           a premise OFCLASS(i, term) of IFOL.sym, read at i:  (forall E. (truth(E) -> (holds(E) -> holds(E)))) -> …
+```
+
+**1. `OFCLASS(T, c)` is unfolded by its class's definition at `T`** (FOUNDATION S4) — Expand's, as the logic's defined
+constants are: the definition is IFOL's. `isaOfClass(T)` at a type with no variable has Expand's rule; at a type
+variable no owner (decision 4).
+
+**2. A definition defines what its left side is: a constant, or a class's membership.** `Definition` knew only
+constants, and the export also defines a class's membership: `IFOL.term_class_def`'s left side is `OFCLASS('a,
+IFOL.term)`. Keyed by the constant `theory/constdefs` names, `IFOL.term_class`, the class's definition had two
+identities — that constant, which no node holds (§4.3a 5a), and the class, reached through a mark: a bridge, a patch —
+and a lossy key: the constant's type, `'a itself ⇒ prop`, reads `o` at every `T`, so `OFCLASS(i, term)` and
+`OFCLASS('a, term)` shared one. The reader reads what a definition axiom defines from its left side, never from a name:
+`c(x⃗)` the constant `c`'s, `OFCLASS('a, c)` the class `c`'s membership, of no parameter. It is a typed value (I1), on
+`Definition` and on the citation `isaDefinition`.
+
+```
+before   Definition(constant: Defined, type, axiomTypes, parameters, definiens)
+after    Definition(defines: Definiendum, type, axiomTypes, parameters, definiens)
+         enum Definiendum { case constant(Defined), ofClass(String) }
+
+term_class_def's left side     OFCLASS('a, IFOL.term)   →  defines .ofClass(IFOL.term), no parameter, type o
+isaOfClass(i, IFOL.term)               finds  (.ofClass(IFOL.term), [i])   →  unfolded (1)
+term_class_def at [i], cited           finds  (.ofClass(IFOL.term), [i])   →  reflexive, "A definition read at its terms"
+```
+
+`IFOL.term_class` is never a node. The reader provides a class's definition at each type its membership occurs at, as
+it provides a constant's at each type it is used at: in ZF that is `i` alone — the export's only arity is
+`ZF_Base.i :: IFOL.term` (`ZF.ZF_Base/theory/arities`), and once 3 puts `term_class.intro` in place at `[i]`, every
+`OFCLASS` lowered is `OFCLASS(i, term)`. A declared class no definition axiom defines is malformed.
+
+**3. A named theorem read at its own type variables, cited at a type instance with no variable, is put in place there:
+its proof read at the citation's types, as an unnamed box is** — decision 4's candidate ("The meta level, lowered", 4:
+"put a generic proof in place at the type of its use — no new name"). By S4's test, only when it binds no proposition on
+its spine at that instance: inlined, a letter would stand in the citer's proof. One that binds one (`FOL.meta_simps.1`,
+`(⋀x::'a. PROP P) ≡ PROP P`) stays `use(theorem, [i], o)`, no owner: its instance as a named statement is a later step.
+The same rule puts in place `term_class.intro` and the fact `term_class_def` at `[i]`, and, where they bind none,
+`Inductive.def_trans`, `ZF_Base.split_def`, `pair.split` and `Pure.meta_spec` at the types they are cited at.
+
+**The contracts (D2):**
+
+| | provides | assumes |
+|---|---|---|
+| Reader | what a definition axiom defines, read from its left side; a class's definition at each type its membership occurs at; a named theorem read at its variables, cited at a type with none and binding no proposition on its spine there, in place | an export of one build |
+| Expand | `isaOfClass(T, c)` unfolded by `c`'s definition at `T`; a citation of the definition, `reflexive` | the class's definition at every `T` it meets |
+| Logic, Fol, emission | unchanged: the definiens is a truth set, built | — |
+
+**FOUNDATION first.** S4 renders `OFCLASS` already. §3b's mapping gains a row: a theorem polymorphic in a type no class
+restricts, cited at a type, is its proof at that type, in place — the target has no type. Its census note keeps its
+meaning — a sort constraint is trivially true in ZF, where `term` holds `i` alone, and needs no guard — and says how:
+stated, by its definition (S4), never stripped. §4.3a 5's last paragraph, which had lowering drop `OFCLASS` as
+metadata, says the same.
+
+**Tests, written first.**
+- `UnitTests`: the unit holds `term`'s definition at `i`, the class's, of no parameter, its definiens `⋀P. P ⟹ P`.
+- `ProofReaderTests`: a citation of the class's definition defines the class; a named theorem at an unrestricted `'a`
+  cited at `[i]` is its proof at `i`, in place, with no `use` of it; one binding a proposition on its spine there stays
+  its citation.
+- `ExpandTests`: `isaOfClass(i)` unfolds to the class's definiens; a citation of the class's definition at `[i]` is
+  `reflexive`.
+- `PlanTests`: `arity_term_i`'s shape lowers and the kernel proves it, and a theorem discharging a class premise with
+  it; the ownership rows `isaOfClass(i)` (expand, rule) and `isaOfClass('a)` (none).
+
+**Built.** IR: `Definiendum` — a constant, or a class's membership — on `Definition` and on `isaDefinition`; a class a
+typed value, `TypeClass`, in `isaOfClass` too. Reader: what a definition axiom defines, read from its left side
+(`definiendum`); a class's definition at each type its membership occurs at (`definition(of:at:)`, the unit's walk); a
+named theorem read at its variables and cited at a type with none, binding no proposition on its spine there, its proof
+there in place (`head`). Expand: `isaOfClass(T, c)` at a type with no variable unfolds to `c`'s definiens at `T`, keyed
+`(.ofClass(c), [T])`. FOUNDATION: §3b's row; the census note and §4.3a 5's last paragraph say stated, never dropped.
+
+**Decisions made in the build**, for the user's review:
+1. **A class is a typed value with its family, `TypeClass(family, name)`, in `isaOfClass` and in `Definiendum` alike** —
+   agreed as `ofClass(String)`. `isaDefinition`'s pattern carries the family and level of what it defines; a class's
+   family is the one whose theory declares it (`theory/classes`), its level meta, a membership being a proposition. So a
+   citation of `term_class_def` is `isaDefinition(ifol, meta, [i], args: [])`, a constant's definition's pattern, and its
+   rule `reflexive`.
+2. **The class's definition axiom is found among the exported definition axioms by its left side**, every one's read
+   once when a class's is first asked for (`Reader.axiom(defining:)`); two defining one class are malformed
+   (`duplicateDefinition`), none `undefinedClass`. A class membership is never a name: no `_class` suffix is read.
+3. **Expand keys a definition by what it defines at its axiom's types**, `(Definiendum, axiomTypes)`; a constant's type
+   leads to that key. The key a constant had, its type, read `o` at every `T` for the class.
+4. **`mentionsTypeVariable` moved to IR** (D3): the reader's test for "a type with no variable" and Expand's and Logic's
+   ownership read one notion.
+5. **The census walks a class membership into its class's definition**, as a defined constant into its own.
+6. ⚠ **REIFY'S INSTANCE AT A COMPOUND TERM CONCLUDES THE WALK'S OWN REWRITE OF THE INSTANCE, `walked(_:base:in:)`.** It
+   concluded `named(formula:)`, the naming alone — a second, partial copy of Logic's rewrite of a formula, right while
+   that rewrite was naming alone. Since "Functions of propositions and the bound `⋀P`" Logic also renders Pure's `⋀` over
+   a proposition inside a formula as a truth set, so the instance's two sides differed by that rendering, never by
+   naming; no instance at a compound term held one until `OFCLASS`'s definiens, `⋀P. P ⟹ P`, stood in every class
+   premise, and the corpus's run stopped (`noCongruence`). The congruence walks a truth set's binder as the `∀` it
+   renders: `congForallBare` under `truth(E) → body`. Tests: `aClassPremiseCitedAtACompoundTermIsLoweredAndProved`,
+   `aTruthSetHoldingTheInstantiatedVariableIsLoweredAndProvedAtACompoundTerm`, each `noCongruence` before.
+7. **A box's name moves with the IR's printed payload**: a box is named by its proof's content (R2), and a definition's
+   citation now prints its definiendum, a generic theorem its proof in place — 11 box names give way to 15, 70 boxes to
+   74, all proved.
+
+**Measured** (`MEM=32G scripts/capped.sh .build/release/isa2fol read data/zf_export`: all 9,420 proved, and the 195
+named theorems (200) and 956 boxes binding a proposition they cite, 73.6 s; 6,391,760 nodes (6,388,887). `lower
+data/zf_export --emit DIR`: 5:59, peak 16.0 GB; read 74.9 s, lowered 77.7 s, emitted 205.6 s; 18,069,345 nodes. Then
+`scripts/check-unit.sh DIR`: 11.5 s, peak 514 MB):
+- **The kernel proves the unit**: 40 parts (38), each exit 0 and empty stderr; claims 2,222 of 2,222 (1,485), schemas
+  110 of 110 (104); 453 `@def`s. `ZF_Base.arity_term_i` is `forall b0. (truth(b0) -> (holds(b0) -> holds(b0)))`, by
+  `iff_symm`, `iff_refl`, `weaken` and `iff_elim_l`, as wanted; `IFOL.refl` and `IFOL.eq_reflection` reach the kernel
+  with their class premise stated.
+- **Named theorems lowered: 65** (63): `ZF_Base.arity_term_i` and `Inductive.refl_thin`. 2,720 statements beside them
+  reach fol-zfc (1,979).
+- **Refused at no owner 3,702** (6,722), **logic 3,955** (1,084), a letter off its spine 13 (13), a refused citation
+  1,685 (1,538). `isaOfClass(i)` leads no list: the 5,601 it held stop at their next piece — Logic's instance at a class
+  type, `isaAllElim(o, (i ⇒ o))` 2,820 (step 3), and `use(theorem, [i], o)` 1,627 (1,696), a theorem binding a
+  proposition on its spine at `[i]` (`FOL.meta_simps.1`).
+- `SOURCE_SURFACE.md` regenerated: 1,553 patterns to 1,573. `use(theorem, [i], o)` in 4,929 closures (7,965): every
+  `arity_term_i` holds `term_class.intro` in place; `isaDefinition(ifol, meta, ['a], args: [])` gone (7,965),
+  `isaDefinition(ifol, meta, [i], args: [])` 7,966 (7,316); the generic theorems' patterns at `'b` gone (2,386 to 1).
+  `CLOSURE.md` unchanged.
 
 ### Fol — binders, guards and variables  **[BUILT 2026-09-28 as the guard; Fol's 2026-10-14; every object type and `∃` at `i` with "Reify — S1 at the site" — `Sources/Lowering/Fol.swift`]**
 

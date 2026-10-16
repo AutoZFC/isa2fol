@@ -46,7 +46,8 @@ private func readUnit() throws -> IR.Unit {
         ("T.Z", 80, proofFile(frees: [], prop: imp(falsum, falsum), proof: pappt(pcite(92, "IFOL"), const("IFOL.False")))),
     ]
     var files: [String: String] = [
-        "IFOL/theory/axioms": axiomEntity("IFOL.iff_def_raw", prop: iffDef) + axiomEntity("IFOL.not_def_raw", prop: notDef),
+        "IFOL/theory/axioms": axiomEntity("IFOL.iff_def_raw", prop: iffDef) + axiomEntity("IFOL.not_def_raw", prop: notDef)
+            + termClassDef,
         "ZF.ZF_Base/theory/axioms": axiomEntity("ZF_Base.split_def_raw", tfrees: ["'a"], prop: splitDef),
         "ZF.T/theory/axioms": axiomEntity("Sum.Inl_def", frees: [("a", i)], prop: app(const("Pure.eq", i), inlA, free("a")))
             + axiomEntity("T.termI", prop: ofclass(i, "IFOL.term")),
@@ -87,7 +88,7 @@ private func box92(_ t: inout Table) throws -> (name: String, proof: NodeID) {
     var unit = try readUnit()
     let vacuous = try #require(unit.statements.first { $0.name == "IFOL.vacuous" })
     let user = try #require(unit.statements.first { $0.name == "T.Y" })
-    let member = try unit.table.intern(.isaOfClass(.i, "IFOL.term"))
+    let member = try unit.table.intern(.isaOfClass(.i, ifolTerm))
     let bottom = try unit.table.intern(.folBottom)
     let every = try unit.table.intern(.ifolAll(.i, body: bottom))
     #expect(vacuous.root == (try unit.table.intern(.folImplies(member, try unit.table.intern(.folImplies(every, every))))))
@@ -116,33 +117,46 @@ private func reaches(_ root: NodeID, _ target: NodeID, _ t: Table) -> Bool {
     return false
 }
 
-/// `↔` is reached from `T.V`, `¬` from `↔`'s body, `split` at the type `T.W` uses it at, and `Inl`'s applied
-/// definition abstracts its arguments.
+/// `↔` is reached from `T.V`, `¬` from `↔`'s body, `split` at the type `T.W` uses it at, `term`'s membership at `i` from
+/// `T.Y`'s discharge, and `Inl`'s applied definition abstracts its arguments.
 @Test func theUnitHoldsTheDefinitionOfEachConstantItsTheoremsReachAtEachType() throws {
     var unit = try readUnit()
     let splitAtOType = IRType.fn(.fn(.i, .fn(.i, .o)), .fn(.i, .o))
-    #expect(Set(unit.definitions.map { "\($0.constant.name) \($0.type)" }) == [
+    #expect(Set(unit.definitions.map { "\($0.defines.name) \($0.type)" }) == [
         "IFOL.iff \(IRType.fn(.o, .fn(.o, .o)))", "IFOL.Not \(IRType.fn(.o, .o))", "ZF_Base.split \(splitAtOType)",
-        "Sum.Inl \(IRType.fn(.i, .i))",
+        "Sum.Inl \(IRType.fn(.i, .i))", "IFOL.term \(IRType.o)",
     ])
     let a = try unit.table.intern(.isaBound(0, .i))
-    #expect(unit.definitions.first { $0.constant.name == "Sum.Inl" }?.definiens == (try unit.table.intern(.isaAbs(.i, body: a))))
+    #expect(unit.definitions.first { $0.defines.name == "Sum.Inl" }?.definiens == (try unit.table.intern(.isaAbs(.i, body: a))))
     let p = try unit.table.intern(.isaBound(0, .o))
     let bottom = try unit.table.intern(.folBottom)
     let notDefiniens = try unit.table.intern(.isaAbs(.o, body: try unit.table.intern(.folImplies(p, bottom))))
-    #expect(unit.definitions.first { $0.constant.name == "IFOL.Not" }?.definiens == notDefiniens)
+    #expect(unit.definitions.first { $0.defines.name == "IFOL.Not" }?.definiens == notDefiniens)
     let c = try unit.table.intern(.isaBound(1, .fn(.i, .fn(.i, .o))))
     let q = try unit.table.intern(.isaBound(0, .i))
     let applied = try unit.table.intern(.isaVarApp(head: c, args: [q, q]))
     let splitDefiniens = try unit.table.intern(.isaAbs(.fn(.i, .fn(.i, .o)), body: try unit.table.intern(.isaAbs(.i, body: applied))))
-    #expect(unit.definitions.first { $0.constant.name == "ZF_Base.split" }?.definiens == splitDefiniens)
+    #expect(unit.definitions.first { $0.defines.name == "ZF_Base.split" }?.definiens == splitDefiniens)
 }
 
 /// `IFOL.Not ≡ λP. P ⟶ ⊥` names no argument; `Inl(a) ≡ a` names one; `split`'s definition is cited at `'a := o`.
 @Test func aDefinitionCarriesItsAxiomsTypeArgumentsAndItsParameters() throws {
     let unit = try readUnit()
-    let definition = { (name: String) in try #require(unit.definitions.first { $0.constant.name == name }) }
+    let definition = { (name: String) in try #require(unit.definitions.first { $0.defines.name == name }) }
     let not = try definition("IFOL.Not"), inl = try definition("Sum.Inl"), split = try definition("ZF_Base.split")
     #expect([not.axiomTypes, inl.axiomTypes, split.axiomTypes] == [[], [], [IRType.o]])
     #expect([not.parameters, inl.parameters, split.parameters] == [0, 1, 0] as [Int])
+}
+
+/// `IFOL.term_class_def`'s left side is `OFCLASS('a, term)`: it defines the class's membership, of no parameter. `T.Y`'s
+/// discharge holds it at `i`, so the unit holds it there, once, its definiens `⋀P. P ⟹ P`.
+@Test func theUnitHoldsAClassDefinitionAtEachTypeItsMembershipOccursAt() throws {
+    var unit = try readUnit()
+    let classes = unit.definitions.filter { $0.defines == .ofClass(ifolTerm) }
+    let p = try unit.table.intern(.isaPropBound(0))
+    let definiens = try unit.table.intern(.isaPropAll(body: try unit.table.intern(.folImplies(p, p))))
+    #expect(classes.map(\.axiomTypes) == [[.i]])
+    #expect(classes.map(\.type) == [.o])
+    #expect(classes.map(\.parameters) == [0])
+    #expect(classes.map(\.definiens) == [definiens])
 }

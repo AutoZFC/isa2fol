@@ -164,7 +164,7 @@ private func refusals(_ unit: Unit) -> [String: PipelineRefusal] {
 
 @Test func aPatternNoPassOwnsIsRefusedBeforeTheFirstPassNamingEveryOne() throws {
     var t = Table()
-    let member = try t.intern(.isaOfClass(i, "IFOL.term"))
+    let member = try t.intern(.isaOfClass(i, TypeClass(.ifol, "IFOL.term")))
     let c = try t.intern(.isaConst(.declared("C"), o, args: []))
     let bad = try identity("bad", try t.intern(.folAnd(member, c)), &t)
     let good = try identity("good", try memOfA(&t), &t)
@@ -311,7 +311,7 @@ private func refusals(_ unit: Unit) -> [String: PipelineRefusal] {
     let m = try t.intern(.isaConst(.primitive(.zf(.mem)), memT, args: [x, x]))
     let definiens = try t.intern(.isaAbs(i, body: try k(m, &t)))
     let d = Defined(.zf, "T.d", .object)
-    let read = Definition(constant: d, type: .fn(i, i), axiomTypes: [], parameters: 0, definiens: definiens)
+    let read = Definition(defines: .constant(d), type: .fn(i, i), axiomTypes: [], parameters: 0, definiens: definiens)
     var unit = Unit(table: t, statements: [], definitions: [read])
     let reading = Reading(owned: [
         .isaConst(.defined(.zf, .object), .fn(i, i), args: [i]): .unbuilt, .isaAbs(i, body: i): .unbuilt,
@@ -514,7 +514,7 @@ private let idle = Owning(name: "idle", owned: [:], rule: NoMatch())
     let s = try namingD(&t)
     let x = try t.intern(.isaBound(0, i))
     let definiens = try t.intern(.isaAbs(i, body: try t.intern(.isaConst(.primitive(.zf(.mem)), memT, args: [x, x]))))
-    let read = Definition(constant: d, type: .fn(i, o), axiomTypes: [], parameters: 0, definiens: definiens)
+    let read = Definition(defines: .constant(d), type: .fn(i, o), axiomTypes: [], parameters: 0, definiens: definiens)
     var unit = Unit(table: t, statements: [s], definitions: [read])
     let owned: [Pattern: Owned] = [.isaConst(.defined(.zf, .object), .fn(i, o), args: [i]): .rule, .isaAbs(i, body: o): .rule,
                                    .isaBound(i): .rule, memAtom: .unbuilt]

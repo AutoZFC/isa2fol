@@ -53,7 +53,7 @@ private func classOf(lambda: NodeID, in t: inout Table) throws -> [(Lemma, NodeI
 @Test func aConstantsClassOpensTheClassesItsBodyNames() throws {
     var r = Terms()
     let s = Defined(.zf, "T.s", .object)
-    let d = Definition(constant: s, type: fn(i, i), axiomTypes: [], parameters: 0, definiens: try r.lam(i, try r.pow(try r.x(0))))
+    let d = Definition(defines: .constant(s), type: fn(i, i), axiomTypes: [], parameters: 0, definiens: try r.lam(i, try r.pow(try r.x(0))))
     let (proved, unbuilt) = try proveAll(try classOf(.defined(s), fn(i, i), in: &r.t), [d], in: &r.t)
     #expect(unbuilt.isEmpty)
     #expect(Set(proved.map(\.name)) == ["T.s_CLASS", "ZF_Base.Pow_CLASS", "ZF_Base.Pow_AGREE"])
@@ -65,7 +65,7 @@ private func classOf(lambda: NodeID, in t: inout Table) throws -> [(Lemma, NodeI
 @Test func aSetConstantsClassIsTheSingletonOfItsValue() throws {
     var r = Terms()
     let e = Defined(.zf, "T.e", .object)
-    let d = Definition(constant: e, type: i, axiomTypes: [], parameters: 0, definiens: try r.pow(try r.zero()))
+    let d = Definition(defines: .constant(e), type: i, axiomTypes: [], parameters: 0, definiens: try r.pow(try r.zero()))
     let (proved, unbuilt) = try proveAll(try classOf(.defined(e), i, in: &r.t), [d], in: &r.t)
     #expect(unbuilt.isEmpty)
     #expect(Set(proved.map(\.name)).isSuperset(of: ["T.e_CLASS", "T.e_EX", "T.e_UNIQ"]))
@@ -77,7 +77,7 @@ private func ball(_ r: inout Terms) throws -> Definition {
     let member = try r.n(.isaConst(.primitive(.zf(.mem)), fn(i, fn(i, o)), args: [try r.x(0), try r.x(2)]))
     let holds = try r.n(.isaVarApp(head: try r.n(.isaBound(1, P)), args: [try r.x(0)]))
     let body = try r.n(.ifolAll(i, body: try r.n(.folImplies(member, holds))))
-    return Definition(constant: Defined(.zf, "T.ball", .object), type: fn(i, fn(P, o)), axiomTypes: [], parameters: 0,
+    return Definition(defines: .constant(Defined(.zf, "T.ball", .object)), type: fn(i, fn(P, o)), axiomTypes: [], parameters: 0,
                       definiens: try r.lam(i, try r.lam(P, body)))
 }
 
@@ -90,7 +90,7 @@ private func ball(_ r: inout Terms) throws -> Definition {
     let sub = Defined(.zf, "T.sub", .object)
     let lambda = try r.lam(i, try r.n(.isaConst(.primitive(.zf(.mem)), fn(i, fn(i, o)), args: [try r.x(0), try r.x(1)])))
     let applied = try r.n(.isaConst(.defined(b.constant), b.type, args: [try r.x(1), lambda]))
-    let d = Definition(constant: sub, type: fn(i, fn(i, o)), axiomTypes: [], parameters: 0, definiens: try r.lam(i, try r.lam(i, applied)))
+    let d = Definition(defines: .constant(sub), type: fn(i, fn(i, o)), axiomTypes: [], parameters: 0, definiens: try r.lam(i, try r.lam(i, applied)))
     let (proved, unbuilt) = try proveAll(try classOf(.defined(sub), d.type, in: &r.t), [b, d], in: &r.t)
     #expect(unbuilt.isEmpty)
     #expect(Set(proved.map(\.name)).isSuperset(of: ["T.sub_CLASS", "T.ball_LIFT", "T.ball_CLASS", "REKEY_1"]))
@@ -109,7 +109,7 @@ private func ball(_ r: inout Terms) throws -> Definition {
         return try r.n(.isaConst(.defined(b.constant), b.type, args: [try r.x(set), lambda]))
     }
     let body = try r.n(.folAnd(try site(1, 0, &r), try site(0, 1, &r)))
-    let d = Definition(constant: two, type: fn(i, fn(i, o)), axiomTypes: [], parameters: 0, definiens: try r.lam(i, try r.lam(i, body)))
+    let d = Definition(defines: .constant(two), type: fn(i, fn(i, o)), axiomTypes: [], parameters: 0, definiens: try r.lam(i, try r.lam(i, body)))
     let (proved, unbuilt) = try proveAll(try classOf(.defined(two), d.type, in: &r.t), [b, d], in: &r.t)
     #expect(unbuilt.isEmpty)
     #expect(proved.filter { $0.name.hasSuffix("_LIFT") }.map(\.name) == ["T.ball_LIFT"])
@@ -126,11 +126,11 @@ private func ball(_ r: inout Terms) throws -> Definition {
     let rep = Defined(.zf, "T.rep", .object), use = Defined(.zf, "T.uses", .object)
     let held = try r.n(.isaVarApp(head: try r.n(.isaBound(2, P)), args: [try r.x(1), try r.x(0)]))
     let inner = try r.n(.isaConst(.primitive(.zf(.primReplace)), replaceT, args: [try r.x(1), try r.lam(i, try r.lam(i, held))]))
-    let repD = Definition(constant: rep, type: replaceT, axiomTypes: [], parameters: 0, definiens: try r.lam(i, try r.lam(P, inner)))
+    let repD = Definition(defines: .constant(rep), type: replaceT, axiomTypes: [], parameters: 0, definiens: try r.lam(i, try r.lam(P, inner)))
     let mem = try r.n(.isaConst(.primitive(.zf(.mem)), fn(i, fn(i, o)), args: [try r.x(1), try r.x(2)]))
     let atB = try r.n(.isaConst(.defined(rep), replaceT, args: [try r.x(1), try r.lam(i, try r.lam(i, mem))]))
     let equal = try r.n(.isaConst(.primitive(.ifol(.eq)), fn(i, fn(i, o)), args: [try r.x(0), atB]))
-    let useD = Definition(constant: use, type: fn(i, fn(i, o)), axiomTypes: [], parameters: 0,
+    let useD = Definition(defines: .constant(use), type: fn(i, fn(i, o)), axiomTypes: [], parameters: 0,
                           definiens: try r.lam(i, try r.lam(i, try r.n(.ifolEx(i, body: equal)))))
     let (proved, unbuilt) = try proveAll(try classOf(.defined(use), useD.type, in: &r.t), [repD, useD], in: &r.t)
     #expect(unbuilt.isEmpty)
@@ -146,10 +146,10 @@ private func ball(_ r: inout Terms) throws -> Definition {
     let F = fn(i, i), apT = fn(F, fn(i, i))
     let ap = Defined(.zf, "T.ap", .object), use = Defined(.zf, "T.useAp", .object)
     let applied = try r.n(.isaVarApp(head: try r.n(.isaBound(1, F)), args: [try r.x(0)]))
-    let apD = Definition(constant: ap, type: apT, axiomTypes: [], parameters: 0, definiens: try r.lam(F, try r.lam(i, applied)))
+    let apD = Definition(defines: .constant(ap), type: apT, axiomTypes: [], parameters: 0, definiens: try r.lam(F, try r.lam(i, applied)))
     let site = try r.n(.isaConst(.defined(ap), apT, args: [try r.lam(i, try r.pow(try r.x(1))), try r.x(1)]))
     let equal = try r.n(.isaConst(.primitive(.ifol(.eq)), fn(i, fn(i, o)), args: [try r.x(0), site]))
-    let useD = Definition(constant: use, type: fn(i, fn(i, o)), axiomTypes: [], parameters: 0, definiens: try r.lam(i, try r.lam(i, equal)))
+    let useD = Definition(defines: .constant(use), type: fn(i, fn(i, o)), axiomTypes: [], parameters: 0, definiens: try r.lam(i, try r.lam(i, equal)))
     let (proved, unbuilt) = try proveAll(try classOf(.defined(use), useD.type, in: &r.t), [apD, useD], in: &r.t)
     #expect(unbuilt.isEmpty)
     #expect(Set(proved.map(\.name)).isSuperset(of: ["T.useAp_CLASS", "T.ap_LIFT", "REKEY_2"]))

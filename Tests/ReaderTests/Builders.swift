@@ -81,7 +81,9 @@ private let fixtureTheories = [
         ("IFOL.eq", ["'a"], fn(typeA, fn(typeA, o))),
         ("IFOL.All", ["'a"], fn(fn(typeA, o), o)),
         ("IFOL.Ex", ["'a"], fn(fn(typeA, o), o)),
-    ], definitions: [("IFOL.iff", "IFOL.iff_def_raw"), ("IFOL.Not", "IFOL.not_def_raw")]),
+        ("IFOL.term_class", ["'a"], fn(typeT("itself", typeA), prop)),
+    ], definitions: [("IFOL.iff", "IFOL.iff_def_raw"), ("IFOL.Not", "IFOL.not_def_raw"),
+                     ("IFOL.term_class", "IFOL.term_class_def")]),
     FixtureTheory(name: "ZF.ZF_Base", family: .zf, foundation: true, constants: [
         ("ZF_Base.mem", [], fn(i, fn(i, o))),
         ("ZF_Base.not_mem", [], fn(i, fn(i, o))),
@@ -169,9 +171,16 @@ func testClasses() throws -> Classes {
     var f = Forest()
     let body = try f.parse(Array(classesFile.utf8))
     var c = Classes()
-    try c.load(body, in: f)
+    try c.load(body, family: .ifol, in: f)
     return c
 }
+
+let ifolTerm = TypeClass(.ifol, "IFOL.term")
+
+/// `OFCLASS('a, term) ≡ (⋀P::prop. P ⟹ P)`, as `IFOL.thy`'s `class "term"` defines it.
+let termClassDef = axiomEntity("IFOL.term_class_def", tfrees: ["'a"], prop: app(
+    const("Pure.eq", prop), ofclass(typeA, "IFOL.term"),
+    app(const("Pure.all", prop), lam("P", prop, app(const("Pure.imp"), bound(0), bound(0))))))
 
 func axiomEntity(_ name: String, tfrees: [String] = [], frees: [(String, String)] = [], prop: String) -> String {
     element("entity", [("name", name)], [

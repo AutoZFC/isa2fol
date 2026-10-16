@@ -10,7 +10,8 @@ were hoisted out of it first and are live.
 the ZF sessions, statement AND proof, into the IR: ALL 9,420 are proved — the proof's
 conclusion is the statement's node, by ID — and 0 are refused (`DESIGN.md` §2). Nothing is
 absorbed: a type variable is `IRType.variable`, a class membership `isaOfClass` — and a theorem whose every type variable
-is restricted to `term` is read at `i`, the only type in `term` ("Step 1"). **The input layer is
+is restricted to `term` is read at `i`, the only type in `term` ("Step 1"); one no class restricts, cited at a type, is
+its proof read there, in place, when it binds no proposition on its spine there ("OFCLASS — …", 3). **The input layer is
 `DESIGN.md` §4.3b**: Pure, IFOL, FOL and ZF contribute axioms and constants, read as typed values — Pure's equality
 rules, and the logic's natural-deduction rules fol-zfc has, read as their steps ("The logic's rules read as steps") —
 `Constant` (primitive · defined · declared), `Cited` (theorem · definition · axiom · theory axiom,
@@ -22,39 +23,45 @@ logic · fol. **Reify is no pass**: the logic pass's walk calls its code ("Reify
 owns patterns by ONE exhaustive switch over `Pattern`; the pipeline refuses a statement holding a pattern no pass owns
 before the first pass, and one a pass owns unbuilt at that pass. **The registry is no pass**: after logic it hands
 each lemma a pass cites to the component that states it, which proves it or answers unbuilt. The unit holds the
-named theorems, the 194 they cite outside the ZF sessions, the 951 boxes binding a proposition and the 1,003 definitions
+named theorems, the 194 they cite outside the ZF sessions, the 951 boxes binding a proposition and the 1,005 definitions
 they reach; a statement citing a refused one falls ("The unit and its citations"). Expand (the logic's defined constants and ZF's meta-level ones
-unfolded, a citation of their definitions as the `reflexive` step), Logic (a `⋀P::o` at a statement's top a schema
+unfolded, a definition read at its terms as the `reflexive` step there, a class's membership by its class's definition), Logic (a `⋀P::o` at a statement's top a schema
 letter, `schema_inst` at a citation, and Pure's `⋀` over a proposition below it a truth set, `∀E. truth(E) → φ*`, its variable
 `holds(E)`; Pure's equality at a function of propositions pointwise over truth sets; `subst` base's `class_subst`; `classical` and `iff_reflection`, which the reader
 reads as isa steps, the kernel's after Expand; Pure's equality, which the reader reads as steps, as base's `iff_*` at `o`
 and `eq_*` at `i`, base's schemas parsed from base's own text), Reify in Logic's walk (S1: a term and a λ in a class slot named where they stand; a constant's
 class by its `@def`, which its prover states from the definition; an instance at a compound term by EX and UNIQ of the
 term) and Fol (the guard Reify gives each object type — `set`, `function`, none — fol-zfc's variables, `∃` at `i`) have
-rules, so `isa2fol lower data/zf_export` lowers 9 of the 9,420 to fol-zfc and states 453 `@def`s: 6,722 stop at no
-owner, 1,084 at logic, 13 at a letter off its spine, and 1,592 cite a refused statement — a `@def` holding a piece not
+rules, so `isa2fol lower data/zf_export` lowers 65 of the 9,420 to fol-zfc and states 453 `@def`s: 3,702 stop at no
+owner, 3,955 at logic, 13 at a letter off its spine, and 1,685 cite a refused statement — a `@def` holding a piece not
 built, or a theorem refused for one of the others. **The rules that consumed a proposition where it stood are removed**
 (`DESIGN.md` "Removed — the rules that consumed a proposition where it stood"): FOUNDATION S4 makes a proposition an
 object as its truth set. **A proposition bound below a statement's top and a function of propositions have its rules**
 (`DESIGN.md` "Functions of propositions and the bound `⋀P`"): the reader reads Pure's `⋀` over a proposition apart from a
 statement's own variables, `isaPropAll`, `isaPropIntro`, `isaPropBound`, and Logic reads them by kind, from base's `truth`
-tier (`holds`, `truth`, `truth_EX`, `weaken`); `OFCLASS` waits on S4's rule, `exI` on an ∃-intro carrying its body. **A box binding a proposition is a schema of the unit**
+tier (`holds`, `truth`, `truth_EX`, `weaken`); `exI` waits on an ∃-intro carrying its body. **A box binding a proposition is a schema of the unit**
 (`DESIGN.md` "Boxes binding a proposition, read as schemas"): an unnamed theorem a proof cites, named
-`<theory>.BOX_<fingerprint of its proof>` — never its serial — and cited by `schema_inst`; any other box is inlined. The
-logic's facts reach the kernel through theirs (`IFOL.conjunct1`, `mp`, `FOL.classical`, `True_def`, …); the rest stop at
-a definition's letter instantiated inside a proof, which Expand inlines (`Pure.protectD`, `protectI`, so `TrueI` and
-`FOL.ccontr`), at a variable of type `o ⇒ o` (`not_def`, `iff_def`), or at `OFCLASS(i, term)` (`spec`). **EX and UNIQ have their prover** (`DESIGN.md` "EX and UNIQ — their
+`<theory>.BOX_<fingerprint of its proof>` — never its serial — and cited by `schema_inst`; any other box is inlined.
+**A definition is read at its terms** (`DESIGN.md` "A definition read at its terms"): an application of a definition
+axiom is one node, `isaDefinition`, which Expand proves `reflexive` there — no schema, no binder. **`OFCLASS` is its
+class's definition** (`DESIGN.md` "OFCLASS — a class's membership by its definition"): a definition defines what its left
+side is, a constant or a class's membership (`Definiendum`), and Expand states `OFCLASS(i, term)` as `⋀P. P ⟹ P`, true;
+`arity_term_i` proves it by `term_class.intro` in place at `i`. Reify's instance at a compound term concludes the walk's
+own rewrite of the instance (`walked`), truth sets rendered. The logic's facts reach
+the kernel through theirs (`IFOL.conjunct1`, `TrueI`, `refl`, `FOL.ccontr`, `Pure.protectD`, `conjunctionI`, …), and with
+them 51 `mutual_induct`s; the rest stop at a variable of type `o ⇒ o` (`not_def`, `iff_def`) or at an instance at a class
+type (`spec`, `subst` at a λ: step 3). **EX and UNIQ have their prover** (`DESIGN.md` "EX and UNIQ — their
 prover"): a term's naming walked binder by binder, one fact per piece, per constant, per closed λ and per arity, a
 constant's from its `@def` and a primitive's from base. **Class existence has its prover** (`DESIGN.md` "Class existence
 — its prover", FOUNDATION §3, R5, R4): a formula's class of records built from base's rows and read back exact, named by
 `member_class` or `graph_class`; a class binder a hypothesis of what lies under it; one lift per class-taking constant,
-uniform in the record's length, re-keyed by `REKEY`. Every lemma the corpus requests is proved: 1,906 statements beside
-the 9 reach fol-zfc, among them 158 `_CLASS`, 106 `CLASS ⟨λ⟩`, 27 `_LIFT`, 255 EX and 314 UNIQ, and no named theorem
-waits on class existence alone — most stop at `OFCLASS(i, term)`, no pass's until S4's rule, or at a theorem whose type
-variable `term` does not restrict, cited at `i` (`FOL.meta_simps.1`). **Emission
+uniform in the record's length, re-keyed by `REKEY`. Every lemma the corpus requests is proved: 2,720 statements beside
+the 65 reach fol-zfc, among them 199 `_CLASS`, 112 `CLASS ⟨λ⟩`, 27 `_LIFT`, 502 EX and 563 UNIQ, and no named theorem
+waits on class existence alone — most stop at an instance at a class type (step 3), or at a theorem binding a
+proposition on its spine, cited at `i` (`FOL.meta_simps.1`). **Emission
 is built** (`DESIGN.md` "Emission"): `isa2fol lower data/zf_export --emit DIR` writes the unit as parts — a theory's
 theorems, a lemma in its first citer's part — and `scripts/check-unit.sh DIR` kernel-checks each against the libraries
-of base and of the parts it cites: all 1,433 claims and 29 schemas Proved. `DESIGN.md` is the plan; its "The steps after class
+of base and of the parts it cites: all 2,222 claims and 110 schemas Proved. `DESIGN.md` is the plan; its "The steps after class
 existence, in order" is the order of work, agreed again from step 2 on around FOUNDATION S4.
 
 ## Build
@@ -224,7 +231,7 @@ determinism R1–R3 (§4.6).
    print(f'{c}/{t} = {100*c/t:.1f}%')"
    ```
 
-   ✓ **CURRENTLY 40/8219 = 0.5%, under the cap.** Keep it there: a breach is
+   ✓ **CURRENTLY 40/8381 = 0.5%, under the cap.** Keep it there: a breach is
    fixed by deleting prose, never by raising the cap.
 
    Does not apply to `base/**/*.fol.def` headers: those record provenance of
@@ -287,7 +294,7 @@ The reader (YXML → IR) reads statements and proofs (`Sources/Reader`); `Source
 the plan, Expand, Logic and Fol its passes with rules, Reify's code, which the logic pass calls, and the registry's provers,
 Reify's (EX and UNIQ of a term, a constant's and a λ's facts), Tuple's and the class prover's (`CLASS ⟨λ⟩`, `c_CLASS`,
 `c_LIFT`, `REKEY`, from Comprehension's classes of records); the emitter (`Sources/FolDialect/Emit.swift`) writes a unit
-as parts; S4's truth set is Truth's (`Sources/Lowering/Truth.swift`); Lambda's instance at a class type and the rest of Logic's, `OFCLASS` among them, are unbuilt.
+as parts; S4's truth set is Truth's (`Sources/Lowering/Truth.swift`); Lambda's instance at a class type and the rest of Logic's are unbuilt.
 
 **There is ONE formula table per unit, holding isa and fol nodes together** —
 interned, immutable, de Bruijn; proof steps live in scope regions and point into

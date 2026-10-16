@@ -20,8 +20,12 @@ public struct Logic: Pass {
     }
 
     public func run(_ roots: [NodeID], _ definitions: [Definition], in t: inout Table) throws -> [NodeID] {
-        try transform(roots, Steps(base: base, equalities: Equalities(base: base), truths: Truths(base: base)), in: &t)
+        try transform(roots, Steps(base: base), in: &t)
     }
+}
+
+func walked(_ formula: NodeID, base: Base, in t: inout Table) throws -> NodeID {
+    try transform(formula, Steps(base: base), in: &t)
 }
 
 private enum Piece {
@@ -83,8 +87,8 @@ private func piece(_ p: Pattern) -> Piece? {
         return .proposition(.intro)
     case .isaPropBound:
         return .proposition(.variable)
-    case .isaConst, .isaFree, .isaBound, .isaVarApp, .isaOfClass, .folImplies, .folImpliesIntro, .folImpliesElim, .folAnd,
-         .folOr, .folIff, .folBottom, .use, .hyp, .isaGuard, .isaExIntro, .isaExElim, .folNot, .folBound, .folPred,
+    case .isaConst, .isaFree, .isaBound, .isaVarApp, .isaOfClass, .isaDefinition, .folImplies, .folImpliesIntro,
+         .folImpliesElim, .folAnd, .folOr, .folIff, .folBottom, .use, .hyp, .isaGuard, .isaExIntro, .isaExElim, .folNot, .folBound, .folPred,
          .folForall, .folExists, .folAndIntro, .folAndElimL, .folAndElimR, .folOrIntroL, .folOrIntroR, .folOrElim,
          .folNotIntro, .folNotElim, .folIffIntro, .folIffElimL, .folIffElimR, .folForallIntro, .folForallElim,
          .folExistsIntro, .folExistsElim, .folBottomElim, .folClassicalAbsurd, .folSchemaInst, .folLetterAll, .folLetter,
@@ -115,6 +119,13 @@ private struct Steps: Rule {
     let base: Base
     let equalities: Equalities
     let truths: Truths
+
+    init(base: Base) {
+        self.base = base
+        equalities = Equalities(base: base)
+        truths = Truths(base: base)
+    }
+
     var start: Anywhere { Anywhere() }
     func enter(_ c: Anywhere, _ binder: Node, _ binds: Binds, in t: Table) -> Anywhere { c }
 

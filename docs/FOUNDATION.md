@@ -1227,7 +1227,9 @@ specialisation at `kpair`.
 | `AbsT` / `AppT` at a VARIABLE | `forall_intro` / `forall_elim`, **plus the R3 guard step** |
 | `AppT` at a compound term | `appt_complex` / `appt_nested` |
 | `Thm` | `use` |
+| `Thm` of a theorem polymorphic in a type no class restricts, at a type binding no proposition on its spine | its proof at that type, in place: the target has no type |
 | an application of a logical rule (`conjI`, `mp`, `spec`, `exE`, …) | the kernel's OWN step at its premises; never translated (S4) |
+| an application of a definition whose constant is unfolded, `AppT` at its parameters | `reflexive` at its terms: the definiens at them on both sides, no binder introduced (S1) |
 | `⋀P` over a proposition, `o` or `prop`, at a statement's top, `AppT` at it | a schema letter, `schema_inst` (S4) |
 | `⋀P` over a proposition anywhere else, `AppT` at it | a truth-set variable; `forall_elim` at `E(φ)`, then β (S4) |
 
@@ -1246,7 +1248,9 @@ proof but a MECHANICAL one.
 **A third category, and it costs nothing.** Two `AppT` slots hold neither — they
 carry `IFOL.term` at a type variable, i.e. a SORT constraint (an OfClass
 elimination), both in `IFOL/206`. R3 governs `i`-quantifiers; a sort constraint
-is stripped as trivially true in ZFC, so it needs no guard and no boundary step.
+is trivially true in ZF, where `term` holds `i` alone, so it needs no guard and no
+boundary step. It is stated, never stripped: its definition, `⋀P. P ⟹ P`, is what
+makes it true (S4).
 **Two in 797,924 — but the census counts them SEPARATELY rather than folding them
 into either side**, because a term-tag the lowering does not handle is exactly
 the shape a silent mis-parse would take.

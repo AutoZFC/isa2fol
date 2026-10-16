@@ -168,6 +168,8 @@ public struct Reader {
     private var proofs: [Instance: (statement: NodeID, proof: NodeID)] = [:]
     private var claims: [TheoremKey: String?] = [:]
     private var readAt: [TheoremKey: [IRType]] = [:]
+    private var definienda: [String: Definiendum] = [:]
+    private var classAxioms: [TypeClass: String]?
 
     public init(_ export: Export) throws {
         var export = export
@@ -212,7 +214,7 @@ public struct Reader {
         var x = statement, restricted: Set<String> = []
         while case let .ifolAll(_, body) = table[x] { x = body }
         while case let .folImplies(premise, rest) = table[x], case let .isaOfClass(T, c) = table[premise] {
-            guard case let .variable(v) = T, c == termClass else { return [] }
+            guard case let .variable(v) = T, c.name == termClass else { return [] }
             restricted.insert(v)
             x = rest
         }
@@ -262,6 +264,8 @@ public struct Reader {
         var p: NodeID, arguments = spine.arguments[...]
         if case let .axiom(name, types) = spine.node, let rule = Rule(name) {
             (p, arguments) = try applied(rule, try types.map(f.terms.irType), arguments, s, &f)
+        } else if case let .axiom(name, types) = spine.node, let d = constants.defined(byAxiom: name) {
+            (p, arguments) = try definition(name, try definiendum(name, d), try types.map(f.terms.irType), arguments, s, &f)
         } else {
             p = try head(spine.node, s, &f, top: top && arguments.isEmpty)
         }
@@ -309,11 +313,14 @@ public struct Reader {
             let key = TheoremKey(theory: c.theory, serial: c.serial)
             let instance = Instance(source: .theorem(key), types: try c.types.map(f.terms.irType))
             guard let name = try claim(key) else { return try prove(key, at: instance.types).proof }
+            let read = try types(of: key), root = try statement(instance)
+            if instance.types != read, !instance.types.contains(where: mentionsTypeVariable), spineLetters(root, in: table) == 0 {
+                return try prove(key, at: instance.types).proof
+            }
             if citedAs[name] == nil {
                 citedAs[name] = Theorem(key)
                 cited.append(Theorem(key))
             }
-            let read = try types(of: key), root = try statement(instance)
             let types = instance.types == read && read.allSatisfy { $0 == .i } ? [] : instance.types
             return try table.intern(.use(.theorem(name), types, root))
         }
@@ -363,6 +370,19 @@ public struct Reader {
         for a in antecedents.reversed() { closed = try table.intern(.folImpliesIntro(a, body: closed)) }
         for q in premises { closed = try table.intern(.folImpliesElim(closed, q)) }
         return (closed, rest)
+    }
+
+    private mutating func definition(_ axiom: String, _ d: Definiendum, _ types: [IRType], _ arguments: ArraySlice<ProofArgument>,
+                                     _ s: ProofScope, _ f: inout FileProof) throws -> (NodeID, ArraySlice<ProofArgument>) {
+        let stated = try statement(Instance(source: .axiom(axiom), types: types))
+        var at = stated, terms: [NodeID] = [], rest = arguments
+        while case let .term(x)? = rest.first, let (T, body) = termBinder(at) {
+            let term = try f.terms.term(x, T, s.terms, in: &table)
+            terms.append(term)
+            at = try instantiate(body, with: term, in: &table)
+            rest = rest.dropFirst()
+        }
+        return (try table.intern(.isaDefinition(axiom, of: d, types, stated, args: terms)), rest)
     }
 
     private func concluding(_ conclusion: NodeID, _ p: NodeID) throws -> NodeID {
@@ -433,7 +453,6 @@ public struct Reader {
 
     private func cited(axiom name: String) throws -> Cited {
         if let a = axioms[name] { return .axiom(a) }
-        if let d = constants.defined(byAxiom: name) { return .isaDefinition(name, of: d) }
         guard let entry = corpus.axioms[name] else { throw MalformedExport.undeclaredAxiom(name) }
         guard !families.isFoundation(entry.theory) else { throw DialectGap.axiom(name) }
         return .theoryAxiom(name)
@@ -443,31 +462,28 @@ public struct Reader {
         try table.intern(.use(cited, instance.types, try statement(instance)))
     }
 
-    mutating func definition(of d: Defined) throws -> NodeID {
-        guard let axiom = constants[d.name]?.definition else { throw MalformedExport.undeclaredConstant(d.name) }
+    mutating func definition(of x: Definiendum) throws -> NodeID {
+        let axiom = try self.axiom(defining: x)
         guard let entry = corpus.axioms[axiom] else { throw MalformedExport.undeclaredAxiom(axiom) }
         let e = try located(entry.file) { try decode.axiom(entry.body) }
         return try statement(Instance(source: .axiom(axiom), types: e.tfrees.map(IRType.variable)))
     }
 
     mutating func definition(of d: Defined, at T: IRType) throws -> Definition {
-        guard let axiom = constants[d.name]?.definition else { throw MalformedExport.undeclaredConstant(d.name) }
+        let axiom = try self.axiom(defining: .constant(d))
         guard let entry = corpus.axioms[axiom] else { throw MalformedExport.undeclaredAxiom(axiom) }
         return try located(entry.file) {
             let e = try decode.axiom(entry.body)
-            let (head, sides) = try decode.spine(e.prop)
-            guard case let .constant("Pure.eq", types) = head, types.count == 1, sides.count == 2 else {
-                throw MalformedExport.notADefinition(axiom)
-            }
-            let (lhs, parameters) = try decode.spine(sides[0])
-            guard case let .constant(c, _) = lhs, c == d.name else { throw MalformedExport.notADefinition(axiom) }
+            let (type, lhs, rhs) = try equation(axiom, e)
+            let (head, parameters) = try decode.spine(lhs)
+            guard case let .constant(c, _) = head, c == d.name else { throw MalformedExport.notADefinition(axiom) }
             let names = try parameters.map { p in
                 let (h, arguments) = try decode.spine(p)
                 guard case let .free(name, _) = h, arguments.isEmpty else { throw MalformedExport.notADefinition(axiom) }
                 return name
             }
             guard names == e.frees.map(\.0) else { throw MalformedExport.notADefinition(axiom) }
-            let declared = try e.frees.reversed().reduce(try types[0].irType()) { U, free in .fn(try free.1.irType(), U) }
+            let declared = try e.frees.reversed().reduce(try type.irType()) { U, free in .fn(try free.1.irType(), U) }
             var bound: [String: IRType] = [:]
             guard match(declared, T, &bound) else { throw MalformedExport.notADefinition(axiom) }
             let instance = try e.tfrees.map { v in
@@ -475,10 +491,66 @@ public struct Reader {
                 return U
             }
             var terms = try Terms(decode: decode, constants: constants, classes: classes, file: e, at: instance)
-            let body = try terms.term(sides[1], try terms.irType(types[0]), terms.closure, in: &table)
+            let body = try terms.term(rhs, try terms.irType(type), terms.closure, in: &table)
             let definiens = try terms.close(body, Node.isaAbs, in: &table)
-            return Definition(constant: d, type: T, axiomTypes: instance, parameters: names.count, definiens: definiens)
+            return Definition(defines: .constant(d), type: T, axiomTypes: instance, parameters: names.count, definiens: definiens)
         }
+    }
+
+    mutating func definition(of k: TypeClass, at T: IRType) throws -> Definition {
+        let axiom = try self.axiom(defining: .ofClass(k))
+        guard let entry = corpus.axioms[axiom] else { throw MalformedExport.undeclaredAxiom(axiom) }
+        return try located(entry.file) {
+            let e = try decode.axiom(entry.body)
+            let (type, lhs, rhs) = try equation(axiom, e)
+            guard case let .ofclass(c, .tfree(v, _)) = try decode.spine(lhs).head, c == k.name, [v] == e.tfrees, e.frees.isEmpty else {
+                throw MalformedExport.notADefinition(axiom)
+            }
+            var terms = try Terms(decode: decode, constants: constants, classes: classes, file: e, at: [T])
+            let U = try terms.irType(type)
+            let definiens = try terms.term(rhs, U, terms.closure, in: &table)
+            return Definition(defines: .ofClass(k), type: U, axiomTypes: [T], parameters: 0, definiens: definiens)
+        }
+    }
+
+    private mutating func axiom(defining x: Definiendum) throws -> String {
+        switch x {
+        case let .constant(d):
+            guard let axiom = constants[d.name]?.definition else { throw MalformedExport.undeclaredConstant(d.name) }
+            return axiom
+        case let .ofClass(k):
+            if classAxioms == nil {
+                var found: [TypeClass: String] = [:]
+                for axiom in corpus.axioms.keys.sorted() {
+                    guard let d = constants.defined(byAxiom: axiom), case let .ofClass(c) = try definiendum(axiom, d) else { continue }
+                    guard found.updateValue(axiom, forKey: c) == nil else { throw MalformedExport.duplicateDefinition(c.name) }
+                }
+                classAxioms = found
+            }
+            guard let axiom = classAxioms?[k] else { throw MalformedExport.undefinedClass(k.name) }
+            return axiom
+        }
+    }
+
+    private mutating func definiendum(_ axiom: String, _ d: Defined) throws -> Definiendum {
+        if let x = definienda[axiom] { return x }
+        guard let entry = corpus.axioms[axiom] else { throw MalformedExport.undeclaredAxiom(axiom) }
+        let x = try located(entry.file) { () throws -> Definiendum in
+            let head = try decode.spine(try equation(axiom, try decode.axiom(entry.body)).lhs).head
+            if case let .ofclass(c, _) = head { return .ofClass(try classes.typeClass(c)) }
+            guard case let .constant(c, _) = head, c == d.name else { throw MalformedExport.notADefinition(axiom) }
+            return .constant(d)
+        }
+        definienda[axiom] = x
+        return x
+    }
+
+    private func equation(_ axiom: String, _ e: Envelope) throws -> (type: IsaType, lhs: Body, rhs: Body) {
+        let (head, sides) = try decode.spine(e.prop)
+        guard case let .constant("Pure.eq", types) = head, types.count == 1, sides.count == 2 else {
+            throw MalformedExport.notADefinition(axiom)
+        }
+        return (types[0], sides[0], sides[1])
     }
 
     private func termBinder(_ formula: NodeID) -> (IRType, NodeID)? {
@@ -530,7 +602,7 @@ private func match(_ pattern: IRType, _ T: IRType, _ bound: inout [String: IRTyp
 }
 
 private struct Reached: Hashable {
-    let constant: Defined
+    let defines: Definiendum
     let type: IRType
 }
 
@@ -553,8 +625,13 @@ extension Reader {
         while let id = work.popLast() {
             guard seen.insert(id).inserted else { continue }
             if case let .use(.theorem(name), [], _) = table[id], let theorem = citedAs[name] { try take(theorem, name) }
-            if case let .isaConst(.defined(d), T, _) = table[id], reached.insert(Reached(constant: d, type: T)).inserted {
-                let definition = try definition(of: d, at: T)
+            var met: Definition?
+            if case let .isaConst(.defined(d), T, _) = table[id], reached.insert(Reached(defines: .constant(d), type: T)).inserted {
+                met = try definition(of: d, at: T)
+            } else if case let .isaOfClass(T, k) = table[id], reached.insert(Reached(defines: .ofClass(k), type: T)).inserted {
+                met = try definition(of: k, at: T)
+            }
+            if let definition = met {
                 definitions.append(definition)
                 work.append(definition.definiens)
             }

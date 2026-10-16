@@ -100,7 +100,10 @@ public struct Export {
                 }
             }
             if let body = try theoryFile(theory, "classes") {
-                try located("\(theory)/theory/classes") { try classes.load(body, in: forest) }
+                guard let family = try families.family(of: theory, parents: { try parents(of: $0, in: root) }) else {
+                    throw MalformedExport.classesOutsideTheFamilies(theory: theory)
+                }
+                try located("\(theory)/theory/classes") { try classes.load(body, family: family, in: forest) }
             }
         }
         for theory in theories {

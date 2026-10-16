@@ -78,7 +78,7 @@ private let memT = IRType.fn(.i, .fn(.i, .o))
     #expect(Pattern.folBottomElim(.o, .o).dialects == [.isa, .fol])
     #expect(Pattern.isaClassical(.o, .o).dialects == [.isa])
     #expect(Pattern.isaIffReflection(.o, .o, .o).dialects == [.isa])
-    #expect(Pattern.use(.isaDefinition(.zf, .object), [], .o).dialects == [.isa])
+    #expect(Pattern.isaDefinition(.zf, .object, [], args: [.i]).dialects == [.isa])
     #expect(Pattern.use(.theoryAxiom, [], .o).dialects == [.isa])
     #expect(Pattern.use(.lemma, [], .o).dialects == [.isa, .fol])
     #expect(Pattern.isaGuard(.i, .o).dialects == [.isa])
@@ -96,7 +96,19 @@ private let memT = IRType.fn(.i, .fn(.i, .o))
     #expect("\(Pattern.isaConst(.defined(.zf, .object), .fn(.i, .i), args: [.i]))" == "isaConst(defined zf object, (i => i), args: [i])")
     #expect("\(Pattern.isaConst(.primitive(.zf(.mem)), memT, args: [.i, .i]))"
             == "isaConst(primitive ZF_Base.mem, (i => (i => o)), args: [i, i])")
-    #expect("\(Pattern.use(.isaDefinition(.ifol, .meta), [], .o))" == "use(definition ifol meta, [], o)")
+    #expect("\(Pattern.isaDefinition(.pure, .meta, [], args: [.o]))" == "isaDefinition(pure, meta, [], args: [o])")
+}
+
+/// A class's definition is cited as a constant's is: by the family that declares the class, at the meta level, a
+/// membership being a proposition.
+@Test func aClassDefinitionsCitationIsItsFamilysAtTheMetaLevel() throws {
+    var t = Table()
+    let term = TypeClass(.ifol, "IFOL.term")
+    let member = try t.intern(.isaOfClass(.i, term))
+    let stated = try t.equation(.o, member, member)
+    let cited = try t.intern(.isaDefinition("IFOL.term_class_def", of: .ofClass(term), [.i], stated, args: []))
+    #expect(Pattern(t[cited], in: t) == .isaDefinition(.ifol, .meta, [.i], args: []))
+    #expect(Pattern(t[member], in: t) == .isaOfClass(.i))
 }
 
 @Test func thePatternsUnderRootsAreTheOnesTheyReach() throws {

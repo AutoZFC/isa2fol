@@ -33,6 +33,8 @@ import IR
     case schematicVariable(String)
     case duplicateClass(String)
     case undeclaredClass(String)
+    case classesOutsideTheFamilies(theory: String)
+    case undefinedClass(String)
     case duplicateAxiom(String)
     case undeclaredAxiom(String)
     case freeHypothesis

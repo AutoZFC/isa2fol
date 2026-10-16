@@ -45,7 +45,7 @@ public struct Binds: Hashable, Sendable {
     case isaBound(Int, IRType)
     case isaVarApp(head: NodeID, args: [NodeID])
     case isaAbs(IRType, body: NodeID)
-    case isaOfClass(IRType, String)
+    case isaOfClass(IRType, TypeClass)
     case isaAllIntro(IRType, body: NodeID)
     case isaAllElim(NodeID, NodeID)
     case isaReflexive(NodeID)
@@ -55,6 +55,7 @@ public struct Binds: Hashable, Sendable {
     case isaAbstract(IRType, NodeID)
     case isaClassical(NodeID, NodeID)
     case isaIffReflection(NodeID, NodeID, NodeID)
+    case isaDefinition(String, of: Definiendum, [IRType], NodeID, args: [NodeID])
     case isaPropAll(body: NodeID)
     case isaPropIntro(body: NodeID)
     case isaPropBound(Int)
@@ -127,6 +128,8 @@ public struct Binds: Hashable, Sendable {
         case let .isaAbstract(T, p): return .isaAbstract(T, try f(p, .none))
         case let .isaClassical(a, h): return .isaClassical(try f(a, .none), try f(h, .none))
         case let .isaIffReflection(a, b, h): return .isaIffReflection(try f(a, .none), try f(b, .none), try f(h, .none))
+        case let .isaDefinition(axiom, d, types, stated, xs):
+            return .isaDefinition(axiom, of: d, types, try f(stated, .none), args: try xs.map { try f($0, .none) })
         case let .isaPropAll(b): return .isaPropAll(body: try f(b, .term))
         case let .isaPropIntro(b): return .isaPropIntro(body: try f(b, .term))
 
@@ -181,12 +184,12 @@ public struct Binds: Hashable, Sendable {
         case let .folBound(k): return (.term, k, { .folBound($0) })
         case let .isaPropBound(k): return (.term, k, { .isaPropBound($0) })
         case .ifolAll, .ifolEx, .isaConst, .isaFree, .isaVarApp, .isaAbs, .isaOfClass, .isaAllIntro, .isaAllElim,
-             .isaReflexive, .isaSymmetric, .isaTransitive, .isaCombination, .isaAbstract, .isaClassical, .isaIffReflection, .isaPropAll, .isaPropIntro,
-             .folImplies, .folAnd, .folOr, .folIff, .folNot, .folBottom, .folImpliesIntro, .folImpliesElim,
-             .use, .isaGuard, .isaExIntro, .isaExElim, .folPred, .folForall, .folExists, .folAndIntro, .folAndElimL, .folAndElimR,
-             .folOrIntroL, .folOrIntroR, .folOrElim, .folNotIntro, .folNotElim, .folIffIntro, .folIffElimL,
-             .folIffElimR, .folForallIntro, .folForallElim, .folExistsIntro, .folExistsElim, .folBottomElim,
-             .folClassicalAbsurd, .folSchemaInst, .folLetterAll, .folLetter, .folLetterAbs:
+             .isaReflexive, .isaSymmetric, .isaTransitive, .isaCombination, .isaAbstract, .isaClassical, .isaIffReflection,
+             .isaDefinition, .isaPropAll, .isaPropIntro, .folImplies, .folAnd, .folOr, .folIff, .folNot, .folBottom,
+             .folImpliesIntro, .folImpliesElim, .use, .isaGuard, .isaExIntro, .isaExElim, .folPred, .folForall, .folExists,
+             .folAndIntro, .folAndElimL, .folAndElimR, .folOrIntroL, .folOrIntroR, .folOrElim, .folNotIntro, .folNotElim,
+             .folIffIntro, .folIffElimL, .folIffElimR, .folForallIntro, .folForallElim, .folExistsIntro, .folExistsElim,
+             .folBottomElim, .folClassicalAbsurd, .folSchemaInst, .folLetterAll, .folLetter, .folLetterAbs:
             return nil
         }
     }

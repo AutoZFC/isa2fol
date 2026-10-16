@@ -113,12 +113,12 @@ private struct R {
 @Test func aConstantsDefinitionIsItsClassFromItsDefinition() throws {
     var r = try R()
     let selfMember = Defined(.zf, "T.d", .object), empty = Defined(.zf, "T.e", .object), at = Defined(.zf, "T.f", .object)
-    let d = Definition(constant: selfMember, type: fn(i, o), axiomTypes: [], parameters: 0,
+    let d = Definition(defines: .constant(selfMember), type: fn(i, o), axiomTypes: [], parameters: 0,
                        definiens: try r.lam(try r.mem(try r.x(0), try r.x(0))))
-    let e = Definition(constant: empty, type: i, axiomTypes: [], parameters: 0, definiens: try r.zero())
+    let e = Definition(defines: .constant(empty), type: i, axiomTypes: [], parameters: 0, definiens: try r.zero())
     let P = fn(i, o)
     let applied = try r.n(.isaVarApp(head: try r.n(.isaBound(0, P)), args: [try r.x(1)]))
-    let f = Definition(constant: at, type: fn(i, fn(P, o)), axiomTypes: [], parameters: 0,
+    let f = Definition(defines: .constant(at), type: fn(i, fn(P, o)), axiomTypes: [], parameters: 0,
                        definiens: try r.lam(try r.n(.isaAbs(P, body: applied))))
     let prover = ReifyProver(base: r.base)
     let defs = [d, e, f]

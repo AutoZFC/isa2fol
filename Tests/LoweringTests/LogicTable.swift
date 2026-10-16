@@ -19,7 +19,7 @@ struct LogicTable {
 
     mutating func definition(_ c: Defined, _ T: IRType, axiomTypes: [IRType] = [], parameters: Int = 0,
                              _ definiens: NodeID) throws -> Definition {
-        Definition(constant: c, type: T, axiomTypes: axiomTypes, parameters: parameters, definiens: definiens)
+        Definition(defines: .constant(c), type: T, axiomTypes: axiomTypes, parameters: parameters, definiens: definiens)
     }
 
     /// `Not ≡ λP. P ⟶ ⊥`
@@ -60,5 +60,13 @@ struct LogicTable {
     mutating func conjunctionBody() throws -> NodeID {
         let a = try bound(2, .o), b = try bound(1, .o), c = try bound(0, .o)
         return try all(.o, try imp(try imp(a, try imp(b, c)), c))
+    }
+}
+
+extension Definition {
+    /// The constant a test's definition defines: every `LogicTable` definition but a class's.
+    var constant: Defined {
+        guard case let .constant(c) = defines else { preconditionFailure("\(defines) defines no constant") }
+        return c
     }
 }

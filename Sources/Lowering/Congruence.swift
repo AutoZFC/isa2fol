@@ -77,8 +77,12 @@ struct Replacement {
         case let .folForall(body):
             guard case let .folForall(lb) = t[l], case let .folForall(rb) = t[r] else { throw CongruenceError.noCongruence(phi) }
             return try quantified(.congForallBare, nil, body, lb, rb, s, &t)
+        case let .isaPropAll(body):
+            guard case let .folForall(lb) = t[l], case let .folForall(rb) = t[r] else { throw CongruenceError.noCongruence(phi) }
+            let guarded = try t.intern(.folImplies(try truth(try t.intern(.folBound(0)), in: &t), body))
+            return try quantified(.congForallBare, nil, guarded, lb, rb, s, &t)
         case .ifolEx, .isaConst, .isaFree, .isaBound, .isaVarApp, .isaAbs, .isaOfClass, .isaAllIntro, .isaAllElim, .isaReflexive,
-             .isaSymmetric, .isaTransitive, .isaCombination, .isaAbstract, .isaClassical, .isaIffReflection, .isaPropAll, .isaPropIntro, .isaPropBound, .folBottom, .folImpliesIntro, .folImpliesElim,
+             .isaSymmetric, .isaTransitive, .isaCombination, .isaAbstract, .isaClassical, .isaIffReflection, .isaDefinition, .isaPropIntro, .isaPropBound, .folBottom, .folImpliesIntro, .folImpliesElim,
              .use, .hyp, .folIffIntro, .folIffElimL, .isaGuard, .isaExIntro, .isaExElim, .folBound, .folPred,
              .folAndIntro, .folAndElimL, .folAndElimR, .folOrIntroL, .folOrIntroR, .folOrElim, .folNotIntro,
              .folNotElim, .folIffElimR, .folForallIntro, .folForallElim, .folExistsIntro, .folExistsElim, .folBottomElim,
@@ -107,7 +111,7 @@ private func connective(_ n: Node) -> (BaseStatement, NodeID, NodeID)? {
     case let .folImplies(a, b): return (.congImp, a, b)
     case let .folIff(a, b): return (.congIff, a, b)
     case .ifolAll, .ifolEx, .isaConst, .isaFree, .isaBound, .isaVarApp, .isaAbs, .isaOfClass, .isaAllIntro, .isaAllElim,
-         .isaReflexive, .isaSymmetric, .isaTransitive, .isaCombination, .isaAbstract, .isaClassical, .isaIffReflection, .isaPropAll, .isaPropIntro, .isaPropBound, .folBottom, .folImpliesIntro,
+         .isaReflexive, .isaSymmetric, .isaTransitive, .isaCombination, .isaAbstract, .isaClassical, .isaIffReflection, .isaDefinition, .isaPropAll, .isaPropIntro, .isaPropBound, .folBottom, .folImpliesIntro,
          .folImpliesElim, .use, .hyp, .folIffIntro, .folIffElimL, .isaGuard, .isaExIntro, .isaExElim, .folNot, .folBound,
          .folPred, .folForall, .folExists, .folAndIntro, .folAndElimL, .folAndElimR, .folOrIntroL, .folOrIntroR, .folOrElim,
          .folNotIntro, .folNotElim, .folIffElimR, .folForallIntro, .folForallElim, .folExistsIntro, .folExistsElim,

@@ -46,7 +46,7 @@ struct GraphProofs {
     }
 
     private func definition(_ d: Defined) throws -> Definition {
-        guard let found = definitions.first(where: { $0.constant == d }) else { throw GraphError.noDefinition(d.name) }
+        guard let found = definitions.first(where: { $0.defines == .constant(d) }) else { throw GraphError.noDefinition(d.name) }
         return found
     }
 

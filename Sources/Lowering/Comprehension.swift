@@ -232,7 +232,7 @@ struct Comprehension {
             let named = try naming.chain.formula(core, in: &t)
             return try chain(named, naming.pieces[...], [:], roles, k, &t)
         case .ifolAll, .ifolEx, .isaFree, .isaBound, .isaAbs, .isaOfClass, .isaAllIntro, .isaAllElim, .isaReflexive,
-             .isaSymmetric, .isaTransitive, .isaCombination, .isaAbstract, .isaClassical, .isaIffReflection, .isaPropAll, .isaPropIntro, .isaPropBound, .folImpliesIntro, .folImpliesElim, .use, .hyp,
+             .isaSymmetric, .isaTransitive, .isaCombination, .isaAbstract, .isaClassical, .isaIffReflection, .isaDefinition, .isaPropAll, .isaPropIntro, .isaPropBound, .folImpliesIntro, .folImpliesElim, .use, .hyp,
              .isaGuard, .isaExIntro, .isaExElim, .folBound, .folForall, .folExists, .folAndIntro, .folAndElimL,
              .folAndElimR, .folOrIntroL, .folOrIntroR, .folOrElim, .folNotIntro, .folNotElim, .folIffIntro, .folIffElimL,
              .folIffElimR, .folForallIntro, .folForallElim, .folExistsIntro, .folExistsElim, .folBottomElim,

@@ -21,6 +21,7 @@
     case isaAbstract(IRType, IRType)
     case isaClassical(IRType, IRType)
     case isaIffReflection(IRType, IRType, IRType)
+    case isaDefinition(Family, Level, [IRType], args: [IRType])
     case isaPropAll
     case isaPropIntro
     case isaPropBound
@@ -90,7 +91,6 @@
 
     @frozen public enum CitedKind: Hashable, Sendable, CustomStringConvertible {
         case theorem
-        case isaDefinition(Family, Level)
         case axiom(Axiom)
         case theoryAxiom
         case lemma
@@ -100,7 +100,6 @@
         init(_ c: Cited) {
             switch c {
             case .theorem: self = .theorem
-            case let .isaDefinition(_, d): self = .isaDefinition(d.family, d.level)
             case let .axiom(a): self = .axiom(a)
             case .theoryAxiom: self = .theoryAxiom
             case .lemma: self = .lemma
@@ -112,7 +111,6 @@
         public var description: String {
             switch self {
             case .theorem: return "theorem"
-            case let .isaDefinition(f, level): return "definition \(f) \(level)"
             case let .axiom(a): return "axiom \(a)"
             case .theoryAxiom: return "theory axiom"
             case .lemma: return "lemma"
@@ -143,6 +141,7 @@
         case let .isaAbstract(U, p): self = .isaAbstract(U, T(p))
         case let .isaClassical(a, h): self = .isaClassical(T(a), T(h))
         case let .isaIffReflection(a, b, h): self = .isaIffReflection(T(a), T(b), T(h))
+        case let .isaDefinition(_, d, types, _, xs): self = .isaDefinition(d.family, d.level, types, args: Ts(xs))
         case .isaPropAll: self = .isaPropAll
         case .isaPropIntro: self = .isaPropIntro
         case .isaPropBound: self = .isaPropBound
@@ -196,13 +195,13 @@ extension Pattern {
         case let .ifolAll(T, _), let .isaAllIntro(T, _), let .isaBound(T):
             return T == .o ? [.isa, .fol] : [.isa]
         case .ifolEx, .isaConst, .isaFree, .isaVarApp, .isaAbs, .isaOfClass, .isaAllElim, .isaGuard, .isaExIntro, .isaExElim, .isaReflexive,
-             .isaSymmetric, .isaTransitive, .isaCombination, .isaAbstract, .isaClassical, .isaIffReflection, .isaPropAll, .isaPropIntro,
-             .isaPropBound:
+             .isaSymmetric, .isaTransitive, .isaCombination, .isaAbstract, .isaClassical, .isaIffReflection, .isaDefinition,
+             .isaPropAll, .isaPropIntro, .isaPropBound:
             return [.isa]
         case let .use(kind, types, _):
             switch kind {
             case .theorem, .lemma, .definition: return types.isEmpty ? [.isa, .fol] : [.isa]
-            case .isaDefinition, .axiom, .theoryAxiom: return [.isa]
+            case .axiom, .theoryAxiom: return [.isa]
             case .base: return [.fol]
             }
         case .folImplies, .folAnd, .folOr, .folIff, .folBottom, .folImpliesIntro, .folImpliesElim, .hyp, .folIffIntro,

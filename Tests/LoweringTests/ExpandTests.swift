@@ -57,33 +57,44 @@ private func expanded(_ l: LogicTable, _ statements: [Statement], _ definitions:
     #expect(try Expand().run([used], [nand, not], in: &l.t) == [try l.imp(try l.and(c, c), try l.bottom())])
 }
 
-/// `Not ≡ λP. P ⟶ ⊥`, cited: unfolded it says `(λP. P ⟶ ⊥) ≡ (λP. P ⟶ ⊥)`, Pure's `reflexive` step at the definiens.
-@Test func aCitationOfADefinitionBecomesReflexivityAtItsDefiniens() throws {
+/// `Not ≡ λP. P ⟶ ⊥`, cited at no terms: unfolded it says `(λP. P ⟶ ⊥) ≡ (λP. P ⟶ ⊥)`, Pure's `reflexive` step at the
+/// definiens.
+@Test func aDefinitionAtNoTermsBecomesReflexivityAtItsDefiniens() throws {
     var l = LogicTable()
     let not = try l.not()
     let applied = try l.lam(o, try l.const(.defined(not.constant), fn(o, o), try l.bound(0, o)))
     let root = try l.equal(fn(o, o), applied, not.definiens)
-    let proof = try l.t.intern(.use(.isaDefinition("IFOL.not_def_raw", of: not.constant), [], root))
+    let proof = try l.t.intern(.isaDefinition("IFOL.not_def_raw", of: not.defines, [], root, args: []))
     let unit = try expanded(l, [Statement(name: "IFOL.not_def", root: root, proof: proof)], [not])
     var m = LogicTable(t: unit.table)
     #expect(unit.statements[0].root == (try m.equal(fn(o, o), not.definiens, not.definiens)))
     #expect(unit.statements[0].proof == (try m.t.intern(.isaReflexive(not.definiens))))
 }
 
-/// `⋀A B. conjunction(A, B) ≡ b`, Pure's applied form, cited: unfolded it says `⋀A B. b ≡ b`, the `reflexive` step at
-/// `b` under a `⋀`-intro at each parameter.
-@Test func aCitationOfAnAppliedDefinitionIsReflexivityUnderItsParameters() throws {
+/// `⋀A B. conjunction(A, B) ≡ b`, Pure's applied form, at its terms `C` and `D`: unfolded it says `b[C, D] ≡ b[C, D]`,
+/// the `reflexive` step there, no binder. A parameter the application leaves is bound as before: at `C` alone,
+/// `⋀B. b[C, B] ≡ b[C, B]` under one `⋀`-intro; at no terms, under both.
+@Test func anAppliedDefinitionAtItsTermsIsReflexivityThere() throws {
     var l = LogicTable()
     let conjunction = try l.conjunction()
     let body = try l.conjunctionBody()
     let applied = try l.const(.defined(conjunction.constant), fn(o, fn(o, o)), try l.bound(1, o), try l.bound(0, o))
     let root = try l.all(o, try l.all(o, try l.equal(o, applied, body)))
-    let proof = try l.t.intern(.use(.isaDefinition("Pure.conjunction_def", of: conjunction.constant), [], root))
-    let unit = try expanded(l, [Statement(name: "Pure.conjunction_def", root: root, proof: proof)], [conjunction])
+    let (c, d) = (try l.const(.declared("C"), o), try l.const(.declared("D"), o))
+    let cited = { (args: [NodeID], t: inout Table) in
+        try t.intern(.isaDefinition("Pure.conjunction_def", of: conjunction.defines, [], root, args: args))
+    }
+    let (both, one, none) = (try cited([c, d], &l.t), try cited([c], &l.t), try cited([], &l.t))
+    let statements = [both, one, none].enumerated().map { k, p in Statement(name: "s\(k)", root: l.t.conclusion(of: p)!, proof: p) }
+    let unit = try expanded(l, statements, [conjunction])
     var m = LogicTable(t: unit.table)
+    let atCD = try beta(try m.lam(o, try m.lam(o, body)), [c, d], in: &m.t)
+    #expect(unit.statements[0].proof == (try m.t.intern(.isaReflexive(atCD))))
+    let atC = try beta(try m.lam(o, try m.lam(o, body)), [try shift(c, by: 1, in: &m.t), try m.bound(0, o)], in: &m.t)
+    #expect(unit.statements[1].proof == (try m.t.intern(.isaAllIntro(o, body: try m.t.intern(.isaReflexive(atC))))))
     let instance = try m.t.intern(.isaReflexive(body))
-    #expect(unit.statements[0].root == (try m.all(o, try m.all(o, try m.equal(o, body, body)))))
-    #expect(unit.statements[0].proof == (try m.t.intern(.isaAllIntro(o, body: try m.t.intern(.isaAllIntro(o, body: instance))))))
+    #expect(unit.statements[2].root == (try m.all(o, try m.all(o, try m.equal(o, body, body)))))
+    #expect(unit.statements[2].proof == (try m.t.intern(.isaAllIntro(o, body: try m.t.intern(.isaAllIntro(o, body: instance))))))
 }
 
 /// The walk unfolds every citation's statement: a cited theorem's stays the theorem's own statement, one node, and
@@ -105,6 +116,22 @@ private func expanded(_ l: LogicTable, _ statements: [Statement], _ definitions:
     #expect(unit.statements[1].proof == (try m.t.intern(.use(.theorem("lem"), [], unit.statements[0].root))))
     let unfolded = try m.all(o, try m.all(o, try m.imp(try m.and(try m.imp(p, q), try m.imp(q, p)), try m.equal(o, p, q))))
     #expect(unit.statements[2].proof == (try m.t.intern(.use(.axiom(.ifol(.iffReflection)), [], unfolded))))
+}
+
+/// `OFCLASS(i, term)` is its class's definition at `i`, `⋀P. P ⟹ P`: a proposition bound in a formula. The definition
+/// cited at `[i]` says `OFCLASS(i, term) ≡ ⋀P. P ⟹ P`; unfolded, the `reflexive` step at that definiens.
+@Test func aClassMembershipUnfoldsByItsClassDefinitionAndACitationOfItIsReflexive() throws {
+    var l = LogicTable()
+    let term = TypeClass(.ifol, "IFOL.term")
+    let p = try l.t.intern(.isaPropBound(0))
+    let definiens = try l.t.intern(.isaPropAll(body: try l.imp(p, p)))
+    let definition = Definition(defines: .ofClass(term), type: o, axiomTypes: [i], parameters: 0, definiens: definiens)
+    let root = try l.equal(o, try l.t.intern(.isaOfClass(i, term)), definiens)
+    let proof = try l.t.intern(.isaDefinition("IFOL.term_class_def", of: .ofClass(term), [i], root, args: []))
+    let unit = try expanded(l, [Statement(name: "IFOL.term_class_def", root: root, proof: proof)], [definition])
+    var m = LogicTable(t: unit.table)
+    #expect(unit.statements[0].root == (try m.equal(o, definiens, definiens)))
+    #expect(unit.statements[0].proof == (try m.t.intern(.isaReflexive(definiens))))
 }
 
 /// A constant Expand owns, with no definition handed: the reader or the pipeline broke its row, and the run stops.
@@ -136,7 +163,7 @@ private func expanded(_ l: LogicTable, _ statements: [Statement], _ definitions:
     let c = try l.t.intern(.isaVarApp(head: try l.bound(3, F), args: [try l.bound(1, i), try l.bound(0, i)]))
     let eta = try l.lam(F, try l.lam(i, try l.const(.defined(split.constant), T, try l.lam(i, try l.lam(i, c)), try l.bound(0, i))))
     let root = try l.equal(T, eta, split.definiens)
-    let proof = try l.t.intern(.use(.isaDefinition("ZF_Base.split_def_raw", of: split.constant), [o], root))
+    let proof = try l.t.intern(.isaDefinition("ZF_Base.split_def_raw", of: split.defines, [o], root, args: []))
     let unit = try expanded(l, [Statement(name: "ZF_Base.split_def", root: root, proof: proof)], [split])
     var m = LogicTable(t: unit.table)
     #expect(unit.statements[0].root == (try m.equal(T, split.definiens, split.definiens)))

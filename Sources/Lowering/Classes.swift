@@ -77,7 +77,7 @@ struct ClassProofs {
         let classes = T.domains.filter { $0 != .i }, k = classes.count
         switch c {
         case let .defined(d):
-            guard let found = definitions.first(where: { $0.constant == d }) else { throw ClassError.noDefinition(d.name) }
+            guard let found = definitions.first(where: { $0.defines == .constant(d) }) else { throw ClassError.noDefinition(d.name) }
             let parameters = try classes.indices.map { try t.intern(.isaBound(k - 1 - $0, classes[$0])) }
             let lambda = try definedLambda(found, classes: parameters, in: &t)
             let raw = try classBody(lambda, raw: true, in: &t), named = try classBody(lambda, raw: false, in: &t)

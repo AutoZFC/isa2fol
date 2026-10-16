@@ -258,7 +258,7 @@ private let mem = Constant.primitive(.zf(.mem))
 
 @Test func anOfclassReadsAsAClassMembership() throws {
     var r = try Reading()
-    #expect(try r.proposition(ofclass(i, "IFOL.term")) == (try r.n(.isaOfClass(iT, "IFOL.term"))))
+    #expect(try r.proposition(ofclass(i, "IFOL.term")) == (try r.n(.isaOfClass(iT, ifolTerm))))
     #expect(throws: MalformedExport.undeclaredClass("T.nowhere")) { try r.proposition(ofclass(i, "T.nowhere")) }
 }
 

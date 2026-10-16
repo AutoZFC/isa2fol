@@ -199,7 +199,7 @@ private func contexts(_ seen: [(NodeID, [Node])], _ id: NodeID) -> [[Node]] {
 /// `OFCLASS(T, c)`, "T is in class c": a formula of the isa dialect, the export's own term form.
 @Test func aClassMembershipIsAnIsaFormula() throws {
     var t = Table()
-    let member = try t.intern(.isaOfClass(.variable("'a"), "IFOL.term"))
+    let member = try t.intern(.isaOfClass(.variable("'a"), TypeClass(.ifol, "IFOL.term")))
     #expect(t.type(of: member) == .o)
     #expect(throws: IRRefusal.sourceKindSurvived(member)) { try legalize(member, in: t) }
 }

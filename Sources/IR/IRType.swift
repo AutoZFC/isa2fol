@@ -18,3 +18,11 @@
         return [T] + rest.domains
     }
 }
+
+public func mentionsTypeVariable(_ T: IRType) -> Bool {
+    switch T {
+    case .i, .o: return false
+    case .variable: return true
+    case let .fn(a, b): return mentionsTypeVariable(a) || mentionsTypeVariable(b)
+    }
+}

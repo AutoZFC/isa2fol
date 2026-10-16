@@ -6,16 +6,28 @@ public struct Census: Sendable {
     public internal(set) var refused: [ReaderRefusal: Int] = [:]
     public internal(set) var patterns: [Pattern: Int] = [:]
     public internal(set) var citations: [Cited: Int] = [:]
+    public internal(set) var definitions: [CitedDefinition: Int] = [:]
+}
+
+public struct CitedDefinition: Hashable, Sendable {
+    public let axiom: String
+    public let defines: Definiendum
+
+    public init(axiom: String, defines: Definiendum) {
+        self.axiom = axiom
+        self.defines = defines
+    }
 }
 
 private enum Fact: Hashable {
     case pattern(Pattern)
     case cited(Cited)
+    case definition(CitedDefinition)
 }
 
 private enum Vertex: Hashable {
     case theorem(statement: NodeID, proof: NodeID)
-    case definition(Defined)
+    case definition(Definiendum)
 }
 
 private struct Bits {
@@ -66,11 +78,15 @@ private struct Closure {
                 switch c {
                 case let .theorem(name):
                     if let v = cited(name) { edges.insert(v) }
-                case .isaDefinition, .axiom, .theoryAxiom, .lemma, .base, .definition:
+                case .axiom, .theoryAxiom, .lemma, .base, .definition:
                     bits.insert(id(.cited(c)))
                 }
             }
-            if case let .isaConst(.defined(d), _, _) = t[n] { edges.insert(.definition(d)) }
+            if case let .isaDefinition(axiom, d, _, _, _) = t[n] {
+                bits.insert(id(.definition(CitedDefinition(axiom: axiom, defines: d))))
+            }
+            if case let .isaConst(.defined(d), _, _) = t[n] { edges.insert(.definition(.constant(d))) }
+            if case let .isaOfClass(_, k) = t[n] { edges.insert(.definition(.ofClass(k))) }
             t[n].forEachChild { c, _ in work.append(c) }
         }
         edges.remove(v)
@@ -143,6 +159,7 @@ extension Reader {
                 switch g.facts[k] {
                 case let .pattern(p): c.patterns[p, default: 0] += 1
                 case let .cited(cited): c.citations[cited, default: 0] += 1
+                case let .definition(cited): c.definitions[cited, default: 0] += 1
                 }
             }
         }

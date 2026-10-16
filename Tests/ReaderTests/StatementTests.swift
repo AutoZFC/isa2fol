@@ -77,14 +77,14 @@ private let refl = trueprop(app(const("IFOL.eq", typeA), free("a"), free("a")))
                                  prop: app(const("Pure.imp"), ofclass(typeA, "IFOL.term"), refl)), at: [.i], into: &t)
     let a = try t.intern(.isaBound(0, .i))
     let eq = try t.intern(.isaConst(.primitive(.ifol(.eq)), memT, args: [a, a]))
-    let member = try t.intern(.isaOfClass(.i, "IFOL.term"))
+    let member = try t.intern(.isaOfClass(.i, ifolTerm))
     #expect(got == (try t.intern(.ifolAll(.i, body: try t.intern(.folImplies(member, eq))))))
 }
 
 @Test func aClassFactIsAFormula() throws {
     var t = Table()
     let got = try read(proofFile(frees: [], prop: ofclass(i, "IFOL.term")), into: &t)
-    #expect(got == (try t.intern(.isaOfClass(.i, "IFOL.term"))))
+    #expect(got == (try t.intern(.isaOfClass(.i, ifolTerm))))
 }
 
 /// Nothing is dropped, so a class with axioms reads like any other.
@@ -96,7 +96,7 @@ private let refl = trueprop(app(const("IFOL.eq", typeA), free("a"), free("a")))
         Issue.record("\(t[got])")
         return
     }
-    #expect(t[member] == .isaOfClass(.i, "T.withAxioms"))
+    #expect(t[member] == .isaOfClass(.i, TypeClass(.ifol, "T.withAxioms")))
     #expect(throws: MalformedExport.undeclaredClass("T.nowhere")) {
         try read(proofFile(frees: [], prop: ofclass(i, "T.nowhere")), into: &t)
     }

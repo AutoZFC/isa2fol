@@ -37,6 +37,7 @@ private func census() throws -> Census {
                               proof: pabsp("H", termClass(typeA), pappt(pappp(paxiom("T.reflAx", typeA), pbound(0)), free("x"))))),
     ]
     var files: [String: String] = [
+        "IFOL/theory/axioms": termClassDef,
         "ZF.ZF_Base/theory/axioms": axiomEntity("ZF_Base.Ball_def_raw", prop: ballDef),
         "ZF.T/theory/axioms": axiomEntity("T.onlyInM", prop: falsum) + axiomEntity("T.termI", prop: termClass(i))
             + axiomEntity("T.ballAx", frees: [("A", i)], prop: ballA)
@@ -66,7 +67,7 @@ private let ballType = IRType.fn(.i, .fn(.fn(.i, .o), .o))
     #expect(c.citations[.theoryAxiom("T.onlyInM")] == 2, "M, and N through the named M")
     #expect(c.citations[.theoryAxiom("T.reflAx")] == 2, "Q, and P read at i")
     #expect(c.citations[.theoryAxiom("T.termI")] == 1, "Q, through the unnamed box 30")
-    #expect(c.citations[.isaDefinition("ZF_Base.Ball_def_raw", of: Defined(.zf, "ZF_Base.Ball", .object))] == 1,
+    #expect(c.definitions[CitedDefinition(axiom: "ZF_Base.Ball_def_raw", defines: .constant(Defined(.zf, "ZF_Base.Ball", .object)))] == 1,
             "D cites the definition; B only uses the constant")
 }
 
@@ -74,6 +75,7 @@ private let ballType = IRType.fn(.i, .fn(.fn(.i, .o), .o))
 @Test func aPatternIsCountedThroughCitationsBoxesAndDefinitions() throws {
     let c = try census()
     #expect(c.patterns[.isaOfClass(.i)] == 2, "box 30's statement in Q's proof, and P's premise read at i")
+    #expect(c.patterns[.isaPropAll] == 2, "Q and P, through the class's definition, as a constant's")
     #expect(c.patterns[.use(.theoryAxiom, [.i], .o)] == 2, "Q, and P read at i")
     #expect(c.patterns[.use(.theoryAxiom, [.variable("'a")], .o)] == nil, "no theorem is read at 'a")
     let ball = Pattern.isaConst(.defined(.zf, .object), ballType, args: [.i, .fn(.i, .o)])

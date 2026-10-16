@@ -11,7 +11,7 @@ struct TermInstance {
     func proof(_ p: NodeID, was id: NodeID, in t: inout Table) throws -> NodeID {
         guard case let .isaAllElim(original, a) = t[id], case let .ifolAll(.i, phi)? = t.conclusion(of: original).map({ t[$0] }),
               let instance = t.conclusion(of: id), let rewritten = t.conclusion(of: p) else { throw InstanceError.notAnInstance(id) }
-        let wanted = try named(formula: instance, in: &t)
+        let wanted = try walked(instance, base: base, in: &t)
         let c = try closed(a, in: &t)
         let (exR, uniqR) = (try existence(of: a, in: &t), try uniqueness(of: a, in: &t))
         let ex = try t.intern(.use(.lemma(Lemma(exR)), [], try statement(exR, in: &t)))
@@ -51,7 +51,7 @@ private func units(_ n: NodeID, _ x: Int, _ path: [Int], in t: Table) -> [Unit] 
     case .isaAbs:
         return freeVariables(n, in: t).contains { $0.index == x } ? [Unit(path: path, lambda: true)] : []
     case .ifolAll, .ifolEx, .isaFree, .isaOfClass, .isaAllIntro, .isaAllElim, .isaReflexive, .isaSymmetric, .isaTransitive,
-         .isaCombination, .isaAbstract, .isaClassical, .isaIffReflection, .isaPropAll, .isaPropIntro, .isaPropBound, .folImplies, .folAnd, .folOr, .folIff, .folBottom, .folImpliesIntro, .folImpliesElim,
+         .isaCombination, .isaAbstract, .isaClassical, .isaIffReflection, .isaDefinition, .isaPropAll, .isaPropIntro, .isaPropBound, .folImplies, .folAnd, .folOr, .folIff, .folBottom, .folImpliesIntro, .folImpliesElim,
          .use, .hyp, .isaGuard, .isaExIntro, .isaExElim, .folNot, .folBound, .folPred, .folForall, .folExists,
          .folAndIntro, .folAndElimL, .folAndElimR, .folOrIntroL, .folOrIntroR, .folOrElim, .folNotIntro, .folNotElim,
          .folIffIntro, .folIffElimL, .folIffElimR, .folForallIntro, .folForallElim, .folExistsIntro, .folExistsElim,

@@ -11,7 +11,7 @@ public struct Expand: Pass {
 
     public func owns(_ p: Pattern) -> Owned? {
         switch piece(p) {
-        case .constant?, .citation?: return .rule
+        case .constant?, .citation?, .membership?: return .rule
         case nil: return nil
         }
     }
@@ -23,16 +23,18 @@ public struct Expand: Pass {
 }
 
 private enum Piece {
-    case constant, citation
+    case constant, citation, membership
 }
 
 private func piece(_ p: Pattern) -> Piece? {
     switch p {
     case let .isaConst(.defined(f, level), T, _):
         return unfolds(f, level) && !mentionsTypeVariable(T) ? .constant : nil
-    case let .use(.isaDefinition(f, level), types, _):
+    case let .isaDefinition(f, level, types, _):
         return unfolds(f, level) && !types.contains(where: mentionsTypeVariable) ? .citation : nil
-    case .ifolAll, .ifolEx, .isaConst, .isaFree, .isaBound, .isaVarApp, .isaAbs, .isaOfClass, .isaAllIntro,
+    case let .isaOfClass(T):
+        return mentionsTypeVariable(T) ? nil : .membership
+    case .ifolAll, .ifolEx, .isaConst, .isaFree, .isaBound, .isaVarApp, .isaAbs, .isaAllIntro,
          .isaAllElim, .isaReflexive, .isaSymmetric, .isaTransitive, .isaCombination, .isaAbstract, .isaClassical, .isaIffReflection, .isaPropAll, .isaPropIntro, .isaPropBound, .folImplies, .folAnd,
          .folOr, .folIff, .folBottom, .folImpliesIntro, .folImpliesElim, .use,
          .hyp, .isaGuard, .isaExIntro, .isaExElim, .folNot, .folBound, .folPred, .folForall, .folExists, .folAndIntro, .folAndElimL, .folAndElimR,
@@ -44,26 +46,26 @@ private func piece(_ p: Pattern) -> Piece? {
 }
 
 private struct Instance: Hashable {
+    let defines: Definiendum
+    let types: [IRType]
+}
+
+private struct Typed: Hashable {
     let constant: Defined
     let type: IRType
 }
 
-private struct Citation: Hashable {
-    let constant: Defined
-    let types: [IRType]
-}
-
 private struct Unfold: Rule {
     private var definitions: [Instance: Definition] = [:]
-    private var citations: [Citation: Instance] = [:]
+    private var typed: [Typed: Instance] = [:]
 
     init(_ given: [Definition], in t: inout Table) throws {
         for d in given {
-            citations[Citation(constant: d.constant, types: d.axiomTypes)] = Instance(constant: d.constant, type: d.type)
+            if case let .constant(c) = d.defines { typed[Typed(constant: c, type: d.type)] = Instance(defines: d.defines, types: d.axiomTypes) }
         }
         var unfolded = given, changed = true
         while changed {
-            for d in unfolded { definitions[Instance(constant: d.constant, type: d.type)] = d }
+            for d in unfolded { definitions[Instance(defines: d.defines, types: d.axiomTypes)] = d }
             changed = false
             for k in unfolded.indices {
                 let definiens = try transform(unfolded[k].definiens, self, in: &t)
@@ -78,26 +80,32 @@ private struct Unfold: Rule {
     func after(_ n: Node, was id: NodeID, context: Anywhere, in t: inout Table) throws -> NodeID? {
         switch piece(Pattern(n, in: t)) {
         case .constant?:
-            guard case let .isaConst(.defined(c), T, args) = n, let d = definitions[Instance(constant: c, type: T)] else {
+            guard case let .isaConst(.defined(c), T, args) = n, let k = typed[Typed(constant: c, type: T)],
+                  let d = definitions[k] else {
                 throw ExpandError.noDefinition(n)
             }
             return try beta(d.definiens, args, in: &t)
         case .citation?:
-            guard case let .use(.isaDefinition(_, c), types, _) = n, let k = citations[Citation(constant: c, types: types)],
-                  let d = definitions[k] else {
+            guard case let .isaDefinition(_, x, types, _, args) = n, let d = definitions[Instance(defines: x, types: types)] else {
                 throw ExpandError.noDefinition(n)
             }
-            return try reflexivity(d, in: &t)
+            return try reflexivity(d, at: args, in: &t)
+        case .membership?:
+            guard case let .isaOfClass(T, c) = n, let d = definitions[Instance(defines: .ofClass(c), types: [T])] else {
+                throw ExpandError.noDefinition(n)
+            }
+            return d.definiens
         case nil:
             return nil
         }
     }
 }
 
-private func reflexivity(_ d: Definition, in t: inout Table) throws -> NodeID {
-    let parameters = Array(d.type.domains.prefix(d.parameters))
-    let variables = try parameters.indices.map { k in try t.intern(.isaBound(parameters.count - 1 - k, parameters[k])) }
-    var proof = try t.intern(.isaReflexive(try beta(d.definiens, variables, in: &t)))
-    for T in parameters.reversed() { proof = try t.intern(.isaAllIntro(T, body: proof)) }
+private func reflexivity(_ d: Definition, at args: [NodeID], in t: inout Table) throws -> NodeID {
+    let left = Array(d.type.domains.prefix(d.parameters).dropFirst(args.count))
+    let given = try args.map { try shift($0, by: left.count, in: &t) }
+    let variables = try left.indices.map { k in try t.intern(.isaBound(left.count - 1 - k, left[k])) }
+    var proof = try t.intern(.isaReflexive(try beta(d.definiens, given + variables, in: &t)))
+    for T in left.reversed() { proof = try t.intern(.isaAllIntro(T, body: proof)) }
     return proof
 }
