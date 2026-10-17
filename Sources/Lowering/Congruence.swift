@@ -146,7 +146,7 @@ struct Replacement {
         case .ifolEx, .isaConst, .isaFree, .isaBound, .isaVarApp, .isaAbs, .isaOfClass, .isaAllIntro, .isaAllElim,
              .isaReflexive,
              .isaSymmetric, .isaTransitive, .isaCombination, .isaAbstract, .isaClassical, .isaIffReflection,
-             .isaDefinition, .isaPropIntro, .isaPropBound, .folBottom, .folImpliesIntro, .folImpliesElim,
+             .isaDefinition, .isaPropIntro, .isaPropBound, .isaHidden, .folBottom, .folImpliesIntro, .folImpliesElim,
              .use, .hyp, .folIffIntro, .folIffElimL, .isaGuard, .isaExIntro, .isaExElim, .folBound, .folPred,
              .folAndIntro, .folAndElimL, .folAndElimR, .folOrIntroL, .folOrIntroR, .folOrElim, .folNotIntro,
              .folNotElim, .folIffElimR, .folForallIntro, .folForallElim, .folExistsIntro, .folExistsElim,
@@ -189,7 +189,7 @@ private func connective(_ n: Node) -> (BaseStatement, NodeID, NodeID)? {
     case .folIff(let a, let b): (.congIff, a, b)
     case .ifolAll, .ifolEx, .isaConst, .isaFree, .isaBound, .isaVarApp, .isaAbs, .isaOfClass, .isaAllIntro, .isaAllElim,
          .isaReflexive, .isaSymmetric, .isaTransitive, .isaCombination, .isaAbstract, .isaClassical, .isaIffReflection,
-         .isaDefinition, .isaPropAll, .isaPropIntro, .isaPropBound, .folBottom, .folImpliesIntro,
+         .isaDefinition, .isaPropAll, .isaPropIntro, .isaPropBound, .isaHidden, .folBottom, .folImpliesIntro,
          .folImpliesElim, .use, .hyp, .folIffIntro, .folIffElimL, .isaGuard, .isaExIntro, .isaExElim, .folNot,
          .folBound,
          .folPred, .folForall, .folExists, .folAndIntro, .folAndElimL, .folAndElimR, .folOrIntroL, .folOrIntroR,

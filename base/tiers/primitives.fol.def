@@ -39,6 +39,8 @@ claim Pow_CONG: (forall A. (set(A) -> (forall B. (set(B) -> (forall r. (set(r) -
 @def(zero) axiom zero_def: forall r. (zero(r) <-> (forall u. (set(u) -> (~ elem(u,r)))))
 claim zero_EX: exists r. (set(r) & zero(r))
 claim zero_UNIQ: (forall r. (set(r) -> (forall s. (set(s) -> (zero(r) -> (zero(s) -> eq(r,s)))))))
+# A set exists, zero's witness: what a set variable only a proof uses is bound by (FOUNDATION §3b).
+claim set_inhabited: exists x. set(x)
 
 # Union (axiom 13). Definitional: the matrix of the `union` axiom.
 @def(Union) axiom Union_def: forall A. forall r. (Union(A,r) <-> (forall x. (set(x) -> (elem(x,r) <-> (exists y. (set(y) & (elem(y,A) & elem(x,y))))))))

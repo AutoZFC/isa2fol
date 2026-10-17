@@ -39,6 +39,7 @@ public enum MalformedExport: Error, Equatable, Sendable {
     case duplicateAxiom(String)
     case undeclaredAxiom(String)
     case freeHypothesis
+    case hiddenOutsideProof(IRType)
     case unboundHypothesis(Int)
     case unproved(statement: NodeID, conclusion: NodeID?)
     case cyclicClosure(String)

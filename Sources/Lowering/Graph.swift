@@ -111,9 +111,23 @@ struct GraphProofs {
                 at: [try g.variable(tau, in: &t), y],
                 in: &t,
             )
-            var inside = try t.intern(.folAndIntro(try g.hypothesis(ht, in: &t), value))
-            for x in xs.reversed() { inside = try t.intern(.isaExIntro(inside, try g.variable(x, in: &t))) }
+            let inside = try introduced(
+                try sides(gr, t).right,
+                at: try xs.map { try g.variable($0, in: &t) },
+                from: try t.intern(.folAndIntro(try g.hypothesis(ht, in: &t), value)),
+                in: &t,
+            )
             return try t.intern(.folIffElimR(gr, inside))
+        }
+        let some = { (g: Frame, t: inout Table) throws -> NodeID in
+            try someLeft(
+                of: try eliminated(
+                    try graph(f.constant, C, ps, hc)(g.scope, &t),
+                    at: [try g.variable(tau, in: &t)],
+                    in: &t,
+                ),
+                in: &t,
+            )
         }
         let variableBody: NodeID? = try {
             guard case .term(let body) = kind else { return nil }
@@ -134,10 +148,13 @@ struct GraphProofs {
             )
             let reflexive = try eliminated(try base.cite(.eqRefl, in: &t), at: [x], in: &t)
             let atX = try t.intern(.folImpliesElim(try t.intern(.isaAllElim(everyZ, x)), reflexive))
-            return try fr.close(try t.intern(.isaExIntro(atX, x)), in: &t)
+            return try fr.close(try introduced(try some(fr, &t), at: [x], from: atX, in: &t), in: &t)
         }
         let (y, value) = try existence(kind, xs, &fr, &t)
-        return try fr.close(try t.intern(.isaExIntro(try valued(y, value, fr, &t), y)), in: &t)
+        return try fr.close(
+            try introduced(try some(fr, &t), at: [y], from: try valued(y, value, fr, &t), in: &t),
+            in: &t,
+        )
     }
 
     private func existence(
@@ -581,7 +598,12 @@ struct GraphProofs {
         let y = try fr.variable(w, in: &t)
         let def = try eliminated(try definitionCited(c, &t), at: [y], in: &t)
         return try fr.close(
-            try t.intern(.isaExIntro(try t.intern(.folIffElimR(def, try fr.hypothesis(h, in: &t))), y)),
+            try introduced(
+                try statement(ConstantFact(constant: c, type: .i, fact: .existence), in: &t),
+                at: [y],
+                from: try t.intern(.folIffElimR(def, try fr.hypothesis(h, in: &t))),
+                in: &t,
+            ),
             in: &t,
         )
     }

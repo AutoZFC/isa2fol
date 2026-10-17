@@ -91,8 +91,8 @@ private struct Rename: Rule {
     let to: String
 
     func before(_ id: NodeID, context _: Depth, in t: inout Table) throws -> NodeID? {
-        guard case .isaFree(.named(let n), let T) = t[id], n == from else { return nil }
-        return try t.intern(.isaFree(.named(to), T))
+        guard case .isaFree(let n, let T) = t[id], n == from else { return nil }
+        return try t.intern(.isaFree(to, T))
     }
 }
 
@@ -110,7 +110,7 @@ private func memOf(_ a: NodeID, _ b: NodeID, _ t: inout Table) throws -> NodeID 
 @Test
 func aRuleThatMatchesNothingReturnsTheSameRoot() throws {
     var t = Table()
-    let a = try t.intern(.isaFree(.named("a"), i))
+    let a = try t.intern(.isaFree("a", i))
     let x = try t.intern(.isaBound(0, i))
     let root = try t.intern(.ifolAll(i, body: try memOf(x, a, &t)))
     #expect(try transform(root, NoMatch(), in: &t) == root)
@@ -119,7 +119,7 @@ func aRuleThatMatchesNothingReturnsTheSameRoot() throws {
 @Test
 func aRuleSeesTheBinderDepthOfEachNode() throws {
     var t = Table()
-    let a = try t.intern(.isaFree(.named("a"), i))
+    let a = try t.intern(.isaFree("a", i))
     let x = try t.intern(.isaBound(0, i))
     let inner = try t.intern(.isaAbs(i, body: x))
     let collect = try t.intern(.isaConst(
@@ -139,7 +139,7 @@ func aRuleSeesTheBinderDepthOfEachNode() throws {
 /// its own hypothesis and under all three binders.
 private struct Nested {
     init() throws {
-        let a = try t.intern(.isaFree(.named("a"), i))
+        let a = try t.intern(.isaFree("a", i))
         A = try memOf(a, a, &t)
         B = try t.intern(.folBottom)
         hyp = try t.intern(.hyp(1, A))
@@ -205,7 +205,7 @@ func aSharedNodeIsRewrittenOncePerContext() throws {
 @Test
 func oneWalkOverSeveralRootsRewritesASharedNodeOnce() throws {
     var t = Table()
-    let a = try t.intern(.isaFree(.named("a"), i))
+    let a = try t.intern(.isaFree("a", i))
     let shared = try memOf(a, a, &t)
     let r1 = try t.intern(.folNot(shared))
     let r2 = try t.intern(.folAnd(shared, shared))
@@ -217,8 +217,8 @@ func oneWalkOverSeveralRootsRewritesASharedNodeOnce() throws {
 @Test
 func rebuildingGoesThroughTheTable() throws {
     var t = Table()
-    let a = try t.intern(.isaFree(.named("a"), i))
-    let b = try t.intern(.isaFree(.named("b"), i))
+    let a = try t.intern(.isaFree("a", i))
+    let b = try t.intern(.isaFree("b", i))
     let before = try memOf(a, a, &t)
     let expected = try memOf(b, b, &t)
     #expect(try transform(before, Rename(from: "a", to: "b"), in: &t) == expected)
@@ -239,7 +239,7 @@ func aMatchReplacesTheSubtreeWithoutDescending() throws {
 func anErrorStopsTheWalk() throws {
     var t = Table()
     let root = try t.intern(.folNot(try t.intern(.folBottom)))
-    let other = try t.intern(.isaFree(.named("a"), i))
+    let other = try t.intern(.isaFree("a", i))
     #expect(throws: Broken.self) { try transform([root, other], BreakAtBottom(), in: &t) }
 }
 
@@ -263,7 +263,7 @@ func legalizeAcceptsATargetOnlyRoot() throws {
 @Test
 func legalizeRefusesAReachableSourceKindByName() throws {
     var t = Table()
-    let a = try t.intern(.isaFree(.named("a"), i))
+    let a = try t.intern(.isaFree("a", i))
     let atom = try memOf(a, a, &t)
     let root = try t.intern(.folNot(try t.intern(.folAnd(try t.intern(.folBottom), atom))))
     #expect(throws: IRRefusal.sourceKindSurvived(atom)) {

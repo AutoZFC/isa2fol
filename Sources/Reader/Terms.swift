@@ -71,7 +71,7 @@ struct Scope: Hashable {
         return s
     }
 
-    func eta() -> Scope {
+    func unwritten() -> Scope {
         var s = self
         s.depth += 1
         return s
@@ -165,6 +165,58 @@ struct Terms {
         try source(body, U, s, &t)
     }
 
+    mutating func hide(_ proof: Body, from level: Int) throws -> [IRType] {
+        var terms = Set<Ref>()
+        var steps = Set<Ref>()
+        var found = [IRType]()
+        func term(_ body: Body) throws {
+            guard terms.insert(body[0]).inserted else { return }
+            let (head, arguments) = try decode.spine(body)
+            switch head {
+            case .constant(let name, let types):
+                if case .hidden = try constants.reading(name) {
+                    let T = try irType(try constants.instantiate(name, types))
+                    if !found.contains(T) { found.append(T) }
+                }
+
+            case .abstraction(_, let inner):
+                try term(inner)
+
+            case .free, .schematic, .bound, .ofclass:
+                break
+            }
+            for a in arguments { try term(a) }
+        }
+        func step(_ body: Body) throws {
+            guard steps.insert(body[0]).inserted else { return }
+            switch try decode.proofNode(body) {
+            case .head(.termAbstraction(_, let p)):
+                try step(p)
+
+            case .head(.hypothesisAbstraction(let x, let p)):
+                try term(x)
+                try step(p)
+
+            case .head(.hypothesis(let x)):
+                try term(x)
+
+            case .head(.nop), .head(.bound), .head(.axiom), .head(.ofclass), .head(.oracle), .head(.theorem):
+                break
+
+            case .application(let p, .term(let x)):
+                try step(p)
+                try term(x)
+
+            case .application(let p, .proof(let q)):
+                try step(p)
+                try step(q)
+            }
+        }
+        try step(proof)
+        hidden = Dictionary(uniqueKeysWithValues: found.enumerated().map { ($0.element, level + $0.offset) })
+        return found
+    }
+
     private struct Memo: Hashable {
         let body: Body
         let type: IRType
@@ -175,6 +227,7 @@ struct Terms {
     private let types: [String: IRType]
     private let frees: [String: (level: Int, type: IRType)]
     private let freeTypes: [IRType]
+    private var hidden: [IRType: Int]?
     private var memo = [Memo: NodeID]()
 
     private mutating func source(
@@ -227,7 +280,7 @@ struct Terms {
         }
         let y = proposition ? try t.intern(.isaPropBound(0)) : try etaLong(try t.intern(.isaBound(0, T)), [], T, &t)
         let shifted = try extra.map { try shift($0, by: 1, in: &t) }
-        return try applied(body, shifted + [y], rest, s.eta(), &t, top: top)
+        return try applied(body, shifted + [y], rest, s.unwritten(), &t, top: top)
     }
 
     private func etaLong(_ v: NodeID, _ args: [NodeID], _ U: IRType, _ t: inout Table) throws -> NodeID {
@@ -332,7 +385,9 @@ struct Terms {
 
         case .hidden:
             let T = try irType(scheme)
-            return try variable(name, try t.intern(.isaFree(.hidden, T)), T, arguments, s, &t)
+            guard let level = hidden?[T] else { throw MalformedExport.hiddenOutsideProof(T) }
+            let k = s.depth - 1 - level
+            return try variable(name, try t.intern(T == .o ? .isaPropBound(k) : .isaBound(k, T)), T, arguments, s, &t)
 
         case .bottom:
             _ = try operands(name, [], arguments, s, &t)

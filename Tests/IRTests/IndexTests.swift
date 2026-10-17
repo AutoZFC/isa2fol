@@ -29,7 +29,7 @@ private struct Gen {
 
     mutating func term(_ t: inout Table, _ depth: Int, _ size: Int) throws -> NodeID {
         switch size <= 0 ? rng.next(2) : rng.next(3) {
-        case 0: return try t.intern(.isaFree(.named(frees[rng.next(frees.count)]), i))
+        case 0: return try t.intern(.isaFree(frees[rng.next(frees.count)], i))
         case 1: return try t.intern(.isaBound(rng.next(depth + 2), i))
         default:
             let a = try term(&t, depth, size - 1)
@@ -92,7 +92,7 @@ private func samples(
 @Test
 func instantiatingAFreshlyShiftedBinderChangesNothing() throws {
     try samples(1) { t, phi in
-        let filler = try t.intern(.isaFree(.named("filler"), i))
+        let filler = try t.intern(.isaFree("filler", i))
         #expect(try instantiate(try shift(phi, by: 1, in: &t), with: filler, in: &t) == phi)
     }
 }
@@ -100,7 +100,7 @@ func instantiatingAFreshlyShiftedBinderChangesNothing() throws {
 @Test
 func closingThenReopeningAtTheSameNameChangesNothing() throws {
     try samples(2) { t, phi in
-        let x = try t.intern(.isaFree(.named("x"), i))
+        let x = try t.intern(.isaFree("x", i))
         #expect(try instantiate(try abstract(phi, over: [x], in: &t), with: x, in: &t) == phi)
     }
 }
@@ -108,7 +108,7 @@ func closingThenReopeningAtTheSameNameChangesNothing() throws {
 @Test
 func openingAtAFreshNameThenClosingChangesNothing() throws {
     try samples(3, frees: ["a", "b"], looseFol: false) { t, psi in
-        let x = try t.intern(.isaFree(.named("x"), i))
+        let x = try t.intern(.isaFree("x", i))
         #expect(try abstract(try instantiate(psi, with: x, in: &t), over: [x], in: &t) == psi)
     }
 }
@@ -126,7 +126,7 @@ func aClosedFormulaIsUntouched() throws {
     try samples(5) { t, phi in
         var closed = phi
         while t.looseBound(of: closed) > 0 { closed = try t.intern(.folForall(body: closed)) }
-        let y = try t.intern(.isaFree(.named("y"), i))
+        let y = try t.intern(.isaFree("y", i))
         #expect(try shift(closed, by: 4, in: &t) == closed)
         #expect(try instantiate(closed, with: y, in: &t) == closed)
     }
@@ -144,7 +144,7 @@ func shiftMovesOnlyLooseIndices() throws {
     let b0 = try t.intern(.isaBound(0, i))
     let b1 = try t.intern(.isaBound(1, i))
     let b2 = try t.intern(.isaBound(2, i))
-    let a = try t.intern(.isaFree(.named("a"), i))
+    let a = try t.intern(.isaFree("a", i))
     #expect(try shift(try memOf(b0, a, &t), by: 1, in: &t) == (try memOf(b1, a, &t)))
     let under = try t.intern(.ifolAll(i, body: try memOf(b0, b1, &t)))
     #expect(try shift(under, by: 1, in: &t) == (try t.intern(.ifolAll(i, body: try memOf(b0, b2, &t)))))
@@ -156,7 +156,7 @@ func instantiateReplacesTheIndexEqualToTheDepth() throws {
     var t = Table()
     let b0 = try t.intern(.isaBound(0, i))
     let b1 = try t.intern(.isaBound(1, i))
-    let a = try t.intern(.isaFree(.named("a"), i))
+    let a = try t.intern(.isaFree("a", i))
     let body = try t.intern(.ifolAll(i, body: try t.intern(.folImplies(try memOf(b1, b0, &t), try memOf(b0, b1, &t)))))
     let expected = try t.intern(.ifolAll(
         i,
@@ -188,8 +188,8 @@ func instantiateLowersIndicesPointingFurtherOut() throws {
 @Test
 func instantiatingAFunctionVariableReducesTheRedexItMakes() throws {
     var t = Table()
-    let a = try t.intern(.isaFree(.named("a"), i))
-    let A = try t.intern(.isaFree(.named("A"), i))
+    let a = try t.intern(.isaFree("a", i))
+    let A = try t.intern(.isaFree("A", i))
     let b0 = try t.intern(.isaBound(0, i))
     let body = try t.intern(.isaVarApp(head: try t.intern(.isaBound(0, fn(i, o))), args: [a]))
     let lambda = try t.intern(.isaAbs(i, body: try memOf(b0, A, &t)))
@@ -200,8 +200,8 @@ func instantiatingAFunctionVariableReducesTheRedexItMakes() throws {
 @Test
 func instantiateReducesHereditarily() throws {
     var t = Table()
-    let a = try t.intern(.isaFree(.named("a"), i))
-    let A = try t.intern(.isaFree(.named("A"), i))
+    let a = try t.intern(.isaFree("a", i))
+    let A = try t.intern(.isaFree("A", i))
     let b0 = try t.intern(.isaBound(0, i))
     let argument = try t.intern(.isaAbs(i, body: try memOf(b0, A, &t)))
     let body = try t.intern(.isaVarApp(head: try t.intern(.isaBound(0, fn(fn(i, o), o))), args: [argument]))
@@ -216,8 +216,8 @@ func instantiateReducesHereditarily() throws {
 @Test
 func betaAppliesALambdaArgumentByArgument() throws {
     var t = Table()
-    let a = try t.intern(.isaFree(.named("a"), i))
-    let A = try t.intern(.isaFree(.named("A"), i))
+    let a = try t.intern(.isaFree("a", i))
+    let A = try t.intern(.isaFree("A", i))
     let b0 = try t.intern(.isaBound(0, i))
     let b1 = try t.intern(.isaBound(1, i))
     let lambda = try t.intern(.isaAbs(i, body: try t.intern(.isaAbs(i, body: try memOf(b1, b0, &t)))))
@@ -243,8 +243,8 @@ func aReducedRedexUnderABinderKeepsItsOuterVariables() throws {
 @Test
 func abstractNumbersANameByItsDepth() throws {
     var t = Table()
-    let x = try t.intern(.isaFree(.named("x"), i))
-    let A = try t.intern(.isaFree(.named("A"), i))
+    let x = try t.intern(.isaFree("x", i))
+    let A = try t.intern(.isaFree("A", i))
     let b0 = try t.intern(.isaBound(0, i))
     let b1 = try t.intern(.isaBound(1, i))
     let phi = try t.intern(.folImplies(try memOf(x, A, &t), try t.intern(.ifolAll(i, body: try memOf(b0, x, &t)))))
@@ -259,8 +259,8 @@ func abstractNumbersANameByItsDepth() throws {
 @Test
 func abstractClosesSeveralNamesInOrder() throws {
     var t = Table()
-    let x = try t.intern(.isaFree(.named("x"), i))
-    let A = try t.intern(.isaFree(.named("A"), i))
+    let x = try t.intern(.isaFree("x", i))
+    let A = try t.intern(.isaFree("A", i))
     let b0 = try t.intern(.isaBound(0, i))
     let b1 = try t.intern(.isaBound(1, i))
     #expect(try abstract(try memOf(x, A, &t), over: [x, A], in: &t) == (try memOf(b1, b0, &t)))
@@ -270,7 +270,7 @@ func abstractClosesSeveralNamesInOrder() throws {
 func instantiateRefusesAReplacementOfTheWrongType() throws {
     var t = Table()
     let b0 = try t.intern(.isaBound(0, i))
-    let a = try t.intern(.isaFree(.named("a"), i))
+    let a = try t.intern(.isaFree("a", i))
     let formula = try memOf(a, a, &t)
     #expect(throws: IRRefusal.instantiateType(expected: i, found: o)) {
         try instantiate(try memOf(b0, a, &t), with: formula, in: &t)

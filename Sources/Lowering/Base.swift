@@ -22,6 +22,9 @@ public enum BaseStatement: String, CaseIterable, Hashable, Sendable {
     case congEqR = "cong_eq_r"
     case congSnocV = "cong_snoc_v"
     case zeroEX = "zero_EX"
+    case setInhabited = "set_inhabited"
+    case functionInhabited = "function_inhabited"
+    case truthInhabited = "truth_inhabited"
     case zeroUNIQ = "zero_UNIQ"
     case zeroDef = "zero_def"
     case nsuccEX = "nsucc_EX"
@@ -60,6 +63,7 @@ public enum BaseStatement: String, CaseIterable, Hashable, Sendable {
     case congExistsBare = "cong_exists_bare"
     case congForallBare = "cong_forall_bare"
     case forallAsNexists = "forall_as_nexists"
+    case exIntro = "ex_intro"
     case read1
     case read2
     case read4

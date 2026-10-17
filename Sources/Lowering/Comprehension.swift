@@ -278,7 +278,8 @@ struct Comprehension {
 
         case .ifolAll, .ifolEx, .isaFree, .isaBound, .isaAbs, .isaOfClass, .isaAllIntro, .isaAllElim, .isaReflexive,
              .isaSymmetric, .isaTransitive, .isaCombination, .isaAbstract, .isaClassical, .isaIffReflection,
-             .isaDefinition, .isaPropAll, .isaPropIntro, .isaPropBound, .folImpliesIntro, .folImpliesElim, .use, .hyp,
+             .isaDefinition, .isaPropAll, .isaPropIntro, .isaPropBound, .isaHidden, .folImpliesIntro, .folImpliesElim,
+             .use, .hyp,
              .isaGuard, .isaExIntro, .isaExElim, .folBound, .folForall, .folExists, .folAndIntro, .folAndElimL,
              .folAndElimR, .folOrIntroL, .folOrIntroR, .folOrElim, .folNotIntro, .folNotElim, .folIffIntro,
              .folIffElimL,
@@ -689,7 +690,12 @@ struct Reading {
             constraints += [try s.hypothesis(numerals.successors[j - 1], in: &t), try s.hypothesis(link.snoc, in: &t)]
         }
         guard let last = r.link else { throw ComprehensionError.noEntry(0) }
-        return try closing(tupleBinders(n), witnesses, constraints, try s.hypothesis(last.snoc, in: &t), in: &t)
+        let formula = try tuple(
+            try r.entries.map { try s.variable($0, in: &t) },
+            try s.variable(r.variable, in: &t),
+            in: &t,
+        )
+        return try closing(formula, witnesses, constraints, try s.hypothesis(last.snoc, in: &t), in: &t)
     }
 
     func entry(_ j: Int, of r: Record, in s: Scope, _ t: inout Table) throws -> NodeID {

@@ -81,14 +81,20 @@ public struct TupleProver: Prover {
         }
         let at = try [prefix, index, xs[n - 1]].map { try f.variable($0, in: &t) }
         let (tau, ht) = try f.open(try eliminated(try base.cite(.snocEX, in: &t), at: at, in: &t), in: &t)
+        let entries = try xs.map { try f.variable($0, in: &t) }
         let formula = try closing(
-            tupleBinders(n),
+            try tuple(entries, try f.variable(tau, in: &t), in: &t),
             try witnesses.map { try f.variable($0, in: &t) },
             try constraints.map { try f.hypothesis($0, in: &t) },
             try f.hypothesis(ht, in: &t),
             in: &t,
         )
-        return try f.close(try t.intern(.isaExIntro(formula, try f.variable(tau, in: &t))), in: &t)
+        let some = try t.intern(.ifolEx(.i, body: try tuple(
+            try entries.map { try shift($0, by: 1, in: &t) },
+            try t.intern(.isaBound(0, .i)),
+            in: &t,
+        )))
+        return try f.close(try introduced(some, at: [try f.variable(tau, in: &t)], from: formula, in: &t), in: &t)
     }
 
     private func uniqueness(_ n: Int, _ t: inout Table) throws -> NodeID {

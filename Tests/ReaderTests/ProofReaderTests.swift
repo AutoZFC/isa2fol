@@ -52,7 +52,8 @@ private let typeB = tfree("'b")
 /// T.usesPartial at i, i
 ///   T.defax      axiom with a typed free: A ∈ A;   T.useDef  a ∈ a   T.defax % a
 ///   T.vacAx      axiom (⋀h::'a. Q) ⟹ Q;          T.hidden  Q ⟹ Q   λH. vacAx[dummy] % Q %% (⋀h::dummy. H)
-///   T.hiddenTerm (⋀x::i. Q) ⟹ Q                λH. H % dummy_pattern::i   a variable only the proof uses
+///   T.hiddenTerm (⋀x::i. ⋀R::o. Q) ⟹ Q        λH. H % dummy_pattern::i % dummy_pattern::o   variables only the proof
+///                uses
 ///   IFOL.not_def_raw  a definition;  T.useNotDef cites it.   IFOL.bogus  an unlisted IFOL axiom;  T.useBogus cites it
 ///   Pure.prop_def  an applied definition;  T.useProp  PROP Q ≡ Q   prop_def % Q
 ///   IFOL.term_class_def  OFCLASS('a, term) ≡ (⋀P. P ⟹ P);  T.useClassDef  its statement at i   term_class_def[i]
@@ -201,11 +202,11 @@ private func miniReader() throws -> Reader {
         ))),
         ("T.hiddenTerm", 128, proofFile(
             frees: [("Q", o)],
-            prop: imp(all("x", i, Q), Q),
+            prop: imp(all("x", i, all("R", o, Q)), Q),
             proof: pabsp(
                 "H",
-                all("x", i, Q),
-                pappt(pbound(0), const("Pure.dummy_pattern", i)),
+                all("x", i, all("R", o, Q)),
+                pappt(pappt(pbound(0), const("Pure.dummy_pattern", i)), const("Pure.dummy_pattern", o)),
             ),
         )),
         ("T.useNotDef", 129, proofFile(frees: [], prop: notDef, proof: paxiom("IFOL.not_def_raw"))),
@@ -636,16 +637,23 @@ func aHiddenProofTypeIsATypeVariable() throws {
     #expect(citations(proof, r.table) == [Citation(cited: .theoryAxiom("T.vacAx"), types: [.variable("dummy")])])
 }
 
-/// The exporter writes the variable only the proof uses as `dummy_pattern` (`standard_hidden_terms`): it reads as the
-/// hidden variable, inside the proof and never in its statement.
+/// The exporter writes a variable only the proof uses as `dummy_pattern` (`standard_hidden_terms`), one per type: the
+/// reader binds each at its proof's top, below the closure's letters, in the order the proof first uses them, and each
+/// occurrence is a bound variable — at `o` a proposition bound below the top (DESIGN "Step 7").
 @Test
-func aVariableOnlyTheProofUsesIsTheHiddenVariable() throws {
+func aVariableOnlyTheProofUsesIsBoundAtItsProofsTop() throws {
     var r = try miniReader()
     guard let (statement, proof) = try proved(&r, "T.hiddenTerm") else { return }
     var t = r.table
-    let hidden = try t.intern(.isaFree(.hidden, .i))
-    #expect(!reaches(statement, hidden, t))
-    #expect(reaches(proof, hidden, t))
+    let stated = try t.intern(.ifolAll(.i, body: try t.intern(.isaPropAll(body: try t.intern(.isaBound(2, .o))))))
+    let q = try t.intern(.isaBound(0, .o))
+    #expect(statement == (try t.intern(.ifolAll(.o, body: try t.intern(.folImplies(stated, q))))))
+    let premise = try t.intern(.ifolAll(.i, body: try t.intern(.isaPropAll(body: try t.intern(.isaBound(4, .o))))))
+    let atX = try t.intern(.isaAllElim(try t.intern(.hyp(0, premise)), try t.intern(.isaBound(1, .i))))
+    let atR = try t.intern(.isaAllElim(atX, try t.intern(.isaPropBound(0))))
+    let body = try t.intern(.folImpliesIntro(premise, body: atR))
+    let bound = try t.intern(.isaHidden(.i, body: try t.intern(.isaHidden(.o, body: body))))
+    #expect(proof == (try t.intern(.isaAllIntro(.o, body: bound))))
 }
 
 /// A cited axiom is typed by what it is: an axiom of the foundation, a definition, or a theory's own axiom.
@@ -757,6 +765,7 @@ func theReaderEmitsOnlyTheIsaDialect() throws {
     while let n = work.popLast() {
         guard seen.insert(n).inserted else { continue }
         #expect(Pattern(r.table[n], in: r.table).dialects.contains(.isa), "\(r.table[n])")
+        if case .isaFree = r.table[n] { Issue.record("a free variable: \(r.table[n])") }
         r.table[n].forEachChild { c, _ in work.append(c) }
     }
 }

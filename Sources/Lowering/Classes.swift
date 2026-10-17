@@ -276,11 +276,14 @@ struct ClassProofs {
         ))
         var both = try back.hypothesis(hr, in: &t)
         for s in snocs.reversed() { both = try t.intern(.folAndIntro(try back.hypothesis(s, in: &t), both)) }
-        var witnessed = try t.intern(.folAndIntro(inT, both))
-        for w in ([a0] + values + (m == 2 ? [records[0]] : []) + [rw]).reversed() {
-            witnessed = try t.intern(.isaExIntro(witnessed, try back.variable(w, in: &t)))
-        }
-        let backward = try back.close(try t.intern(.folIffElimR(try atLast(back, &t), witnessed)), in: &t)
+        let atBack = try atLast(back, &t)
+        let witnessed = try introduced(
+            try sides(atBack, t).right,
+            at: try ([a0] + values + (m == 2 ? [records[0]] : []) + [rw]).map { try back.variable($0, in: &t) },
+            from: try t.intern(.folAndIntro(inT, both)),
+            in: &t,
+        )
+        let backward = try back.close(try t.intern(.folIffElimR(atBack, witnessed)), in: &t)
         var there = Frame(M.scope)
         let hm = there.assume(try pred("elem", [last, U], at: there.scope, &t))
         let (ws, body) = try there.open(
@@ -460,7 +463,12 @@ struct ClassProofs {
         let carried = try t.intern(.folIffElimL(walk, tupled))
         let member = try there.proof(part(m + 2, true), in: &t)
         let forward = try there.close(
-            try t.intern(.isaExIntro(try t.intern(.folAndIntro(carried, member)), try there.variable(rho2, in: &t))),
+            try introduced(
+                try there.scope.lift(y, from: M.scope.depth, in: &t),
+                at: [try there.variable(rho2, in: &t)],
+                from: try t.intern(.folAndIntro(carried, member)),
+                in: &t,
+            ),
             in: &t,
         )
         let exact = try M.close(try t.intern(.folIffIntro(forward, backward)), in: &t)
@@ -580,7 +588,15 @@ struct ClassProofs {
             in: &t,
         )
         let every = try each.close(exact, in: &t)
-        return try top.close(try t.intern(.isaExIntro(every, try top.variable(w, in: &t))), in: &t)
+        return try top.close(
+            try introduced(
+                try statement(ConstantFact(constant: c, type: .i, fact: .classExists), in: &t),
+                at: [try top.variable(w, in: &t)],
+                from: every,
+                in: &t,
+            ),
+            in: &t,
+        )
     }
 
     private func source(_ c: Constant, _ T: IRType, _ t: inout Table) throws
@@ -628,12 +644,19 @@ struct ClassProofs {
         var there = Frame(f.scope)
         let h = there.assume(try pred("elem", [rho.variable, W], at: f.scope, &t))
         let tupled = try reading.tupled(rho, in: there.scope, &t)
-        let some = try t.intern(.isaExIntro(
-            try t.intern(.folAndIntro(tupled, try there.hypothesis(h, in: &t))),
-            try there.variable(rho.variable, in: &t),
-        ))
+        var inside = there.scope
+        let r0 = inside.fix(.i)
+        let x = try t.intern(.ifolEx(.i, body: try t.intern(.folAnd(
+            try tuple(try rho.entries.map { try inside.variable($0, in: &t) }, try inside.variable(r0, in: &t), in: &t),
+            try pred("elem", [r0, W], at: inside, &t),
+        ))))
+        let some = try introduced(
+            x,
+            at: [try there.variable(rho.variable, in: &t)],
+            from: try t.intern(.folAndIntro(tupled, try there.hypothesis(h, in: &t))),
+            in: &t,
+        )
         let forward = try there.close(some, in: &t)
-        guard let x = t.conclusion(of: some) else { throw TableError.expectedStep(some) }
         var back = Frame(f.scope)
         let hx = back.assume(x)
         let (other, ho) = try back.open(try back.hypothesis(hx, in: &t), in: &t)

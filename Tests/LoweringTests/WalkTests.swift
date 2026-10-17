@@ -44,7 +44,8 @@ func aQuantifierCongruenceIsLinearInItsBinders() throws {
     for n in 1...6 {
         var t = Table()
         let (root, proof) = try congruence(depth: n, in: &t)
-        let lowered = try Fol().run([root, proof], [], in: &t)
+        let fol = Fol(base: try LoweringTests.base(in: &t))
+        let lowered = try fol.run([root, proof], [], in: &t)
         let text = try render(
             proof: lowered[1],
             of: Declaration(kind: .claim, name: "walk", root: lowered[0]),

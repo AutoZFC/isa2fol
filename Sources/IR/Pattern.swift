@@ -27,6 +27,7 @@ public enum Pattern: Hashable, Sendable {
     case isaPropAll
     case isaPropIntro
     case isaPropBound
+    case isaHidden(IRType, body: IRType)
 
     case folImplies(IRType, IRType)
     case folAnd(IRType, IRType)
@@ -48,7 +49,7 @@ public enum Pattern: Hashable, Sendable {
     case folBottomElim(IRType, IRType)
 
     case isaGuard(IRType, IRType)
-    case isaExIntro(IRType, IRType)
+    case isaExIntro(IRType, IRType, body: IRType)
     case isaExElim(IRType, IRType, body: IRType)
 
     case folNot(IRType)
@@ -120,6 +121,8 @@ public enum Pattern: Hashable, Sendable {
 
         case .isaPropBound: self = .isaPropBound
 
+        case .isaHidden(let U, let b): self = .isaHidden(U, body: T(b))
+
         case .folImplies(let a, let b): self = .folImplies(T(a), T(b))
 
         case .folAnd(let a, let b): self = .folAnd(T(a), T(b))
@@ -140,7 +143,7 @@ public enum Pattern: Hashable, Sendable {
 
         case .isaGuard(let x, let g): self = .isaGuard(T(x), T(g))
 
-        case .isaExIntro(let p, let v): self = .isaExIntro(T(p), T(v))
+        case .isaExIntro(let p, let v, let b): self = .isaExIntro(T(p), T(v), body: T(b))
 
         case .isaExElim(let U, let p, let b): self = .isaExElim(U, T(p), body: T(b))
 
@@ -265,7 +268,7 @@ extension Pattern {
              .isaExElim, .isaReflexive,
              .isaSymmetric, .isaTransitive, .isaCombination, .isaAbstract, .isaClassical, .isaIffReflection,
              .isaDefinition,
-             .isaPropAll, .isaPropIntro, .isaPropBound:
+             .isaPropAll, .isaPropIntro, .isaPropBound, .isaHidden:
             [.isa]
 
         case .use(let kind, let types, _):

@@ -59,6 +59,7 @@ private let C = free("C")
 private let R = free("R")
 private let P = free("P")
 private let a = free("a")
+private let f = free("f")
 private let b = free("b")
 private let Pi = fn(i, o)
 
@@ -422,6 +423,19 @@ private func logicReader() throws -> Reader {
                 proof: pabsp("h", trueprop(app(P, a)), pappp(atI("IFOL.exI", pcite(95, "ZF.T"), P, a), pbound(0))),
             ),
         ),
+        (
+            "T.exIAtTerm",
+            30,
+            proofFile(
+                frees: [("P", Pi), ("f", fn(i, i)), ("a", i)],
+                prop: mimp(trueprop(app(P, app(f, a))), trueprop(exists("x", i, app(P, b0)))),
+                proof: pabsp(
+                    "h",
+                    trueprop(app(P, app(f, a))),
+                    pappp(atI("IFOL.exI", pcite(95, "ZF.T"), P, app(f, a)), pbound(0)),
+                ),
+            ),
+        ),
         ("T.subst", 28, proofFile(
             frees: [("a", i), ("b", i), ("P", Pi)],
             prop: mimp(trueprop(eq(i, a, b)), mimp(trueprop(app(P, a)), trueprop(app(P, b)))),
@@ -620,15 +634,32 @@ func classicalAndIffReflectionAreReadAsTheirIsaSteps() throws {
     )))
 }
 
-/// `exI` and `subst` stay citations, their class's discharge an ordinary premise.
+/// `exI` is an ∃-intro given its body, its λ's, past its class's discharge, at a variable and at a compound term alike
+/// (DESIGN "An ∃-intro carrying its body"); `subst` stays a citation, its class's discharge an ordinary premise.
 @Test
-func exIAndSubstStayCitations() throws {
+func exIIsAnExistentialIntroGivenItsBodyAndSubstStaysACitation() throws {
     var r = try logicReader()
     let exI = try proof(&r, "T.exI")
+    let atTerm = try proof(&r, "T.exIAtTerm")
     let subst = try proof(&r, "T.subst")
-    #expect(patterns(under: [exI], in: r.table).contains(.use(.axiom(.ifol(.exI)), [.i], .o)))
+    var e = Expected(t: r.table)
+    let F = IRType.fn(.i, .o)
+    let G = IRType.fn(.i, .i)
+    let atA = try e.applied(try e.v(1, F), try e.v(0, .i))
+    let some = try e.applied(try e.v(2, F), try e.v(0, .i))
+    #expect(exI == (try e.fix(
+        [F, .i],
+        try e.assume(atA, try e.n(.isaExIntro(try e.hyp(0, atA), try e.v(0, .i), body: some))),
+    )))
+    let fa = try e.applied(try e.v(1, G), try e.v(0, .i))
+    let atFA = try e.applied(try e.v(2, F), fa)
+    let someF = try e.applied(try e.v(3, F), try e.v(0, .i))
+    #expect(atTerm == (try e.fix(
+        [F, G, .i],
+        try e.assume(atFA, try e.n(.isaExIntro(try e.hyp(0, atFA), fa, body: someF))),
+    )))
     #expect(patterns(under: [subst], in: r.table).contains(.use(.axiom(.ifol(.subst)), [.i], .o)))
-    #expect(patterns(under: [exI, subst], in: r.table).contains(.use(.theoryAxiom, [], .o)))
+    #expect(patterns(under: [subst], in: r.table).contains(.use(.theoryAxiom, [], .o)))
 }
 
 /// A rule missing a term stops the read, as Pure's does.

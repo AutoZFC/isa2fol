@@ -1749,3 +1749,46 @@ proof apply_pmem:
     _q1 = forall_intro _i
     _q2 = forall_intro _q1
     qed _q2
+
+proof function_inhabited:
+    _zx = use zero_EX
+    _zd = use zero_def
+    _pd = use pmem_def
+    _fd = use function_def
+    _zo = exists_elim _zx, z
+    _zz = and_elim_r _zo
+    _zd1 = forall_elim _zd, z
+    _ez = iff_elim_l _zd1, _zz
+    fix t
+    _st = assume set(t)
+    fix r
+    _sr = assume set(r)
+    fix s
+    _ss = assume set(s)
+    _pr = assume pmem(t,r,z)
+    _pd1 = forall_elim _pd, t
+    _pd2 = forall_elim _pd1, r
+    _pd3 = forall_elim _pd2, z
+    _ep = iff_elim_l _pd3, _pr
+    _po = exists_elim _ep, p
+    _sp = and_elim_l _po
+    _rest = and_elim_r _po
+    _epz = and_elim_r _rest
+    _nz1 = forall_elim _ez, p
+    _nz2 = implies_elim _nz1, _sp
+    _bot = not_elim _nz2, _epz
+    _ql = let (pmem(t,s,z) -> eq(r,s))
+    _q = bottom_elim _bot, _ql
+    _qc = exists_intro _q
+    _i1 = implies_intro _qc
+    _i2 = implies_intro _i1
+    _f3 = forall_intro _i2
+    _i3 = implies_intro _f3
+    _f2 = forall_intro _i3
+    _i4 = implies_intro _f2
+    _f1 = forall_intro _i4
+    _fd1 = forall_elim _fd, z
+    _fz = iff_elim_r _fd1, _f1
+    _ex = exists_intro _fz, z
+    _cl = exists_intro _ex
+    qed _cl

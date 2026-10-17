@@ -100,16 +100,55 @@ private func opening(
 }
 
 func closing(
-    _ binders: [Binder],
+    _ formula: NodeID,
     _ witnesses: [NodeID],
     _ constraints: [NodeID],
     _ core: NodeID,
     in t: inout Table,
 ) throws -> NodeID {
+    var levels = [(body: NodeID, binder: Binder)]()
+    var level = formula
+    for w in witnesses {
+        if case .ifolEx(.i, let b) = t[level] {
+            levels.append((b, .set))
+        } else if case .folExists(let b) = t[level] {
+            levels.append((b, .cls))
+        } else {
+            throw ScopeError.notAChain(level)
+        }
+        let opened = try instantiate(levels[levels.count - 1].body, with: w, in: &t)
+        guard case .folAnd(_, let rest) = t[opened] else { throw ScopeError.notAChain(level) }
+        level = rest
+    }
     var proof = core
-    for k in binders.indices.reversed() {
+    for k in witnesses.indices.reversed() {
         let both = try t.intern(.folAndIntro(constraints[k], proof))
-        proof = try t.intern(binders[k] == .set ? .isaExIntro(both, witnesses[k]) : .folExistsIntro(both, witnesses[k]))
+        proof = try t.intern(
+            levels[k].binder == .set
+                ? .isaExIntro(both, witnesses[k], body: levels[k].body)
+                : .folExistsIntro(both, witnesses[k])
+        )
+    }
+    return proof
+}
+
+func someLeft(of every: NodeID, in t: inout Table) throws -> NodeID {
+    guard let stated = t.conclusion(of: every), case .ifolAll(.i, let body) = t[stated]
+    else { throw ScopeError.notAChain(every) }
+    return try t.intern(.ifolEx(.i, body: try iff(body, t).left))
+}
+
+func introduced(_ formula: NodeID, at witnesses: [NodeID], from premise: NodeID, in t: inout Table) throws -> NodeID {
+    var bodies = [NodeID]()
+    var level = formula
+    for w in witnesses {
+        guard case .ifolEx(.i, let body) = t[level] else { throw ScopeError.notAChain(level) }
+        bodies.append(body)
+        level = try instantiate(body, with: w, in: &t)
+    }
+    var proof = premise
+    for k in witnesses.indices.reversed() {
+        proof = try t.intern(.isaExIntro(proof, witnesses[k], body: bodies[k]))
     }
     return proof
 }

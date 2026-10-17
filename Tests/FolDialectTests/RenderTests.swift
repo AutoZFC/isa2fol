@@ -118,7 +118,7 @@ func anOpenRootIsRefused() throws {
 @Test
 func anIsaNodeIsRefused() throws {
     var f = Fol()
-    let a = try f.t.intern(.isaFree(.named("a"), .i))
+    let a = try f.t.intern(.isaFree("a", .i))
     let atom = try f.t.intern(.isaConst(.primitive(.zf(.mem)), .fn(.i, .fn(.i, .o)), args: [a, a]))
     let root = try f.t.intern(.folAnd(try f.t.intern(.folBottom), atom))
     #expect(throws: RenderError.sourceKind(atom)) { try f.text(root) }

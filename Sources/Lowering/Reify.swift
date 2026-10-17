@@ -34,7 +34,7 @@ public struct Reify {
         case .isaAllElim, .ifolAll, .ifolEx, .isaFree, .isaBound, .isaOfClass, .isaAllIntro, .isaReflexive,
              .isaSymmetric,
              .isaTransitive, .isaCombination, .isaAbstract, .isaClassical, .isaIffReflection, .isaDefinition,
-             .isaPropAll, .isaPropIntro, .isaPropBound, .folImplies, .folAnd, .folOr, .folIff, .folBottom,
+             .isaPropAll, .isaPropIntro, .isaPropBound, .isaHidden, .folImplies, .folAnd, .folOr, .folIff, .folBottom,
              .folImpliesIntro, .folImpliesElim, .use, .hyp, .isaGuard, .isaExIntro, .isaExElim, .folNot, .folBound,
              .folPred, .folForall, .folExists, .folAndIntro, .folAndElimL, .folAndElimR, .folOrIntroL, .folOrIntroR,
              .folOrElim, .folNotIntro, .folNotElim, .folIffIntro, .folIffElimL, .folIffElimR, .folForallIntro,
@@ -47,6 +47,9 @@ public struct Reify {
     func after(_ n: Node, was id: NodeID, base: Base, in t: inout Table) throws -> NodeID? {
         if names(Pattern(t[id], in: t)) { return try named(atom: n, in: &t) }
         if case .isaAllElim = t[id] { return try instance(children(n)[0], was: id, base: base, in: &t) }
+        if case .isaExIntro(_, let a, _) = t[id], owns(Pattern(t[a], in: t)) == .rule {
+            return try TermInstance(base: base).witnessed(children(n)[0], body: children(n)[2], was: id, in: &t)
+        }
         return nil
     }
 
@@ -66,9 +69,12 @@ func named(formula: NodeID, in t: inout Table) throws -> NodeID {
     try transform(formula, Atoms(), in: &t)
 }
 
+/// ⚠ A TRUTH-SET VARIABLE READS `holds(E)` HERE, AS LOGIC'S WALK READS IT: left as it stands, a λ's class named from a
+/// template differs from the walked one, silently, until a step's premise mismatches.
 private struct Atoms: Rule {
     func after(_ n: Node, was id: NodeID, context _: Depth, in t: inout Table) throws -> NodeID? {
-        Reify().names(Pattern(t[id], in: t)) ? try named(atom: n, in: &t) : nil
+        if case .isaPropBound(let k) = n { return try holds(try t.intern(.folBound(k)), in: &t) }
+        return Reify().names(Pattern(t[id], in: t)) ? try named(atom: n, in: &t) : nil
     }
 }
 
@@ -82,7 +88,7 @@ private func value(_ p: Pattern) -> IRType? {
     case .isaConst(_, let T, _), .isaVarApp(head: let T, _): result(T)
     case .ifolAll, .ifolEx, .isaFree, .isaBound, .isaAbs, .isaOfClass, .isaAllIntro, .isaAllElim, .isaReflexive,
          .isaSymmetric, .isaTransitive, .isaCombination, .isaAbstract, .isaClassical, .isaIffReflection, .isaDefinition,
-         .isaPropAll, .isaPropIntro, .isaPropBound, .folImplies, .folAnd, .folOr, .folIff, .folBottom,
+         .isaPropAll, .isaPropIntro, .isaPropBound, .isaHidden, .folImplies, .folAnd, .folOr, .folIff, .folBottom,
          .folImpliesIntro, .folImpliesElim, .use, .hyp, .isaGuard, .isaExIntro, .isaExElim, .folNot, .folBound,
          .folPred, .folForall, .folExists, .folAndIntro, .folAndElimL, .folAndElimR, .folOrIntroL, .folOrIntroR,
          .folOrElim, .folNotIntro, .folNotElim, .folIffIntro, .folIffElimL, .folIffElimR, .folForallIntro,
@@ -152,7 +158,8 @@ struct Naming {
 
         case .ifolAll, .ifolEx, .isaFree, .isaBound, .isaAbs, .isaOfClass, .isaAllIntro, .isaAllElim, .isaReflexive,
              .isaSymmetric, .isaTransitive, .isaCombination, .isaAbstract, .isaClassical, .isaIffReflection,
-             .isaDefinition, .isaPropAll, .isaPropIntro, .isaPropBound, .folImplies, .folAnd, .folOr, .folIff,
+             .isaDefinition, .isaPropAll, .isaPropIntro, .isaPropBound, .isaHidden, .folImplies, .folAnd, .folOr,
+             .folIff,
              .folBottom, .folImpliesIntro, .folImpliesElim, .use, .hyp, .isaGuard, .isaExIntro, .isaExElim, .folNot,
              .folBound, .folPred, .folForall, .folExists, .folAndIntro, .folAndElimL, .folAndElimR, .folOrIntroL,
              .folOrIntroR, .folOrElim, .folNotIntro, .folNotElim, .folIffIntro, .folIffElimL, .folIffElimR,
@@ -197,7 +204,8 @@ struct Naming {
 
         case .ifolAll, .ifolEx, .isaFree, .isaAbs, .isaOfClass, .isaAllIntro, .isaAllElim, .isaReflexive,
              .isaSymmetric, .isaTransitive, .isaCombination, .isaAbstract, .isaClassical, .isaIffReflection,
-             .isaDefinition, .isaPropAll, .isaPropIntro, .isaPropBound, .folImplies, .folAnd, .folOr, .folIff,
+             .isaDefinition, .isaPropAll, .isaPropIntro, .isaPropBound, .isaHidden, .folImplies, .folAnd, .folOr,
+             .folIff,
              .folBottom, .folImpliesIntro, .folImpliesElim, .use, .hyp, .isaGuard, .isaExIntro, .isaExElim, .folNot,
              .folPred, .folForall, .folExists, .folAndIntro, .folAndElimL, .folAndElimR, .folOrIntroL, .folOrIntroR,
              .folOrElim, .folNotIntro, .folNotElim, .folIffIntro, .folIffElimL, .folIffElimR, .folForallIntro,

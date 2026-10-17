@@ -9,4 +9,6 @@
 @def(holds) axiom holds_def: forall E. (holds(E) <-> (exists z. (set(z) & (zero(z) & elem(z,E)))))
 @def(truth) axiom truth_def: forall E. (truth(E) <-> (set(E) & (forall u. (set(u) -> (elem(u,E) -> zero(u))))))
 schema truth_EX [A(0)]: exists E. (truth(E) & (holds(E) <-> A))
+# A truth set exists, false's: what a proposition only a proof uses is bound by (FOUNDATION §3b).
+claim truth_inhabited: exists E. truth(E)
 schema weaken [A(0), B(0)]: (A -> (B -> A))

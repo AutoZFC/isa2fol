@@ -11,13 +11,16 @@ public enum FolError: Error, Equatable {
 }
 
 public struct Fol: Pass {
-    public init() { }
+    public init(base: Base) {
+        self.base = base
+    }
 
     public let name = "fol"
 
     public func owns(_ p: Pattern) -> Owned? {
         switch piece(p) {
-        case .forall?, .exists?, .intro?, .instance?, .guardOf?, .variable?, .existsIntro?, .existsElim?: .rule
+        case .forall?, .exists?, .intro?, .instance?, .guardOf?, .variable?, .existsIntro?, .existsElim?,
+             .hidden?: .rule
         case .unbuilt?: .unbuilt
         case .renumber?, nil: nil
         }
@@ -28,8 +31,10 @@ public struct Fol: Pass {
     /// the instances at a class type. Per statement the cache lives for one; the outputs are interned, the unit the
     /// same.
     public func run(_ roots: [NodeID], _: [Definition], in t: inout Table) throws -> [NodeID] {
-        try roots.map { try transform($0, FolRule(), in: &t) }
+        try roots.map { try transform($0, FolRule(base: base), in: &t) }
     }
+
+    let base: Base
 }
 
 private enum Piece {
@@ -41,6 +46,7 @@ private enum Piece {
     case variable
     case existsIntro
     case existsElim
+    case hidden(IRType)
     case unbuilt
     case renumber
 }
@@ -53,8 +59,9 @@ private func piece(_ p: Pattern) -> Piece? {
     case .isaAllElim(_, let T): T == .i ? .instance : nil
     case .isaGuard(let T, _): isObject(T) ? .guardOf : nil
     case .isaBound(let T): mentionsTypeVariable(T) || T == .o ? nil : isObject(T) ? .variable : .unbuilt
-    case .isaExIntro(_, let T): T == .i ? .existsIntro : nil
+    case .isaExIntro(_, let T, _): T == .i ? .existsIntro : nil
     case .isaExElim(let T, _, _): T == .i ? .existsElim : nil
+    case .isaHidden(let T, _): isObject(T) ? .hidden(T) : nil
     case .hyp: .renumber
     case .isaConst, .isaFree, .isaVarApp, .isaAbs, .isaOfClass, .isaReflexive, .isaSymmetric, .isaTransitive,
          .isaCombination, .isaAbstract, .isaClassical, .isaIffReflection, .isaDefinition, .isaPropAll, .isaPropIntro,
@@ -74,6 +81,8 @@ private enum Entry: Hashable {
 }
 
 private struct FolRule: Rule {
+    let base: Base
+
     var start: [Entry] {
         []
     }
@@ -83,6 +92,7 @@ private struct FolRule: Rule {
         case .intro(let T)?: c + [.fix(T)] + (guardPredicate(T) == nil ? [] : [.inserted(guard: true)])
         case .forall(let T)?, .exists(let T)?: c + [.fix(T)]
         case .existsElim?: c + [.fix(.i), .inserted(guard: false), .inserted(guard: true), .assume]
+        case .hidden(let T)?: c + [.fix(T), .inserted(guard: guardPredicate(T) != nil)]
         case .instance?, .guardOf?, .variable?, .existsIntro?, .unbuilt?, .renumber?, nil:
             c + Array(repeating: .fix(nil), count: binds.terms) + Array(repeating: .assume, count: binds.hyps)
         }
@@ -136,7 +146,15 @@ private struct FolRule: Rule {
         case .existsIntro?:
             let q = children(n)[0]
             let x = children(n)[1]
-            return try t.intern(.folExistsIntro(try t.intern(.folAndIntro(try discharge(x, c, &t), q)), x))
+            guard let g = try guardOfBound0(.i, &t) else { throw FolError.notGuardedExistential(id) }
+            let instance = try t.intern(.folSchemaInst(
+                try base.cite(.exIntro, in: &t),
+                try t.intern(.folLetterAbs(body: try t.intern(.folAnd(g, children(n)[2])))),
+            ))
+            return try t.intern(.folImpliesElim(
+                try t.intern(.folForallElim(instance, x)),
+                try t.intern(.folAndIntro(try discharge(x, c, &t), q)),
+            ))
 
         case .existsElim?:
             guard
@@ -152,6 +170,9 @@ private struct FolRule: Rule {
                 body: try t.intern(.folImpliesElim(guarded, try t.intern(.folAndElimR(opened)))),
             ))
 
+        case .hidden(let T)?:
+            return try t.intern(.folExistsElim(try base.cite(inhabited(T), in: &t), body: children(n)[0]))
+
         case .renumber?:
             let h = n.boundVariable!
             let k = try renumbered(hypothesis: h.index, in: c)
@@ -161,6 +182,10 @@ private struct FolRule: Rule {
             return nil
         }
     }
+}
+
+private func inhabited(_ T: IRType) -> BaseStatement {
+    T != .i && guardPredicate(T) != nil ? .functionInhabited : .setInhabited
 }
 
 private func guardOfBound0(_ T: IRType, _ t: inout Table) throws -> NodeID? {

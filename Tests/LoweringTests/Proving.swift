@@ -32,7 +32,7 @@ func proveAll(_ requests: [(Lemma, NodeID)], _ definitions: [Definition], in t: 
         case .proof(let p):
             #expect(t.conclusion(of: p) == root, "\(l.name)")
             #expect(try misscoped(p, in: t).isEmpty, "\(l.name): a hypothesis is not its binder's")
-            let lowered = try Fol().run([root, p], [], in: &t)
+            let lowered = try Fol(base: base).run([root, p], [], in: &t)
             #expect(t.conclusion(of: lowered[1]) == lowered[0], "\(l.name) through Fol")
             try legalize(lowered[1], in: t)
             proved.append((l.name, root, p))

@@ -44,6 +44,13 @@ schema iff_both [A(0), B(0)]: ((A -> B) -> ((B -> A) -> (A <-> B)))
 # the existential. Dropping it either side would quantify over classes (S6).
 schema forall_as_nexists [P(1)]: ((~ (exists z. (set(z) & (~ P(z))))) <-> (forall z. (set(z) -> P(z))))
 
+# `exI`: an ∃-introduction GIVEN its body. `exists_intro` binds every occurrence
+# of its witness, so it is taken at `z`, which occurs only where the letter binds;
+# `forall_elim` puts the caller's witness back exactly. BARE, the guard of a set
+# binder carried in the letter: Fol cites it after its own walk, and a guarded
+# binder parses to the isa binder only that walk lowers.
+schema ex_intro [P(1)]: (forall z. (P(z) -> (exists y. P(y))))
+
 # §5 rule 2's core: `D = G` becomes `forall z. (z:D <-> z:G)`.
 #
 # This is axiom 3 with the biconditional REVERSED, and that is the whole of the

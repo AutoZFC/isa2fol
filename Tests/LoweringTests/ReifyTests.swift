@@ -279,7 +279,7 @@ private func instance(
     let lowered = try r.logic([root, proof])
     #expect(r.t.conclusion(of: lowered[1]) == lowered[0])
     #expect(patterns(under: lowered, in: r.t).allSatisfy { Logic(base: r.base).owns($0) == nil })
-    let fol = try Fol().run(lowered, [], in: &r.t)
+    let fol = try Fol(base: r.base).run(lowered, [], in: &r.t)
     #expect(r.t.conclusion(of: fol[1]) == fol[0])
     var cited = [NodeID]()
     var seen = Set<NodeID>()

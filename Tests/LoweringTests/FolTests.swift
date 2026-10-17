@@ -93,7 +93,8 @@ private struct F {
 /// Fol alone, each proof checked to conclude its statement BY ID, as the pipeline checks it.
 private func lowered(_ f: F, _ statements: [Statement]) throws -> Unit {
     var t = f.t
-    let out = try Fol().run(statements.flatMap { [$0.root, $0.proof!] }, [], in: &t)
+    let fol = Fol(base: try base(in: &t))
+    let out = try fol.run(statements.flatMap { [$0.root, $0.proof!] }, [], in: &t)
     let lowered = statements.indices.map { k in Statement(
         name: statements[k].name,
         root: out[2 * k],
@@ -121,7 +122,8 @@ func aQuantifierAtAnObjectTypeTakesItsTypesGuard() throws {
     let atPredicate = try f.t.intern(.ifolAll(fn(i, o), body: try q(try f.t.intern(.isaBound(0, fn(i, o))), &f)))
     let atFunction = try f.t.intern(.ifolAll(fn(i, i), body: try q(try f.t.intern(.isaBound(0, fn(i, i))), &f)))
     let atVariable = try f.t.intern(.ifolAll(.variable("'a"), body: try f.t.intern(.folBottom)))
-    let out = try Fol().run([allAtI, exAtI, atO, atPredicate, atFunction, atVariable], [], in: &f.t)
+    let fol = Fol(base: try base(in: &f.t))
+    let out = try fol.run([allAtI, exAtI, atO, atPredicate, atFunction, atVariable], [], in: &f.t)
     let v = try f.v(0)
     let pv = try f.pred("P", v)
     let guardedEx = try f.t.intern(.folExists(body: try f.t.intern(.folAnd(try f.set(v), pv))))
@@ -137,7 +139,8 @@ func aQuantifierAtAnObjectTypeTakesItsTypesGuard() throws {
 }
 
 /// `(∃y. P(y)) ⟹ ∃y. Q(y)` by `lem` at the witness: `∃`-elim at `i` opens `set(y) ∧ P(y)` to the guard and `P(y)`, so
-/// the instance at `y` is discharged by `y`'s guard; `∃`-intro at `i` puts the witness's guard into the `∧`.
+/// the instance at `y` is discharged by `y`'s guard; `∃`-intro at `i` is base's `ex_intro` at its body under the guard,
+/// then at the witness and the premise under its guard.
 @Test
 func anExistentialAtIIsGuardedWhereItIsOpenedAndClosed() throws {
     var f = F()
@@ -150,7 +153,7 @@ func anExistentialAtIIsGuardedWhereItIsOpenedAndClosed() throws {
     let atY = try f.mp(try f.elim(try f.use("lem", lem.root), y), try f.hyp(0, py))
     let proof = try f.assume(
         someP,
-        try f.t.intern(.isaExElim(i, try f.hyp(0, someP), body: try f.t.intern(.isaExIntro(atY, y)))),
+        try f.t.intern(.isaExElim(i, try f.hyp(0, someP), body: try f.t.intern(.isaExIntro(atY, y, body: qy)))),
     )
     let unit = try lowered(f, [lem, Statement(name: "thm", root: try f.imp(someP, someQ), proof: proof)])
     var g = F(t: unit.table)
@@ -162,7 +165,10 @@ func anExistentialAtIIsGuardedWhereItIsOpenedAndClosed() throws {
     let guardedP = try g.t.intern(.folExists(body: both))
     let lemRoot = try g.guardedAll(try g.imp(pv, qv))
     let discharged = try g.mp(try g.guardedElim(try g.use("lem", lemRoot), v, guard: 1), try g.hyp(0, pv))
-    let intro = try g.t.intern(.folExistsIntro(try g.t.intern(.folAndIntro(try g.hyp(1, sv), discharged)), v))
+    let exIntro = try base(in: &g.t).cite(.exIntro, in: &g.t)
+    let letter = try g.t.intern(.folLetterAbs(body: try g.t.intern(.folAnd(sv, qv))))
+    let atV = try g.t.intern(.folForallElim(try g.t.intern(.folSchemaInst(exIntro, letter)), v))
+    let intro = try g.mp(atV, try g.t.intern(.folAndIntro(try g.hyp(1, sv), discharged)))
     let opened = try g.hyp(0, both)
     let split = try g.assume(sv, try g.assume(pv, intro))
     let body = try g.mp(try g.mp(split, try g.t.intern(.folAndElimL(opened))), try g.t.intern(.folAndElimR(opened)))
@@ -290,11 +296,12 @@ func aGuardOfAVariableItsBinderDoesNotBringIsMalformed() throws {
     let sx = try f.set(x)
     let unguarded = try f.t.intern(.folForallIntro(body: try f.t.intern(.isaGuard(x, sx))))
     let v0 = try f.v(0)
-    #expect(throws: FolError.unguardedBinder(v0)) { _ = try Fol().run([unguarded], [], in: &f.t) }
+    let fol = Fol(base: try base(in: &f.t))
+    #expect(throws: FolError.unguardedBinder(v0)) { _ = try fol.run([unguarded], [], in: &f.t) }
     let px = try f.pred("P", x)
     let other = try f.fix(try f.t.intern(.folImpliesIntro(px, body: try f.t.intern(.isaGuard(x, px)))))
     let wrong = try f.pred("P", v0)
-    #expect(throws: FolError.notItsGuard(wrong)) { _ = try Fol().run([other], [], in: &f.t) }
+    #expect(throws: FolError.notItsGuard(wrong)) { _ = try fol.run([other], [], in: &f.t) }
 }
 
 /// Base's guarded quantifiers parse as set binders, and Fol writes each guard back: a parsed claim lowered is its text.
@@ -305,7 +312,8 @@ func aParsedBaseClaimLoweredByFolIsItsText() throws {
         claim: "claim apply_EX: forall F. (forall t. (set(t) -> (exists r. (set(r) & apply(t,r,F)))))",
         in: &f.t,
     )
-    let lowered = try Fol().run([root], [], in: &f.t)[0]
+    let fol = Fol(base: try base(in: &f.t))
+    let lowered = try fol.run([root], [], in: &f.t)[0]
     let apply = try f.t.intern(.folPred(.base("apply"), args: [try f.v(1), try f.v(0), try f.v(2)]))
     let witness = try f.t.intern(.folExists(body: try f.t.intern(.folAnd(try f.set(try f.v(0)), apply))))
     #expect(lowered == (try f.t.intern(.folForall(body: try f.guardedAll(witness)))))

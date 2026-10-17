@@ -129,18 +129,17 @@ func truepropIsErasedAndPropIsADefinedConstant() throws {
     #expect(got == (try r.const(defined(.pure, "Pure.prop", .meta), fnT(oT, oT), try r.free("P", oT))))
 }
 
-/// The exporter writes a variable only the proof uses as `dummy_pattern` (`standard_hidden_terms`): the hidden
-/// variable.
+/// The exporter writes only a variable a proof uses as `dummy_pattern` (`standard_hidden_terms`): the proof binds it
+/// (DESIGN "Step 7"), so outside a proof the export is malformed.
 @Test
-func dummyPatternReadsAsTheHiddenVariable() throws {
+func aHiddenVariableOutsideAProofIsMalformed() throws {
     var r = try Reading()
-    let bare = try r.proposition(
-        trueprop(app(const("ZF_Base.mem"), const("Pure.dummy_pattern", i), free("A"))),
-        frees: [("A", i)],
-    )
-    #expect(bare == (try r.const(mem, memT, try r.n(.isaFree(.hidden, iT)), try r.free("A", iT))))
-    let applied = try r.proposition(trueprop(app(const("Pure.dummy_pattern", fn(i, o)), free("A"))), frees: [("A", i)])
-    #expect(applied == (try r.varApp(try r.n(.isaFree(.hidden, fnT(iT, oT))), try r.free("A", iT))))
+    #expect(throws: MalformedExport.hiddenOutsideProof(iT)) {
+        try r.proposition(
+            trueprop(app(const("ZF_Base.mem"), const("Pure.dummy_pattern", i), free("A"))),
+            frees: [("A", i)],
+        )
+    }
 }
 
 @Test

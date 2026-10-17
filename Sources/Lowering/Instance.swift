@@ -13,10 +13,35 @@ struct TermInstance {
         guard
             case .isaAllElim(let original, let a) = t[id],
             case .ifolAll(.i, let phi)? = t.conclusion(of: original).map({ t[$0] }),
-            let instance = t.conclusion(of: id),
-            let rewritten = t.conclusion(of: p)
+            let instance = t.conclusion(of: id)
         else { throw InstanceError.notAnInstance(id) }
-        let wanted = try walked(instance, base: base, in: &t)
+        return try atWitness(p, a, phi, try walked(instance, base: base, in: &t), in: &t) { assumed, y, _, walk, t in
+            let atY = try t.intern(.isaAllElim(assumed, y))
+            guard let named = t.conclusion(of: atY) else { throw InstanceError.notAnInstance(id) }
+            return try t.intern(.folIffElimL(try walk(named, &t), atY))
+        }
+    }
+
+    func witnessed(_ p: NodeID, body: NodeID, was id: NodeID, in t: inout Table) throws -> NodeID {
+        guard case .isaExIntro(_, let a, let phi) = t[id], let premise = t.conclusion(of: p)
+        else { throw InstanceError.notAnInstance(id) }
+        return try atWitness(p, a, phi, premise, in: &t) { assumed, y, s, walk, t in
+            let some = try s.lift(try t.intern(.ifolEx(.i, body: body)), in: &t)
+            guard case .ifolEx(.i, let lifted) = t[some] else { throw InstanceError.notAnInstance(id) }
+            let atY = try t.intern(.folIffElimR(try walk(try instantiate(lifted, with: y, in: &t), &t), assumed))
+            return try t.intern(.isaExIntro(atY, y, body: lifted))
+        }
+    }
+
+    private func atWitness(
+        _ p: NodeID,
+        _ a: NodeID,
+        _ phi: NodeID,
+        _ wanted: NodeID,
+        in t: inout Table,
+        _ finish: (NodeID, NodeID, Scope, (NodeID, inout Table) throws -> NodeID, inout Table) throws -> NodeID,
+    ) throws -> NodeID {
+        guard let rewritten = t.conclusion(of: p) else { throw TableError.expectedStep(p) }
         let c = try closed(a, in: &t)
         let exR = try existence(of: a, in: &t)
         let uniqR = try uniqueness(of: a, in: &t)
@@ -32,17 +57,15 @@ struct TermInstance {
             in: &t,
         )
         guard case .ifolEx(.i, let valued)? = t.conclusion(of: exists).map({ t[$0] })
-        else { throw InstanceError.notAnInstance(id) }
+        else { throw InstanceError.notAnInstance(p) }
         let y = s.fix(.i)
         let h = s.assume(valued)
         let premise = try s.lift(rewritten, in: &t)
         let assumed = s.assume(premise)
-        let atY = try t.intern(.isaAllElim(try s.hypothesis(assumed, in: &t), try s.variable(y, in: &t)))
-        guard let atYNamed = t.conclusion(of: atY) else { throw InstanceError.notAnInstance(id) }
         var naming = Naming(designated: [1])
         let equated = try equation(try s.variable(y, in: &t), try s.lift(a, in: &t), in: &t)
         _ = try naming.atom(t[equated], in: &t)
-        guard case .bound(let value)? = naming.site?.value else { throw InstanceError.notAnInstance(id) }
+        guard case .bound(let value)? = naming.site?.value else { throw InstanceError.notAnInstance(p) }
         let conversion = Conversion(
             base: base,
             term: a,
@@ -53,14 +76,12 @@ struct TermInstance {
             binders: naming.chain.binders,
             value: value,
         )
-        let walk = try Replacement(base: base, hole: conversion.atom).proof(
-            phi,
-            atYNamed,
-            try s.lift(wanted, in: &t),
-            in: s,
-            &t,
-        )
-        let body = try t.intern(.folImpliesIntro(premise, body: try t.intern(.folIffElimL(walk, atY))))
+        let target = try s.lift(wanted, in: &t)
+        let walk = { (named: NodeID, t: inout Table) throws -> NodeID in
+            try Replacement(base: base, hole: conversion.atom).proof(phi, named, target, in: s, &t)
+        }
+        let finished = try finish(try s.hypothesis(assumed, in: &t), try s.variable(y, in: &t), s, walk, &t)
+        let body = try t.intern(.folImpliesIntro(premise, body: finished))
         return try t.intern(.folImpliesElim(try t.intern(.isaExElim(.i, exists, body: body)), p))
     }
 }
@@ -96,6 +117,7 @@ func units(_ n: NodeID, _ x: Int, _ path: [Int], in t: Table) -> [Unit] {
     case .ifolAll, .ifolEx, .isaFree, .isaOfClass, .isaAllIntro, .isaAllElim, .isaReflexive, .isaSymmetric,
          .isaTransitive,
          .isaCombination, .isaAbstract, .isaClassical, .isaIffReflection, .isaDefinition, .isaPropAll, .isaPropIntro,
+         .isaHidden,
          .isaPropBound, .folImplies, .folAnd, .folOr, .folIff, .folBottom, .folImpliesIntro, .folImpliesElim,
          .use, .hyp, .isaGuard, .isaExIntro, .isaExElim, .folNot, .folBound, .folPred, .folForall, .folExists,
          .folAndIntro, .folAndElimL, .folAndElimR, .folOrIntroL, .folOrIntroR, .folOrElim, .folNotIntro, .folNotElim,
@@ -183,7 +205,6 @@ private struct Conversion {
                     let facts = oy.constraints[..<lower] + oh.constraints + oy.constraints[lower...]
                     return try reclosed(
                         target,
-                        sides.T,
                         try witnesses.map { try s.variable($0, in: &t) },
                         try facts.map { try s.proof($0, in: &t) },
                         try s.proof(oy.core, in: &t),
@@ -212,7 +233,6 @@ private struct Conversion {
                     }
                     return try reclosed(
                         source,
-                        sides.Y,
                         try witnesses.map { try s.variable($0, in: &t) },
                         try facts.map { try s.proof($0, in: &t) },
                         try s.proof(ot.core, in: &t),
@@ -354,7 +374,6 @@ func slotConverted(
     }
     let reopened = { (
         atom: NodeID,
-        binders: [Binder],
         o: Opened,
         s: Scope,
         t: inout Table,
@@ -362,7 +381,6 @@ func slotConverted(
     ) throws -> NodeID in
         try reclosed(
             atom,
-            binders,
             try o.witnesses.map { try s.variable($0, in: &t) },
             try o.constraints.map { try s.proof($0, in: &t) },
             try s.proof(o.core, in: &t),
@@ -374,13 +392,13 @@ func slotConverted(
     }
     return try sides.proof(in: s, &t, there: { s, from, t in
         try opening(from, sides.Y, in: s, &t) { s, o, t in
-            try reopened(target, sides.T, o, s, &t) { p, wanted, s, t in
+            try reopened(target, o, s, &t) { p, wanted, s, t in
                 try t.intern(.folIffElimL(try definition(try conclusion(p, t), wanted, o.witnesses[K], s, &t), p))
             }
         }
     }, back: { s, from, t in
         try opening(from, sides.T, in: s, &t) { s, o, t in
-            try reopened(source, sides.Y, o, s, &t) { p, wanted, s, t in
+            try reopened(source, o, s, &t) { p, wanted, s, t in
                 try t.intern(.folIffElimR(try definition(wanted, try conclusion(p, t), o.witnesses[K], s, &t), p))
             }
         }
@@ -389,7 +407,6 @@ func slotConverted(
 
 func reclosed(
     _ atom: NodeID,
-    _ binders: [Binder],
     _ variables: [NodeID],
     _ facts: [NodeID],
     _ core: NodeID,
@@ -404,7 +421,8 @@ func reclosed(
     for (p, w) in zip(facts + [core], try naming.chain.stated() + [wanted]) {
         proofs.append(t.conclusion(of: p) == w ? p : try convert(p, w, s, &t))
     }
-    return try closing(binders, variables, Array(proofs.dropLast()), proofs[proofs.count - 1], in: &t)
+    let formula = try shift(try named(atom: t[atom], in: &t), by: s.depth - depth, in: &t)
+    return try closing(formula, variables, Array(proofs.dropLast()), proofs[proofs.count - 1], in: &t)
 }
 
 func leibniz(

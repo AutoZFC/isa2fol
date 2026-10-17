@@ -118,3 +118,11 @@ proof weaken:
     _ba = implies_intro _a
     _aba = implies_intro _ba
     qed _aba
+
+proof truth_inhabited:
+    _tx = schema_inst truth_EX { A: false }
+    _eo = exists_elim _tx, e
+    _te = and_elim_l _eo
+    _ex = exists_intro _te, e
+    _cl = exists_intro _ex
+    qed _cl

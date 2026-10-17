@@ -237,7 +237,6 @@ private struct Beta {
                     let facts = oy.constraints[..<lower] + oh.constraints + oy.constraints[upper...]
                     return try reclosed(
                         tx,
-                        sides.T,
                         try witnesses.map { try s.variable($0, in: &t) },
                         try facts.map { try s.proof($0, in: &t) },
                         try s.proof(oy.core, in: &t),
@@ -279,7 +278,6 @@ private struct Beta {
                 )))
                 let atZ = try reclosed(
                     try equation(z, try zf.scope.lift(body, from: depth, in: &t), in: &t),
-                    site,
                     try ot.witnesses[lowerT..<upperT].map { try zf.variable($0, in: &t) },
                     try ot.constraints[lowerT..<upperT].map { try zf.proof($0, in: &t) },
                     try zf.hypothesis(hz, in: &t),
@@ -305,7 +303,6 @@ private struct Beta {
                     + ot.constraints[upperT...].map { try inner.proof($0, in: &t) }
                 let closed = try reclosed(
                     sx,
-                    sides.Y,
                     variables,
                     facts,
                     try inner.proof(ot.core, in: &t),
@@ -447,10 +444,16 @@ struct LambdaProofs {
             in: &t,
         )
         let member = try t.intern(.folIffElimR(atTau2, try bw.hypothesis(hb, in: &t)))
-        let closed = try t.intern(.isaExIntro(
-            try t.intern(.folAndIntro(try bw.hypothesis(th2, in: &t), member)),
-            try bw.variable(tau2, in: &t),
-        ))
+        let closed = try closing(
+            try named(
+                atom: .isaVarApp(head: try bw.variable(k, in: &t), args: try ts.map { try bw.variable($0, in: &t) }),
+                in: &t,
+            ),
+            [try bw.variable(tau2, in: &t)],
+            [try bw.hypothesis(th2, in: &t)],
+            member,
+            in: &t,
+        )
         let backward = try bw.close(closed, in: &t)
         return try sub.close(try t.intern(.folIffIntro(forward, backward)), in: &t)
     }
@@ -512,7 +515,12 @@ struct LambdaProofs {
             try eliminated(try sub.hypothesis(member, in: &t), at: [Y], in: &t),
             try sub.hypothesis(hy, in: &t),
         ))
-        let some = try t.intern(.isaExIntro(atY, Y))
+        let some = try introduced(
+            try someLeft(of: try sub.hypothesis(member, in: &t), in: &t),
+            at: [Y],
+            from: atY,
+            in: &t,
+        )
         var last = Frame(sub.scope)
         let r2 = last.fix(.i)
         let R = try last.variable(r2, in: &t)
@@ -577,9 +585,14 @@ struct LambdaProofs {
         let forward = try fw.close(moved, in: &t)
         var bw = Frame(f.scope)
         let hb = bw.assume(try body(bw, &t))
-        var witness = try t.intern(.folAndIntro(try bw.hypothesis(tupled, in: &t), try bw.hypothesis(hb, in: &t)))
-        for x in ts.reversed() { witness = try t.intern(.isaExIntro(witness, try bw.variable(x, in: &t))) }
-        let backward = try bw.close(try t.intern(.folIffElimR(try bw.hypothesis(d, in: &t), witness)), in: &t)
+        let defined = try bw.hypothesis(d, in: &t)
+        let witness = try introduced(
+            try sides(defined, t).right,
+            at: try ts.map { try bw.variable($0, in: &t) },
+            from: try t.intern(.folAndIntro(try bw.hypothesis(tupled, in: &t), try bw.hypothesis(hb, in: &t))),
+            in: &t,
+        )
+        let backward = try bw.close(try t.intern(.folIffElimR(defined, witness)), in: &t)
         return try t.intern(.folIffIntro(forward, backward))
     }
 

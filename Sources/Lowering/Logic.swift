@@ -57,6 +57,7 @@ private enum Proposition {
     case binder
     case intro
     case variable
+    case hidden
 }
 
 private enum Function {
@@ -128,6 +129,10 @@ private func piece(_ p: Pattern) -> Piece? {
 
     case .isaPropBound:
         return .proposition(.variable)
+
+    case .isaHidden(let T, _):
+        if T == .o { return .proposition(.hidden) }
+        return beyondObjects(T) ? .unbuilt : nil
 
     case .isaConst, .isaFree, .isaBound, .isaVarApp, .isaOfClass, .isaDefinition, .folImplies, .folImpliesIntro,
          .folImpliesElim, .folAnd, .folOr, .folIff, .folBottom, .use, .hyp, .isaGuard, .isaExIntro, .isaExElim, .folNot,
@@ -224,6 +229,10 @@ private struct Steps: Rule {
         case .proposition(.variable)?:
             guard case .isaPropBound(let k) = n else { throw LogicError.notTheRule(id) }
             return try holds(try t.intern(.folBound(k)), in: &t)
+
+        case .proposition(.hidden)?:
+            guard case .isaHidden(.o, let body) = n else { throw LogicError.notTheRule(id) }
+            return try hiddenProposition(body, base, in: &t)
 
         case .function(.wrapper)?:
             return nil
@@ -384,6 +393,21 @@ struct Equalities {
 
 /// ⚠ BUILT CLOSED OVER `h`'S STATEMENT AND APPLIED TO `h`: built around `h` itself, a proof holding hypotheses would be
 /// read under the reductio's own.
+/// ⚠ AN `exists_elim` WRAPPED STRAIGHT AROUND `body` SHIFTS ITS HYPOTHESES, AND THE TABLE CHECKS NONE AGAINST ITS
+/// BINDER: generalized first, `body` keeps them where they are.
+private func hiddenProposition(_ body: NodeID, _ base: Base, in t: inout Table) throws -> NodeID {
+    let general = try t.intern(.folForallIntro(body: body))
+    guard let stated = t.conclusion(of: general) else { throw LogicError.notTheRule(body) }
+    let opened = try t.intern(.folExistsElim(
+        try base.cite(.truthInhabited, in: &t),
+        body: try t.intern(.folForallElim(
+            try t.intern(.hyp(1, try shift(stated, by: 1, in: &t))),
+            try t.intern(.folBound(0)),
+        )),
+    ))
+    return try t.intern(.folImpliesElim(try t.intern(.folImpliesIntro(stated, body: opened)), general))
+}
+
 private func reductio(_ a: NodeID, _ h: NodeID, in t: inout Table) throws -> NodeID {
     guard let premise = t.conclusion(of: h) else { throw LogicError.notTheRule(h) }
     let notA = try t.intern(.folNot(a))

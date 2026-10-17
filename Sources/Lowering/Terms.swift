@@ -37,14 +37,21 @@ struct TermProofs {
             .base("eq"),
             args: [try z.variable(zl, in: &t), try z.scope.lift(r0, from: f.scope.depth, in: &t)],
         )))
+        let term = try z.scope.lift(r.term, from: outer, in: &t)
+        let atZ = try equation(try z.variable(zl, in: &t), term, in: &t)
         let closedChain = try closing(
-            naming.chain.binders,
+            try named(atom: t[atZ], in: &t),
             try witnesses.map { try z.variable($0, in: &t) },
             try hypotheses.map { try z.hypothesis($0, in: &t) },
             try z.hypothesis(hz, in: &t),
             in: &t,
         )
-        let everyZ = try z.close(try t.intern(.isaExIntro(closedChain, try z.variable(zl, in: &t))), in: &t)
+        let atY = try equation(try t.intern(.isaBound(0, .i)), try shift(term, by: 1, in: &t), in: &t)
+        let some = try t.intern(.ifolEx(.i, body: try named(atom: t[atY], in: &t)))
+        let everyZ = try z.close(
+            try introduced(some, at: [try z.variable(zl, in: &t)], from: closedChain, in: &t),
+            in: &t,
+        )
         let reflexive = try eliminated(try base.cite(.eqRefl, in: &t), at: [r0], in: &t)
         return try f.close(try t.intern(.folImpliesElim(try t.intern(.isaAllElim(everyZ, r0)), reflexive)), in: &t)
     }
@@ -119,7 +126,7 @@ struct TermProofs {
             let (f, c) = try lambdaFact(try at.lift(lambda, &t), .classExists, in: &t)
             return try instantiated(
                 try cited(f, try statement(f, base: base, in: &t), &t),
-                at: c.variables,
+                at: try c.variables.map { try walked($0, base: base, in: &t) },
                 c.types,
                 guards: false,
                 guardOf: isaGuard,
@@ -308,7 +315,7 @@ struct TermProofs {
         let (f, c) = try lambdaFact(try at.lift(lambda, &t), .function, in: &t)
         let atVariables = try instantiated(
             try cited(f, try statement(f, base: base, in: &t), &t),
-            at: c.variables,
+            at: try c.variables.map { try walked($0, base: base, in: &t) },
             c.types,
             guards: true,
             guardOf: { x, _, t in try guardOf(x, &t) },

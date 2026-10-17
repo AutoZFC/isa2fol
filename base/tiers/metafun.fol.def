@@ -12,6 +12,7 @@
 #   mfun_ext    pointwise-equal class functions agree on D      fun_extension
 #   mfun_comb   f == g and t = t2 give f(t) == g(t2)     Pure's combination
 #   function    F single-valued: the guard of a function variable, Isabelle/ZF's `function` of a class
+#   function_inhabited  zero is single-valued, having no pairs: what a function variable only a proof uses is bound by
 #   apply       r is F's value at t, or 0 where F has none: Isabelle/ZF's f`a, a function variable's application
 #   apply_EX    every application has a value, with no guard: totality lives in apply's default, not the guard
 #   apply_UNIQ  and only one, given the guard -- so neither carries an arity
@@ -40,6 +41,7 @@ claim g7_at_p1: forall p. (set(p) -> (forall p1. (set(p1) -> (forall c. (set(c) 
 
 # A function variable's guard and its application (FOUNDATION S5).
 @def(function) axiom function_def: forall F. (function(F) <-> (forall t. (set(t) -> (forall r. (set(r) -> (forall s. (set(s) -> (pmem(t,r,F) -> (pmem(t,s,F) -> eq(r,s))))))))))
+claim function_inhabited: exists F. function(F)
 @def(apply) axiom apply_def: forall t. forall r. forall F. (apply(t,r,F) <-> (pmem(t,r,F) | ((~ (exists u. (set(u) & pmem(t,u,F)))) & zero(r))))
 claim apply_EX: forall F. (forall t. (set(t) -> (exists r. (set(r) & apply(t,r,F)))))
 claim apply_UNIQ: forall F. (function(F) -> (forall t. (set(t) -> (forall r. (set(r) -> (forall s. (set(s) -> (apply(t,r,F) -> (apply(t,s,F) -> eq(r,s))))))))))

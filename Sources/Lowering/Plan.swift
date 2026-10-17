@@ -1,7 +1,7 @@
 import IR
 
 public func plan(_ base: Base) -> [Pass] {
-    [Expand(), Logic(base: base), Fol()]
+    [Expand(), Logic(base: base), Fol(base: base)]
 }
 
 public func provers(_ base: Base) -> Provers {

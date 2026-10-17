@@ -288,7 +288,7 @@ lands:
 | `True`, `Ex1`, `Let`, `Uniq` | no — defined constants | `isaConst` |
 | Pure `≡` at a function type — definitions `f ≡ λx. t` — or at a type variable | not by FOL or IFOL | `isaConst(.primitive(.pure(.eq)), …)`; a definition is consumed by S2 |
 | Pure `⋀` at a function type | not by FOL or IFOL; S5 | `ifolAll(T, body)` at the function type — S5 is a pass |
-| Pure's defined `&&&` `TERM` `sort_constraint` · `_` (`dummy_pattern`) | no · it is no constant | `isaConst(.defined(.pure, …))` · `isaFree(.hidden, T)`, a variable only the proof uses (§4.3b) |
+| Pure's defined `&&&` `TERM` `sort_constraint` · `_` (`dummy_pattern`) | no · it is no constant | `isaConst(.defined(.pure, …))` · a variable only the proof uses, bound by `isaHidden(T, body)` at its proof's top (§4.3b, "Step 7") |
 | `OFCLASS(T, c)` | no — FOL has no types | `isaOfClass(T, c)`, the export's own form (§4.3a 5) |
 
 **The quantifier is the one dedicated import because the guard is the calling
@@ -301,7 +301,7 @@ The generic term language — ZF's own vocabulary, not logic at any level:
 | node | source | added | left out |
 |---|---|---|---|
 | `isaConst(Constant, T, args)` | any constant not read as logic above, fully applied, typed (§4.3b): a primitive (`IFOL.eq`, ZF_Base's six, `Pure.eq` at a function type or a type variable), a defined constant (every one `theory/constdefs` defines), or a declared one (a theory's own parameter) | its INSTANTIATED type `T` — it determines the type arguments and back, so the identity is the same | the declared scheme (`IFOL.eq :: 'a ⇒ 'a ⇒ o`): the READER instantiates it from `theory/consts` at the use's type arguments — the file's own variables where it is generic |
-| `isaFree(.hidden, T)` | `Pure.dummy_pattern`: a variable only the proof uses (§4.3b) — a free `ZVar` of the statement reads as its closure binder's `isaBound` (§2); `.named` is the index engine's (§4.4) | | |
+| `isaHidden(T, body)` | `Pure.dummy_pattern`'s binder: a variable only the proof uses, bound at its proof's top, its occurrences `isaBound` (`isaPropBound` at `o`) ("Step 7") — a free `ZVar` of the statement reads as its closure binder's `isaBound` (§2); `isaFree(name, T)` is the index engine's (§4.4), never the reader's | | |
 | `isaBound(k, T)` | `ZBound k`, and a free `ZVar` under its statement's closure | **the type**, from the enclosing binder or the `frees` header | |
 | `isaVarApp(head, args)` | a variable applied — a class variable `P(x)` | | the head is an `isaFree` or `isaBound`, never merged into the constant namespace (rule 3) |
 | `isaAbs(T, body)` | `ZAbs`, ONLY as a function-typed argument: `Collect(A, λx. …)` | | **`x`** |
@@ -393,7 +393,7 @@ FOL has it natively; it then reads as FOL's, the SAME node. A defined constant i
 | bi-implication | Pure `≡` at `o`/`prop` | `folIff` |
 | `∀` / `∃` at a type `T` | IFOL `∀`, Pure `⋀` / IFOL `∃` — at `i`, `o` or a function type | `ifolAll(T)` / `ifolEx(T)` |
 | a constant applied | every other constant: ZF's; `=` (IFOL `eq`, and Pure `≡` at `i`); Pure `≡` at a function type or a type variable; the defined `↔ ¬ True Ex1 Let Uniq induct_*`; Pure's defined `PROP &&& TERM sort_constraint` | `isaConst(Constant, T instantiated)` |
-| a variable only the proof uses | `Pure.dummy_pattern` (`standard_hidden_terms`) | `isaFree(.hidden, T)` |
+| a variable only the proof uses | `Pure.dummy_pattern` (`standard_hidden_terms`) | `isaBound` under `isaHidden(T, …)` at its proof's top ("Step 7") |
 | a bound variable · a variable applied · `λ` | `ZBound`, and a free `ZVar` — its statement's `∀`-closure binds it (§2) · `ZApp` headed by a variable · `ZAbs` as a function argument | `isaBound` · `isaVarApp` · `isaAbs` |
 | `⋀`-intro · `⋀`-elim | `ZAbst` · `ZAppt` | `isaAllIntro` · `isaAllElim`; at `o` below a statement's top, Pure's `⋀` over a proposition, `isaPropIntro` ("Functions of propositions and the bound `⋀P`", 6) |
 | `⟹`-intro · `⟹`-elim | `ZAbsp` · `ZAppp` | `folImpliesIntro` · `folImpliesElim` |
@@ -467,7 +467,7 @@ cited axioms (§4a, "Logic's second step").
 
 | the reference | here | principle |
 |---|---|---|
-| `Pure.dummy_pattern` is a `Primitive.pure`, and reify refuses it by name (`pureConstant`) | `isaFree(.hidden, T)`: the variable only the proof uses | §4.3: a node's meaning follows from the node alone |
+| `Pure.dummy_pattern` is a `Primitive.pure`, and reify refuses it by name (`pureConstant`) | the variable only the proof uses, bound by `isaHidden(T, …)` at its proof's top ("Step 7") | §4.3: a node's meaning follows from the node alone |
 | ZF-Coind's and ZF-ex's own parameters are `Primitive.zf`, and their axioms `Axiom.zf` | `declared` and `theoryAxiom` | I1. R1 admits nothing beyond the 19, and these are not ZF's |
 | an unlisted leaf or axiom REFUSES the theorem (`Com.loc`: 102 theorems) | an unlisted leaf or axiom of the foundation STOPS the read; above the foundation nothing needs listing | D2: the reader never decides what translates, and a gap fails at its provider |
 | `Pure.prop` is erased, marked pending ("until Pure's own step (2b)") | `Pure.prop` is read as defined, like `↔` and `¬`: coverage applies to leaves only | D1: one rule per piece, with no pending exception |
@@ -480,7 +480,7 @@ cited axioms (§4a, "Logic's second step").
 | component | provides | assumes |
 |---|---|---|
 | IR | the vocabulary: `Constant`, `Cited`, `Pattern`, and `Node`'s input kinds | — |
-| Reader | every named theorem as `(statement, proof)`, with `conclusion(proof) == statement` BY ID, with each theorem they cite at no type arguments and each definition they reach (§4a, "The unit and its citations"). Every node it emits is of the isa or both dialect. Every constant and citation is a typed value. `isaFree(.hidden, _)` occurs in proofs only. It makes no translation decision beyond the coverage of leaves | an export of one build; every leaf and axiom of the foundation that occurs is listed, else the read STOPS (point 3) |
+| Reader | every named theorem as `(statement, proof)`, with `conclusion(proof) == statement` BY ID, with each theorem they cite at no type arguments and each definition they reach (§4a, "The unit and its citations"). Every node it emits is of the isa or both dialect. Every constant and citation is a typed value. A variable only the proof uses is bound at its proof's top (`isaHidden`, "Step 7"). It makes no translation decision beyond the coverage of leaves | an export of one build; every leaf and axiom of the foundation that occurs is listed, else the read STOPS (point 3) |
 | Lowering | each component's business, and each pass's sets by what it owns: §4a, "Lowering's components" (PROPOSED) | the reader's row; the first pass's input set is the reader's output set |
 
 **1. The typed values (I1), each in one home (D3).** The MEANING lives in IR, which every pass reads. The export's
@@ -511,7 +511,9 @@ case isaFree(Free, IRType)                        // Free: .named(String) | .hid
 - `Cited` holds what the reader cites, and `lemma(r)`, a lemma's request (§4a, "The unit and its citations"). Base's
   claims are added in the first step that cites base.
 - `folNot` moves to the fol-only group: with `¬` defined, the reader no longer emits it.
-- ⚠ **THE HIDDEN VARIABLE IS `isaFree(.hidden, T)`, NOT A NEW KIND.** The agreed text proposed `isaHidden(T)` to
+- **SUPERSEDED 2026-10-17 by "Step 7"**: the variable is bound at its proof's top by `isaHidden(T, body)`, a binder, and
+  `isaFree(String, IRType)` is the index engine's alone. ⚠ **THE HIDDEN VARIABLE IS `isaFree(.hidden, T)`, NOT A NEW
+  KIND.** The agreed text proposed `isaHidden(T)` to
   replace `isaFree` as dead. `isaFree` is not dead: the index engine's `abstract` closes over it (§4.4). A variable
   only the proof uses IS a free variable, so it is that kind, its identity typed: `.named` for the index engine's,
   `.hidden` for the reader's, which has no name.
@@ -525,7 +527,7 @@ other theory's family is `zf` when it descends from `ZF.ZF_Base`.
 | a leaf FOL covers: `Trueprop` · `Pure.imp`, `IFOL.imp` · `conj` · `disj` · `False` · `Pure.all`, `IFOL.All` · `IFOL.Ex` · `Pure.eq` at `o` | erased · `folImplies` · `folAnd` · `folOr` · `folBottom` · `ifolAll(T)`, and `Pure.all` at `o` below a statement's top `isaPropAll` · `ifolEx(T)` · `folIff` |
 | `Pure.eq` at `i` | `isaConst(.primitive(.ifol(.eq)))` |
 | a `Primitive` | `isaConst(.primitive(p))` |
-| `Pure.dummy_pattern` | `isaFree(.hidden, T)` |
+| `Pure.dummy_pattern` | `isaBound` under `isaHidden(T, …)` at its proof's top ("Step 7") |
 | a constant `theory/constdefs` defines: IFOL's `↔ ¬ ∃! True`, Pure's `PROP &&& TERM`, and every ZF definition | `isaConst(.defined(Defined(family, name, level)))` |
 | an undefined constant of a theory outside the foundation | `isaConst(.declared(name))` |
 | an undefined constant of the foundation, none of the above | the read STOPS: `DialectGap.leaf(name)` |
@@ -2047,8 +2049,8 @@ UNIQ ⟨a⟩   ∀v⃗. ∀b⃗. c⃗ → ∀b⃗′. c⃗′ → eq(r, r′)
 
 ⚠ **EVERY CONSUMER OF UNIQ HOLDS BOTH NAMINGS OPEN** — the instance (3) and UNIQ's prover at an inner term — and the
 chain form takes them as they stand. Isabelle's form would make each consumer rebuild a naming around its own value,
-which `exists_intro` cannot do directly: it abstracts every occurrence of its witness (fol-zfc's `translate_term`, the
-IR's `isaExIntro`), so `⟦r′ = a⟧` closed at `r′` concludes `eq(r, r)`; only a detour through a fresh variable equal to
+which `exists_intro` cannot do directly: it abstracts every occurrence of its witness (fol-zfc's `translate_term`; the
+IR's `isaExIntro` states its body since "An ∃-intro carrying its body"), so `⟦r′ = a⟧` closed at `r′` concludes `eq(r, r)`; only a detour through a fresh variable equal to
 `r′` reaches it.
 
 Each assumes the guard of each of `v⃗` (5). At `c(x⃗)` they are the constant's own typing and its value's uniqueness,
@@ -2179,7 +2181,8 @@ reference's `inf` and `zf` tiers are kernel-checked (`scripts/check-base.sh`); `
   `⋀` at a class type could not be eliminated at a variable: the table admits only a λ there.
 - **`∃` at an isa binder is a step of its own, `isaExIntro` and `isaExElim`** (IR nodes, isa only, Fol's at `i`). The
   fol-zfc steps bind fol-zfc's `∃` only: `Pattern` cannot tell an isa `∃` at `i` from fol-zfc's, and Fol dispatches
-  by `Pattern` (I3). IFOL's `exI` and `exE` are these steps when Logic builds them.
+  by `Pattern` (I3). IFOL's `exI` and `exE` are these steps, as the reader reads them ("The logic's rules read as
+  steps"; `exI` given its body, "An ∃-intro carrying its body").
 - **The conversion** `⟦φ(y)⟧ ↔ ⟦φ(a)⟧` is Logic's replacement walk (`Replacement`, its `Context` made one home, with
   quantifiers at `i` and a hole the caller gives) over Isabelle's `φ`. At an atom where `x` stood it converts one unit
   at a time: `x` itself, or a λ argument holding it. For `x` itself, each side's chain is opened and the other closed at
@@ -2551,7 +2554,9 @@ until it is fully translated (user), so each step's scope is measured there.
    The reference walked these chains before it had a λ's class; here β comes first (3).
 5. **A ZF definition cited**: pointwise, from the `@def` and EX, most often at a chain's leaf (4).
 6. **A proposition argument**, `If` and `bool_of_o`: a class of the empty tuple (FOUNDATION S4), as the reference read it.
-7. **The hidden variable**, `Pure.dummy_pattern`: the reference refused it, so its design is new.
+7. **The hidden variable**, `Pure.dummy_pattern`: the reference refused it, so its design is new ("Step 7 — the hidden
+   variable, bound at its proof's top", below), **BUILT 2026-10-17** with an ∃-intro carrying its body, which its run
+   and `exI` (2) waited on ("An ∃-intro carrying its body", below, **BUILT 2026-10-17**).
 8. **ZF's axioms**: base derives `extension`, `Pow_iff`, `Union_iff`, `replacement` and `infinity` from NBG;
    `foundation` and `AC.AC` wait for FOUNDATION to pin Regularity and Choice, which `base/axioms` leaves out.
 9. **Later**: a declared constant; a binder over classes, and a λ over classes anywhere but an equation (4 reads it
@@ -2971,7 +2976,8 @@ isa step, as it reads Pure's `reflexive` — `isaClassical(P, h)` concluding `P`
 `h : (P → Q) ∧ (Q → P)`'s two conjuncts. Alternative: base proves each as a schema, cited as `subst` cites `class_subst`;
 S4's "never a substitution into a translated rule" would then need these two as its exception.
 
-**4. `exI` stays a citation, Logic's unbuilt: its step needs its body.** The IR's `isaExIntro(p, x)`, as fol-zfc's
+**4. `exI` stays a citation, Logic's unbuilt: its step needs its body.** **SUPERSEDED 2026-10-17** by "An ∃-intro
+carrying its body": the reader reads `exI` as its step, `isaExIntro` given the λ's body. The IR's `isaExIntro(p, x)`, as fol-zfc's
 `exists_intro`, abstracts every occurrence of its witness, so `∃y. y = x` from `x = x` is not one step: the step must
 take `P`, which the application has. That design waits — an ∃-intro carrying its body, written as base's schema
 `ex_intro [P(1)]` at the body, then `forall_elim` at the witness, is one candidate. Nothing is lost meanwhile: `exI`
@@ -4072,6 +4078,268 @@ its in-place proof. `ReaderRefusal.letterLeft`: a citation leaving a letter unin
   at `o⃗ ⇒ o`, two IFOL boxes ("Functions of propositions …", 4), 1,704; the class prover's 134 unbuilt lemmas 1,444;
   `IFOL.exI`, an ∃-intro carrying its body ("The logic's rules read as steps", 4), 1,382.
 
+### Step 7 — the hidden variable, bound at its proof's top  **[AGREED 2026-10-17 (user), the two decisions one by one; BUILT 2026-10-17, its decisions in the build for the user's review — `Sources/IR/Node.swift`, `Table.swift`, `Pattern.swift`, `Legalize.swift`, `Sources/Reader/Terms.swift`, `Reader.swift`, `MalformedExport.swift`, `Sources/Lowering/Fol.swift`, `Logic.swift`, `Reify.swift`, `Terms.swift`, `Plan.swift`, `Base.swift`, `base/tiers/primitives`, `metafun`, `truth`, `docs/FOUNDATION.md`]**
+
+**The step.** The reader reads `Pure.dummy_pattern` as what it encodes, a variable only the proof uses,
+`isaFree(.hidden, T)` (§4.3b), and no pass owns it. Through logic it leads what no pass owns: `isaFree(i)` 731 named
+theorems, `(i ⇒ i)` 71, `o` 64, `(i ⇒ i ⇒ o)` 49, `(i ⇒ o)` 48, `(i ⇒ i ⇒ i)` 42. In "Letters first"'s dump (Measured,
+not kept), 2,451 of the 3,602 refused named theorems need it at an object type or `o`, and at most 341 need nothing
+else; 1,453 need it beyond objects too — `o ⇒ i`, `(i ⇒ o) ⇒ o ⇒ i` — with step 9's pieces.
+
+**The problem, in target text.** Isabelle's kernel lets a proof instantiate at a free variable its conclusion never
+mentions: every type is inhabited, so the proof proves its statement at any value of it. The exporter writes each such
+variable as `dummy_pattern`, one per type. fol-zfc has no free variable: the checker refuses a term no `fix` or
+`exists_elim` binds (`term %n not bound`).
+
+```
+Isabelle   lemma "(∀x. Q) ⟹ Q" by (erule spec)          spec's x, which nothing in the goal fixes
+export     λh. spec · (λx. Q) · dummy_pattern · h
+read       folImpliesIntro(∀x. Q, isaAllElim(hyp 0, isaFree(.hidden, i)))        spec read as its instance
+fol-zfc    _0 = assume forall x. (set(x) -> A0)
+           _1 = forall_elim _0, ?                       no variable stands here, and set(?) has no source
+```
+
+**1. The reader binds a proof's hidden variable at its proof's top.** **AGREED 2026-10-17 (user).** Below the
+statement's closure — its letters first, on the spine — and around the proof's body, one binder per type, in the order
+the proof first uses them: `isaHidden(T, body)`, binding one variable and concluding its body's conclusion, which never
+mentions it. Each occurrence is then a bound variable like any other — `isaBound(k, T)`, and `isaPropBound(k)` at `o` as
+Pure's `⋀` over a proposition below the top is read (S4) — so the rules that read a variable read it: Fol's instance at
+it with its guard, Reify's application of it, Lambda's instance at its λ. `isaFree(.hidden, T)` leaves the reader's
+output and `Free.hidden` goes.
+
+| the example's proof | |
+|---|---|
+| now | `isaAllIntro(o, folImpliesIntro(∀x. Q, isaAllElim(hyp 0, isaFree(.hidden, i))))` |
+| bound | `isaAllIntro(o, isaHidden(i, folImpliesIntro(∀x. Q, isaAllElim(hyp 0, isaBound(0, i)))))` |
+
+The reader, because the binder must enclose every occurrence and conclude a formula free of it, which is where the
+proof's own scope begins: the scope the reader already closes over the statement's frees (§2, "no pass abstracts
+them"). A pass's rule sees one piece, never where its variable's scope begins (D1). Not a witness substituted for the
+variable, `0` at `i` or `⊥` at `o` — the deleted encoder's constant `dummy(r) ↔ zero(r)`: it is no constant (§4.3b), and
+a witness is an object the proof never chose, named at every site by its EX and UNIQ (S1).
+
+**2. `isaHidden(T, body)` is `exists_elim` over T's inhabitation, its variable the witness with T's guard.**
+**AGREED 2026-10-17 (user).** One fact per guard, each proved in base from `zero_EX`: `∅` is a set, single-valued (it has no pairs), a class, and a truth set
+(`∅ ⊆ {∅}`), so every guard admits it and nothing is admitted (R1). Owned by type, as the division owns every binder:
+
+| `isaHidden(T, body)` | fol-zfc | owner |
+|---|---|---|
+| `T = i` | `exists_elim` over `∃x. set(x)`, its hypothesis the guard (R3) | Fol |
+| `iⁿ ⇒ i` | over `∃F. function(F)`, its hypothesis the guard (S5) | Fol |
+| `iⁿ ⇒ o` | over `∃x. set(x)`, its hypothesis unused: a class is unguarded | Fol |
+| `o` | over `∃E. truth(E)`, the variable read `holds(E)` (S4) | Logic |
+| beyond objects: `o⃗ ⇒ …`, a function of classes | unbuilt (steps 6 and 9) | Logic |
+
+The example, lowered:
+
+```
+_0 = use set_inhabited                     exists x. set(x)
+_1 = exists_elim _0, f0                    set(f0)                       the hidden variable and its guard
+_2 = assume forall x. (set(x) -> A0)
+_3 = forall_elim _2, f0
+_4 = implies_elim _3, _1                   A0
+_5 = implies_intro _4                      (forall x. (set(x) -> A0)) -> A0
+qed _5
+```
+
+**FOUNDATION first.** §3b's proof-term mapping gains "a variable only the proof uses | `exists_elim` at the proof's top
+over its type's inhabitation, `∅` the witness every guard admits", and §3b a paragraph: Isabelle's types are inhabited,
+which its kernel assumes and the target proves, once per guard.
+
+**The contracts (D2):**
+
+| | provides | assumes |
+|---|---|---|
+| Reader | no `isaFree(.hidden, _)`: each proof's hidden variables bound by `isaHidden` at its top, below its closure, in first-use order | — |
+| Fol | `isaHidden(T)` at an object type: `exists_elim` over its guard's fact, the guard in scope for every instance at the variable | base's `∃x. set(x)`, `∃F. function(F)` |
+| Logic | `isaHidden(o)`: `exists_elim` over `∃E. truth(E)`, its variable `holds(E)`; beyond objects unbuilt | base's `∃E. truth(E)` |
+| Base | the three facts, from `zero_EX` | — |
+
+**Tests, written first.**
+- `ProofReaderTests`: a proof using `dummy_pattern` at `i` and at `o` reads with `isaHidden(i, …)` and `isaHidden(o, …)`
+  below its closure in first-use order, its occurrences bound; `theReaderEmitsOnlyTheIsaDialect` finds no `isaFree`.
+- `HiddenTests`: `isaHidden` at `i`, `i ⇒ i`, `i ⇒ o` and `o`, each lowered, concluding its statement by ID,
+  kernel-checked; `PlanTests`: owned by type, unbuilt beyond objects.
+- `check-base.sh`: the three facts.
+- The ZF session: through logic, then complete, emitted and kernel-checked.
+
+**Built.** Reader: `Terms.hide` collects a proof's hidden variables by type, after instantiation, in first-use order;
+`Scope.unwritten()` deepens a scope by a binder the export does not write, so each occurrence resolves as `isaBound`
+(`isaPropBound` at `o`); `Reader.step` wraps a proof's body, below its leading intro chain, in `isaHidden(T, body)`, one
+per type; one outside a proof is `MalformedExport.hiddenOutsideProof`. IR: `isaHidden(T, body:)`, the reader's,
+concluding its body's conclusion, which may not mention the variable; `Free` goes, `isaFree(String, IRType)`. Fol:
+`isaHidden` at an object type, `exists_elim` over base's `set_inhabited` or `function_inhabited`, the guard its
+inserted hypothesis. Logic: `isaHidden(o)`, `exists_elim` over `truth_inhabited` (`hiddenProposition`). Base:
+`set_inhabited` (primitives), `function_inhabited` (metafun), `truth_inhabited` (truth), each from `zero_EX`.
+
+**Decisions made in the build**, for the user's review:
+1. **The binders sit below the proof's whole leading intro chain**, not below the closure alone: a box's own leading
+   `⋀P::o` are spine letters, and a letter under `exists_elim` is off the spine.
+2. **`Free` is collapsed**, `isaFree(String, IRType)`: its one reading left is the index engine's free variable, and the
+   reader emits none.
+3. **At `o`, Logic's rule is a cut** — the body generalized, then instantiated at the opened truth set — not a
+   hypothesis shift in the index engine, which would be a framework addition: an `exists_elim` wrapped straight around
+   the body shifts its hypotheses, and the table checks none against its binder.
+4. **`Scope.eta` is `unwritten`**: η-expansion and the hidden binders are both binders the export does not write.
+5. **A hidden variable is keyed by its type after instantiation**: one at `'a` read at `i` shares `i`'s binder.
+6. **Fol cites base** (`Fol(base:)`), for the inhabitation facts.
+7. **Truth-set variables in Reify's naming**, which the run surfaced (14 statements, `premiseMismatch`): a λ's class
+   named from a template read a truth-set variable as it stood, the walk as `holds(E)`. Reify's formula naming reads it
+   `holds(E)` (`Atoms`), and a λ's class and function facts are cited at the walked variables, as Lambda already cited
+   them.
+8. **The run waits on "An ∃-intro carrying its body"**: `equalities.Sigma_succ2`, Lambda's β at a site whose value is
+   a variable outside the λ's naming, stopped it (`premiseMismatch`).
+
+**Measured** with "An ∃-intro carrying its body", below: one run measures both.
+
+### An ∃-intro carrying its body  **[AGREED 2026-10-17 (user, chosen over a fix in Lambda alone), the three decisions one by one; BUILT 2026-10-17, the bare schema agreed in the build (user), its other decisions for the user's review — `Sources/IR/Node.swift`, `Pattern.swift`, `Table.swift`, `Sources/Reader/Reader.swift`, `Sources/Lowering/Scope.swift`, `Instance.swift`, `Reify.swift`, `Fol.swift`, `Base.swift`, `Tuple.swift`, `Comprehension.swift`, `Terms.swift`, `Graph.swift`, `Lambda.swift`, `Classes.swift`, `base/tiers/logic`, `docs/FOUNDATION.md`]**
+
+**The step.** Two things wait on it. `IFOL.exI` stays a citation, Logic's unbuilt ("The logic's rules read as steps",
+4): in the ZF session 374 statements fall at it, and 1,382 of the 3,602 refused named theorems need it ("Letters
+first", Measured). And step 7's run stops at `equalities.Sigma_succ2` (`premiseMismatch`): Lambda's β (step 3) closes the
+source's naming at the site's value, and when the λ's body is a variable outside its naming (`λy. x`), that value
+stands elsewhere in the atom too.
+
+**The problem, in target text.** fol-zfc's `exists_intro h, w` is given no body: it binds every occurrence of `w` in
+`h`'s formula (the checker's `make_exists_from_witness`, `translate_term`). The IR's ∃-intro at an isa binder concludes
+the same way — `isaExIntro(p, x)` abstracts every `x` in `p`'s conclusion — exact only where `x` occurs just where the
+body binds. Isabelle's `exI` is given its body:
+
+```
+Isabelle   exI:  P(a) ⟹ (∃x. P(x))                             IFOL's axiom: P is given
+           lemma "∃y. y = x"  by (rule exI) (rule refl)
+export     exI · (λy. y = x) · x · (refl · x)
+fol-zfc    _0 = forall_elim eq_refl, x                       eq(x,x)
+           _1 = and_intro _gx, _0                            (set(x) & eq(x,x))
+           _2 = exists_intro _1, x                           exists y. (set(y) & eq(y,y))         wanted eq(y,x)
+```
+
+Lambda's back direction is the same step: it closes the source's naming level by level, each at its witness, the
+value's level at the site's value.
+
+```
+Isabelle   lemma "(⋀F. x ∈ F(a)) ⟹ x ∈ x"                       export  λH. H · (λy. x)
+the level  exists r. (set(r) & (apply(t,r,K) & elem(x,r)))        x ∈ F(a)'s naming, F at the λ's class K
+premise    (set(x) & (apply(t,x,K) & elem(x,x)))                    r at the value of (λy. x)(a): x
+fol-zfc    exists_intro _, x   concludes   exists r. (set(r) & (apply(t,r,K) & elem(r,r)))       wanted elem(x,r)
+```
+
+Every other closing lowering builds is exact only because its witness is a variable it just opened, which occurs
+nowhere else; "EX and UNIQ" chose its chain form around the same limit ("only a detour through a fresh variable equal
+to `r′` reaches it").
+
+**1. The ∃-intro at an isa binder states its body.** **AGREED 2026-10-17 (user).** `isaExIntro(p, x, body: P)` concludes `ifolEx(T, P)`, at the
+witness's type `T`, and the table refuses it unless `P` at `x` is `p`'s conclusion, by ID: no ∃-intro at an isa binder
+takes its body from its witness any more. The reader's `exI` states `P`; a closing lowering builds states the level it
+closes, read off the naming it closes. `folExistsIntro(p, x)` stays fol-zfc's own rule, which lowering writes at a class
+binder it opened.
+
+| | now | stating its body |
+|---|---|---|
+| the node | `isaExIntro(p, x)`: `p`'s conclusion, every `x` bound | `isaExIntro(p, x, body: P)`: `∃y. P`, `P` at `x` checked against `p` |
+| `exI · (λy. φ) · a · h` | a citation, Logic's unbuilt | `isaExIntro(h, a, body: φ)` |
+| a naming's level, closed at a witness | the witness's occurrences | the level's formula, from the naming |
+
+The cost: each such step is written through base's schema (2), two lines more and its body once. The letters-first
+unit has 23,516 `exists_intro` at a witness in 5,840,668 lines — a bound, as it counts the class binders too, which stay
+fol-zfc's. Alternative: a second step beside it, for `exI` and a closing at a value only, so no other step changes. It
+leaves two ∃-intros at an isa binder, the present one keeping the trap Lambda fell in, and `reclosed` closing a value's
+level otherwise than its other levels.
+
+**2. Fol writes it through base's `ex_intro` at a variable; Reify at a compound term, by the term's EX.** **AGREED
+2026-10-17 (user); the schema bare, AGREED 2026-10-17 (user), build decision 1.** Base gains a schema, proved by the
+kernel's `exists_intro` at `z`, which occurs only where the letter binds; bare, a set binder's guard carried in its
+letter:
+
+    schema ex_intro [P(1)]: (forall z. (P(z) -> (exists y. P(y))))
+
+Fol instantiates it at the guarded body, then at the witness and the premise under the witness's guard:
+
+```
+_0 = forall_elim eq_refl, x                                eq(x,x)
+_1 = and_intro _gx, _0                                     (set(x) & eq(x,x)), x's guard in scope (R3)
+_2 = schema_inst ex_intro { P: \b0. (set(b0) & eq(b0,x)) }
+_3 = forall_elim _2, x
+_4 = implies_elim _3, _1                                   exists y. (set(y) & eq(y,x))
+```
+
+At a compound term, which only the reader's `exI` has, Reify does what its instance at a compound term does, the other
+way: the term's EX opens `y` with its naming, the instance's conversion read right to left takes the premise to the body
+at `y`, the step at `y` is Fol's, and `exists_elim` closes `y`, which the conclusion does not mention. Alternative:
+`exI` as `subst` is, an instance at a class type through Lambda — a lemma over the class of `P`. It needs a class
+existence proof per body, from the class prover, none yet for a body holding a proposition, and it does not reach a
+naming's level, a fol formula with no λ. The schema needs nothing per use but its instance, and the fact is logic's, as
+`cong_exists`'s is.
+
+**3. The reader reads `exI` as its step.** **AGREED 2026-10-17 (user).** `LogicRule` gains `exI`, read past its class discharge as the other rules at
+`[i]` are; its λ argument is η-long, so `P`'s body is the λ's, and the step concludes the statement's instance by ID.
+Logic keeps `exI`'s row, never reached, as the other rules'.
+
+**FOUNDATION first.** §3b's proof-term mapping gains "`exI` at `P` and `a` | base's `ex_intro` at `P`, then at `a`", and
+a paragraph: the kernel's ∃-introduction finds its body from its witness, Isabelle's is given it, so `exI` is no kernel
+step at its premises; it is the schema, proved once by the kernel's rule at a variable occurring only where the letter
+binds, and nothing is admitted (R1).
+
+**The contracts (D2):**
+
+| | provides | assumes |
+|---|---|---|
+| IR | `isaExIntro(p, x, body: P)` concluding `ifolEx(T, P)`, refused unless `P` at `x` is `p`'s conclusion | — |
+| Reader | `exI` applied as `isaExIntro(h, a, body: φ)`, past its class discharge | an export of one build |
+| Lowering's closings | each ∃-intro at a set binder states its level's formula | — |
+| Logic (Reify) | `isaExIntro` at a compound term, at its EX witness | the term's EX and UNIQ, as its instance |
+| Fol | `isaExIntro` at a variable at `i`: `ex_intro` at the body, then the witness, its guard, the premise | base's `ex_intro` |
+| Base | `ex_intro`, by the kernel's rule | — |
+
+**Tests, written first.**
+- `TableTests`: from `x = x`, `isaExIntro` at `x` concludes `∃y. y = x` or `∃y. y = y` by the body given; a body not
+  matching the premise is refused.
+- `LogicRuleTests` (Reader): `exI` applied is `isaExIntro` with the λ's body, past its discharge, at a variable and at a
+  compound term; it no longer stays a citation.
+- `ExIntroTests` (Lowering): `∃y. y = x` from `refl`, and `∃y. y = f(x)` at a compound term, each lowered, concluding its
+  statement by ID, kernel-checked; Lambda at `λy. x`, `(⋀F. x ∈ F(a)) ⟹ x ∈ x`, lowered and kernel-checked —
+  `Sigma_succ2`'s case. `PlanTests`: owned at `i`.
+- `check-base.sh`: `ex_intro`.
+- The ZF session, with step 7: through logic, then complete, emitted and kernel-checked.
+
+**Built.** IR: `isaExIntro(p, x, body: P)` concluding `ifolEx(T, P)` at the witness's type, refused unless `P` at `x` is
+`p`'s conclusion (`premiseMismatch`), and at a proposition (`propositionAsTerm`); the witness may be a compound term,
+the reader's. Reader: `LogicRule.exI`, its step at the λ's body. Base: `ex_intro` (logic). Fol: `isaExIntro` at a
+variable at `i`, `ex_intro` at the guarded body, `forall_elim` at the witness, `implies_elim` at the guarded premise.
+Reify: at a compound term, `TermInstance.witnessed`, sharing the instance's core (`atWitness`). Lowering's closings:
+`closing(formula, …)` and `introduced(formula, at:, from:)` read each level's body off the formula they prove;
+`reclosed` takes its formula from the atom's naming; each prover states its formula.
+
+**Decisions made in the build**, for the user's review:
+1. **`ex_intro` is bare** — **AGREED 2026-10-17 (user)** — `∀z. P(z) → ∃y. P(y)`, the guard of a set binder carried in its letter, not guarded as
+   `cong_exists` is (decision 2): Fol cites it after its own walk, and base's parser reads a guarded binder as the isa
+   binder only that walk lowers. The instance writes `set(b0) &` in its body and conjoins the witness's guard to the
+   premise, four lines still.
+2. **`closing` and `reclosed` take the formula they prove, never a binder list**: its quantifiers are the binders, read
+   off it, so the two cannot disagree.
+3. **Each prover states its formula from its own source**: its lemma's statement (a set constant's EX, its singleton
+   class), the iff it eliminates (a constant's graph, a class's definition, a record's lift: `someLeft`, an iff's right
+   side), or the naming it closes (a tuple's EX, a record's tuple, a term's EX, a λ's atom).
+4. **Reify's ∃-intro at a compound term shares the instance's core** (`TermInstance.atWitness`): EX opens `y`, the
+   instance's conversion read right to left, then the step at `y`, which Fol writes.
+
+**Measured** (the ZF session alone, `--skip` the other seven; the release build on 48 cores; the lint first; with step 7):
+- **Through logic**: 3:07 — read 45.4 s; expand 2.2 s, logic 136.5 s; 30.3M nodes. 2,347 named theorems stand (2,058
+  before both steps); refused at no owner 950 (1,301), led by `use(theorem, [i], o)` 668 and `isaDefinition(zf, object,
+  [], args: [])` 210 (step 5), no hidden variable among the first ten; at logic 319 (257), `If` 303 (step 6).
+- **Complete, emitted and kernel-checked**: 20:33, at least 55.5 GB sampled (34.3 GB before) — read 44.5 s; expand
+  2.3 s, logic 136.1 s, registry 81.4 s, fol 716.8 s, link 50.0 s; emitted 195.8 s, 24 parts, 817 MB; 117.2M nodes.
+  `check-unit.sh`: 1:50, every part exit 0 and empty stderr, claims 8,710 of 8,710, schemas 104 of 104; 8,658 of the
+  claims in the `_uncited` parts. `@def`s stated 157, refused 62; lemmas refused unbuilt 204 (134).
+- **Named theorems lowered: 14, unchanged.** Refused: no owner 950, logic 319, a refused citation 2,333 (2,044), led by
+  `ZF_Base.Ball_def` 363 (91), `ZF_Base.Bex_def` 62, `QPair.QPair_def` 31 — a ZF definition cited, step 5's. `IFOL.exI`
+  is not among them: the statements it held now pass Logic and fall at the definitions they cite.
+- **The unit doubled, by lemmas nothing cites**: 8,971 statements (6,316), 11.26M steps written (5.68M); `λ classExists`
+  2,313 statements, 9.5M steps (1,357, 4.3M) — the classes of λs requested by statements that now pass Logic, and then
+  fall. Per statement the ∃-intro through `ex_intro` costs little: a constant's class 2,901 steps (2,912), a term's EX
+  147 (130), a constant's totality 47 (42).
+- ⚠ **THE COMPLETE RUN IS AT ITS CAP'S EDGE**: 55.5 GB sampled under `MEM=56G`; the recipe is raised to `MEM=64G`.
+
 ### Fol — binders, guards and variables  **[BUILT 2026-09-28 as the guard; Fol's 2026-10-14; every object type and `∃` at `i` with "Reify — S1 at the site" — `Sources/Lowering/Fol.swift`]**
 
 **Every isa binder at an object type, its intro, its variable and the guard of its variable become fol-zfc's, with the
@@ -4095,7 +4363,7 @@ EX delivers `set(r)` with it.
 | `isaAllIntro(T, body)` | `folForallIntro(folImpliesIntro(G(0), body′))`, or `folForallIntro(body′)` — the guard is a hypothesis the fixed variable brings |
 | `isaAllElim(p, x)`, `x` a bound variable at `i` | `folImpliesElim(folForallElim(p′, x′), hyp(j, set(x′)))` — discharged by `x`'s own guard |
 | `isaGuard(x, G)`, the guard of a variable | `hyp(j, G′)`, the same discharge; `G` not `x`'s guard (`notItsGuard`), or `x`'s binder bringing none (`unguardedBinder`), is malformed |
-| `isaExIntro(q, x)`, at `i` | `folExistsIntro(folAndIntro(hyp(j, set(x′)), q′), x′)` — the witness's guard into the `∧` |
+| `isaExIntro(q, x, body: P)`, at `i` | `folImpliesElim(folForallElim(ex_intro at λ. set(0) ∧ P′, x′), folAndIntro(hyp(j, set(x′)), q′))` — base's `ex_intro` at the guarded body, the witness's guard into the `∧` ("An ∃-intro carrying its body") |
 | `isaExElim(i, p, body)` | `folExistsElim(p′, implies_elim(implies_elim(implies_intro(set(0), implies_intro(φ′, body′)), and_elim_l(hyp(0, set(0) ∧ φ′))), and_elim_r(hyp(0, …))))` — the `∧` opened to the guard and `φ′` |
 | `isaBound(k, T)`, `T` an object type | `folBound(k)` |
 | `isaAllElim(p, t)`, `t` a compound term | never reaches Fol: the logic pass proves it (Reify's instance); an instance at anything but a bound variable throws `instanceNotAVariable` |
@@ -4191,7 +4459,8 @@ membership's congruence (`g3_pmem_cong1`), then β as proof — reify's.
    `folBound`, typed `i` — indistinguishable from a set, and open to `set(·)`. Fol relabels, last. Its rules for
    `∃`-intro and `∃`-elim at `i` — the witness's guard into the `∧`, the hypothesis becoming `set ∧ φ` — come with
    logic, their first producer. `forall_elim` takes an isa variable too (2026-10-13). Open for that step:
-   `exists_intro` at `isaBound(k, i)` concludes `ifolEx(i, …)`, and Fol writes `folExists`.
+   `exists_intro` at `isaBound(k, i)` concludes `ifolEx(i, …)`, and Fol writes `folExists`. Since "An ∃-intro carrying
+   its body" the isa ∃-intro concludes the body it is given, never one its witness's occurrences make.
 2. **A pass may add statements** — **BUILT 2026-10-14 otherwise** ("The unit and its citations"): a pass never adds a
    statement; the pipeline adds each lemma a pass's output cites, and the prover that owns its request proves it.
 

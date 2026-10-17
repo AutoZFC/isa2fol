@@ -44,6 +44,12 @@ struct ProofScope: Hashable {
         return s
     }
 
+    func hiding() -> ProofScope {
+        var s = self
+        s.terms = terms.unwritten()
+        return s
+    }
+
     func assuming(_ A: NodeID) -> ProofScope {
         var s = self
         s.hypotheses.append(Hypothesis(formula: A, depth: terms.depth))
@@ -95,6 +101,7 @@ private enum LogicRule {
     case falseE
     case allI
     case spec
+    case exI
     case exE
     case refl
     case eqReflection
@@ -114,19 +121,20 @@ private enum LogicRule {
         case .ifol(.falseE): self = .falseE
         case .ifol(.allI): self = .allI
         case .ifol(.spec): self = .spec
+        case .ifol(.exI): self = .exI
         case .ifol(.exE): self = .exE
         case .ifol(.refl): self = .refl
         case .ifol(.eqReflection): self = .eqReflection
         case .fol(.classical): self = .classical
         case .ifol(.iffReflection): self = .iffReflection
-        case .ifol(.subst), .ifol(.exI), .zf: return nil
+        case .ifol(.subst), .zf: return nil
         }
     }
 
     var premises: Int {
         switch self {
         case .refl: 0
-        case .conjunct1, .conjunct2, .disjI1, .disjI2, .impI, .falseE, .allI, .spec, .eqReflection, .classical,
+        case .conjunct1, .conjunct2, .disjI1, .disjI2, .impI, .falseE, .allI, .spec, .exI, .eqReflection, .classical,
              .iffReflection:
             1
         case .conjI, .mp, .exE: 2
@@ -384,6 +392,13 @@ public struct Reader {
         let key = FileProof.Key(body: body, scope: s, top: top)
         if let p = f.steps[key] { return p }
         let spine = try decode.proofSpine(body)
+        if top, !spine.arguments.isEmpty || !isTermAbstraction(spine.node) {
+            let types = try f.terms.hide(body, from: s.terms.depth)
+            var p = try step(body, types.reduce(s) { s, _ in s.hiding() }, &f)
+            for T in types.reversed() { p = try table.intern(.isaHidden(T, body: p)) }
+            f.steps[key] = p
+            return p
+        }
         var p: NodeID
         var arguments = spine.arguments[...]
         if case .axiom(let name, let types) = spine.node, let rule = Rule(name) {
@@ -425,6 +440,11 @@ public struct Reader {
         }
         f.steps[key] = p
         return p
+    }
+
+    private func isTermAbstraction(_ h: ProofHead) -> Bool {
+        if case .termAbstraction = h { return true }
+        return false
     }
 
     private mutating func letters(of instance: Instance) throws -> [Bool] {
@@ -627,6 +647,12 @@ public struct Reader {
         case .falseE: return try table.intern(.folBottomElim(premises[0], terms[0]))
 
         case .spec: return try table.intern(.isaAllElim(premises[0], terms[1]))
+
+        case .exI:
+            guard case .isaAbs(_, let body) = table[terms[0]] else {
+                throw TableError.functionArgumentNotAbstraction(terms[0])
+            }
+            return try table.intern(.isaExIntro(premises[0], terms[1], body: body))
 
         case .exE:
             guard

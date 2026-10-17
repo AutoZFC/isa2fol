@@ -25,9 +25,9 @@ func aPatternReplacesChildrenByTheirTypesAndDropsNamesAndIndices() throws {
     let a = try t.intern(.isaConst(.defined(Defined(.zf, "T.a", .object)), .i, args: []))
     let b = try t.intern(.isaConst(.defined(Defined(.zf, "T.b", .object)), .i, args: []))
     #expect(Pattern(t[a], in: t) == Pattern(t[b], in: t), "nor a name")
-    let hidden = try t.intern(.isaFree(.hidden, .i))
-    let named = try t.intern(.isaFree(.named("v"), .i))
-    #expect(Pattern(t[hidden], in: t) == Pattern(t[named], in: t))
+    let u = try t.intern(.isaFree("u", .i))
+    let v = try t.intern(.isaFree("v", .i))
+    #expect(Pattern(t[u], in: t) == Pattern(t[v], in: t))
 }
 
 @Test
@@ -53,8 +53,8 @@ func aFolPatternKeepsItsArgumentsTypes() throws {
 /// A covered construct is ONE node of both dialects: the reader reads `⟹` as the fol-zfc implication, Pure's
 /// `equal_intr` and `equal_elim` as `iff_intro` and `iff_elim_l`, and the logic's rules fol-zfc has as its steps;
 /// `classical` and `iff_reflection`, stated over IFOL's defined `¬` and `⟷`, as isa steps. A free variable is the isa
-/// dialect's (the reader's
-/// hidden variable); `¬` is fol-zfc's only, IFOL's being defined. A citation is fol-zfc's only of a theorem at no type
+/// dialect's (the index engine's); `¬` is fol-zfc's only, IFOL's being defined. A citation is fol-zfc's only of a
+/// theorem at no type
 /// arguments, or of base. A binder, its intro and its variable at `o` are fol-zfc's schema letter, and Pure's `⋀` over
 /// a
 /// proposition the isa dialect's; `schema_inst` is fol-zfc's only. Pure's other equality rules are steps of the isa

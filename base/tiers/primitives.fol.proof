@@ -523,3 +523,11 @@ proof PrimReplace_CONG:
     _gi3 = implies_intro _gq2
     _gq3 = forall_intro _gi3
     qed _gq3
+
+proof set_inhabited:
+    _zx = use zero_EX
+    _zo = exists_elim _zx, z
+    _sz = and_elim_l _zo
+    _ex = exists_intro _sz, z
+    _cl = exists_intro _ex
+    qed _cl

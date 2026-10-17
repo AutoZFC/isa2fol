@@ -57,7 +57,7 @@ public struct Table: Sendable {
             (T, args[0], args[1])
         case .ifolAll, .ifolEx, .isaConst, .isaFree, .isaBound, .isaVarApp, .isaAbs, .isaOfClass, .isaAllIntro,
              .isaAllElim, .isaReflexive, .isaSymmetric, .isaTransitive, .isaCombination, .isaAbstract, .isaClassical,
-             .isaIffReflection, .isaDefinition, .isaPropAll, .isaPropIntro, .isaPropBound, .folImplies,
+             .isaIffReflection, .isaDefinition, .isaPropAll, .isaPropIntro, .isaPropBound, .isaHidden, .folImplies,
              .folAnd, .folOr, .folBottom, .folImpliesIntro, .folImpliesElim, .use, .hyp, .folIffIntro, .folIffElimL,
              .isaGuard, .isaExIntro, .isaExElim, .folNot, .folBound, .folPred, .folForall, .folExists, .folAndIntro,
              .folAndElimL, .folAndElimR,
@@ -260,9 +260,12 @@ public struct Table: Sendable {
             guard case .folExists = self[try premise(p)] else { throw TableError.principalConnective(p) }
             return .step(concluding: try witnessed(body))
 
-        case .isaExIntro(let p, let v):
-            guard case .isaBound(let k, let T) = self[v], T != .o else { throw TableError.notATermVariable(v) }
-            return .step(concluding: try intern(.ifolEx(T, body: try abstractIndex(try premise(p), k, in: &self))))
+        case .isaExIntro(let p, let x, let body):
+            let T = try value(x)
+            guard T != .o else { throw TableError.propositionAsTerm(x) }
+            try expect(.o, body)
+            try same(try instantiate(body, with: x, in: &self), try premise(p))
+            return .step(concluding: try intern(.ifolEx(T, body: body)))
 
         case .isaExElim(let T, let p, let body):
             guard case .ifolEx(T, _) = self[try premise(p)] else { throw TableError.principalConnective(p) }
@@ -343,6 +346,9 @@ public struct Table: Sendable {
 
         case .isaPropIntro(let body):
             return .step(concluding: try intern(.isaPropAll(body: try premise(body))))
+
+        case .isaHidden(_, let body):
+            return .step(concluding: try witnessed(body))
 
         case .isaPropAll(let b):
             try expect(.o, b)

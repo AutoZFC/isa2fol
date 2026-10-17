@@ -39,7 +39,7 @@ private func piece(_ p: Pattern) -> Piece? {
         mentionsTypeVariable(T) ? nil : .membership
     case .ifolAll, .ifolEx, .isaConst, .isaFree, .isaBound, .isaVarApp, .isaAbs, .isaAllIntro,
          .isaAllElim, .isaReflexive, .isaSymmetric, .isaTransitive, .isaCombination, .isaAbstract, .isaClassical,
-         .isaIffReflection, .isaPropAll, .isaPropIntro, .isaPropBound, .folImplies, .folAnd,
+         .isaIffReflection, .isaPropAll, .isaPropIntro, .isaPropBound, .isaHidden, .folImplies, .folAnd,
          .folOr, .folIff, .folBottom, .folImpliesIntro, .folImpliesElim, .use,
          .hyp, .isaGuard, .isaExIntro, .isaExElim, .folNot, .folBound, .folPred, .folForall, .folExists, .folAndIntro,
          .folAndElimL, .folAndElimR,

@@ -183,7 +183,7 @@ func eachPatternHasTheOwnerTheDivisionGivesIt() throws {
         (.isaBound(fn(o, o)), "fol", .unbuilt),
         (.isaGuard(i, o), "fol", .rule),
         (.isaGuard(fn(i, i), o), "fol", .rule),
-        (.isaExIntro(o, i), "fol", .rule),
+        (.isaExIntro(o, i, body: o), "fol", .rule),
         (.isaExElim(i, o, body: o), "fol", .rule),
         (.use(.lemma, [], o), nil, nil),
         (.folImplies(o, o), nil, nil),
@@ -205,6 +205,13 @@ func eachPatternHasTheOwnerTheDivisionGivesIt() throws {
         (.folImpliesIntro(o, body: o), nil, nil),
         (.folImpliesElim(o, o), nil, nil),
         (.isaFree(i), nil, nil),
+        (.isaHidden(i, body: o), "fol", .rule),
+        (.isaHidden(fn(i, i), body: o), "fol", .rule),
+        (.isaHidden(fn(i, fn(i, o)), body: o), "fol", .rule),
+        (.isaHidden(o, body: o), "logic", .rule),
+        (.isaHidden(oo, body: o), "logic", .unbuilt),
+        (.isaHidden(fn(fn(i, o), fn(o, i)), body: o), "logic", .unbuilt),
+        (.isaHidden(a, body: o), nil, nil),
         (.use(.theorem, [i], o), nil, nil),
         (.use(.axiom(.zf(.replacement)), [], o), nil, nil),
         (.use(.theoryAxiom, [], o), nil, nil),
@@ -522,16 +529,16 @@ func aStatementFallsWithAnUnbuiltLemmaItsProofCites() throws {
     #expect(kept.contains { $0.hasPrefix("UNIQ_") })
 }
 
-/// An elimination at the reader's hidden variable: no pass owns it yet, so the statement stops before the first.
+/// An elimination at a free variable: no pass owns it, so the statement stops before the first.
 @Test
 func aPatternNoPassOwnsStopsTheStatementBeforeThePlan() throws {
     var t = Table()
     let bottom = try t.intern(.folBottom)
     let root = try t.intern(.folImplies(bottom, bottom))
-    let hidden = try t.intern(.isaFree(.hidden, i))
+    let free = try t.intern(.isaFree("h", i))
     let proof = try t.intern(.isaAllElim(
         try t.intern(.use(.theorem("lem"), [], try t.intern(.ifolAll(i, body: root)))),
-        hidden,
+        free,
     ))
     let unit = try lowered(t, [Statement(name: "thm", root: root, proof: proof)])
     #expect(unit.refused.map(\.refusal) == [.noOwner([.isaFree(i)])])

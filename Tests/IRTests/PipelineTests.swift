@@ -94,7 +94,7 @@ private struct Close: Rule {
 private struct Reopen: Rule {
     func before(_ id: NodeID, context _: Depth, in t: inout Table) throws -> NodeID? {
         guard case .folBound = t[id] else { return nil }
-        return try t.intern(.isaFree(.named("a"), i))
+        return try t.intern(.isaFree("a", i))
     }
 }
 
@@ -140,7 +140,7 @@ private func identity(_ name: String, _ a: NodeID, _ t: inout Table) throws -> S
 
 /// `mem(a, a)`, `a` free.
 private func memOfA(_ t: inout Table) throws -> NodeID {
-    let a = try t.intern(.isaFree(.named("a"), i))
+    let a = try t.intern(.isaFree("a", i))
     return try t.intern(.isaConst(.primitive(.zf(.mem)), memT, args: [a, a]))
 }
 

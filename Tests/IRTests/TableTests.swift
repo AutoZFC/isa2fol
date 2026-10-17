@@ -14,9 +14,9 @@ private let collect = Constant.defined(Defined(.zf, "ZF_Base.Collect", .object))
 @Test
 func equalContentIsTheSameNode() throws {
     var t = Table()
-    let a = try t.intern(.isaFree(.named("a"), i))
-    let b = try t.intern(.isaFree(.named("b"), i))
-    #expect(try t.intern(.isaFree(.named("a"), i)) == a)
+    let a = try t.intern(.isaFree("a", i))
+    let b = try t.intern(.isaFree("b", i))
+    #expect(try t.intern(.isaFree("a", i)) == a)
     #expect(a != b)
     let q = try t.intern(.isaConst(qpair, fn(i, fn(i, i)), args: [a, b]))
     #expect(try t.intern(.isaConst(qpair, fn(i, fn(i, i)), args: [a, b])) == q)
@@ -26,8 +26,8 @@ func equalContentIsTheSameNode() throws {
 @Test
 func aNodeReadsBackAsItsContent() throws {
     var t = Table()
-    let a = try t.intern(.isaFree(.named("a"), i))
-    #expect(t[a] == .isaFree(.named("a"), i))
+    let a = try t.intern(.isaFree("a", i))
+    #expect(t[a] == .isaFree("a", i))
 }
 
 /// `∀x. mem(x, A)` and `∀y. mem(y, A)` are one formula: no node carries the bound name.
@@ -35,7 +35,7 @@ func aNodeReadsBackAsItsContent() throws {
 func alphaEquivalentFormulasAreOneNode() throws {
     func forallMemA(_ t: inout Table) throws -> NodeID {
         let bound = try t.intern(.isaBound(0, i))
-        let A = try t.intern(.isaFree(.named("A"), i))
+        let A = try t.intern(.isaFree("A", i))
         let body = try t.intern(.isaConst(mem, fn(i, fn(i, o)), args: [bound, A]))
         return try t.intern(.ifolAll(i, body: body))
     }
@@ -61,15 +61,15 @@ func looseBoundCountsBindersAboveTheNode() throws {
     let identity = try t.intern(.isaAbs(i, body: x))
     #expect(t.looseBound(of: x) == 1)
     #expect(t.looseBound(of: identity) == 0)
-    let free = try t.intern(.isaFree(.named("a"), i))
+    let free = try t.intern(.isaFree("a", i))
     #expect(t.looseBound(of: free) == 0)
 }
 
 @Test
 func everyNodeHasItsTypeFromItsContent() throws {
     var t = Table()
-    let a = try t.intern(.isaFree(.named("a"), i))
-    let b = try t.intern(.isaFree(.named("b"), i))
+    let a = try t.intern(.isaFree("a", i))
+    let b = try t.intern(.isaFree("b", i))
     let pair = try t.intern(.isaConst(qpair, fn(i, fn(i, i)), args: [a, b]))
     let atom = try t.intern(.isaConst(mem, fn(i, fn(i, o)), args: [a, pair]))
     let x = try t.intern(.isaBound(0, i))
@@ -90,8 +90,8 @@ func everyNodeHasItsTypeFromItsContent() throws {
 @Test
 func anIDTheTableNeverIssuedIsRefused() throws {
     var issuer = Table()
-    _ = try issuer.intern(.isaFree(.named("a"), i))
-    let unissued = try issuer.intern(.isaFree(.named("b"), i))
+    _ = try issuer.intern(.isaFree("a", i))
+    let unissued = try issuer.intern(.isaFree("b", i))
     var t = Table()
     #expect(throws: TableError.unknownNode(unissued)) {
         try t.intern(.folNot(unissued))
@@ -101,7 +101,7 @@ func anIDTheTableNeverIssuedIsRefused() throws {
 @Test
 func aChildOfTheWrongTypeIsRefused() throws {
     var t = Table()
-    let a = try t.intern(.isaFree(.named("a"), i))
+    let a = try t.intern(.isaFree("a", i))
     #expect(throws: TableError.childType(expected: o, found: i)) {
         try t.intern(.folAnd(a, a))
     }
@@ -115,7 +115,7 @@ func aChildOfTheWrongTypeIsRefused() throws {
 @Test
 func aPredicateArgumentThatIsNotAVariableIsRefused() throws {
     var t = Table()
-    let a = try t.intern(.isaFree(.named("a"), i))
+    let a = try t.intern(.isaFree("a", i))
     #expect(throws: TableError.predicateArgumentNotVariable(a)) {
         try t.intern(.folPred(.base("elem"), args: [a, a]))
     }
@@ -167,8 +167,8 @@ func aVariableAtOIsNotAPredicateArgument() throws {
 @Test
 func aFunctionArgumentThatIsNotAnAbstractionIsRefused() throws {
     var t = Table()
-    let A = try t.intern(.isaFree(.named("A"), i))
-    let P = try t.intern(.isaFree(.named("P"), fn(i, o)))
+    let A = try t.intern(.isaFree("A", i))
+    let P = try t.intern(.isaFree("P", fn(i, o)))
     #expect(throws: TableError.functionArgumentNotAbstraction(P)) {
         try t.intern(.isaConst(collect, fn(i, fn(fn(i, o), i)), args: [A, P]))
     }
@@ -177,7 +177,7 @@ func aFunctionArgumentThatIsNotAnAbstractionIsRefused() throws {
 @Test
 func aPartialApplicationIsRefused() throws {
     var t = Table()
-    let a = try t.intern(.isaFree(.named("a"), i))
+    let a = try t.intern(.isaFree("a", i))
     #expect(throws: TableError.arityMismatch(expected: 2, found: 1)) {
         try t.intern(.isaConst(qpair, fn(i, fn(i, i)), args: [a]))
     }
@@ -194,8 +194,8 @@ func aNegativeBoundIndexIsRefused() throws {
 @Test
 func anAppliedHeadThatIsNotAVariableIsRefused() throws {
     var t = Table()
-    let a = try t.intern(.isaFree(.named("a"), i))
-    let P = try t.intern(.isaFree(.named("P"), fn(i, o)))
+    let a = try t.intern(.isaFree("a", i))
+    let P = try t.intern(.isaFree("P", fn(i, o)))
     let applied = try t.intern(.isaVarApp(head: P, args: [a]))
     #expect(t.type(of: applied) == o)
     let x = try t.intern(.isaBound(0, i))
@@ -359,7 +359,7 @@ func aDefinitionConcludesItsStatementAtItsTerms() throws {
     ))))
     let bare = try t.intern(.isaDefinition("Pure.prop_def", of: .constant(prop), [], stated, args: []))
     #expect(t.conclusion(of: bare) == stated)
-    let x = try t.intern(.isaFree(.named("x"), i))
+    let x = try t.intern(.isaFree("x", i))
     #expect(throws: TableError.childType(expected: o, found: i)) {
         try t.intern(.isaDefinition("Pure.prop_def", of: .constant(prop), [], stated, args: [x]))
     }

@@ -124,6 +124,14 @@ proof forall_as_nexists:
     _r = iff_intro _fwd, _bwd
     qed _r
 
+proof ex_intro:
+    fix z
+    _pz = assume P(z)
+    _ex = exists_intro _pz, z
+    _i1 = implies_intro _ex
+    _all = forall_intro _i1
+    qed _all
+
 proof ext_guarded:
     _e = use extensionality
     fix A

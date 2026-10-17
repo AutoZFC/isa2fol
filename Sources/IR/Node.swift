@@ -23,12 +23,6 @@ public struct Binds: Hashable, Sendable {
 }
 
 @frozen
-public enum Free: Hashable, Sendable {
-    case named(String)
-    case hidden
-}
-
-@frozen
 public enum Predicate: Hashable, Sendable {
     case base(String)
     case constant(Constant)
@@ -50,7 +44,7 @@ public enum Node: Hashable, Sendable {
     case ifolAll(IRType, body: NodeID)
     case ifolEx(IRType, body: NodeID)
     case isaConst(Constant, IRType, args: [NodeID])
-    case isaFree(Free, IRType)
+    case isaFree(String, IRType)
     case isaBound(Int, IRType)
     case isaVarApp(head: NodeID, args: [NodeID])
     case isaAbs(IRType, body: NodeID)
@@ -68,6 +62,7 @@ public enum Node: Hashable, Sendable {
     case isaPropAll(body: NodeID)
     case isaPropIntro(body: NodeID)
     case isaPropBound(Int)
+    case isaHidden(IRType, body: NodeID)
 
     // Both dialects: a construct FOL covers, read as the fol-zfc node itself.
     case folImplies(NodeID, NodeID)
@@ -93,7 +88,7 @@ public enum Node: Hashable, Sendable {
     // isa
     // binder, which fol guards.
     case isaGuard(NodeID, NodeID)
-    case isaExIntro(NodeID, NodeID)
+    case isaExIntro(NodeID, NodeID, body: NodeID)
     case isaExElim(IRType, NodeID, body: NodeID)
 
     // Fol-zfc only: lowering produces these; the reader never does.
@@ -126,7 +121,8 @@ public enum Node: Hashable, Sendable {
         case .ifolAll, .ifolEx, .isaConst, .isaFree, .isaVarApp, .isaAbs, .isaOfClass, .isaAllIntro, .isaAllElim,
              .isaReflexive, .isaSymmetric, .isaTransitive, .isaCombination, .isaAbstract, .isaClassical,
              .isaIffReflection,
-             .isaDefinition, .isaPropAll, .isaPropIntro, .folImplies, .folAnd, .folOr, .folIff, .folNot, .folBottom,
+             .isaDefinition, .isaPropAll, .isaPropIntro, .isaHidden, .folImplies, .folAnd, .folOr, .folIff, .folNot,
+             .folBottom,
              .folImpliesIntro, .folImpliesElim, .use, .isaGuard, .isaExIntro, .isaExElim, .folPred, .folForall,
              .folExists,
              .folAndIntro, .folAndElimL, .folAndElimR, .folOrIntroL, .folOrIntroR, .folOrElim, .folNotIntro,
@@ -184,6 +180,8 @@ public enum Node: Hashable, Sendable {
 
         case .isaPropIntro(let b): .isaPropIntro(body: try f(b, .term))
 
+        case .isaHidden(let T, let b): .isaHidden(T, body: try f(b, .term))
+
         case .folImplies(let a, let b): .folImplies(try f(a, .none), try f(b, .none))
 
         case .folAnd(let a, let b): .folAnd(try f(a, .none), try f(b, .none))
@@ -204,7 +202,7 @@ public enum Node: Hashable, Sendable {
 
         case .isaGuard(let x, let g): .isaGuard(try f(x, .none), try f(g, .none))
 
-        case .isaExIntro(let p, let v): .isaExIntro(try f(p, .none), try f(v, .none))
+        case .isaExIntro(let p, let v, let b): .isaExIntro(try f(p, .none), try f(v, .none), body: try f(b, .term))
 
         case .isaExElim(let T, let p, let b): .isaExElim(T, try f(p, .none), body: try f(b, .termAndHyp))
 

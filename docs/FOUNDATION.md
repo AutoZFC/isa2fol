@@ -1245,9 +1245,30 @@ specialisation at `kpair`.
 | Pure's `combination` | the premise at the argument, then the argument's equation substituted into the function by the formula recursion, membership's congruence at its atoms |
 | `Thm` of a theorem polymorphic in a type no class restricts, at a type binding no proposition on its spine | its proof at that type, in place: the target has no type |
 | an application of a logical rule (`conjI`, `mp`, `spec`, `exE`, …) | the kernel's OWN step at its premises; never translated (S4) |
+| `exI` at `P` and `a` | base's `ex_intro` at `P`, then `forall_elim` at `a`: an ∃-introduction given its body |
 | an application of a definition whose constant is unfolded, `AppT` at its parameters | `reflexive` at its terms: the definiens at them on both sides, no binder introduced (S1) |
 | `⋀P` over a proposition, `o` or `prop`, at a statement's top, `AppT` at it | a schema letter, `schema_inst` (S4) |
 | `⋀P` over a proposition anywhere else, `AppT` at it | a truth-set variable; `forall_elim` at `E(φ)`, then β (S4) |
+| a variable only the proof uses (`dummy_pattern`) | the witness of an `exists_elim` at the proof's top, below its letters, over its type's inhabitation |
+
+**THE KERNEL'S ∃-INTRODUCTION FINDS ITS BODY; ISABELLE'S IS GIVEN IT.** From `φ` and a variable `a`, `exists_intro`
+concludes `∃y. φ′`, where `φ′` binds every occurrence of `a` in `φ`. `exI` concludes `∃y. P(y)` from `P(a)`, its `P`
+given. The two agree only when `a` occurs in `P(a)` just where `P` binds: from `x = x`, `exI` at `λy. y = x` concludes
+`∃y. y = x`, `exists_intro` at `x` concludes `∃y. y = y`. So `exI` is no kernel step at its premises. It is the schema
+`∀z. P(z) → ∃y. P(y)`, proved once by `exists_intro` at `z`, which occurs only where the letter binds, and instantiated
+by `forall_elim` at `a`, which substitutes exactly; at a set binder `P` carries the guard, `set(y) ∧ φ(y)` (R3).
+Nothing is admitted (R1).
+
+**A VARIABLE ONLY THE PROOF USES IS SOME VALUE, NOT EVERY VALUE.** Isabelle's kernel instantiates at a free variable
+its conclusion never mentions: every type is inhabited, so the proof proves the statement at any value of it. The
+exporter writes each such variable as `dummy_pattern`, one per type, which is a substitution, and a proof stays a proof
+under substitution. The target has no free variable: every variable a step uses is bound by a `forall_intro` or an
+`exists_elim`. A `∀` over the proof concludes `∀h. φ`, not `φ`; what the proof needs is an element. So the variable is
+the witness of an `exists_elim` over its type's inhabitation, at the top of its proof and below its letters, and the
+conclusion, which does not mention it, stands. One witness serves every type: Empty gives `∅`, which is a set,
+single-valued (it has no pairs), a class, and a truth set (`∅ ⊆ {∅}`), so each guard — R3's, S5's, S4's — is inhabited,
+proved once in base from Empty, and nothing is admitted. A variable at a type beyond objects and propositions has no
+reading as a variable yet, and so no binder.
 
 **⚠ THE GUARD STEP HAS NO COUNTERPART IN THE PROOF TERM.** Isabelle gets `a : i`
 from its type system — decided, never proved — so every `forall_elim` needs a
