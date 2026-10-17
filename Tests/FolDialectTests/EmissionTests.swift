@@ -1,6 +1,6 @@
 import Foundation
-import Testing
 import IR
+import Testing
 @testable import FolDialect
 
 private let repo = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
@@ -28,7 +28,9 @@ private let baseLibraries = Result { () throws -> URL in
     return dir
 }
 
-private func baseTextsOfRepo() throws -> [String] { try baseTexts(repo.appendingPathComponent("base")) }
+private func baseTextsOfRepo() throws -> [String] {
+    try baseTexts(repo.appendingPathComponent("base"))
+}
 
 private func freshDirectory(_ name: String) throws -> URL {
     let dir = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("isa2fol-\(name)-\(getpid())")
@@ -48,14 +50,23 @@ private struct Named: Request {
     let name: String
 }
 
-private extension Pf {
-    mutating func eqReflAt(_ k: Int) throws -> NodeID {
+extension Pf {
+    fileprivate mutating func eqReflAt(_ k: Int) throws -> NodeID {
         let eq0 = try p("eq", try b(0), try b(0))
         return try n(.folForallElim(try n(.use(.base("eq_refl"), [], try n(.folForall(body: eq0)))), try b(k)))
     }
-    mutating func forallIntro(_ body: NodeID) throws -> NodeID { try n(.folForallIntro(body: body)) }
-    mutating func and(_ p: NodeID, _ q: NodeID) throws -> NodeID { try n(.folAndIntro(p, q)) }
-    mutating func letter(_ k: Int) throws -> NodeID { try n(.isaBound(k, .o)) }
+
+    fileprivate mutating func forallIntro(_ body: NodeID) throws -> NodeID {
+        try n(.folForallIntro(body: body))
+    }
+
+    fileprivate mutating func and(_ p: NodeID, _ q: NodeID) throws -> NodeID {
+        try n(.folAndIntro(p, q))
+    }
+
+    fileprivate mutating func letter(_ k: Int) throws -> NodeID {
+        try n(.isaBound(k, .o))
+    }
 }
 
 private func claim(_ name: String, _ proof: NodeID, _ t: Table) -> Declaration {
@@ -63,7 +74,8 @@ private func claim(_ name: String, _ proof: NodeID, _ t: Table) -> Declaration {
 }
 
 /// Decision 2: `p` used twice in one scope is one step, cited by its handle.
-@Test func aSubproofUsedTwiceInOneScopeIsWrittenOnce() throws {
+@Test
+func aSubproofUsedTwiceInOneScopeIsWrittenOnce() throws {
     var f = Pf()
     let p = try f.eqReflAt(0)
     let proof = try f.forallIntro(try f.and(p, p))
@@ -80,7 +92,8 @@ private func claim(_ name: String, _ proof: NodeID, _ t: Table) -> Declaration {
 }
 
 /// `p` depends on its scope's `f0`, so under two sibling `fix`es it is written twice; the closed `use` once.
-@Test func aSubproofInTwoSiblingScopesIsWrittenTwice() throws {
+@Test
+func aSubproofInTwoSiblingScopesIsWrittenTwice() throws {
     var f = Pf()
     let p = try f.eqReflAt(0)
     let proof = try f.and(try f.forallIntro(p), try f.forallIntro(try f.and(p, p)))
@@ -101,13 +114,16 @@ private func claim(_ name: String, _ proof: NodeID, _ t: Table) -> Declaration {
 }
 
 private func independent(_ f: inout Pf) throws -> NodeID {
-    let q = try f.forallIntro(try f.eqReflAt(0)), a = try f.p("A"), b = try f.p("B")
+    let q = try f.forallIntro(try f.eqReflAt(0))
+    let a = try f.p("A")
+    let b = try f.p("B")
     return try f.and(try f.intro(a, q), try f.intro(b, q))
 }
 
 /// A step that depends on no assumption or variable of a closing scope stays derived after it: `q`, written under
 /// `assume A`, is cited under `assume B` — the `↔` of a congruence proved once, not once per direction.
-@Test func aStepIndependentOfAClosingScopeIsCitedAfterIt() throws {
+@Test
+func aStepIndependentOfAClosingScopeIsCitedAfterIt() throws {
     var f = Pf()
     let proof = try independent(&f)
     #expect(try render(proof: proof, of: claim("independent", proof, f.t), in: f.t) == """
@@ -127,7 +143,8 @@ private func independent(_ f: inout Pf) throws -> NodeID {
 }
 
 /// One node with a loose index is two facts under two binders, `eq(f0, f0)` and `eq(f1, f1)`; the closed `use` is one.
-@Test func oneNodeUnderTwoBindersIsTwoFacts() throws {
+@Test
+func oneNodeUnderTwoBindersIsTwoFacts() throws {
     var f = Pf()
     let p = try f.eqReflAt(0)
     let proof = try f.forallIntro(try f.and(p, try f.forallIntro(p)))
@@ -154,7 +171,8 @@ private func selfImplication(_ f: inout Pf) throws -> (root: NodeID, proof: Node
 }
 
 /// A statement whose spine binds a letter is a schema: the letter declared by its place, its proof without its intro.
-@Test func aSchemaIsDeclaredWithItsSpineLettersAndItsProofHasNoIntroForThem() throws {
+@Test
+func aSchemaIsDeclaredWithItsSpineLettersAndItsProofHasNoIntroForThem() throws {
     var f = Pf()
     let (root, proof) = try selfImplication(&f)
     let d = Declaration(kind: .schema(letters: ["A0"]), name: "selfImp", root: root)
@@ -169,14 +187,16 @@ private func selfImplication(_ f: inout Pf) throws -> (root: NodeID, proof: Node
 }
 
 private func underAForall(_ f: inout Pf) throws -> (root: NodeID, proof: NodeID) {
-    let a = try f.letter(0), set0 = try f.p("set", try f.b(0))
+    let a = try f.letter(0)
+    let set0 = try f.p("set", try f.b(0))
     let root = try f.n(.folForall(body: try f.imp(set0, try f.n(.ifolAll(.o, body: try f.imp(a, a))))))
     let proof = try f.forallIntro(try f.intro(set0, try f.n(.isaAllIntro(.o, body: try f.intro(a, try f.hyp(0, a))))))
     return (root, proof)
 }
 
 /// A letter under `∀` on the spine is declared at the top: it hoists across `∀` and the right of `→`.
-@Test func aLetterUnderAForallIsDeclaredAtTheTop() throws {
+@Test
+func aLetterUnderAForallIsDeclaredAtTheTop() throws {
     var f = Pf()
     let (root, proof) = try underAForall(&f)
     let d = Declaration(kind: .schema(letters: ["A0"]), name: "hoisted", root: root)
@@ -195,14 +215,18 @@ private func underAForall(_ f: inout Pf) throws -> (root: NodeID, proof: NodeID)
 }
 
 private func citingHoisted(_ f: inout Pf, _ schemaRoot: NodeID) throws -> NodeID {
-    let set0 = try f.p("set", try f.b(0)), eq00 = try f.p("eq", try f.b(0), try f.b(0))
-    let atX = try f.n(.folImpliesElim(try f.n(.folForallElim(try f.n(.use(.theorem("hoisted"), [], schemaRoot)), try f.b(0))),
-                                      try f.hyp(0, set0)))
+    let set0 = try f.p("set", try f.b(0))
+    let eq00 = try f.p("eq", try f.b(0), try f.b(0))
+    let atX = try f.n(.folImpliesElim(
+        try f.n(.folForallElim(try f.n(.use(.theorem("hoisted"), [], schemaRoot)), try f.b(0))),
+        try f.hyp(0, set0),
+    ))
     return try f.forallIntro(try f.intro(set0, try f.n(.folSchemaInst(atX, eq00))))
 }
 
 /// A citation of the unit's schema is one `schema_inst` with every letter, ahead of the spine's `forall_elim`s.
-@Test func aCitationOfASchemaIsOneSchemaInstAheadOfItsForallElims() throws {
+@Test
+func aCitationOfASchemaIsOneSchemaInstAheadOfItsForallElims() throws {
     var f = Pf()
     let (root, _) = try underAForall(&f)
     let proof = try citingHoisted(&f, root)
@@ -220,10 +244,14 @@ private func citingHoisted(_ f: inout Pf, _ schemaRoot: NodeID) throws -> NodeID
         """)
 }
 
-@Test func aNameBaseDeclaresStopsEmission() throws {
+@Test
+func aNameBaseDeclaresStopsEmission() throws {
     var f = Pf()
     let p = try f.forallIntro(try f.eqReflAt(0))
-    let unit = IR.Unit(table: f.t, statements: [Statement(name: "eq_refl", root: f.t.conclusion(of: p)!, proof: p, theory: "T")])
+    let unit = IR.Unit(
+        table: f.t,
+        statements: [Statement(name: "eq_refl", root: try #require(f.t.conclusion(of: p)), proof: p, theory: "T")],
+    )
     #expect(throws: EmitError.declaredByBase("eq_refl")) {
         try emit(unit, to: try freshDirectory("clash"), base: try baseTextsOfRepo())
     }
@@ -242,23 +270,29 @@ private func twoTheories(_ f: inout Pf) throws -> IR.Unit {
     return IR.Unit(table: f.t, statements: [t2, t1, lemma])
 }
 
-@Test func aTheoremGoesInItsTheorysPartAndALemmaInItsFirstCitersPart() throws {
+@Test
+func aTheoremGoesInItsTheorysPartAndALemmaInItsFirstCitersPart() throws {
     var f = Pf()
     let dir = try freshDirectory("parts")
     let emitted = try emit(try twoTheories(&f), to: dir, base: try baseTextsOfRepo())
     #expect(emitted.parts.map(\.name) == ["A", "B"])
     #expect(emitted.parts.map(\.loads) == [[], ["A"]])
-    #expect(Dictionary(uniqueKeysWithValues: emitted.statements.map { ($0.name, $0.part) }) == ["A.t1": "A", "L": "A", "B.t2": "B"])
+    #expect(Dictionary(uniqueKeysWithValues: emitted.statements.map { ($0.name, $0.part) }) == [
+        "A.t1": "A",
+        "L": "A",
+        "B.t2": "B",
+    ])
     #expect(try String(contentsOf: dir.appendingPathComponent("parts"), encoding: .utf8) == "A:\nB: A\n")
     let report = try unitChecks(dir)
     #expect(report.contains("Proved (2 of 2)") && report.contains("Proved (1 of 1)"))
 }
 
 /// A lemma no statement cites — its citer refused after the registry proved it — is the last part's, `_uncited`.
-@Test func aLemmaNoStatementCitesGoesInTheLastPart() throws {
+@Test
+func aLemmaNoStatementCitesGoesInTheLastPart() throws {
     var f = Pf()
     let p = try f.forallIntro(try f.eqReflAt(0))
-    let r = f.t.conclusion(of: p)!
+    let r = try #require(f.t.conclusion(of: p))
     var orphan = Statement(lemma: Lemma(Named(name: "orphan")), root: r)
     orphan.proof = p
     let unit = IR.Unit(table: f.t, statements: [orphan, Statement(name: "A.t", root: r, proof: p, theory: "A")])
@@ -270,7 +304,8 @@ private func twoTheories(_ f: inout Pf) throws -> IR.Unit {
 }
 
 /// A part over its bound is split, each piece citing only earlier ones, and checked in order.
-@Test func aPartOverItsBoundIsSplitInOrder() throws {
+@Test
+func aPartOverItsBoundIsSplitInOrder() throws {
     var f = Pf()
     let dir = try freshDirectory("split")
     let emitted = try emit(try twoTheories(&f), to: dir, base: try baseTextsOfRepo(), partBytes: 1)
@@ -279,24 +314,44 @@ private func twoTheories(_ f: inout Pf) throws -> IR.Unit {
     _ = try unitChecks(dir)
 }
 
-/// Every claim and schema a unit emits is Proved by the real checker, part by part: the sharing tests' proofs, a name and
+/// Every claim and schema a unit emits is Proved by the real checker, part by part: the sharing tests' proofs, a name
+/// and
 /// a predicate with a reserved segment, a schema and its citation.
-@Test func whatEmissionWritesTheCheckerProves() throws {
+@Test
+func whatEmissionWritesTheCheckerProves() throws {
     var f = Pf()
-    var statements: [Statement] = []
+    var statements = [Statement]()
     let p = try f.eqReflAt(0)
-    for (name, proof) in [("once", try f.forallIntro(try f.and(p, p))),
-                          ("siblings", try f.and(try f.forallIntro(p), try f.forallIntro(try f.and(p, p)))),
-                          ("binders", try f.forallIntro(try f.and(p, try f.forallIntro(p)))),
-                          ("independent", try independent(&f))] {
-        statements.append(Statement(name: name, root: f.t.conclusion(of: proof)!, proof: proof, theory: "T"))
+    for (name, proof) in [
+        ("once", try f.forallIntro(try f.and(p, p))),
+        ("siblings", try f.and(try f.forallIntro(p), try f.forallIntro(try f.and(p, p)))),
+        ("binders", try f.forallIntro(try f.and(p, try f.forallIntro(p)))),
+        ("independent", try independent(&f)),
+    ] {
+        statements.append(Statement(
+            name: name,
+            root: try #require(f.t.conclusion(of: proof)),
+            proof: proof,
+            theory: "T",
+        ))
     }
-    let not = try f.p("Bool.not"), reserved = try f.intro(not, try f.hyp(0, not))
-    statements.append(Statement(name: "T.ok.false", root: f.t.conclusion(of: reserved)!, proof: reserved, theory: "T"))
+    let not = try f.p("Bool.not")
+    let reserved = try f.intro(not, try f.hyp(0, not))
+    statements.append(Statement(
+        name: "T.ok.false",
+        root: try #require(f.t.conclusion(of: reserved)),
+        proof: reserved,
+        theory: "T",
+    ))
     let (root, proof) = try underAForall(&f)
     statements.append(Statement(name: "hoisted", root: root, proof: proof, theory: "T"))
     let cites = try citingHoisted(&f, root)
-    statements.append(Statement(name: "cites", root: f.t.conclusion(of: cites)!, proof: cites, theory: "T"))
+    statements.append(Statement(
+        name: "cites",
+        root: try #require(f.t.conclusion(of: cites)),
+        proof: cites,
+        theory: "T",
+    ))
     let dir = try freshDirectory("checked")
     let emitted = try emit(IR.Unit(table: f.t, statements: statements), to: dir, base: try baseTextsOfRepo())
     #expect(emitted.statements.first { $0.name == "once" }.map { [$0.written, $0.tree, $0.dag] } == [4, 6, 4])

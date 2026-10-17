@@ -71,7 +71,13 @@ existence, in order" is the order of work, agreed again from step 2 on around FO
 swift build
 swift test
 scripts/capped.sh swift test        # see rule 10
+pre-commit run --all-files          # format and lint the tree
 ```
+
+**Format and lint are the tools', never by hand**: SwiftFormat (`.swiftformat`) and SwiftLint (`.swiftlint.yml`),
+the Airbnb Swift Style Guide's configurations, each override marked `isa2fol:`, pinned in `.pre-commit-config.yaml`.
+Once per clone: `uv tool install pre-commit && pre-commit install`; every commit then formats and lints what it
+stages. A rule that does not fit is changed in the configuration, never disabled inline.
 
 Swift 6.4, language mode 5. `scripts/02-install-swift.sh` installs it into
 `$HOME` with no sudo and is idempotent.
@@ -232,7 +238,7 @@ determinism R1–R3 (§4.6).
    print(f'{c}/{t} = {100*c/t:.1f}%')"
    ```
 
-   ✓ **CURRENTLY 46/8828 = 0.5%, under the cap.** Keep it there: a breach is
+   ✓ **CURRENTLY 57/11525 = 0.5%, under the cap.** Keep it there: a breach is
    fixed by deleting prose, never by raising the cap.
 
    Does not apply to `base/**/*.fol.def` headers: those record provenance of

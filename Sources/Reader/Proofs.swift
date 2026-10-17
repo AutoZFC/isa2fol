@@ -77,21 +77,27 @@ extension Decode {
             { a, ts in .head(.oracle(try one(a), try list(type, ts))) },
             { a, ts in
                 guard a.count == 4 else { throw MalformedExport.atoms(a) }
-                return .head(.theorem(Citation(theory: a[1], serial: try Decode.int(a[0]), name: a[2],
-                                               index: try Decode.int(a[3]), types: try list(type, ts))))
+                return .head(.theorem(Citation(
+                    theory: a[1],
+                    serial: try Decode.int(a[0]),
+                    name: a[2],
+                    index: try Decode.int(a[3]),
+                    types: try list(type, ts),
+                )))
             },
         ], body)
     }
 
     func proofSpine(_ body: Body) throws -> ProofSpine {
-        var arguments: [ProofArgument] = []
+        var arguments = [ProofArgument]()
         var head = body
         while true {
             switch try proofNode(head) {
-            case let .application(function, argument):
+            case .application(let function, let argument):
                 arguments.append(argument)
                 head = function
-            case let .head(node):
+
+            case .head(let node):
                 return ProofSpine(head: head, node: node, arguments: arguments.reversed())
             }
         }

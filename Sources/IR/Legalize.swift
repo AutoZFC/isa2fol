@@ -1,5 +1,6 @@
 public func legalize(_ root: NodeID, in t: Table) throws {
-    var seen: Set<NodeID> = [], pending = [root]
+    var seen = Set<NodeID>()
+    var pending = [root]
     while let id = pending.popLast() {
         guard seen.insert(id).inserted else { continue }
         guard Pattern(t[id], in: t).dialects.contains(.fol) else { throw IRRefusal.sourceKindSurvived(id) }
@@ -8,14 +9,15 @@ public func legalize(_ root: NodeID, in t: Table) throws {
 }
 
 public func spineLetters(_ root: NodeID, in t: Table) -> Int {
-    var count = 0, at = root
+    var count = 0
+    var at = root
     while true {
-        if case let .ifolAll(T, body) = t[at] {
+        if case .ifolAll(let T, let body) = t[at] {
             if T == .o { count += 1 }
             at = body
-        } else if case let .folForall(body) = t[at] {
+        } else if case .folForall(let body) = t[at] {
             at = body
-        } else if case let .folImplies(_, b) = t[at] {
+        } else if case .folImplies(_, let b) = t[at] {
             at = b
         } else {
             return count
@@ -24,25 +26,34 @@ public func spineLetters(_ root: NodeID, in t: Table) -> Int {
 }
 
 public func misplacedLetters(_ roots: [NodeID], in t: Table) -> Set<Pattern> {
-    var seen: Set<Place> = [], misplaced: Set<Pattern> = [], pending = roots.map { Place(id: $0, spine: true) }
+    var seen = Set<Place>()
+    var misplaced = Set<Pattern>()
+    var pending = roots.map { Place(id: $0, spine: true) }
     while let at = pending.popLast() {
         guard seen.insert(at).inserted else { continue }
         let n = t[at.id]
         switch n {
-        case let .ifolAll(.o, body), let .isaAllIntro(.o, body), let .folLetterAll(_, body):
+        case .ifolAll(.o, let body), .isaAllIntro(.o, let body), .folLetterAll(_, let body):
             if !at.spine { misplaced.insert(Pattern(n, in: t)) }
             pending.append(Place(id: body, spine: at.spine))
-        case let .folForall(body), let .folForallIntro(body):
+
+        case .folForall(let body), .folForallIntro(let body):
             pending.append(Place(id: body, spine: at.spine))
-        case let .folImplies(a, b), let .folImpliesIntro(a, b):
+
+        case .folImplies(let a, let b), .folImpliesIntro(let a, let b):
             pending += [Place(id: a, spine: false), Place(id: b, spine: at.spine)]
-        case let .use(_, _, root):
+
+        case .use(_, _, let root):
             pending.append(Place(id: root, spine: true))
-        case let .folSchemaInst(p, a):
+
+        case .folSchemaInst(let p, let a):
             if !citesAtItsHead(p, t) { misplaced.insert(Pattern(n, in: t)) }
             pending += [Place(id: p, spine: false), Place(id: a, spine: false)]
+
         case .ifolAll, .ifolEx, .isaConst, .isaFree, .isaBound, .isaVarApp, .isaAbs, .isaOfClass, .isaAllIntro,
-             .isaAllElim, .isaReflexive, .isaSymmetric, .isaTransitive, .isaCombination, .isaAbstract, .isaClassical, .isaIffReflection, .isaDefinition, .isaPropAll, .isaPropIntro, .isaPropBound, .folAnd, .folOr, .folIff, .folBottom, .folImpliesElim, .hyp, .isaGuard, .isaExIntro, .isaExElim, .folNot, .folBound,
+             .isaAllElim, .isaReflexive, .isaSymmetric, .isaTransitive, .isaCombination, .isaAbstract, .isaClassical,
+             .isaIffReflection, .isaDefinition, .isaPropAll, .isaPropIntro, .isaPropBound, .folAnd, .folOr, .folIff,
+             .folBottom, .folImpliesElim, .hyp, .isaGuard, .isaExIntro, .isaExElim, .folNot, .folBound,
              .folPred, .folExists, .folAndIntro, .folAndElimL, .folAndElimR, .folOrIntroL, .folOrIntroR, .folOrElim,
              .folNotIntro, .folNotElim, .folIffIntro, .folIffElimL, .folIffElimR, .folForallElim, .folExistsIntro,
              .folExistsElim, .folBottomElim, .folClassicalAbsurd, .folLetter, .folLetterAbs:
@@ -59,8 +70,8 @@ private struct Place: Hashable {
 
 private func citesAtItsHead(_ p: NodeID, _ t: Table) -> Bool {
     if case .use = t[p] { return true }
-    if case let .folSchemaInst(q, _) = t[p] { return citesAtItsHead(q, t) }
-    if case let .folForallElim(q, _) = t[p] { return citesAtItsHead(q, t) }
-    if case let .folImpliesElim(q, _) = t[p] { return citesAtItsHead(q, t) }
+    if case .folSchemaInst(let q, _) = t[p] { return citesAtItsHead(q, t) }
+    if case .folForallElim(let q, _) = t[p] { return citesAtItsHead(q, t) }
+    if case .folImpliesElim(let q, _) = t[p] { return citesAtItsHead(q, t) }
     return false
 }

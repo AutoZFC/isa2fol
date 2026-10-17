@@ -7,46 +7,52 @@ indirect enum IsaType: Hashable, Sendable {
 
     var variables: Set<IsaType> {
         switch self {
-        case let .type(_, args): return args.reduce(into: []) { $0.formUnion($1.variables) }
-        case .tfree, .tvar: return [self]
+        case .type(_, let args): args.reduce(into: []) { $0.formUnion($1.variables) }
+        case .tfree, .tvar: [self]
         }
     }
 
     var level: Level {
         switch self {
-        case let .type(name, args): return name == "prop" || args.contains { $0.level == .meta } ? .meta : .object
-        case .tfree, .tvar: return .meta
+        case .type(let name, let args): name == "prop" || args.contains { $0.level == .meta } ? .meta : .object
+        case .tfree, .tvar: .meta
         }
     }
 
     func substituting(_ s: [String: IsaType]) -> IsaType {
         switch self {
-        case let .type(name, args): return .type(name, args.map { $0.substituting(s) })
-        case let .tfree(name, _): return s[name] ?? self
-        case .tvar: return self
+        case .type(let name, let args): .type(name, args.map { $0.substituting(s) })
+        case .tfree(let name, _): s[name] ?? self
+        case .tvar: self
         }
     }
 
     func irType() throws -> IRType {
         switch self {
-        case let .type("fun", args):
+        case .type("fun", let args):
             try arity("fun", args, 2)
             return .fn(try args[0].irType(), try args[1].irType())
-        case let .type("ZF_Base.i", args):
+
+        case .type("ZF_Base.i", let args):
             try arity("ZF_Base.i", args, 0)
             return .i
-        case let .type("dummy", args):
+
+        case .type("dummy", let args):
             try arity("dummy", args, 0)
             return .variable("dummy")
-        case let .type(name, args) where name == "IFOL.o" || name == "prop":
+
+        case .type(let name, let args) where name == "IFOL.o" || name == "prop":
             try arity(name, args, 0)
             return .o
-        case let .type(name, _):
+
+        case .type(let name, _):
             throw ReaderRefusal.typeConstructor(name)
-        case let .tfree(name, sort):
+
+        case .tfree(let name, let sort):
             guard sort.isEmpty else { throw MalformedExport.sortedTypeVariable(name) }
             return .variable(name)
-        case let .tvar(name, _, _):
+
+        case .tvar(let name, _, _):
             throw MalformedExport.schematicVariable(name)
         }
     }

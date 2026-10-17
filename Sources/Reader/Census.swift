@@ -1,22 +1,23 @@
 import IR
 
 public struct Census: Sendable {
-    public internal(set) var named: [String: Int] = [:]
+    public internal(set) var named = [String: Int]()
     public internal(set) var polymorphic = 0
-    public internal(set) var refused: [ReaderRefusal: Int] = [:]
-    public internal(set) var patterns: [Pattern: Int] = [:]
-    public internal(set) var citations: [Cited: Int] = [:]
-    public internal(set) var definitions: [CitedDefinition: Int] = [:]
+    public internal(set) var refused = [ReaderRefusal: Int]()
+    public internal(set) var patterns = [Pattern: Int]()
+    public internal(set) var citations = [Cited: Int]()
+    public internal(set) var definitions = [CitedDefinition: Int]()
 }
 
 public struct CitedDefinition: Hashable, Sendable {
-    public let axiom: String
-    public let defines: Definiendum
-
     public init(axiom: String, defines: Definiendum) {
         self.axiom = axiom
         self.defines = defines
     }
+
+    public let axiom: String
+    public let defines: Definiendum
+
 }
 
 private enum Fact: Hashable {
@@ -31,7 +32,11 @@ private enum Vertex: Hashable {
 }
 
 private struct Bits {
-    var words: [UInt64] = []
+    var words = [UInt64]()
+
+    var members: [Int] {
+        words.indices.flatMap { k in (0..<64).filter { words[k] & (1 << UInt64($0)) != 0 }.map { k * 64 + $0 } }
+    }
 
     mutating func insert(_ k: Int) {
         while words.count <= k / 64 { words.append(0) }
@@ -43,17 +48,14 @@ private struct Bits {
         for (k, w) in other.words.enumerated() { words[k] |= w }
     }
 
-    var members: [Int] {
-        words.indices.flatMap { k in (0..<64).filter { words[k] & (1 << UInt64($0)) != 0 }.map { k * 64 + $0 } }
-    }
 }
 
 private struct Closure {
-    var facts: [Fact] = []
-    var ids: [Fact: Int] = [:]
-    var patternOf: [NodeID: Int] = [:]
-    var own: [Vertex: (facts: Bits, edges: [Vertex])] = [:]
-    var closed: [Vertex: Bits] = [:]
+    var facts = [Fact]()
+    var ids = [Fact: Int]()
+    var patternOf = [NodeID: Int]()
+    var own = [Vertex: (facts: Bits, edges: [Vertex])]()
+    var closed = [Vertex: Bits]()
 
     mutating func id(_ f: Fact) -> Int {
         if let k = ids[f] { return k }
@@ -69,24 +71,32 @@ private struct Closure {
         return k
     }
 
-    mutating func walk(_ v: Vertex, _ roots: [NodeID], _ t: Table, _ cited: (String) -> Vertex?) -> (facts: Bits, edges: [Vertex]) {
-        var bits = Bits(), edges: Set<Vertex> = [], seen: Set<NodeID> = [], work = roots
+    mutating func walk(
+        _ v: Vertex,
+        _ roots: [NodeID],
+        _ t: Table,
+        _ cited: (String) -> Vertex?,
+    ) -> (facts: Bits, edges: [Vertex]) {
+        var bits = Bits()
+        var edges = Set<Vertex>()
+        var seen = Set<NodeID>()
+        var work = roots
         while let n = work.popLast() {
             guard seen.insert(n).inserted else { continue }
             bits.insert(pattern(n, t))
-            if case let .use(c, _, _) = t[n] {
+            if case .use(let c, _, _) = t[n] {
                 switch c {
-                case let .theorem(name):
+                case .theorem(let name):
                     if let v = cited(name) { edges.insert(v) }
                 case .axiom, .theoryAxiom, .lemma, .base, .definition:
                     bits.insert(id(.cited(c)))
                 }
             }
-            if case let .isaDefinition(axiom, d, _, _, _) = t[n] {
+            if case .isaDefinition(let axiom, let d, _, _, _) = t[n] {
                 bits.insert(id(.definition(CitedDefinition(axiom: axiom, defines: d))))
             }
-            if case let .isaConst(.defined(d), _, _) = t[n] { edges.insert(.definition(.constant(d))) }
-            if case let .isaOfClass(_, k) = t[n] { edges.insert(.definition(.ofClass(k))) }
+            if case .isaConst(.defined(let d), _, _) = t[n] { edges.insert(.definition(.constant(d))) }
+            if case .isaOfClass(_, let k) = t[n] { edges.insert(.definition(.ofClass(k))) }
             t[n].forEachChild { c, _ in work.append(c) }
         }
         edges.remove(v)
@@ -97,12 +107,13 @@ private struct Closure {
 extension Reader {
     public mutating func census() throws -> Census {
         var c = Census()
-        var proved: [Theorem: Vertex] = [:], read: Set<Theorem> = []
+        var proved = [Theorem: Vertex]()
+        var read = Set<Theorem>()
         func take(_ theorem: Theorem) throws {
             guard read.insert(theorem).inserted else { return }
             switch try self.read(theorem) {
-            case let .proved(statement, proof): proved[theorem] = .theorem(statement: statement, proof: proof)
-            case let .refused(r): c.refused[r, default: 0] += 1
+            case .proved(let statement, let proof): proved[theorem] = .theorem(statement: statement, proof: proof)
+            case .refused(let r): c.refused[r, default: 0] += 1
             }
         }
         for theorem in population {
@@ -117,21 +128,23 @@ extension Reader {
         }
 
         var g = Closure()
-        let citedAs = self.citedAs
+        let citedAs = citedAs
         func own(_ v: Vertex) throws -> (facts: Bits, edges: [Vertex]) {
             if let o = g.own[v] { return o }
-            let roots: [NodeID]
-            switch v {
-            case let .theorem(statement, proof): roots = [statement, proof]
-            case let .definition(d): roots = [try definition(of: d)]
-            }
+            let roots: [NodeID] =
+                switch v {
+                case .theorem(let statement, let proof): [statement, proof]
+                case .definition(let d): [try definition(of: d)]
+                }
             let o = g.walk(v, roots, table) { citedAs[$0].flatMap { proved[$0] } }
             g.own[v] = o
             return o
         }
         func close(_ root: Vertex) throws -> Bits {
             if let b = g.closed[root] { return b }
-            var work: [(Vertex, expanded: Bool)] = [(root, false)], open: Set<Vertex> = [], last = Bits()
+            var work: [(Vertex, expanded: Bool)] = [(root, false)]
+            var open = Set<Vertex>()
+            var last = Bits()
             while let (v, expanded) = work.popLast() {
                 let o = try own(v)
                 guard expanded else {
@@ -157,9 +170,9 @@ extension Reader {
             guard let v = proved[theorem] else { continue }
             for k in try close(v).members {
                 switch g.facts[k] {
-                case let .pattern(p): c.patterns[p, default: 0] += 1
-                case let .cited(cited): c.citations[cited, default: 0] += 1
-                case let .definition(cited): c.definitions[cited, default: 0] += 1
+                case .pattern(let p): c.patterns[p, default: 0] += 1
+                case .cited(let cited): c.citations[cited, default: 0] += 1
+                case .definition(let cited): c.definitions[cited, default: 0] += 1
                 }
             }
         }

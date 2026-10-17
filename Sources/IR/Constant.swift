@@ -1,24 +1,37 @@
-@frozen public enum Family: String, Hashable, Sendable, CustomStringConvertible {
-    case pure, ifol, fol, zf
+@frozen
+public enum Family: String, Hashable, Sendable, CustomStringConvertible {
+    case pure
+    case ifol
+    case fol
+    case zf
 
-    public var description: String { rawValue }
+    public var description: String {
+        rawValue
+    }
 }
 
-@frozen public enum Primitive: Hashable, Sendable, CustomStringConvertible {
+@frozen
+public enum Primitive: Hashable, Sendable, CustomStringConvertible {
     case pure(Pure)
     case ifol(IFOL)
     case zf(ZF)
 
-    @frozen public enum Pure: String, Hashable, Sendable, CaseIterable {
+    @frozen
+    public enum Pure: String, Hashable, Sendable, CaseIterable {
         case eq = "Pure.eq"
     }
 
-    @frozen public enum IFOL: String, Hashable, Sendable, CaseIterable {
+    @frozen
+    public enum IFOL: String, Hashable, Sendable, CaseIterable {
         case eq = "IFOL.eq"
     }
 
-    @frozen public enum ZF: String, Hashable, Sendable, CaseIterable {
-        case mem = "ZF_Base.mem", zero = "ZF_Base.zero", pow = "ZF_Base.Pow", union = "ZF_Base.Union"
+    @frozen
+    public enum ZF: String, Hashable, Sendable, CaseIterable {
+        case mem = "ZF_Base.mem"
+        case zero = "ZF_Base.zero"
+        case pow = "ZF_Base.Pow"
+        case union = "ZF_Base.Union"
         case primReplace = "ZF_Base.PrimReplace", inf = "ZF_Base.Inf"
     }
 
@@ -26,106 +39,127 @@
 
     public var name: String {
         switch self {
-        case let .pure(p): return p.rawValue
-        case let .ifol(p): return p.rawValue
-        case let .zf(p): return p.rawValue
+        case .pure(let p): p.rawValue
+        case .ifol(let p): p.rawValue
+        case .zf(let p): p.rawValue
         }
     }
 
-    public var description: String { name }
+    public var description: String {
+        name
+    }
 }
 
-@frozen public enum Level: String, Hashable, Sendable, CustomStringConvertible {
-    case object, meta
+@frozen
+public enum Level: String, Hashable, Sendable, CustomStringConvertible {
+    case object
+    case meta
 
-    public var description: String { rawValue }
+    public var description: String {
+        rawValue
+    }
 }
 
 public struct Defined: Hashable, Sendable {
-    public let family: Family
-    public let name: String
-    public let level: Level
-
     public init(_ family: Family, _ name: String, _ level: Level) {
         self.family = family
         self.name = name
         self.level = level
     }
+
+    public let family: Family
+    public let name: String
+    public let level: Level
+
 }
 
 public struct TypeClass: Hashable, Sendable, CustomStringConvertible {
-    public let family: Family
-    public let name: String
-
     public init(_ family: Family, _ name: String) {
         self.family = family
         self.name = name
     }
 
-    public var description: String { name }
+    public let family: Family
+    public let name: String
+
+    public var description: String {
+        name
+    }
 }
 
-@frozen public enum Definiendum: Hashable, Sendable, CustomStringConvertible {
+@frozen
+public enum Definiendum: Hashable, Sendable, CustomStringConvertible {
     case constant(Defined)
     case ofClass(TypeClass)
 
     public var family: Family {
         switch self {
-        case let .constant(d): return d.family
-        case let .ofClass(c): return c.family
+        case .constant(let d): d.family
+        case .ofClass(let c): c.family
         }
     }
 
     public var level: Level {
         switch self {
-        case let .constant(d): return d.level
-        case .ofClass: return .meta
+        case .constant(let d): d.level
+        case .ofClass: .meta
         }
     }
 
     public var name: String {
         switch self {
-        case let .constant(d): return d.name
-        case let .ofClass(c): return c.name
+        case .constant(let d): d.name
+        case .ofClass(let c): c.name
         }
     }
 
-    public var description: String { name }
+    public var description: String {
+        name
+    }
 }
 
-@frozen public enum Constant: Hashable, Sendable {
+@frozen
+public enum Constant: Hashable, Sendable {
     case primitive(Primitive)
     case defined(Defined)
     case declared(String)
 
     public var name: String {
         switch self {
-        case let .primitive(p): return p.name
-        case let .defined(d): return d.name
-        case let .declared(name): return name
+        case .primitive(let p): p.name
+        case .defined(let d): d.name
+        case .declared(let name): name
         }
     }
 }
 
-@frozen public enum Axiom: Hashable, Sendable, CustomStringConvertible {
+@frozen
+public enum Axiom: Hashable, Sendable, CustomStringConvertible {
     case ifol(IFOL)
     case fol(FOL)
     case zf(ZF)
 
-    @frozen public enum IFOL: String, Hashable, Sendable, CaseIterable {
-        case refl = "IFOL.refl", subst = "IFOL.subst", impI = "IFOL.impI", mp = "IFOL.mp"
+    @frozen
+    public enum IFOL: String, Hashable, Sendable, CaseIterable {
+        case refl = "IFOL.refl"
+        case subst = "IFOL.subst"
+        case impI = "IFOL.impI"
+        case mp = "IFOL.mp"
         case conjI = "IFOL.conjI", conjunct1 = "IFOL.conjunct1", conjunct2 = "IFOL.conjunct2"
         case disjI1 = "IFOL.disjI1", disjI2 = "IFOL.disjI2", disjE = "IFOL.disjE", falseE = "IFOL.FalseE"
         case allI = "IFOL.allI", spec = "IFOL.spec", exI = "IFOL.exI", exE = "IFOL.exE"
         case eqReflection = "IFOL.eq_reflection", iffReflection = "IFOL.iff_reflection"
     }
 
-    @frozen public enum FOL: String, Hashable, Sendable, CaseIterable {
+    @frozen
+    public enum FOL: String, Hashable, Sendable, CaseIterable {
         case classical = "FOL.classical"
     }
 
-    @frozen public enum ZF: String, Hashable, Sendable, CaseIterable {
-        case `extension` = "ZF_Base.extension", replacement = "ZF_Base.replacement"
+    @frozen
+    public enum ZF: String, Hashable, Sendable, CaseIterable {
+        case `extension` = "ZF_Base.extension"
+        case replacement = "ZF_Base.replacement"
         case powIff = "ZF_Base.Pow_iff", unionIff = "ZF_Base.Union_iff"
         case foundation = "ZF_Base.foundation", infinity = "ZF_Base.infinity", choice = "AC.AC"
     }
@@ -134,24 +168,27 @@ public struct TypeClass: Hashable, Sendable, CustomStringConvertible {
 
     public var family: Family {
         switch self {
-        case .ifol: return .ifol
-        case .fol: return .fol
-        case .zf: return .zf
+        case .ifol: .ifol
+        case .fol: .fol
+        case .zf: .zf
         }
     }
 
     public var name: String {
         switch self {
-        case let .ifol(a): return a.rawValue
-        case let .fol(a): return a.rawValue
-        case let .zf(a): return a.rawValue
+        case .ifol(let a): a.rawValue
+        case .fol(let a): a.rawValue
+        case .zf(let a): a.rawValue
         }
     }
 
-    public var description: String { name }
+    public var description: String {
+        name
+    }
 }
 
-@frozen public enum Cited: Hashable, Sendable {
+@frozen
+public enum Cited: Hashable, Sendable {
     case theorem(String)
     case axiom(Axiom)
     case theoryAxiom(String)
@@ -161,10 +198,10 @@ public struct TypeClass: Hashable, Sendable, CustomStringConvertible {
 
     public var name: String {
         switch self {
-        case let .theorem(name), let .theoryAxiom(name), let .base(name): return name
-        case let .axiom(a): return a.name
-        case let .lemma(l): return l.name
-        case let .definition(c): return c.definitionName
+        case .theorem(let name), .theoryAxiom(let name), .base(let name): name
+        case .axiom(let a): a.name
+        case .lemma(let l): l.name
+        case .definition(let c): c.definitionName
         }
     }
 }
@@ -174,13 +211,25 @@ public protocol Request: Hashable, Sendable {
 }
 
 public struct Lemma: Hashable, Sendable, CustomStringConvertible {
+    public init(_ request: some Request) {
+        self.request = request
+    }
+
     public let request: any Request
 
-    public init(_ request: some Request) { self.request = request }
+    public var name: String {
+        request.name
+    }
 
-    public var name: String { request.name }
-    public var description: String { name }
+    public var description: String {
+        name
+    }
 
-    public static func == (a: Lemma, b: Lemma) -> Bool { AnyHashable(a.request) == AnyHashable(b.request) }
-    public func hash(into h: inout Hasher) { AnyHashable(request).hash(into: &h) }
+    public static func ==(a: Lemma, b: Lemma) -> Bool {
+        AnyHashable(a.request) == AnyHashable(b.request)
+    }
+
+    public func hash(into h: inout Hasher) {
+        AnyHashable(request).hash(into: &h)
+    }
 }

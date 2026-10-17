@@ -17,13 +17,13 @@ func closed(_ a: NodeID, in t: inout Table) throws -> Closed {
 }
 
 func freeVariables(_ x: NodeID, in t: Table) -> [(index: Int, type: IRType, variable: Node)] {
-    var found: [(index: Int, type: IRType, variable: Node)] = []
+    var found = [(index: Int, type: IRType, variable: Node)]()
     func walk(_ n: NodeID, _ d: Int) {
         guard t.looseBound(of: n) > d else { return }
         switch t[n] {
-        case let .isaBound(k, T):
+        case .isaBound(let k, let T):
             if !found.contains(where: { $0.index == k - d }) { found.append((k - d, T, .isaBound(k - d, T))) }
-        case let .isaPropBound(k):
+        case .isaPropBound(let k):
             if !found.contains(where: { $0.index == k - d }) { found.append((k - d, .o, .isaPropBound(k - d))) }
         default:
             t[n].forEachChild { c, binds in walk(c, d + binds.terms) }
@@ -36,7 +36,7 @@ func freeVariables(_ x: NodeID, in t: Table) -> [(index: Int, type: IRType, vari
 private struct Lettered: Rule {
     func before(_ id: NodeID, context depth: Depth, in t: inout Table) throws -> NodeID? {
         if t.looseBound(of: id) <= depth.terms { return id }
-        guard case let .isaPropBound(k) = t[id], k >= depth.terms else { return nil }
+        guard case .isaPropBound(let k) = t[id], k >= depth.terms else { return nil }
         return try t.intern(.isaBound(k, .o))
     }
 }
@@ -56,70 +56,83 @@ struct Uniqueness: Request {
 }
 
 struct ConstantFact: Request {
+    enum Fact: Hashable, Sendable {
+        case existence
+        case uniqueness
+        case classExists
+        case agreement
+        case totality
+        case function
+        case lift
+    }
+
     let constant: Constant
     let type: IRType
     let fact: Fact
 
-    enum Fact: Hashable, Sendable {
-        case existence, uniqueness, classExists, agreement, totality, function, lift
-    }
-
     var name: String {
         switch fact {
-        case .lift: return constant.name + "_LIFT"
-        case .existence: return constant.name + "_EX"
-        case .uniqueness: return constant.name + "_UNIQ"
-        case .classExists: return constant.name + "_CLASS"
-        case .agreement: return constant.name + "_AGREE"
-        case .totality: return constant.name + "_TOTAL"
-        case .function: return constant.name + "_FUNC"
+        case .lift: constant.name + "_LIFT"
+        case .existence: constant.name + "_EX"
+        case .uniqueness: constant.name + "_UNIQ"
+        case .classExists: constant.name + "_CLASS"
+        case .agreement: constant.name + "_AGREE"
+        case .totality: constant.name + "_TOTAL"
+        case .function: constant.name + "_FUNC"
         }
     }
 }
 
 struct LambdaFact: Request {
+    enum Fact: Hashable, Sendable {
+        case classExists
+        case function
+        case arguments
+    }
+
     let lambda: NodeID
     let types: [IRType]
     let fact: Fact
     let name: String
 
-    enum Fact: Hashable, Sendable {
-        case classExists, function, arguments
-    }
 }
 
 struct RekeyFact: Request {
     let width: Int
 
-    var name: String { "REKEY_\(width)" }
+    var name: String {
+        "REKEY_\(width)"
+    }
 }
 
 struct TupleFact: Request {
+    enum Fact: Hashable, Sendable {
+        case existence
+        case uniqueness
+        case injectivity
+    }
+
     let arity: Int
     let fact: Fact
 
-    enum Fact: Hashable, Sendable {
-        case existence, uniqueness, injectivity
-    }
-
     var name: String {
         switch fact {
-        case .existence: return "TUPLE_EX_\(arity)"
-        case .uniqueness: return "TUPLE_UNIQ_\(arity)"
-        case .injectivity: return "TUPLE_INJ_\(arity)"
+        case .existence: "TUPLE_EX_\(arity)"
+        case .uniqueness: "TUPLE_UNIQ_\(arity)"
+        case .injectivity: "TUPLE_INJ_\(arity)"
         }
     }
 }
 
 public func kind(of lemma: Lemma) -> String {
     switch lemma.request {
-    case let f as ConstantFact: return "constant \(f.fact)"
-    case let f as LambdaFact: return "λ \(f.fact)"
-    case let f as TupleFact: return "tuple \(f.fact)"
-    case is RekeyFact: return "rekey"
-    case is Existence: return "term existence"
-    case is Uniqueness: return "term uniqueness"
-    default: return "\(type(of: lemma.request))"
+    case let f as ConstantFact: "constant \(f.fact)"
+    case let f as LambdaFact: "λ \(f.fact)"
+    case let f as TupleFact: "tuple \(f.fact)"
+    case is RekeyFact: "rekey"
+    case is Existence: "term existence"
+    case is Uniqueness: "term uniqueness"
+    default: "\(type(of: lemma.request))"
     }
 }
 
@@ -135,12 +148,12 @@ func uniqueness(of a: NodeID, in t: inout Table) throws -> Uniqueness {
 
 func lambdaFact(_ lambda: NodeID, _ fact: LambdaFact.Fact, in t: inout Table) throws -> (LambdaFact, Closed) {
     let c = try closed(lambda, in: &t)
-    let prefix: String
-    switch fact {
-    case .classExists: prefix = "CLASS_"
-    case .function: prefix = "FUNC_"
-    case .arguments: prefix = "LAMBDA_"
-    }
+    let prefix =
+        switch fact {
+        case .classExists: "CLASS_"
+        case .function: "FUNC_"
+        case .arguments: "LAMBDA_"
+        }
     return (LambdaFact(lambda: c.term, types: c.types, fact: fact, name: prefix + fingerprint(c.term, t)), c)
 }
 
@@ -151,14 +164,23 @@ func universal(_ types: [IRType], guards: Bool, _ body: NodeID, in t: inout Tabl
             root = try t.intern(.ifolAll(T, body: root))
             continue
         }
-        if guards, let g = try guarded(try t.intern(.isaBound(0, T)), T, in: &t) { root = try t.intern(.folImplies(g, root)) }
+        if guards, let g = try guarded(try t.intern(.isaBound(0, T)), T, in: &t) { root = try t.intern(.folImplies(
+            g,
+            root,
+        )) }
         root = try t.intern(.folForall(body: root))
     }
     return root
 }
 
-func instantiated(_ lemma: NodeID, at xs: [NodeID], _ types: [IRType], guards: Bool,
-                  guardOf: (NodeID, IRType, inout Table) throws -> NodeID, in t: inout Table) throws -> NodeID {
+func instantiated(
+    _ lemma: NodeID,
+    at xs: [NodeID],
+    _ types: [IRType],
+    guards: Bool,
+    guardOf: (NodeID, IRType, inout Table) throws -> NodeID,
+    in t: inout Table,
+) throws -> NodeID {
     var p = lemma
     for (x, T) in zip(xs, types) {
         if T == .i || T == .o {
@@ -178,12 +200,18 @@ func isaGuard(_ x: NodeID, _ T: IRType, _ t: inout Table) throws -> NodeID {
 
 func statement(_ r: Existence, in t: inout Table) throws -> NodeID {
     let valued = try equation(try t.intern(.isaBound(0, .i)), try shift(r.term, by: 1, in: &t), in: &t)
-    return try universal(r.types, guards: false, try t.intern(.ifolEx(.i, body: try named(atom: t[valued], in: &t))), in: &t)
+    return try universal(
+        r.types,
+        guards: false,
+        try t.intern(.ifolEx(.i, body: try named(atom: t[valued], in: &t))),
+        in: &t,
+    )
 }
 
 func statement(_ r: Uniqueness, in t: inout Table) throws -> NodeID {
     var naming = Naming()
-    let (v, v2) = (try naming.name(r.term, [], &t), try naming.name(r.term, [], &t))
+    let v = try naming.name(r.term, [], &t)
+    let v2 = try naming.name(r.term, [], &t)
     let core = try naming.chain.predicate(.base("eq"), [v, v2], in: &t)
     return try universal(r.types, guards: true, try naming.chain.premises(core, in: &t), in: &t)
 }
@@ -194,8 +222,10 @@ private func classParameters(_ T: IRType, under inner: Int, in t: inout Table) t
 }
 
 func agreement(_ C: NodeID, _ C2: NodeID, function: Bool, in t: inout Table) throws -> NodeID {
-    let (c, c2) = (try shift(C, by: function ? 2 : 1, in: &t), try shift(C2, by: function ? 2 : 1, in: &t))
-    let x = try t.intern(.isaBound(function ? 1 : 0, .i)), r = try t.intern(.isaBound(0, .i))
+    let c = try shift(C, by: function ? 2 : 1, in: &t)
+    let c2 = try shift(C2, by: function ? 2 : 1, in: &t)
+    let x = try t.intern(.isaBound(function ? 1 : 0, .i))
+    let r = try t.intern(.isaBound(0, .i))
     let atom = { (k: NodeID, t: inout Table) throws -> NodeID in
         try t.intern(.folPred(.base(function ? "pmem" : "elem"), args: function ? [x, r, k] : [x, k]))
     }
@@ -204,10 +234,14 @@ func agreement(_ C: NodeID, _ C2: NodeID, function: Bool, in t: inout Table) thr
     return body
 }
 
-func isFunctionClass(_ T: IRType) -> Bool { result(T) == .i }
+func isFunctionClass(_ T: IRType) -> Bool {
+    result(T) == .i
+}
 
 func statement(_ f: ConstantFact, in t: inout Table) throws -> NodeID {
-    let classes = f.type.domains.filter { $0 != .i }, k = classes.count, m = f.type.domains.count - k
+    let classes = f.type.domains.filter { $0 != .i }
+    let k = classes.count
+    let m = f.type.domains.count - k
     let named = { (C: NodeID, ps: [NodeID], t: inout Table) throws -> NodeID in
         try t.intern(.folPred(.constant(f.constant), args: [C] + ps))
     }
@@ -218,14 +252,25 @@ func statement(_ f: ConstantFact, in t: inout Table) throws -> NodeID {
     }
     switch f.fact {
     case .existence:
-        return try t.intern(.ifolEx(.i, body: try t.intern(.folPred(.constant(f.constant), args: [try t.intern(.isaBound(0, .i))]))))
+        return try t.intern(.ifolEx(
+            .i,
+            body: try t.intern(.folPred(.constant(f.constant), args: [try t.intern(.isaBound(0, .i))])),
+        ))
+
     case .uniqueness:
-        let (v, w) = (try t.intern(.isaBound(1, .i)), try t.intern(.isaBound(0, .i)))
-        let cv = try t.intern(.folPred(.constant(f.constant), args: [v])), cw = try t.intern(.folPred(.constant(f.constant), args: [w]))
-        let body = try t.intern(.folImplies(cv, try t.intern(.folImplies(cw, try t.intern(.folPred(.base("eq"), args: [v, w]))))))
+        let v = try t.intern(.isaBound(1, .i))
+        let w = try t.intern(.isaBound(0, .i))
+        let cv = try t.intern(.folPred(.constant(f.constant), args: [v]))
+        let cw = try t.intern(.folPred(.constant(f.constant), args: [w]))
+        let body = try t.intern(.folImplies(
+            cv,
+            try t.intern(.folImplies(cw, try t.intern(.folPred(.base("eq"), args: [v, w])))),
+        ))
         return try t.intern(.ifolAll(.i, body: try t.intern(.ifolAll(.i, body: body))))
+
     case .classExists:
-        // ⚠ A SET CONSTANT'S CLASS IS A SET, `∃ᵢS`: its witness is one, and `exists_intro` keeps an isa witness `isaBound`
+        // ⚠ A SET CONSTANT'S CLASS IS A SET, `∃ᵢS`: its witness is one, and `exists_intro` keeps an isa witness
+        // `isaBound`
         // under a fol binder, so `∃S` would differ from the proof's conclusion by ID.
         if f.type == .i {
             let v = try t.intern(.isaBound(0, .i))
@@ -235,28 +280,48 @@ func statement(_ f: ConstantFact, in t: inout Table) throws -> NodeID {
         }
         let ps = try classParameters(f.type, under: 1, in: &t)
         return try foralls(k, try t.intern(.folExists(body: try named(try t.intern(.folBound(0)), ps, &t))), &t)
+
     case .agreement:
-        let ps = try classParameters(f.type, under: k + 2, in: &t), ps2 = try classParameters(f.type, under: 2, in: &t)
-        let (C, C2) = (try t.intern(.folBound(1)), try t.intern(.folBound(0)))
+        let ps = try classParameters(f.type, under: k + 2, in: &t)
+        let ps2 = try classParameters(f.type, under: 2, in: &t)
+        let C = try t.intern(.folBound(1))
+        let C2 = try t.intern(.folBound(0))
         var body = try agreement(C, C2, function: isFunctionClass(f.type), in: &t)
         body = try t.intern(.folImplies(try named(C2, ps2, &t), body))
         body = try t.intern(.folImplies(try named(C, ps, &t), body))
         for j in (0..<k).reversed() {
-            body = try t.intern(.folImplies(try agreement(ps[j], ps2[j], function: isFunctionClass(classes[j]), in: &t), body))
+            body = try t.intern(.folImplies(
+                try agreement(ps[j], ps2[j], function: isFunctionClass(classes[j]), in: &t),
+                body,
+            ))
         }
         return try foralls(2 * k + 2, body, &t)
+
     case .totality:
-        let tau = try t.intern(.isaBound(0, .i)), xs = try (0..<m).map { try t.intern(.isaBound(m - $0, .i)) }
-        let value = try t.intern(.folPred(.base("pmem"), args: [try t.intern(.isaBound(1, .i)), try t.intern(.isaBound(0, .i)),
-                                                                 try t.intern(.folBound(m + 2))]))
+        let tau = try t.intern(.isaBound(0, .i))
+        let xs = try (0..<m).map { try t.intern(.isaBound(m - $0, .i)) }
+        let value = try t.intern(.folPred(
+            .base("pmem"),
+            args: [
+                try t.intern(.isaBound(1, .i)),
+                try t.intern(.isaBound(0, .i)),
+                try t.intern(.folBound(m + 2)),
+            ],
+        ))
         var body = try t.intern(.folImplies(try tuple(xs, tau, in: &t), try t.intern(.ifolEx(.i, body: value))))
         for _ in 0...m { body = try t.intern(.ifolAll(.i, body: body)) }
-        body = try t.intern(.folImplies(try named(try t.intern(.folBound(0)), try classParameters(f.type, under: 1, in: &t), &t), body))
+        body = try t.intern(.folImplies(
+            try named(try t.intern(.folBound(0)), try classParameters(f.type, under: 1, in: &t), &t),
+            body,
+        ))
         return try foralls(k + 1, body, &t)
+
     case .lift:
         return try lift(f, in: &t)
+
     case .function:
-        let C = try t.intern(.folBound(0)), ps = try classParameters(f.type, under: 1, in: &t)
+        let C = try t.intern(.folBound(0))
+        let ps = try classParameters(f.type, under: 1, in: &t)
         var body = try t.intern(.folImplies(try named(C, ps, &t), try t.intern(.folPred(.base("function"), args: [C]))))
         body = try t.intern(.folForall(body: body))
         let outer = try classParameters(f.type, under: 0, in: &t)
@@ -273,11 +338,16 @@ func statement(_ f: LambdaFact, base: Base, in t: inout Table) throws -> NodeID 
         let K = try t.intern(.folBound(0))
         let def = try classDefinition(try shift(f.lambda, by: 1, in: &t), K: K, in: &t)
         return try universal(f.types, guards: false, try t.intern(.folExists(body: def)), in: &t)
+
     case .function:
         let K = try t.intern(.folBound(0))
         let def = try classDefinition(try shift(f.lambda, by: 1, in: &t), K: K, in: &t)
-        let body = try t.intern(.folForall(body: try t.intern(.folImplies(def, try t.intern(.folPred(.base("function"), args: [K]))))))
+        let body = try t.intern(.folForall(body: try t.intern(.folImplies(
+            def,
+            try t.intern(.folPred(.base("function"), args: [K])),
+        ))))
         return try universal(f.types, guards: true, body, in: &t)
+
     case .arguments:
         let at = try atArguments(try shift(f.lambda, by: 1, in: &t), try t.intern(.folBound(0)), base: base, in: &t)
         return try universal(f.types, guards: true, try t.intern(.folExists(body: at)), in: &t)
@@ -292,19 +362,31 @@ func statement(_ f: TupleFact, in t: inout Table) throws -> NodeID {
         var body = try t.intern(.ifolEx(.i, body: try tuple(xs, try t.intern(.isaBound(0, .i)), in: &t)))
         for _ in 0..<n { body = try t.intern(.ifolAll(.i, body: body)) }
         return body
+
     case .uniqueness:
         let xs = try (0..<n).map { try t.intern(.isaBound(2 * n + 1 - $0, .i)) }
         let ys = try (0..<n).map { try t.intern(.isaBound(n + 1 - $0, .i)) }
-        let (tau, tau2) = (try t.intern(.isaBound(1, .i)), try t.intern(.isaBound(0, .i)))
-        var body = try t.intern(.folImplies(try tuple(xs, tau, in: &t), try t.intern(.folImplies(try tuple(ys, tau2, in: &t),
-            try t.intern(.folPred(.base("eq"), args: [tau, tau2]))))))
+        let tau = try t.intern(.isaBound(1, .i))
+        let tau2 = try t.intern(.isaBound(0, .i))
+        var body = try t.intern(.folImplies(
+            try tuple(xs, tau, in: &t),
+            try t.intern(.folImplies(
+                try tuple(ys, tau2, in: &t),
+                try t.intern(.folPred(
+                    .base("eq"),
+                    args: [tau, tau2],
+                )),
+            )),
+        ))
         body = try t.intern(.ifolAll(.i, body: try t.intern(.ifolAll(.i, body: body))))
         for j in (0..<n).reversed() {
-            let (x, y) = (try shift(xs[j], by: -2, in: &t), try shift(ys[j], by: -2, in: &t))
+            let x = try shift(xs[j], by: -2, in: &t)
+            let y = try shift(ys[j], by: -2, in: &t)
             body = try t.intern(.folImplies(try t.intern(.folPred(.base("eq"), args: [x, y])), body))
         }
         for _ in 0..<(2 * n) { body = try t.intern(.ifolAll(.i, body: body)) }
         return body
+
     case .injectivity:
         let xs = try (0..<n).map { try t.intern(.isaBound(2 * n - $0, .i)) }
         let ys = try (0..<n).map { try t.intern(.isaBound(n - $0, .i)) }
@@ -313,7 +395,10 @@ func statement(_ f: TupleFact, in t: inout Table) throws -> NodeID {
         for j in (0..<(n - 1)).reversed() {
             equal = try t.intern(.folAnd(try t.intern(.folPred(.base("eq"), args: [xs[j], ys[j]])), equal))
         }
-        var body = try t.intern(.folImplies(try tuple(xs, tau, in: &t), try t.intern(.folImplies(try tuple(ys, tau, in: &t), equal))))
+        var body = try t.intern(.folImplies(
+            try tuple(xs, tau, in: &t),
+            try t.intern(.folImplies(try tuple(ys, tau, in: &t), equal)),
+        ))
         for _ in 0..<(2 * n + 1) { body = try t.intern(.ifolAll(.i, body: body)) }
         return body
     }
@@ -323,8 +408,16 @@ func pred(_ name: String, _ levels: [Int], at s: Scope, _ t: inout Table) throws
     try t.intern(.folPred(.base(name), args: try levels.map { try s.variable($0, in: &t) }))
 }
 
-func approximation(_ X: Int, _ A: Int, record a: Int, _ p: Int, _ p1: Int, function: Bool, in s: Scope,
-                   _ t: inout Table) throws -> NodeID {
+func approximation(
+    _ X: Int,
+    _ A: Int,
+    record a: Int,
+    _ p: Int,
+    _ p1: Int,
+    function: Bool,
+    in s: Scope,
+    _ t: inout Table,
+) throws -> NodeID {
     var each = s
     let values = (0..<(function ? 2 : 1)).map { _ in each.fix(.i) }
     var inner = each
@@ -333,7 +426,10 @@ func approximation(_ X: Int, _ A: Int, record a: Int, _ p: Int, _ p1: Int, funct
     if function {
         var deeper = inner
         let b2 = deeper.fix(.i)
-        let second = try t.intern(.folAnd(try pred("snoc", [b, p1, values[1], b2], at: deeper, &t), try pred("elem", [b2, A], at: deeper, &t)))
+        let second = try t.intern(.folAnd(
+            try pred("snoc", [b, p1, values[1], b2], at: deeper, &t),
+            try pred("elem", [b2, A], at: deeper, &t),
+        ))
         rest = try t.intern(.ifolEx(.i, body: second))
     } else {
         rest = try pred("elem", [b, A], at: inner, &t)
@@ -348,19 +444,33 @@ func approximation(_ X: Int, _ A: Int, record a: Int, _ p: Int, _ p1: Int, funct
 private func lift(_ f: ConstantFact, in t: inout Table) throws -> NodeID {
     let classes = f.type.domains.filter { $0 != .i }
     var s = Scope()
-    let (p, p1) = (s.fix(.i), s.fix(.i))
+    let p = s.fix(.i)
+    let p1 = s.fix(.i)
     let outer = s
     let As = classes.map { _ in s.fix(nil) }
-    let U = s.fix(nil), a = s.fix(.i)
+    let U = s.fix(nil)
+    let a = s.fix(.i)
     let atA = s
     let Ks = classes.map { s.fix($0) }
     let atK = s
     let C = s.fix(nil)
     let named = try t.intern(.folPred(.constant(f.constant), args: try ([C] + Ks).map { try s.variable($0, in: &t) }))
-    var body = try t.intern(.folImplies(named, try approximation(C, U, record: a, p, p1, function: isFunctionClass(f.type), in: s, &t)))
+    var body = try t.intern(.folImplies(
+        named,
+        try approximation(C, U, record: a, p, p1, function: isFunctionClass(f.type), in: s, &t),
+    ))
     body = try t.intern(.folForall(body: body))
     for j in classes.indices.reversed() {
-        let premise = try approximation(Ks[j], As[j], record: a, p, p1, function: isFunctionClass(classes[j]), in: atK, &t)
+        let premise = try approximation(
+            Ks[j],
+            As[j],
+            record: a,
+            p,
+            p1,
+            function: isFunctionClass(classes[j]),
+            in: atK,
+            &t,
+        )
         body = try t.intern(.folImplies(premise, body))
     }
     for _ in Ks { body = try t.intern(.folForall(body: body)) }
@@ -374,19 +484,31 @@ private func lift(_ f: ConstantFact, in t: inout Table) throws -> NodeID {
 func statement(_ f: RekeyFact, in t: inout Table) throws -> NodeID {
     let m = f.width
     var s = Scope()
-    let (p, p1) = (s.fix(.i), s.fix(.i))
+    let p = s.fix(.i)
+    let p1 = s.fix(.i)
     let outer = s
-    let W = s.fix(nil), U = s.fix(nil), a = s.fix(.i)
+    let W = s.fix(nil)
+    let U = s.fix(nil)
+    let a = s.fix(.i)
     let atA = s
-    let values = (0..<m).map { _ in s.fix(.i) }, records = (0..<m).map { _ in s.fix(.i) }
+    let values = (0..<m).map { _ in s.fix(.i) }
+    let records = (0..<m).map { _ in s.fix(.i) }
     var inner = s
     let rho = inner.fix(.i)
     let entries = try ([p, p1, a] + values).map { try inner.variable($0, in: &t) }
-    let some = try t.intern(.ifolEx(.i, body: try t.intern(.folAnd(try tuple(entries, try inner.variable(rho, in: &t), in: &t),
-                                                                    try pred("elem", [rho, W], at: inner, &t)))))
+    let some = try t.intern(.ifolEx(
+        .i,
+        body: try t.intern(.folAnd(
+            try tuple(entries, try inner.variable(rho, in: &t), in: &t),
+            try pred("elem", [rho, W], at: inner, &t),
+        )),
+    ))
     var body = try t.intern(.folIff(try pred("elem", [records[m - 1], U], at: s, &t), some))
     for j in (0..<m).reversed() {
-        body = try t.intern(.folImplies(try pred("snoc", [j == 0 ? a : records[j - 1], j == 0 ? p : p1, values[j], records[j]], at: s, &t), body))
+        body = try t.intern(.folImplies(
+            try pred("snoc", [j == 0 ? a : records[j - 1], j == 0 ? p : p1, values[j], records[j]], at: s, &t),
+            body,
+        ))
     }
     for _ in 0..<(2 * m) { body = try t.intern(.ifolAll(.i, body: body)) }
     body = try t.intern(.ifolAll(.i, body: try t.intern(.folImplies(try pred("tuple", [a, p], at: atA, &t), body))))

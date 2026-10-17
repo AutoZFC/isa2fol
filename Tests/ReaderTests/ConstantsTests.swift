@@ -14,28 +14,39 @@ private let a = IsaType.tfree("'a", sort: [])
 private let b = IsaType.tfree("'b", sort: [])
 private let iT = IsaType.type("ZF_Base.i", [])
 private let oT = IsaType.type("IFOL.o", [])
-private func fnT(_ x: IsaType, _ y: IsaType) -> IsaType { .type("fun", [x, y]) }
+private func fnT(_ x: IsaType, _ y: IsaType) -> IsaType {
+    .type("fun", [x, y])
+}
 
-@Test func aConstantLoadsItsParametersInOrderItsSchemeAndItsTheorysFamily() throws {
+@Test
+func aConstantLoadsItsParametersInOrderItsSchemeAndItsTheorysFamily() throws {
     var c = Constants()
     try load(&c, constEntity("T.k", parameters: ["'b", "'a"], scheme: fn(tfree("'a"), tfree("'b"))))
-    #expect(c["T.k"] == Constants.Declaration(parameters: ["'b", "'a"], scheme: fnT(a, b), family: .zf, foundation: false))
+    #expect(c["T.k"] == Constants.Declaration(
+        parameters: ["'b", "'a"],
+        scheme: fnT(a, b),
+        family: .zf,
+        foundation: false,
+    ))
     #expect(c["T.absent"] == nil)
 }
 
-@Test func instantiationSubstitutesTypeArgumentsByPosition() throws {
+@Test
+func instantiationSubstitutesTypeArgumentsByPosition() throws {
     var c = Constants()
     try load(&c, constEntity("T.k", parameters: ["'b", "'a"], scheme: fn(tfree("'a"), tfree("'b"))))
     #expect(try c.instantiate("T.k", [iT, oT]) == fnT(oT, iT))
 }
 
-@Test func aGroundConstantInstantiatesWithNoArguments() throws {
+@Test
+func aGroundConstantInstantiatesWithNoArguments() throws {
     var c = Constants()
     try load(&c, constEntity("T.k", parameters: [], scheme: fn(i, o)))
     #expect(try c.instantiate("T.k", []) == fnT(iT, oT))
 }
 
-@Test func constantsFromSeveralFilesShareOneTable() throws {
+@Test
+func constantsFromSeveralFilesShareOneTable() throws {
     var c = Constants()
     try load(&c, constEntity("T.k", parameters: [], scheme: i))
     try load(&c, constEntity("U.k", parameters: [], scheme: o))
@@ -43,7 +54,8 @@ private func fnT(_ x: IsaType, _ y: IsaType) -> IsaType { .type("fun", [x, y]) }
     #expect(try c.instantiate("U.k", []) == oT)
 }
 
-@Test func aConstantDeclaredTwiceIsMalformed() throws {
+@Test
+func aConstantDeclaredTwiceIsMalformed() throws {
     var c = Constants()
     try load(&c, constEntity("T.k", parameters: [], scheme: i))
     #expect(throws: MalformedExport.duplicateConstant("T.k")) {
@@ -51,12 +63,14 @@ private func fnT(_ x: IsaType, _ y: IsaType) -> IsaType { .type("fun", [x, y]) }
     }
 }
 
-@Test func anUndeclaredConstantIsMalformed() {
+@Test
+func anUndeclaredConstantIsMalformed() {
     #expect(throws: MalformedExport.undeclaredConstant("T.k")) { try Constants().instantiate("T.k", []) }
     #expect(throws: MalformedExport.undeclaredConstant("T.k")) { try Constants().reading("T.k") }
 }
 
-@Test func aTypeArgumentCountOtherThanTheParameterCountIsMalformed() throws {
+@Test
+func aTypeArgumentCountOtherThanTheParameterCountIsMalformed() throws {
     var c = Constants()
     try load(&c, constEntity("T.k", parameters: ["'a"], scheme: fn(tfree("'a"), o)))
     #expect(throws: MalformedExport.typeArgumentCount(constant: "T.k", declared: 1, found: 2)) {
@@ -64,7 +78,8 @@ private func fnT(_ x: IsaType, _ y: IsaType) -> IsaType { .type("fun", [x, y]) }
     }
 }
 
-@Test func aSchemeWhoseVariablesAreNotExactlyTheParametersIsMalformed() {
+@Test
+func aSchemeWhoseVariablesAreNotExactlyTheParametersIsMalformed() {
     let schemes = [
         ("T.undeclared", ["'a"], fn(tfree("'a"), tfree("'b"))),
         ("T.unused", ["'a", "'b"], fn(tfree("'a"), o)),
@@ -80,12 +95,14 @@ private func fnT(_ x: IsaType, _ y: IsaType) -> IsaType { .type("fun", [x, y]) }
     }
 }
 
-@Test func aFileChildThatIsNotAnEntityIsMalformed() {
+@Test
+func aFileChildThatIsNotAnEntityIsMalformed() {
     var c = Constants()
     #expect(throws: MalformedExport.notAnEntity(tag: "thm")) { try load(&c, element("thm", [("name", "x")], [])) }
 }
 
-@Test func anEntityWithoutItsBodyIsMalformed() {
+@Test
+func anEntityWithoutItsBodyIsMalformed() {
     var c = Constants()
     #expect(throws: MalformedExport.bodyLength(expected: 2, found: 0)) {
         try load(&c, element("entity", [("name", "T.k")], []))
@@ -93,7 +110,8 @@ private func fnT(_ x: IsaType, _ y: IsaType) -> IsaType { .type("fun", [x, y]) }
 }
 
 /// How a name is read is ONE function (DESIGN §4.3b 2).
-@Test func eachKindOfConstantHasItsReading() throws {
+@Test
+func eachKindOfConstantHasItsReading() throws {
     let c = try testConstants()
     #expect(try c.reading("IFOL.Trueprop") == .erased)
     #expect(try c.reading("IFOL.conj") == .and)
@@ -109,13 +127,15 @@ private func fnT(_ x: IsaType, _ y: IsaType) -> IsaType { .type("fun", [x, y]) }
     #expect(throws: DialectGap.leaf("ZF_Base.not_mem")) { try c.reading("ZF_Base.not_mem") }
 }
 
-@Test func aDefinitionOfALeafTheDialectListsIsMalformed() throws {
+@Test
+func aDefinitionOfALeafTheDialectListsIsMalformed() throws {
     var c = try testConstants()
     #expect(throws: MalformedExport.definedLeaf("IFOL.conj")) { try c.define("IFOL.conj", by: "IFOL.conj_def") }
     #expect(throws: MalformedExport.definedLeaf("ZF_Base.mem")) { try c.define("ZF_Base.mem", by: "ZF_Base.mem_def") }
 }
 
-@Test func aConstantDefinedTwiceOrTwoConstantsByOneAxiomIsMalformed() throws {
+@Test
+func aConstantDefinedTwiceOrTwoConstantsByOneAxiomIsMalformed() throws {
     var c = try testConstants()
     #expect(throws: MalformedExport.duplicateDefinition("IFOL.iff")) { try c.define("IFOL.iff", by: "IFOL.iff_again") }
     #expect(throws: MalformedExport.duplicateDefinition("T.f")) { try c.define("T.f", by: "IFOL.iff_def_raw") }
@@ -131,10 +151,16 @@ private func realExport() throws -> Export? {
     return try Export(root: root)
 }
 
-@Test func theExportsConstantsReadByTheirTheoriesAndDefinitions() throws {
-    guard let e = try realExport() else { return }
+@Test
+func theExportsConstantsReadByTheirTheoriesAndDefinitions() throws {
+    let e = try #require(try realExport())
     let c = e.constants
-    #expect(c["IFOL.eq"] == Constants.Declaration(parameters: ["'a"], scheme: fnT(a, fnT(a, oT)), family: .ifol, foundation: true))
+    #expect(c["IFOL.eq"] == Constants.Declaration(
+        parameters: ["'a"],
+        scheme: fnT(a, fnT(a, oT)),
+        family: .ifol,
+        foundation: true,
+    ))
     #expect(try c.instantiate("IFOL.eq", [iT]).irType() == .fn(.i, .fn(.i, .o)))
     #expect(try c.instantiate("ZF_Base.mem", []).irType() == .fn(.i, .fn(.i, .o)))
     #expect(try c.instantiate("Pure.eq", [iT]).irType() == .fn(.i, .fn(.i, .o)))
@@ -149,7 +175,8 @@ private func realExport() throws -> Export? {
 
 /// FOUNDATION S1: a constant declared over `i`, `o` and `⇒` is at the object level; one whose declared type mentions
 /// `prop` or a type variable is at the meta level, whatever its family.
-@Test func aDefinedConstantKeepsItsDeclaredLevel() throws {
+@Test
+func aDefinedConstantKeepsItsDeclaredLevel() throws {
     let c = try testConstants()
     #expect(try c.reading("ZF_Base.Ball") == .constant(defined(.zf, "ZF_Base.Ball", .object)))
     #expect(try c.reading("ZF_Base.split") == .constant(defined(.zf, "ZF_Base.split", .meta)))

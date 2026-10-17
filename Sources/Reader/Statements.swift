@@ -17,8 +17,19 @@ extension Decode {
 
     func axiom(_ body: Body) throws -> Envelope {
         guard body.count == 3 else { throw MalformedExport.bodyLength(expected: 3, found: body.count) }
-        return Envelope(tfrees: try tfreesHeader(try node(body[0])), frees: try freesHeader(try node(body[1])),
-                        prop: try node(body[2]))
+        return Envelope(
+            tfrees: try tfreesHeader(try node(body[0])),
+            frees: try freesHeader(try node(body[1])),
+            prop: try node(body[2]),
+        )
+    }
+
+    func frees(_ body: Body) throws -> [String] {
+        var seen = Set<Ref>()
+        var known = Set<String>()
+        var names = [String]()
+        try collect(body, &seen, &known, &names)
+        return names
     }
 
     private func tfreesHeader(_ ts: Body) throws -> [String] {
@@ -35,19 +46,18 @@ extension Decode {
         try list({ try pair(string, type, $0) }, ts)
     }
 
-    func frees(_ body: Body) throws -> [String] {
-        var seen = Set<Ref>(), known = Set<String>(), names: [String] = []
-        try collect(body, &seen, &known, &names)
-        return names
-    }
-
-    private func collect(_ body: Body, _ seen: inout Set<Ref>, _ known: inout Set<String>, _ names: inout [String]) throws {
+    private func collect(
+        _ body: Body,
+        _ seen: inout Set<Ref>,
+        _ known: inout Set<String>,
+        _ names: inout [String],
+    ) throws {
         let (head, arguments) = try spine(body)
         guard seen.insert(body[0]).inserted else { return }
         switch head {
-        case let .free(name, _):
+        case .free(let name, _):
             if known.insert(name).inserted { names.append(name) }
-        case let .abstraction(_, inner):
+        case .abstraction(_, let inner):
             try collect(inner, &seen, &known, &names)
         case .constant, .schematic, .bound, .ofclass:
             break
@@ -57,12 +67,10 @@ extension Decode {
 }
 
 struct Classes {
-    private var declared: [String: TypeClass] = [:]
-
     mutating func load(_ body: [Ref], family: Family, in forest: Forest) throws {
         let d = Decode(forest: forest)
         for r in body {
-            guard case let .element(entity) = forest[r], entity.tag == "entity" else {
+            guard case .element(let entity) = forest[r], entity.tag == "entity" else {
                 throw MalformedExport.notAnEntity(tag: d.tag(r))
             }
             let name = try entity.attribute("name")
@@ -77,6 +85,9 @@ struct Classes {
         guard let k = declared[c] else { throw MalformedExport.undeclaredClass(c) }
         return k
     }
+
+    private var declared = [String: TypeClass]()
+
 }
 
 extension Terms {
@@ -86,7 +97,8 @@ extension Terms {
 }
 
 public func claimName(_ entity: String) throws -> String {
-    var base = Substring(entity), index = ""
+    var base = Substring(entity)
+    var index = ""
     if entity.hasSuffix(")"), let open = entity.lastIndex(of: "(") {
         let digits = entity[entity.index(after: open)..<entity.index(before: entity.endIndex)]
         if !digits.isEmpty, digits.allSatisfy({ $0.isASCII && $0.isNumber }) {

@@ -1,4 +1,5 @@
-@frozen public enum TableError: Error, Equatable, Sendable {
+@frozen
+public enum TableError: Error, Equatable, Sendable {
     case unknownNode(NodeID)
     case negativeIndex(Int)
     case childType(expected: IRType, found: IRType)
@@ -18,69 +19,62 @@
 }
 
 public struct Table: Sendable {
-    private enum Sort: Sendable {
-        case value(IRType)
-        case step(concluding: NodeID)
+    public init() { }
+
+    public var count: Int {
+        nodes.count
     }
 
-    private var nodes: [Node] = []
-    private var sorts: [Sort] = []
-    private var looseTerms: [Int] = []
-    private var looseHypotheses: [Int] = []
-    private var index: [Node: NodeID] = [:]
-
-    public init() {}
-
-    public var count: Int { nodes.count }
-
-    public subscript(_ id: NodeID) -> Node { nodes[Int(id.raw)] }
+    public subscript(_ id: NodeID) -> Node {
+        nodes[Int(id.raw)]
+    }
 
     public func type(of id: NodeID) -> IRType? {
-        if case let .value(T) = sorts[Int(id.raw)] { return T }
+        if case .value(let T) = sorts[Int(id.raw)] { return T }
         return nil
     }
 
     public func conclusion(of id: NodeID) -> NodeID? {
-        if case let .step(c) = sorts[Int(id.raw)] { return c }
+        if case .step(let c) = sorts[Int(id.raw)] { return c }
         return nil
-    }
-
-    func patternType(of id: NodeID) -> IRType {
-        switch sorts[Int(id.raw)] {
-        case let .value(T): return T
-        case .step: return .o
-        }
     }
 
     public mutating func equation(_ T: IRType, _ a: NodeID, _ b: NodeID) throws -> NodeID {
         switch T {
-        case .o: return try intern(.folIff(a, b))
-        case .i: return try intern(.isaConst(.primitive(.ifol(.eq)), .fn(.i, .fn(.i, .o)), args: [a, b]))
-        case .fn, .variable: return try intern(.isaConst(.primitive(.pure(.eq)), .fn(T, .fn(T, .o)), args: [a, b]))
+        case .o: try intern(.folIff(a, b))
+        case .i: try intern(.isaConst(.primitive(.ifol(.eq)), .fn(.i, .fn(.i, .o)), args: [a, b]))
+        case .fn, .variable: try intern(.isaConst(.primitive(.pure(.eq)), .fn(T, .fn(T, .o)), args: [a, b]))
         }
     }
 
     public func sides(ofEquation formula: NodeID) -> (type: IRType, left: NodeID, right: NodeID)? {
         switch self[formula] {
-        case let .folIff(a, b):
-            return (.o, a, b)
-        case let .isaConst(.primitive(.ifol(.eq)), _, args) where args.count == 2:
-            return (.i, args[0], args[1])
-        case let .isaConst(.primitive(.pure(.eq)), .fn(T, _), args) where args.count == 2:
-            return (T, args[0], args[1])
+        case .folIff(let a, let b):
+            (.o, a, b)
+        case .isaConst(.primitive(.ifol(.eq)), _, let args) where args.count == 2:
+            (.i, args[0], args[1])
+        case .isaConst(.primitive(.pure(.eq)), .fn(let T, _), let args) where args.count == 2:
+            (T, args[0], args[1])
         case .ifolAll, .ifolEx, .isaConst, .isaFree, .isaBound, .isaVarApp, .isaAbs, .isaOfClass, .isaAllIntro,
-             .isaAllElim, .isaReflexive, .isaSymmetric, .isaTransitive, .isaCombination, .isaAbstract, .isaClassical, .isaIffReflection, .isaDefinition, .isaPropAll, .isaPropIntro, .isaPropBound, .folImplies,
+             .isaAllElim, .isaReflexive, .isaSymmetric, .isaTransitive, .isaCombination, .isaAbstract, .isaClassical,
+             .isaIffReflection, .isaDefinition, .isaPropAll, .isaPropIntro, .isaPropBound, .folImplies,
              .folAnd, .folOr, .folBottom, .folImpliesIntro, .folImpliesElim, .use, .hyp, .folIffIntro, .folIffElimL,
-             .isaGuard, .isaExIntro, .isaExElim, .folNot, .folBound, .folPred, .folForall, .folExists, .folAndIntro, .folAndElimL, .folAndElimR,
+             .isaGuard, .isaExIntro, .isaExElim, .folNot, .folBound, .folPred, .folForall, .folExists, .folAndIntro,
+             .folAndElimL, .folAndElimR,
              .folOrIntroL, .folOrIntroR, .folOrElim, .folNotIntro, .folNotElim, .folIffElimR, .folForallIntro,
              .folForallElim, .folExistsIntro, .folExistsElim, .folBottomElim, .folClassicalAbsurd, .folSchemaInst,
              .folLetterAll, .folLetter, .folLetterAbs:
-            return nil
+            nil
         }
     }
 
-    public func looseBound(of id: NodeID) -> Int { looseTerms[Int(id.raw)] }
-    public func looseHyps(of id: NodeID) -> Int { looseHypotheses[Int(id.raw)] }
+    public func looseBound(of id: NodeID) -> Int {
+        looseTerms[Int(id.raw)]
+    }
+
+    public func looseHyps(of id: NodeID) -> Int {
+        looseHypotheses[Int(id.raw)]
+    }
 
     public mutating func intern(_ n: Node) throws -> NodeID {
         if let id = index[n] { return id }
@@ -88,7 +82,8 @@ public struct Table: Sendable {
             guard Int(c.raw) < nodes.count else { throw TableError.unknownNode(c) }
         }
         let sort = try sortOf(n)
-        var terms = 0, hyps = 0
+        var terms = 0
+        var hyps = 0
         if let v = n.boundVariable {
             guard v.index >= 0 else { throw TableError.negativeIndex(v.index) }
             switch v.namespace {
@@ -109,180 +104,261 @@ public struct Table: Sendable {
         return id
     }
 
+    /// ⚠ NOT SWIFT'S `Hasher`: it is seeded per process, and a name made from it changes from run to run, silently.
+    public func fingerprint(of id: NodeID) -> UInt64 {
+        var known = [NodeID: UInt64]()
+        return fingerprint(id, &known)
+    }
+
+    func patternType(of id: NodeID) -> IRType {
+        switch sorts[Int(id.raw)] {
+        case .value(let T): T
+        case .step: .o
+        }
+    }
+
+    private enum Sort: Sendable {
+        case value(IRType)
+        case step(concluding: NodeID)
+    }
+
+    private var nodes = [Node]()
+    private var sorts = [Sort]()
+    private var looseTerms = [Int]()
+    private var looseHypotheses = [Int]()
+    private var index = [Node: NodeID]()
+
     private mutating func sortOf(_ n: Node) throws -> Sort {
         switch n {
         case .folBound:
             return .value(.i)
-        case let .folPred(_, xs):
+
+        case .folPred(_, let xs):
             for x in xs { try termVariable(x, else: .predicateArgumentNotVariable(x)) }
             return .value(.o)
-        case let .folAnd(a, b), let .folOr(a, b), let .folImplies(a, b), let .folIff(a, b):
+
+        case .folAnd(let a, let b), .folOr(let a, let b), .folImplies(let a, let b), .folIff(let a, let b):
             try expect(.o, a)
             try expect(.o, b)
             return .value(.o)
-        case let .folNot(a), let .folForall(a), let .folExists(a),
-             let .ifolAll(_, a), let .ifolEx(_, a):
+
+        case .folNot(let a), .folForall(let a), .folExists(let a),
+             .ifolAll(_, let a), .ifolEx(_, let a):
             try expect(.o, a)
             return .value(.o)
+
         case .folBottom:
             return .value(.o)
-        case let .isaConst(_, T, xs):
+
+        case .isaConst(_, let T, let xs):
             return .value(try apply(T, xs))
-        case let .isaFree(_, T), let .isaBound(_, T):
+
+        case .isaFree(_, let T), .isaBound(_, let T):
             return .value(T)
-        case let .isaVarApp(h, xs):
+
+        case .isaVarApp(let h, let xs):
             if case .isaFree = self[h] { return .value(try apply(try value(h), xs)) }
             if case .isaBound = self[h] { return .value(try apply(try value(h), xs)) }
             throw TableError.varAppHeadNotVariable(h)
-        case let .isaAbs(T, b):
+
+        case .isaAbs(let T, let b):
             return .value(.fn(T, try value(b)))
+
         case .isaOfClass:
             return .value(.o)
 
-        case let .use(_, _, a), let .hyp(_, a):
+        case .use(_, _, let a), .hyp(_, let a):
             try expect(.o, a)
             return .step(concluding: a)
-        case let .isaGuard(x, g):
+
+        case .isaGuard(let x, let g):
             guard case .isaBound = self[x] else { throw TableError.notATermVariable(x) }
             try expect(.o, g)
             return .step(concluding: g)
-        case let .folAndIntro(p, q):
+
+        case .folAndIntro(let p, let q):
             return .step(concluding: try intern(.folAnd(try premise(p), try premise(q))))
-        case let .folAndElimL(p):
-            guard case let .folAnd(x, _) = self[try premise(p)] else { throw TableError.principalConnective(p) }
+
+        case .folAndElimL(let p):
+            guard case .folAnd(let x, _) = self[try premise(p)] else { throw TableError.principalConnective(p) }
             return .step(concluding: x)
-        case let .folAndElimR(p):
-            guard case let .folAnd(_, y) = self[try premise(p)] else { throw TableError.principalConnective(p) }
+
+        case .folAndElimR(let p):
+            guard case .folAnd(_, let y) = self[try premise(p)] else { throw TableError.principalConnective(p) }
             return .step(concluding: y)
-        case let .folOrIntroL(p, b):
+
+        case .folOrIntroL(let p, let b):
             try expect(.o, b)
             return .step(concluding: try intern(.folOr(try premise(p), b)))
-        case let .folOrIntroR(a, q):
+
+        case .folOrIntroR(let a, let q):
             try expect(.o, a)
             return .step(concluding: try intern(.folOr(a, try premise(q))))
-        case let .folOrElim(p, q, r):
-            guard case let .folOr(x, y) = self[try premise(p)] else { throw TableError.principalConnective(p) }
+
+        case .folOrElim(let p, let q, let r):
+            guard case .folOr(let x, let y) = self[try premise(p)] else { throw TableError.principalConnective(p) }
             let fromX = try implication(q, from: x)
             try same(fromX, try implication(r, from: y))
             return .step(concluding: fromX)
-        case let .folImpliesIntro(a, body):
+
+        case .folImpliesIntro(let a, let body):
             try expect(.o, a)
             return .step(concluding: try intern(.folImplies(a, try premise(body))))
-        case let .folImpliesElim(p, q):
-            guard case let .folImplies(x, y) = self[try premise(p)] else { throw TableError.principalConnective(p) }
+
+        case .folImpliesElim(let p, let q):
+            guard case .folImplies(let x, let y) = self[try premise(p)] else { throw TableError.principalConnective(p) }
             try same(x, try premise(q))
             return .step(concluding: y)
-        case let .folNotIntro(a, body):
+
+        case .folNotIntro(let a, let body):
             try expect(.o, a)
             try absurd(body)
             return .step(concluding: try intern(.folNot(a)))
-        case let .folNotElim(p, q):
-            guard case let .folNot(x) = self[try premise(p)] else { throw TableError.principalConnective(p) }
+
+        case .folNotElim(let p, let q):
+            guard case .folNot(let x) = self[try premise(p)] else { throw TableError.principalConnective(p) }
             try same(x, try premise(q))
             return .step(concluding: try intern(.folBottom))
-        case let .folIffIntro(p, q):
-            guard case let .folImplies(x, y) = self[try premise(p)] else { throw TableError.principalConnective(p) }
+
+        case .folIffIntro(let p, let q):
+            guard case .folImplies(let x, let y) = self[try premise(p)] else { throw TableError.principalConnective(p) }
             try same(x, try implication(q, from: y))
             return .step(concluding: try intern(.folIff(x, y)))
-        case let .folIffElimL(p, q):
-            guard case let .folIff(x, y) = self[try premise(p)] else { throw TableError.principalConnective(p) }
+
+        case .folIffElimL(let p, let q):
+            guard case .folIff(let x, let y) = self[try premise(p)] else { throw TableError.principalConnective(p) }
             try same(x, try premise(q))
             return .step(concluding: y)
-        case let .folIffElimR(p, q):
-            guard case let .folIff(x, y) = self[try premise(p)] else { throw TableError.principalConnective(p) }
+
+        case .folIffElimR(let p, let q):
+            guard case .folIff(let x, let y) = self[try premise(p)] else { throw TableError.principalConnective(p) }
             try same(y, try premise(q))
             return .step(concluding: x)
-        case let .folForallIntro(body):
+
+        case .folForallIntro(let body):
             return .step(concluding: try intern(.folForall(body: try premise(body))))
-        case let .folForallElim(p, v):
+
+        case .folForallElim(let p, let v):
             try termVariable(v, else: .notATermVariable(v))
             let premised = try premise(p)
-            if case let .folForall(body) = self[premised] { return .step(concluding: try instantiate(body, with: v, in: &self)) }
-            guard case let .ifolAll(T, body) = self[premised], isObject(T) else { throw TableError.principalConnective(p) }
+            if case .folForall(let body) = self[premised] { return .step(concluding: try instantiate(
+                body,
+                with: v,
+                in: &self,
+            )) }
+            guard
+                case .ifolAll(let T, let body) = self[premised],
+                isObject(T)
+            else { throw TableError.principalConnective(p) }
             return .step(concluding: try instantiate(try guardedBody(T, body, in: &self), with: v, in: &self))
-        case let .folExistsIntro(p, v):
+
+        case .folExistsIntro(let p, let v):
             let k = try termVariable(v, else: .notATermVariable(v))
             return .step(concluding: try intern(.folExists(body: try abstractIndex(try premise(p), k, in: &self))))
-        case let .folExistsElim(p, body):
+
+        case .folExistsElim(let p, let body):
             guard case .folExists = self[try premise(p)] else { throw TableError.principalConnective(p) }
             return .step(concluding: try witnessed(body))
-        case let .isaExIntro(p, v):
-            guard case let .isaBound(k, T) = self[v], T != .o else { throw TableError.notATermVariable(v) }
+
+        case .isaExIntro(let p, let v):
+            guard case .isaBound(let k, let T) = self[v], T != .o else { throw TableError.notATermVariable(v) }
             return .step(concluding: try intern(.ifolEx(T, body: try abstractIndex(try premise(p), k, in: &self))))
-        case let .isaExElim(T, p, body):
+
+        case .isaExElim(let T, let p, let body):
             guard case .ifolEx(T, _) = self[try premise(p)] else { throw TableError.principalConnective(p) }
             return .step(concluding: try witnessed(body))
-        case let .folBottomElim(p, c):
+
+        case .folBottomElim(let p, let c):
             try absurd(p)
             try expect(.o, c)
             return .step(concluding: c)
-        case let .folClassicalAbsurd(a, body):
+
+        case .folClassicalAbsurd(let a, let body):
             try expect(.o, a)
             try absurd(body)
             return .step(concluding: a)
-        case let .folSchemaInst(p, a):
+
+        case .folSchemaInst(let p, let a):
             let schema = try premise(p)
-            if case let .folLetterAll(k, body) = self[schema] {
+            if case .folLetterAll(let k, let body) = self[schema] {
                 try letterInstance(a, arity: k)
                 return .step(concluding: try instantiate(body, with: a, in: &self))
             }
-            guard case let .ifolAll(.o, body) = self[schema] else { throw TableError.principalConnective(p) }
+            guard case .ifolAll(.o, let body) = self[schema] else { throw TableError.principalConnective(p) }
             try expect(.o, a)
             return .step(concluding: try instantiate(body, with: a, in: &self))
-        case let .folLetterAll(_, b):
+
+        case .folLetterAll(_, let b):
             try expect(.o, b)
             return .value(.o)
-        case let .folLetter(h, xs):
+
+        case .folLetter(let h, let xs):
             guard case .folBound = self[h] else { throw TableError.varAppHeadNotVariable(h) }
             for x in xs { try termVariable(x, else: .predicateArgumentNotVariable(x)) }
             return .value(.o)
-        case let .folLetterAbs(b):
+
+        case .folLetterAbs(let b):
             try expect(.o, b)
             return .value(.o)
-        case let .isaReflexive(x):
+
+        case .isaReflexive(let x):
             return .step(concluding: try equation(try value(x), x, x))
-        case let .isaSymmetric(T, p):
+
+        case .isaSymmetric(let T, let p):
             let (a, b) = try sides(p, at: T)
             return .step(concluding: try equation(T, b, a))
-        case let .isaTransitive(T, p, q):
+
+        case .isaTransitive(let T, let p, let q):
             let (a, b) = try sides(p, at: T), (b2, c) = try sides(q, at: T)
             try same(b, b2)
             return .step(concluding: try equation(T, a, c))
-        case let .isaCombination(F, p, q):
-            guard case let .fn(T, U) = F else { throw TableError.notAFunctionType(F) }
+
+        case .isaCombination(let F, let p, let q):
+            guard case .fn(let T, let U) = F else { throw TableError.notAFunctionType(F) }
             let (f, g) = try sides(p, at: F), (x, y) = try sides(q, at: T)
             return .step(concluding: try equation(U, try applied(f, x), try applied(g, y)))
-        case let .isaAbstract(F, p):
-            guard case let .fn(T, U) = F else { throw TableError.notAFunctionType(F) }
-            guard case let .ifolAll(T2, body) = self[try premise(p)], T2 == T, let (V, a, b) = sides(ofEquation: body), V == U
+
+        case .isaAbstract(let F, let p):
+            guard case .fn(let T, let U) = F else { throw TableError.notAFunctionType(F) }
+            guard
+                case .ifolAll(let T2, let body) = self[try premise(p)], T2 == T,
+                let (V, a, b) = sides(ofEquation: body), V == U
             else { throw TableError.principalConnective(p) }
             return .step(concluding: try equation(F, try intern(.isaAbs(T, body: a)), try intern(.isaAbs(T, body: b))))
-        case let .isaClassical(a, h):
+
+        case .isaClassical(let a, let h):
             try expect(.o, a)
-            guard case let .folImplies(_, c) = self[try premise(h)] else { throw TableError.principalConnective(h) }
+            guard case .folImplies(_, let c) = self[try premise(h)] else { throw TableError.principalConnective(h) }
             try same(a, c)
             return .step(concluding: a)
-        case let .isaIffReflection(a, b, h):
+
+        case .isaIffReflection(let a, let b, let h):
             try expect(.o, a)
             try expect(.o, b)
             _ = try premise(h)
             return .step(concluding: try intern(.folIff(a, b)))
-        case let .isaAllIntro(T, body):
+
+        case .isaAllIntro(let T, let body):
             return .step(concluding: try intern(.ifolAll(T, body: try premise(body))))
-        case let .isaPropIntro(body):
+
+        case .isaPropIntro(let body):
             return .step(concluding: try intern(.isaPropAll(body: try premise(body))))
-        case let .isaPropAll(b):
+
+        case .isaPropAll(let b):
             try expect(.o, b)
             return .value(.o)
+
         case .isaPropBound:
             return .value(.o)
-        case let .isaAllElim(p, x):
-            if case let .isaPropAll(body) = self[try premise(p)] {
+
+        case .isaAllElim(let p, let x):
+            if case .isaPropAll(let body) = self[try premise(p)] {
                 try expect(.o, x)
                 return .step(concluding: try instantiate(body, with: x, in: &self))
             }
             return .step(concluding: try instance(try premise(p), at: x, blaming: p))
-        case let .isaDefinition(_, _, _, stated, xs):
+
+        case .isaDefinition(_, _, _, let stated, let xs):
             try expect(.o, stated)
             var concluded = stated
             for x in xs { concluded = try instance(concluded, at: x, blaming: stated) }
@@ -291,7 +367,7 @@ public struct Table: Sendable {
     }
 
     private mutating func instance(_ formula: NodeID, at x: NodeID, blaming step: NodeID) throws -> NodeID {
-        guard case let .ifolAll(T, body) = self[formula] else { throw TableError.principalConnective(step) }
+        guard case .ifolAll(let T, let body) = self[formula] else { throw TableError.principalConnective(step) }
         try expect(T, x)
         if case .fn = T, !isAbstraction(x) { throw TableError.functionArgumentNotAbstraction(x) }
         return try instantiate(body, with: x, in: &self)
@@ -301,29 +377,25 @@ public struct Table: Sendable {
     private func letterInstance(_ a: NodeID, arity k: Int) throws {
         var inner = a
         for _ in 0..<k {
-            guard case let .folLetterAbs(b) = self[inner] else { throw TableError.letterArity(a) }
+            guard case .folLetterAbs(let b) = self[inner] else { throw TableError.letterArity(a) }
             inner = b
         }
         if case .folLetterAbs = self[inner] { throw TableError.letterArity(a) }
     }
 
     private func termVariable(_ x: NodeID, else notVariable: TableError) throws -> Int {
-        if case let .folBound(k) = self[x] { return k }
-        guard case let .isaBound(k, T) = self[x] else { throw notVariable }
+        if case .folBound(let k) = self[x] { return k }
+        guard case .isaBound(let k, let T) = self[x] else { throw notVariable }
         guard T != .o else { throw TableError.propositionAsTerm(x) }
         return k
-    }
-
-    /// ⚠ NOT SWIFT'S `Hasher`: it is seeded per process, and a name made from it changes from run to run, silently.
-    public func fingerprint(of id: NodeID) -> UInt64 {
-        var known: [NodeID: UInt64] = [:]
-        return fingerprint(id, &known)
     }
 
     private func fingerprint(_ id: NodeID, _ known: inout [NodeID: UInt64]) -> UInt64 {
         if let h = known[id] { return h }
         var h: UInt64 = 0xcbf2_9ce4_8422_2325
-        func mix<S: Sequence<UInt8>>(_ bytes: S) { for b in bytes { h = (h ^ UInt64(b)) &* 0x100_0000_01b3 } }
+        func mix(_ bytes: some Sequence<UInt8>) {
+            for b in bytes { h = (h ^ UInt64(b)) &* 0x100_0000_01b3 }
+        }
         mix(String(describing: self[id].mapChildren { _, _ in NodeID(raw: 0) }).utf8)
         self[id].forEachChild { c, _ in withUnsafeBytes(of: fingerprint(c, &known).littleEndian) { mix($0) } }
         known[id] = h
@@ -350,7 +422,7 @@ public struct Table: Sendable {
     }
 
     private mutating func applied(_ f: NodeID, _ x: NodeID) throws -> NodeID {
-        guard case let .isaAbs(_, body) = self[f] else { throw TableError.functionArgumentNotAbstraction(f) }
+        guard case .isaAbs(_, let body) = self[f] else { throw TableError.functionArgumentNotAbstraction(f) }
         return try instantiate(body, with: x, in: &self)
     }
 
@@ -369,7 +441,8 @@ public struct Table: Sendable {
     }
 
     private func implication(_ step: NodeID, from antecedent: NodeID) throws -> NodeID {
-        guard case let .folImplies(x, y) = self[try premise(step)] else { throw TableError.principalConnective(step) }
+        guard case .folImplies(let x, let y) = self[try premise(step)]
+        else { throw TableError.principalConnective(step) }
         try same(antecedent, x)
         return y
     }
@@ -381,7 +454,7 @@ public struct Table: Sendable {
     private func apply(_ f: IRType, _ xs: [NodeID]) throws -> IRType {
         var result = f
         for x in xs {
-            guard case let .fn(domain, codomain) = result else {
+            guard case .fn(let domain, let codomain) = result else {
                 throw TableError.arityMismatch(expected: arity(f), found: xs.count)
             }
             try expect(domain, x)
@@ -398,7 +471,7 @@ public struct Table: Sendable {
     }
 
     private func arity(_ T: IRType) -> Int {
-        if case let .fn(_, rest) = T { return 1 + arity(rest) }
+        if case .fn(_, let rest) = T { return 1 + arity(rest) }
         return 0
     }
 }

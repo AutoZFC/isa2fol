@@ -1,20 +1,24 @@
-@frozen public enum Owned: Hashable, Sendable {
+@frozen
+public enum Owned: Hashable, Sendable {
     case rule
     case unbuilt
 }
 
 public protocol Pass {
     var name: String { get }
+
     func owns(_ p: Pattern) -> Owned?
     func run(_ roots: [NodeID], _ definitions: [Definition], in t: inout Table) throws -> [NodeID]
 }
 
-@frozen public enum Proved: Hashable, Sendable {
+@frozen
+public enum Proved: Hashable, Sendable {
     case proof(NodeID)
     case unbuilt
 }
 
-@frozen public enum Stated: Hashable, Sendable {
+@frozen
+public enum Stated: Hashable, Sendable {
     case statement(NodeID)
     case unbuilt
 }
@@ -24,7 +28,8 @@ public protocol Registry {
     func define(_ c: Defined, _ definitions: [Definition], in t: inout Table) throws -> Stated
 }
 
-@frozen public enum PipelineRefusal: Hashable, Sendable {
+@frozen
+public enum PipelineRefusal: Hashable, Sendable {
     case noOwner([Pattern])
     case unbuilt(pass: String, [Pattern])
     case lemmaUnbuilt
@@ -33,7 +38,8 @@ public protocol Registry {
     case unread
 }
 
-@frozen public enum PipelineError: Error, Equatable, Sendable {
+@frozen
+public enum PipelineError: Error, Equatable, Sendable {
     case twoOwners(Pattern, passes: [String])
     case unproved(name: String, pass: String, statement: NodeID, conclusion: NodeID?)
     case survived(name: String, pass: String, pattern: Pattern)
@@ -48,12 +54,6 @@ public protocol Registry {
 }
 
 public struct Definition: Hashable, Sendable {
-    public let defines: Definiendum
-    public let type: IRType
-    public let axiomTypes: [IRType]
-    public let parameters: Int
-    public var definiens: NodeID
-
     public init(defines: Definiendum, type: IRType, axiomTypes: [IRType], parameters: Int, definiens: NodeID) {
         self.defines = defines
         self.type = type
@@ -61,20 +61,22 @@ public struct Definition: Hashable, Sendable {
         self.parameters = parameters
         self.definiens = definiens
     }
+
+    public let defines: Definiendum
+    public let type: IRType
+    public let axiomTypes: [IRType]
+    public let parameters: Int
+    public var definiens: NodeID
+
 }
 
 extension Defined {
-    public var definitionName: String { name + "_DEF" }
+    public var definitionName: String {
+        name + "_DEF"
+    }
 }
 
 public struct Statement: Sendable {
-    public let name: String
-    public var root: NodeID
-    public var proof: NodeID?
-    public let lemma: Lemma?
-    public let defines: Defined?
-    public let theory: String?
-
     public init(name: String, root: NodeID, proof: NodeID, theory: String? = nil) {
         self.name = name
         self.root = root
@@ -102,9 +104,20 @@ public struct Statement: Sendable {
         theory = nil
     }
 
-    public var cited: Cited { lemma.map(Cited.lemma) ?? .theorem(name) }
+    public let name: String
+    public var root: NodeID
+    public var proof: NodeID?
+    public let lemma: Lemma?
+    public let defines: Defined?
+    public let theory: String?
 
-    var walked: [NodeID] { [root] + (proof.map { [$0] } ?? []) }
+    public var cited: Cited {
+        lemma.map(Cited.lemma) ?? .theorem(name)
+    }
+
+    var walked: [NodeID] {
+        [root] + (proof.map { [$0] } ?? [])
+    }
 }
 
 public struct Refused: Sendable {
@@ -113,11 +126,6 @@ public struct Refused: Sendable {
 }
 
 public struct Unit: Sendable {
-    public var table: Table
-    public var statements: [Statement]
-    public var definitions: [Definition]
-    public private(set) var refused: [Refused]
-
     public init(table: Table, statements: [Statement], definitions: [Definition] = [], unread: [String] = []) {
         self.table = table
         self.statements = statements
@@ -125,21 +133,26 @@ public struct Unit: Sendable {
         refused = unread.map { Refused(name: $0, refusal: .unread) }
     }
 
+    public var table: Table
+    public var statements: [Statement]
+    public var definitions: [Definition]
+    public private(set) var refused: [Refused]
+
     mutating func refuse(_ name: String, _ refusal: PipelineRefusal) {
         refused.append(Refused(name: name, refusal: refusal))
     }
 }
 
 public struct Pipeline {
-    public let passes: [Pass]
-    public let registry: (any Registry)?
-    public let provingAfter: String
-
     public init(passes: [Pass], registry: (any Registry)? = nil, provingAfter: String = "") {
         self.passes = passes
         self.registry = registry
         self.provingAfter = provingAfter
     }
+
+    public let passes: [Pass]
+    public let registry: (any Registry)?
+    public let provingAfter: String
 
     public func run(_ unit: inout Unit) throws {
         var run = try Run(self, unit)
@@ -161,7 +174,7 @@ private struct Lowering {
 
 private func definiendum(_ d: Definition) throws -> Pattern {
     switch d.defines {
-    case let .constant(c): return .isaConst(.init(.defined(c)), d.type, args: d.type.domains)
+    case .constant(let c): return .isaConst(.init(.defined(c)), d.type, args: d.type.domains)
     case .ofClass:
         guard d.axiomTypes.count == 1 else { throw PipelineError.notADefinition(d.defines.name) }
         return .isaOfClass(d.axiomTypes[0])
@@ -169,19 +182,6 @@ private func definiendum(_ d: Definition) throws -> Pattern {
 }
 
 private struct Run {
-    let passes: [Pass]
-    let registry: (any Registry)?
-    let proving: Int?
-    var unit: Unit
-    var live: [Live] = []
-    var lowering: [Lowering] = []
-    var reached: [Definition] = []
-    var names: Set<String> = []
-    var lemmas: Set<Lemma> = []
-    var definitionsAsked: Set<Defined> = []
-    var definitionsRefused: Set<Defined> = []
-    var checked: Set<Pattern> = []
-
     init(_ p: Pipeline, _ unit: Unit) throws {
         passes = p.passes
         registry = p.registry
@@ -199,7 +199,10 @@ private struct Run {
             guard names.insert(s.name).inserted else { throw PipelineError.duplicateName(s.name) }
             let held = try check(patterns(under: s.walked, in: unit.table))
             let unowned = held.filter { !$0.dialects.contains(.fol) && owner(of: $0) == nil }
-            if unowned.isEmpty { live.append(Live(statement: s, held: held)) } else { self.unit.refuse(s.name, .noOwner(named(unowned))) }
+            if unowned.isEmpty { live.append(Live(statement: s, held: held)) } else { self.unit.refuse(
+                s.name,
+                .noOwner(named(unowned)),
+            ) }
         }
         for d in unit.definitions {
             guard let k = owner(of: try definiendum(d)) else { continue }
@@ -209,7 +212,22 @@ private struct Run {
         }
     }
 
-    func owner(of p: Pattern) -> Int? { passes.firstIndex { $0.owns(p) != nil } }
+    let passes: [Pass]
+    let registry: (any Registry)?
+    let proving: Int?
+    var unit: Unit
+    var live = [Live]()
+    var lowering = [Lowering]()
+    var reached = [Definition]()
+    var names = Set<String>()
+    var lemmas = Set<Lemma>()
+    var definitionsAsked = Set<Defined>()
+    var definitionsRefused = Set<Defined>()
+    var checked = Set<Pattern>()
+
+    func owner(of p: Pattern) -> Int? {
+        passes.firstIndex { $0.owns(p) != nil }
+    }
 
     mutating func check(_ found: Set<Pattern>) throws -> Set<Pattern> {
         for p in named(found.subtracting(checked)) {
@@ -226,12 +244,16 @@ private struct Run {
 
     mutating func lower() throws {
         for (k, pass) in passes.enumerated() {
-            var ready: [Live] = []
+            var ready = [Live]()
             for l in live {
                 let unbuilt = l.held.filter { pass.owns($0) == .unbuilt }
-                if unbuilt.isEmpty { ready.append(l) } else { unit.refuse(l.statement.name, .unbuilt(pass: pass.name, named(unbuilt))) }
+                if unbuilt.isEmpty { ready.append(l) } else { unit.refuse(
+                    l.statement.name,
+                    .unbuilt(pass: pass.name, named(unbuilt)),
+                ) }
             }
-            var handed: [Definition] = [], passing: [Lowering] = []
+            var handed = [Definition]()
+            var passing = [Lowering]()
             for d in lowering {
                 if d.owner == k {
                     handed.append(d.definition)
@@ -240,8 +262,13 @@ private struct Run {
                 }
             }
             reached += handed
-            let out = try pass.run(ready.flatMap(\.statement.walked) + passing.map(\.definition.definiens), handed, in: &unit.table)
-            var next = out.makeIterator(), cited: [(Lemma, NodeID)] = []
+            let out = try pass.run(
+                ready.flatMap(\.statement.walked) + passing.map(\.definition.definiens),
+                handed,
+                in: &unit.table,
+            )
+            var next = out.makeIterator()
+            var cited = [(Lemma, NodeID)]()
             live = []
             for var l in ready {
                 let before = l.statement
@@ -250,7 +277,12 @@ private struct Run {
                 if let proof = l.statement.proof {
                     let concluded = unit.table.conclusion(of: proof)
                     guard concluded == l.statement.root else {
-                        throw PipelineError.unproved(name: before.name, pass: pass.name, statement: l.statement.root, conclusion: concluded)
+                        throw PipelineError.unproved(
+                            name: before.name,
+                            pass: pass.name,
+                            statement: l.statement.root,
+                            conclusion: concluded,
+                        )
                     }
                 }
                 if l.statement.walked != before.walked {
@@ -258,13 +290,19 @@ private struct Run {
                     l.held = try check(held)
                     cited += lemmas
                 }
-                if let p = survivor(l.held, through: k) { throw PipelineError.survived(name: before.name, pass: pass.name, pattern: p) }
+                if let p = survivor(l.held, through: k) { throw PipelineError.survived(
+                    name: before.name,
+                    pass: pass.name,
+                    pattern: p,
+                ) }
                 live.append(l)
             }
             lowering = []
             for var d in passing {
                 let definiens = next.next()!
-                if definiens != d.definition.definiens { d.held = try check(patterns(under: [definiens], in: unit.table)) }
+                if
+                    definiens != d.definition
+                        .definiens { d.held = try check(patterns(under: [definiens], in: unit.table)) }
                 if let p = survivor(d.held, through: k) {
                     throw PipelineError.survived(name: d.definition.defines.name, pass: pass.name, pattern: p)
                 }
@@ -274,19 +312,28 @@ private struct Run {
             try add(cited, after: k)
             if k == proving { try prove() }
         }
-        var legal: [Live] = []
+        var legal = [Live]()
         for l in live {
             try legalize(l.statement.root, in: unit.table)
             if let c = l.statement.defines {
-                guard isDefinition(l.statement.root, of: c, in: unit.table) else { throw PipelineError.notADefinition(l.statement.name) }
+                guard isDefinition(l.statement.root, of: c, in: unit.table)
+                else { throw PipelineError.notADefinition(l.statement.name) }
             } else {
                 guard let proof = l.statement.proof else {
-                    throw PipelineError.unproved(name: l.statement.name, pass: "registry", statement: l.statement.root, conclusion: nil)
+                    throw PipelineError.unproved(
+                        name: l.statement.name,
+                        pass: "registry",
+                        statement: l.statement.root,
+                        conclusion: nil,
+                    )
                 }
                 try legalize(proof, in: unit.table)
             }
             let misplaced = misplacedLetters(l.statement.walked, in: unit.table)
-            if misplaced.isEmpty { legal.append(l) } else { unit.refuse(l.statement.name, .letterOffSpine(named(misplaced))) }
+            if misplaced.isEmpty { legal.append(l) } else { unit.refuse(
+                l.statement.name,
+                .letterOffSpine(named(misplaced)),
+            ) }
         }
         live = legal
     }
@@ -321,8 +368,14 @@ private struct Run {
         for c in constants where definitionsAsked.insert(c).inserted {
             let name = c.definitionName
             guard names.insert(name).inserted else { throw PipelineError.duplicateName(name) }
-            if let d = reached.first(where: { $0.defines == .constant(c) }) ?? unit.definitions.first(where: { $0.defines == .constant(c) }),
-               let refusal = blocked(try check(patterns(under: [body(of: d, in: unit.table)], in: unit.table)), through: r) {
+            if
+                let d = reached.first(where: { $0.defines == .constant(c) }) ?? unit.definitions
+                    .first(where: { $0.defines == .constant(c) }),
+                let refusal = blocked(
+                    try check(patterns(under: [body(of: d, in: unit.table)], in: unit.table)),
+                    through: r,
+                )
+            {
                 unit.refuse(name, refusal)
                 definitionsRefused.insert(c)
                 continue
@@ -331,7 +384,8 @@ private struct Run {
             case .unbuilt:
                 unit.refuse(name, .lemmaUnbuilt)
                 definitionsRefused.insert(c)
-            case let .statement(root):
+
+            case .statement(let root):
                 let held = try check(patterns(under: [root], in: unit.table))
                 if let p = misstated(held, through: r) { throw PipelineError.misstatedLemma(name: name, pattern: p) }
                 guard isDefinition(root, of: c, in: unit.table) else { throw PipelineError.notADefinition(name) }
@@ -342,11 +396,13 @@ private struct Run {
 
     mutating func prove() throws {
         guard let registry, let r = proving else { return }
-        var next = 0, unbuilt: Set<Int> = []
+        var next = 0
+        var unbuilt = Set<Int>()
         while next < live.count {
             defer { next += 1 }
             if let l = live[next].statement.lemma, live[next].statement.proof == nil {
-                let root = live[next].statement.root, named = constantsNamed(under: [root], unit.table)
+                let root = live[next].statement.root
+                let named = constantsNamed(under: [root], unit.table)
                 try define(named, with: registry, through: r)
                 if let c = named.first(where: definitionsRefused.contains) {
                     unit.refuse(l.name, .cites(c.definitionName))
@@ -358,14 +414,24 @@ private struct Run {
                     unit.refuse(l.name, .lemmaUnbuilt)
                     unbuilt.insert(next)
                     continue
-                case let .proof(p):
+
+                case .proof(let p):
                     let concluded = unit.table.conclusion(of: p)
                     guard concluded == root else {
-                        throw PipelineError.unproved(name: l.name, pass: "registry", statement: root, conclusion: concluded)
+                        throw PipelineError.unproved(
+                            name: l.name,
+                            pass: "registry",
+                            statement: root,
+                            conclusion: concluded,
+                        )
                     }
                     let (held, cited) = scan([root, p], unit.table)
                     live[next].held = try check(held)
-                    if let s = survivor(live[next].held, through: r) { throw PipelineError.survived(name: l.name, pass: "registry", pattern: s) }
+                    if let s = survivor(live[next].held, through: r) { throw PipelineError.survived(
+                        name: l.name,
+                        pass: "registry",
+                        pattern: s,
+                    ) }
                     live[next].statement.proof = p
                     try add(cited, after: r)
                 }
@@ -376,17 +442,20 @@ private struct Run {
     }
 
     mutating func linked() throws -> Unit {
-        var index: [Cited: Int] = [:], definitions: [Defined: Int] = [:]
+        var index = [Cited: Int]()
+        var definitions = [Defined: Int]()
         for (k, l) in live.enumerated() {
             if let c = l.statement.defines { definitions[c] = k } else { index[l.statement.cited] = k }
         }
         let refused = Set(unit.refused.map(\.name))
-        var cites: [[String]] = [], edges: [[Int]] = []
+        var cites = [[String]]()
+        var edges = [[Int]]()
         for l in live {
-            var found: [String] = [], to: [Int] = []
+            var found = [String]()
+            var to = [Int]()
             for (c, root) in l.statement.proof.map({ citations(under: $0, unit.table) }) ?? [] {
                 found.append(c.name)
-                if case let .definition(d) = c, let j = definitions[d] {
+                if case .definition(let d) = c, let j = definitions[d] {
                     guard live[j].statement.root == root else { throw PipelineError.citationMismatch(c.name) }
                     to.append(j)
                 } else if let j = index[c] {
@@ -408,7 +477,9 @@ private struct Run {
             edges.append(to)
         }
         try acyclic(edges)
-        var gone = refused, kept = Array(repeating: true, count: live.count), changed = true
+        var gone = refused
+        var kept = Array(repeating: true, count: live.count)
+        var changed = true
         while changed {
             changed = false
             for k in live.indices where kept[k] {
@@ -448,11 +519,14 @@ private struct Run {
 }
 
 private func scan(_ roots: [NodeID], _ t: Table) -> (Set<Pattern>, [(Lemma, NodeID)]) {
-    var seen: Set<NodeID> = [], found: Set<Pattern> = [], lemmas: [(Lemma, NodeID)] = [], work = roots
+    var seen = Set<NodeID>()
+    var found = Set<Pattern>()
+    var lemmas = [(Lemma, NodeID)]()
+    var work = roots
     while let id = work.popLast() {
         guard seen.insert(id).inserted else { continue }
         found.insert(Pattern(t[id], in: t))
-        if case let .use(.lemma(l), _, root) = t[id] { lemmas.append((l, root)) }
+        if case .use(.lemma(let l), _, let root) = t[id] { lemmas.append((l, root)) }
         t[id].forEachChild { c, _ in work.append(c) }
     }
     return (found, lemmas)
@@ -464,10 +538,13 @@ public func cited(by s: Statement, in t: Table) -> [String] {
 }
 
 private func citations(under proof: NodeID, _ t: Table) -> [(Cited, NodeID)] {
-    var seen: Set<NodeID> = [], cited: Set<Cited> = [], found: [(Cited, NodeID)] = [], work = [proof]
+    var seen = Set<NodeID>()
+    var cited = Set<Cited>()
+    var found = [(Cited, NodeID)]()
+    var work = [proof]
     while let id = work.popLast() {
         guard seen.insert(id).inserted else { continue }
-        if case let .use(c, _, root) = t[id] {
+        if case .use(let c, _, let root) = t[id] {
             switch c {
             case .theorem, .lemma, .definition:
                 if cited.insert(c).inserted { found.append((c, root)) }
@@ -481,24 +558,29 @@ private func citations(under proof: NodeID, _ t: Table) -> [(Cited, NodeID)] {
     return found
 }
 
-private func named(_ found: Set<Pattern>) -> [Pattern] { found.sorted { "\($0)" < "\($1)" } }
+private func named(_ found: Set<Pattern>) -> [Pattern] {
+    found.sorted { "\($0)" < "\($1)" }
+}
 
 /// The definiens under the abstractions over the constant's arguments, which a `@def` makes its own variables.
 private func body(of d: Definition, in t: Table) -> NodeID {
     var body = d.definiens
     for _ in d.type.domains {
-        guard case let .isaAbs(_, inner) = t[body] else { return body }
+        guard case .isaAbs(_, let inner) = t[body] else { return body }
         body = inner
     }
     return body
 }
 
 private func constantsNamed(under roots: [NodeID], _ t: Table) -> [Defined] {
-    var seen: Set<NodeID> = [], found: [Defined] = [], met: Set<Defined> = [], work = Array(roots.reversed())
+    var seen = Set<NodeID>()
+    var found = [Defined]()
+    var met = Set<Defined>()
+    var work = Array(roots.reversed())
     while let id = work.popLast() {
         guard seen.insert(id).inserted else { continue }
-        if case let .folPred(.constant(.defined(c)), _) = t[id], met.insert(c).inserted { found.append(c) }
-        var children: [NodeID] = []
+        if case .folPred(.constant(.defined(let c)), _) = t[id], met.insert(c).inserted { found.append(c) }
+        var children = [NodeID]()
         t[id].forEachChild { c, _ in children.append(c) }
         work += children.reversed()
     }
@@ -508,12 +590,16 @@ private func constantsNamed(under roots: [NodeID], _ t: Table) -> [Defined] {
 /// `∀v⃗. c(v⃗) ↔ body`, the arguments exactly the binders, outermost first, and `c` absent from `body`. ⚠ An argument
 /// is compared by its index alone: a class parameter stays a typed isa variable until fol.
 private func isDefinition(_ root: NodeID, of c: Defined, in t: Table) -> Bool {
-    var body = root, k = 0
-    while case let .folForall(inner) = t[body] {
+    var body = root
+    var k = 0
+    while case .folForall(let inner) = t[body] {
         body = inner
         k += 1
     }
-    guard case let .folIff(left, right) = t[body], case let .folPred(.constant(.defined(d)), args) = t[left], d == c,
-          args.map({ t[$0].boundVariable?.index }) == (0..<k).map({ k - 1 - $0 }) else { return false }
+    guard
+        case .folIff(let left, let right) = t[body], case .folPred(.constant(.defined(let d)), let args) = t[left],
+        d == c,
+        args.map({ t[$0].boundVariable?.index }) == (0..<k).map({ k - 1 - $0 })
+    else { return false }
     return !constantsNamed(under: [right], t).contains(c)
 }

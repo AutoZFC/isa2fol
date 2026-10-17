@@ -1,4 +1,5 @@
-@frozen public enum YXMLError: Error, Equatable, Sendable {
+@frozen
+public enum YXMLError: Error, Equatable, Sendable {
     case unbalancedClose
     case unclosed(tag: String)
     case emptyTag
@@ -9,18 +10,22 @@
 }
 
 public struct Ref: Hashable, Sendable, CustomStringConvertible {
+    public var description: String {
+        "#\(raw)"
+    }
+
     let raw: Int32
-    public var description: String { "#\(raw)" }
 }
 
 public struct Attribute: Hashable, Sendable {
-    public let name: String
-    public let value: String
-
     public init(name: String, value: String) {
         self.name = name
         self.value = value
     }
+
+    public let name: String
+    public let value: String
+
 }
 
 public struct Element: Equatable, Sendable {
@@ -36,7 +41,8 @@ public struct Element: Equatable, Sendable {
     }
 }
 
-@frozen public enum Item: Equatable, Sendable {
+@frozen
+public enum Item: Equatable, Sendable {
     case element(Element)
     case text(String)
 }

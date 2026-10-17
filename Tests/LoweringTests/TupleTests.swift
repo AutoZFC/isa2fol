@@ -1,13 +1,15 @@
-import Testing
 import IR
+import Testing
 @testable import Lowering
 
-/// Each tuple fact at arities 0 to 3: its proof concludes its statement by ID, before Fol and after, every hypothesis is
+/// Each tuple fact at arities 0 to 3: its proof concludes its statement by ID, before Fol and after, every hypothesis
+/// is
 /// its binder's, and the real checker proves it from base.
-@Test func eachTupleFactIsProvedAtEveryArity() throws {
+@Test
+func eachTupleFactIsProvedAtEveryArity() throws {
     var t = Table()
     let prover = TupleProver(base: try LoweringTests.base(in: &t))
-    var claims: [(name: String, root: NodeID, proof: NodeID)] = []
+    var claims = [(name: String, root: NodeID, proof: NodeID)]()
     for n in 0...3 {
         for fact in [TupleFact.Fact.existence, .uniqueness, .injectivity] where n > 0 || fact != .injectivity {
             let f = TupleFact(arity: n, fact: fact)

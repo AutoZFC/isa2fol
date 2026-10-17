@@ -9,7 +9,9 @@ private let baseDirectory = URL(fileURLWithPath: #filePath).deletingLastPathComp
 
 func lower(_ root: String, emitTo directory: String?) {
     let start = Date()
-    var unit: IR.Unit, named: Set<String>, citedNamed: Set<String>
+    var unit: IR.Unit
+    var named: Set<String>
+    var citedNamed: Set<String>
     do {
         var reader = try Reader(try Export(root: root))
         unit = try reader.unit()
@@ -19,10 +21,12 @@ func lower(_ root: String, emitTo directory: String?) {
         stopped(error)
     }
     let taken = unit.statements.map(\.name) + unit.refused.map(\.name)
-    let outside = taken.filter { !named.contains($0) && citedNamed.contains($0) }.count
-    let boxes = taken.filter { !named.contains($0) && !citedNamed.contains($0) }.count
-    let read = Date(), definitions = unit.definitions.count
-    let lowering: Pipeline, texts: [String]
+    let outside = taken.count(where: { !named.contains($0) && citedNamed.contains($0) })
+    let boxes = taken.count(where: { !named.contains($0) && !citedNamed.contains($0) })
+    let read = Date()
+    let definitions = unit.definitions.count
+    let lowering: Pipeline
+    let texts: [String]
     do {
         let names = BaseStatement.allCases.map(\.rawValue)
         texts = try baseTexts(baseDirectory)
@@ -38,24 +42,32 @@ func lower(_ root: String, emitTo directory: String?) {
     let lowered = unit.statements.filter { named.contains($0.name) }
     print("named theorems, all ZF sessions: \(named.count)")
     print("  with \(outside) theorems they cite outside the ZF sessions, \(boxes) boxes binding a proposition and "
-          + "\(definitions) definitions they reach")
-    print("lowered to fol-zfc through \(lowering.passes.map(\.name).joined(separator: ", ")): \(lowered.count) — each proof concludes its statement, by ID")
+        + "\(definitions) definitions they reach")
+    print(
+        "lowered to fol-zfc through \(lowering.passes.map(\.name).joined(separator: ", ")): \(lowered.count) — each proof concludes its statement, by ID"
+    )
     print("  and \(unit.statements.count - lowered.count) of the theorems and boxes cited, and lemmas")
     print("definitions read by the pass owning their constant: \(unit.definitions.count) of \(definitions)")
-    let defs = unit.statements.filter { $0.defines != nil }.count
-    let refusedDefs = unit.refused.filter { $0.name.hasSuffix("_DEF") && !named.contains($0.name) }.count
-    let refusedLemmas = unit.refused.filter { $0.refusal == .lemmaUnbuilt && !$0.name.hasSuffix("_DEF") }.count
-    print("constants' @defs stated: \(defs), refused: \(refusedDefs); lemmas requested and refused, unbuilt: \(refusedLemmas)")
-    print("refused, named: \(unit.refused.filter { named.contains($0.name) }.count)")
-    var statements: [String: Int] = [:], held: [String: [String: Int]] = [:], nouns: [String: String] = [:]
+    let defs = unit.statements.count(where: { $0.defines != nil })
+    let refusedDefs = unit.refused.count(where: { $0.name.hasSuffix("_DEF") && !named.contains($0.name) })
+    let refusedLemmas = unit.refused.count(where: { $0.refusal == .lemmaUnbuilt && !$0.name.hasSuffix("_DEF") })
+    print(
+        "constants' @defs stated: \(defs), refused: \(refusedDefs); lemmas requested and refused, unbuilt: \(refusedLemmas)"
+    )
+    print("refused, named: \(unit.refused.count(where: { named.contains($0.name) }))")
+    var statements = [String: Int]()
+    var held = [String: [String: Int]]()
+    var nouns = [String: String]()
     for r in unit.refused where named.contains(r.name) {
-        let (group, noun, found): (String, String, [String])
+        let group: String
+        let noun: String
+        let found: [String]
         switch r.refusal {
-        case let .noOwner(ps): (group, noun, found) = ("no owner", "patterns", ps.map { "\($0)" })
-        case let .unbuilt(pass, ps): (group, noun, found) = ("\(pass), unbuilt", "patterns", ps.map { "\($0)" })
+        case .noOwner(let ps): (group, noun, found) = ("no owner", "patterns", ps.map { "\($0)" })
+        case .unbuilt(let pass, let ps): (group, noun, found) = ("\(pass), unbuilt", "patterns", ps.map { "\($0)" })
         case .lemmaUnbuilt: (group, noun, found) = ("registry, unbuilt", "", [])
-        case let .letterOffSpine(ps): (group, noun, found) = ("a letter off its spine", "patterns", ps.map { "\($0)" })
-        case let .cites(cited): (group, noun, found) = ("cites a refused statement", "statements", [cited])
+        case .letterOffSpine(let ps): (group, noun, found) = ("a letter off its spine", "patterns", ps.map { "\($0)" })
+        case .cites(let cited): (group, noun, found) = ("cites a refused statement", "statements", [cited])
         case .unread: (group, noun, found) = ("not read", "", [])
         }
         statements[group, default: 0] += 1
@@ -72,10 +84,15 @@ func lower(_ root: String, emitTo directory: String?) {
         for p in ranked.prefix(10) { print("    \(counts[p]!)\t\(p)") }
         if ranked.count > 10 { print("    … \(ranked.count - 10) more") }
     }
-    print(String(format: "table: %d nodes; read %.1f s, lowered %.1f s",
-                 unit.table.count, read.timeIntervalSince(start), Date().timeIntervalSince(read)))
+    print(String(
+        format: "table: %d nodes; read %.1f s, lowered %.1f s",
+        unit.table.count,
+        read.timeIntervalSince(start),
+        Date().timeIntervalSince(read),
+    ))
     guard let directory else { return }
-    let emitting = Date(), emission: Emission
+    let emitting = Date()
+    let emission: Emission
     do {
         emission = try emit(unit, to: URL(fileURLWithPath: directory), base: texts)
     } catch {
@@ -87,11 +104,11 @@ func lower(_ root: String, emitTo directory: String?) {
 private func report(_ e: Emission, _ unit: IR.Unit, _ directory: String, _ seconds: TimeInterval) {
     let sum = { (f: (EmittedPart) -> Int) in e.parts.map(f).reduce(0, +) }
     print("emitted to \(directory) in \(e.parts.count) parts: \(sum(\.claims)) claims, \(sum(\.schemas)) schemas, "
-          + "\(sum(\.definitions)) @defs, \(sum(\.bytes)) bytes, \(String(format: "%.1f", seconds)) s; "
-          + "check with scripts/check-unit.sh \(directory)")
-    var statements: [String: Statement] = [:]
+        + "\(sum(\.definitions)) @defs, \(sum(\.bytes)) bytes, \(String(format: "%.1f", seconds)) s; "
+        + "check with scripts/check-unit.sh \(directory)")
+    var statements = [String: Statement]()
     for s in unit.statements { statements[s.name] = s }
-    var rows: [String: (count: Int, written: Int, tree: Int, dag: Int)] = [:]
+    var rows = [String: (count: Int, written: Int, tree: Int, dag: Int)]()
     let add = { (a: Int, b: Int) -> Int in
         let (sum, overflow) = a.addingReportingOverflow(b)
         return overflow ? Int.max : sum

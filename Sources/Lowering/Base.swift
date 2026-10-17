@@ -1,9 +1,16 @@
 import IR
 
-@frozen public enum BaseStatement: String, CaseIterable, Hashable, Sendable {
-    case iffRefl = "iff_refl", iffSymm = "iff_symm", iffTrans = "iff_trans"
+@frozen
+public enum BaseStatement: String, CaseIterable, Hashable, Sendable {
+    case iffRefl = "iff_refl"
+    case iffSymm = "iff_symm"
+    case iffTrans = "iff_trans"
     case truthEX = "truth_EX", weaken
-    case congNot = "cong_not", congAnd = "cong_and", congOr = "cong_or", congImp = "cong_imp", congIff = "cong_iff"
+    case congNot = "cong_not"
+    case congAnd = "cong_and"
+    case congOr = "cong_or"
+    case congImp = "cong_imp"
+    case congIff = "cong_iff"
     case eqRefl = "eq_refl", eqSymm = "eq_symm", eqTrans = "eq_trans", classSubst = "class_subst"
     case congElemL = "cong_elem_l", congElemR = "cong_elem_r", congEqL = "cong_eq_l", congEqR = "cong_eq_r"
     case congSnocV = "cong_snoc_v"
@@ -11,9 +18,13 @@ import IR
     case nsuccEX = "nsucc_EX", nsuccUNIQ = "nsucc_UNIQ", nsuccCONG = "nsucc_CONG"
     case snocEX = "snoc_EX", snocUNIQ = "snoc_UNIQ", snocCONG = "snoc_CONG", snocInj = "snoc_inj", snocResCong = "snoc_res_cong"
     case tupleZero = "tuple_zero", tupleSnoc = "tuple_snoc"
-    case functionDef = "function_def", applyEX = "apply_EX", applyAt = "apply_at", applyClassCong = "apply_class_cong", applyPmem = "apply_pmem"
+    case functionDef = "function_def", applyEX = "apply_EX", applyAt = "apply_at", applyClassCong = "apply_class_cong",
+         applyPmem = "apply_pmem"
     case funcAt = "func_at", extensionality
-    case zfZeroEX = "ZF_Base.zero_EX", zfZeroUNIQ = "ZF_Base.zero_UNIQ", zfInfEX = "ZF_Base.Inf_EX", zfInfUNIQ = "ZF_Base.Inf_UNIQ"
+    case zfZeroEX = "ZF_Base.zero_EX"
+    case zfZeroUNIQ = "ZF_Base.zero_UNIQ"
+    case zfInfEX = "ZF_Base.Inf_EX"
+    case zfInfUNIQ = "ZF_Base.Inf_UNIQ"
     case zfPowDef = "ZF_Base.Pow_def", zfUnionDef = "ZF_Base.Union_def", zfPrimReplaceDef = "ZF_Base.PrimReplace_def"
     case zfPrimReplaceValue = "ZF_Base.PrimReplace_value"
     case powEX = "Pow_EX", powUNIQ = "Pow_UNIQ", powCONG = "Pow_CONG"
@@ -21,7 +32,12 @@ import IR
     case congExists = "cong_exists", congForall = "cong_forall", congExistsBare = "cong_exists_bare", congForallBare = "cong_forall_bare"
     case forallAsNexists = "forall_as_nexists"
     case read1, read2, read4
-    case b1 = "B1", b2 = "B2", b3 = "B3", bOr = "B_or", bIff = "B_iff", rowEx = "row_ex"
+    case b1 = "B1"
+    case b2 = "B2"
+    case b3 = "B3"
+    case bOr = "B_or"
+    case bIff = "B_iff"
+    case rowEx = "row_ex"
     case clsZero = "cls_zero", clsNsucc = "cls_nsucc", clsSnoc4 = "cls_snoc4", clsDiag = "cls_diag", rsKey = "rs_key"
     case clsApply = "cls_apply"
     case snocSome = "snoc_some", snocKeep = "snoc_keep", snocNew = "snoc_new"
@@ -33,15 +49,14 @@ import IR
     case zfZeroDef = "ZF_Base.zero_def", zfInfDef = "ZF_Base.Inf_def", infDef = "Inf_def", indDef = "ind_def"
 }
 
-@frozen public enum BaseError: Error, Equatable, Sendable {
+@frozen
+public enum BaseError: Error, Equatable, Sendable {
     case missing(String)
 }
 
 public struct Base {
-    private let statements: [BaseStatement: NodeID]
-
     public init(_ parsed: [String: NodeID]) throws {
-        var statements: [BaseStatement: NodeID] = [:]
+        var statements = [BaseStatement: NodeID]()
         for s in BaseStatement.allCases {
             guard let root = parsed[s.rawValue] else { throw BaseError.missing(s.rawValue) }
             statements[s] = root
@@ -72,4 +87,7 @@ public struct Base {
         for p in premises { step = try t.intern(.folImpliesElim(step, p)) }
         return step
     }
+
+    private let statements: [BaseStatement: NodeID]
+
 }

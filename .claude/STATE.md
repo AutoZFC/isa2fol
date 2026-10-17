@@ -8,10 +8,11 @@ HEAD (see §0) · primitives · 2026-10-16.  RUN §0 BEFORE TRUSTING ANY LINE BE
 | `git log -1 --format=%s` | `An instance at a class type: forall_elim at the λ's class at its arguments, then β at each occurrence of the class variable` |
 | `git status --short \| wc -l` | `0` |
 | `git rev-parse --short kinds-proposal` | `21ca100f` |
-| `find Sources -name '*.swift' -exec cat {} + \| grep -cv '^\s*$'` | `8828` |
+| `find Sources -name '*.swift' -exec cat {} + \| grep -cv '^\s*$'` | `11525` |
 | `git -C ~/repos/fol-zfc-comb log -1 --format=%h` | `224d60e` (branch `libraries-and-streaming`) |
 | `grep -c '^axiom ' base/axioms.fol.def` | `17` — NBG and `elem_first_subst`; the tiers admit none |
 | `MEM=16G scripts/capped.sh swift test 2>&1 \| grep "Test run with"` | five lines, all passed: 14, 136, 97, 110, 41 tests |
+| `pre-commit run --all-files` | `SwiftFormat ... Passed`, `SwiftLint ... Passed` |
 | `MEM=16G scripts/capped.sh bash scripts/check-base.sh` | 14 tiers, each `exit 0  stderr 0`, Proved n of n; `metafun` 18 of 18 |
 | `swift build -c release`, then `MEM=32G scripts/capped.sh .build/release/isa2fol read data/zf_export` | `proved: 9420` of 9420; cited: 195 named, 956 boxes binding a proposition, all proved |
 | `MEM=48G scripts/capped.sh .build/release/isa2fol lower data/zf_export --emit DIR` (24 min, peak 25.5 GB), then `scripts/check-unit.sh DIR` | 73 named lowered; 45 parts; claims 4579 of 4579, schemas 111 of 111; exit 0 |
@@ -73,7 +74,7 @@ REFERENCE: consulted, never merged.
 | 4,242 of the 4,579 claims (303 of 326 MB) are in the `_uncited` parts: 638 `LAMBDA_` (7 cited), 724 `CLASS_`, 771 EX, 823 UNIQ, 196 `FUNC_` | `grep -c '^claim LAMBDA_' DIR/_uncited*.fol.def`, … |
 | the 16 lemmas unbuilt are all `CLASS_`: a λ holding a proposition, which the class prover does not read | a throwaway listing of `unit.refused`, not kept |
 | `SOURCE_SURFACE.md` and `CLOSURE.md` unchanged by this step | `isa2fol surface data/zf_export`, `closure`; `diff` empty |
-| comments 46/8828 = 0.5% of `Sources` | `CLAUDE.md` rule 9's script |
+| comments 57/11525 = 0.5% of `Sources` | `CLAUDE.md` rule 9's script |
 
 ## 5. Beliefs — NOT verified
 - All 204 letters off their spine are an instance walking under a `⋀` at `o` the cited theorem binds after the

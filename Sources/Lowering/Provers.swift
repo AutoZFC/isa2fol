@@ -1,11 +1,13 @@
 import IR
 
-@frozen public enum ProversError: Error, Equatable {
+@frozen
+public enum ProversError: Error, Equatable {
     case owners(lemma: String, provers: [String])
 }
 
 public protocol Prover {
     var name: String { get }
+
     func owns(_ l: Lemma) -> Owned?
     func prove(_ l: Lemma, _ statement: NodeID, _ definitions: [Definition], in t: inout Table) throws -> NodeID
     func defines(_ c: Defined) -> Owned?
@@ -13,11 +15,16 @@ public protocol Prover {
 }
 
 public struct Provers: Registry {
-    let provers: [Prover]
+    public init(_ provers: [Prover]) {
+        self.provers = provers
+    }
 
-    public init(_ provers: [Prover]) { self.provers = provers }
-
-    public func prove(_ lemma: Lemma, _ statement: NodeID, _ definitions: [Definition], in t: inout Table) throws -> Proved {
+    public func prove(
+        _ lemma: Lemma,
+        _ statement: NodeID,
+        _ definitions: [Definition],
+        in t: inout Table,
+    ) throws -> Proved {
         let (prover, owned) = try owner(lemma.name) { $0.owns(lemma) }
         switch owned {
         case .rule: return .proof(try prover.prove(lemma, statement, definitions, in: &t))
@@ -32,6 +39,8 @@ public struct Provers: Registry {
         case .unbuilt: return .unbuilt
         }
     }
+
+    let provers: [Prover]
 
     private func owner(_ name: String, _ owns: (Prover) -> Owned?) throws -> (Prover, Owned) {
         let owners = provers.filter { owns($0) != nil }

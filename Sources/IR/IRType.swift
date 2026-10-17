@@ -1,4 +1,5 @@
-@frozen public enum IRType: Hashable, Sendable, CustomStringConvertible {
+@frozen
+public enum IRType: Hashable, Sendable, CustomStringConvertible {
     case i
     case o
     indirect case fn(IRType, IRType)
@@ -6,45 +7,45 @@
 
     public var description: String {
         switch self {
-        case .i: return "i"
-        case .o: return "o"
-        case let .fn(a, b): return "(\(a) => \(b))"
-        case let .variable(name): return name
+        case .i: "i"
+        case .o: "o"
+        case .fn(let a, let b): "(\(a) => \(b))"
+        case .variable(let name): name
         }
     }
 
     public var domains: [IRType] {
-        guard case let .fn(T, rest) = self else { return [] }
+        guard case .fn(let T, let rest) = self else { return [] }
         return [T] + rest.domains
     }
 }
 
 public func mentionsTypeVariable(_ T: IRType) -> Bool {
     switch T {
-    case .i, .o: return false
-    case .variable: return true
-    case let .fn(a, b): return mentionsTypeVariable(a) || mentionsTypeVariable(b)
+    case .i, .o: false
+    case .variable: true
+    case .fn(let a, let b): mentionsTypeVariable(a) || mentionsTypeVariable(b)
     }
 }
 
 public func isObject(_ T: IRType) -> Bool {
     switch T {
-    case .i: return true
-    case .o, .variable: return false
-    case let .fn(a, b): return a == .i && (b == .o || isObject(b))
+    case .i: true
+    case .o, .variable: false
+    case .fn(let a, let b): a == .i && (b == .o || isObject(b))
     }
 }
 
 public func result(_ T: IRType) -> IRType {
-    guard case let .fn(_, U) = T else { return T }
+    guard case .fn(_, let U) = T else { return T }
     return result(U)
 }
 
 public func guardPredicate(_ T: IRType) -> Predicate? {
     switch T {
-    case .i: return .base("set")
-    case .fn: return isObject(T) && result(T) == .i ? .base("function") : nil
-    case .o, .variable: return nil
+    case .i: .base("set")
+    case .fn: isObject(T) && result(T) == .i ? .base("function") : nil
+    case .o, .variable: nil
     }
 }
 

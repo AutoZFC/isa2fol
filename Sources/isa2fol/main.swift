@@ -9,12 +9,12 @@ func fail(_ message: String, _ code: Int32) -> Never {
 
 func kind(_ r: ReaderRefusal) -> String {
     switch r {
-    case .typeConstructor: return "typeConstructor"
-    case .ofclass: return "ofclass"
-    case .betaRedex: return "betaRedex"
-    case .nameSegment: return "nameSegment"
-    case .omittedProof: return "omittedProof"
-    case .oracle: return "oracle"
+    case .typeConstructor: "typeConstructor"
+    case .ofclass: "ofclass"
+    case .betaRedex: "betaRedex"
+    case .nameSegment: "nameSegment"
+    case .omittedProof: "omittedProof"
+    case .oracle: "oracle"
     }
 }
 
@@ -40,8 +40,12 @@ if arguments.count == 2, arguments[0] == "surface" || arguments[0] == "closure" 
         var reader = try Reader(try Export(root: arguments[1]))
         let census = try reader.census()
         let command = "isa2fol \(arguments[0]) \(arguments[1])"
-        print(arguments[0] == "surface" ? surfaceReport(census, command: command)
-                                        : closureReport(census, command: command), terminator: "")
+        print(
+            arguments[0] == "surface"
+                ? surfaceReport(census, command: command)
+                : closureReport(census, command: command),
+            terminator: "",
+        )
     } catch {
         stopped(error)
     }
@@ -56,21 +60,24 @@ if arguments.count == 2 || (arguments.count == 4 && arguments[2] == "--emit"), a
 guard arguments.count == 2 || (arguments.count == 4 && arguments[2] == "--show"), arguments[0] == "read" else {
     fail(usage, 2)
 }
+
 let show = arguments.count == 4 ? arguments[3] : nil
 
 func label(_ outcome: Outcome) -> String {
     switch outcome {
-    case .proved: return "proved"
-    case let .refused(r): return "refused: " + kind(r)
+    case .proved: "proved"
+    case .refused(let r): "refused: " + kind(r)
     }
 }
 
 let start = Date()
-var named: [String: [String: Int]] = [:], cited: [String: Int] = [:], boxes: [String: Int] = [:]
+var named = [String: [String: Int]]()
+var cited = [String: Int]()
+var boxes = [String: Int]()
 var reader: Reader
 do {
     reader = try Reader(try Export(root: arguments[1]))
-    var read: Set<Theorem> = []
+    var read = Set<Theorem>()
     func outcome(_ theorem: Theorem) throws -> String {
         read.insert(theorem)
         let o = try reader.read(theorem)

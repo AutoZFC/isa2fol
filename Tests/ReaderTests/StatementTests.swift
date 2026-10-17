@@ -18,15 +18,21 @@ private let memAa = trueprop(app(const("ZF_Base.mem"), free("a"), free("A")))
 private let refl = trueprop(app(const("IFOL.eq", typeA), free("a"), free("a")))
 
 /// Isabelle's closure (`forall_intr_variables_term`): the frees in first-occurrence order, the first outermost.
-@Test func aStatementReadsClosedOverItsFreesTheFirstOutermost() throws {
+@Test
+func aStatementReadsClosedOverItsFreesTheFirstOutermost() throws {
     var t = Table()
     let got = try read(proofFile(frees: [("a", i), ("A", i)], prop: memAa), into: &t)
-    let mem = try t.intern(.isaConst(.primitive(.zf(.mem)), memT, args: [try t.intern(.isaBound(1, .i)), try t.intern(.isaBound(0, .i))]))
+    let mem = try t.intern(.isaConst(
+        .primitive(.zf(.mem)),
+        memT,
+        args: [try t.intern(.isaBound(1, .i)), try t.intern(.isaBound(0, .i))],
+    ))
     let closed = try t.intern(.ifolAll(.i, body: try t.intern(.ifolAll(.i, body: mem))))
     #expect(got == closed)
 }
 
-@Test func theFreesHeaderMustBeThePropositionsFreesInFirstOccurrenceOrder() throws {
+@Test
+func theFreesHeaderMustBeThePropositionsFreesInFirstOccurrenceOrder() throws {
     var t = Table()
     #expect(throws: MalformedExport.freesHeader(header: ["A", "a"], occurring: ["a", "A"])) {
         try read(proofFile(frees: [("A", i), ("a", i)], prop: memAa), into: &t)
@@ -36,7 +42,8 @@ private let refl = trueprop(app(const("IFOL.eq", typeA), free("a"), free("a")))
     }
 }
 
-@Test func aPolymorphicStatementReadsAtItsInstance() throws {
+@Test
+func aPolymorphicStatementReadsAtItsInstance() throws {
     var t = Table()
     let file = proofFile(tfrees: ["'a"], frees: [("a", typeA)], prop: refl)
     for T in [IRType.i, .o] {
@@ -47,7 +54,8 @@ private let refl = trueprop(app(const("IFOL.eq", typeA), free("a"), free("a")))
     #expect(throws: MalformedExport.instanceArity(expected: 1, found: 0)) { try read(file, into: &t) }
 }
 
-@Test func aPolymorphicStatementReadsAsStated() throws {
+@Test
+func aPolymorphicStatementReadsAsStated() throws {
     var t = Table()
     let a = IRType.variable("'a")
     let x = try t.intern(.isaBound(0, a))
@@ -56,14 +64,16 @@ private let refl = trueprop(app(const("IFOL.eq", typeA), free("a"), free("a")))
     #expect(got == (try t.intern(.ifolAll(a, body: eq))))
 }
 
-@Test func aSortedTypeVariableInTheHeaderIsMalformed() {
+@Test
+func aSortedTypeVariableInTheHeaderIsMalformed() {
     var t = Table()
     let header = node(node(node("'a"), node(node("IFOL.term"))))
     let file = header + node(node(node(node("a"), node(typeA))) + node(node(refl) + node(pnop)))
     #expect(throws: MalformedExport.sortedTypeVariable("'a")) { try read(file, at: [.variable("'a")], into: &t) }
 }
 
-@Test func aRepeatedTypeVariableInTheHeaderIsMalformed() {
+@Test
+func aRepeatedTypeVariableInTheHeaderIsMalformed() {
     var t = Table()
     #expect(throws: MalformedExport.tfreesHeader(["'a", "'a"])) {
         try read(proofFile(tfrees: ["'a", "'a"], frees: [("a", typeA)], prop: refl), at: [.i, .i], into: &t)
@@ -71,28 +81,41 @@ private let refl = trueprop(app(const("IFOL.eq", typeA), free("a"), free("a")))
 }
 
 /// `unconstrainT` states `refl`'s class as a premise: an ordinary one (DESIGN §4.3a 5).
-@Test func aClassPremiseIsAnOrdinaryPremise() throws {
+@Test
+func aClassPremiseIsAnOrdinaryPremise() throws {
     var t = Table()
-    let got = try read(proofFile(tfrees: ["'a"], frees: [("a", typeA)],
-                                 prop: app(const("Pure.imp"), ofclass(typeA, "IFOL.term"), refl)), at: [.i], into: &t)
+    let got = try read(proofFile(
+        tfrees: ["'a"],
+        frees: [("a", typeA)],
+        prop: app(const("Pure.imp"), ofclass(typeA, "IFOL.term"), refl),
+    ), at: [.i], into: &t)
     let a = try t.intern(.isaBound(0, .i))
     let eq = try t.intern(.isaConst(.primitive(.ifol(.eq)), memT, args: [a, a]))
     let member = try t.intern(.isaOfClass(.i, ifolTerm))
     #expect(got == (try t.intern(.ifolAll(.i, body: try t.intern(.folImplies(member, eq))))))
 }
 
-@Test func aClassFactIsAFormula() throws {
+@Test
+func aClassFactIsAFormula() throws {
     var t = Table()
     let got = try read(proofFile(frees: [], prop: ofclass(i, "IFOL.term")), into: &t)
     #expect(got == (try t.intern(.isaOfClass(.i, ifolTerm))))
 }
 
 /// Nothing is dropped, so a class with axioms reads like any other.
-@Test func aClassWithAxiomsReadsLikeAnyClass() throws {
+@Test
+func aClassWithAxiomsReadsLikeAnyClass() throws {
     var t = Table()
-    let got = try read(proofFile(tfrees: ["'a"], frees: [("a", typeA)],
-                                 prop: app(const("Pure.imp"), ofclass(typeA, "T.withAxioms"), refl)), at: [.i], into: &t)
-    guard case let .ifolAll(.i, body) = t[got], case let .folImplies(member, _) = t[body] else {
+    let got = try read(
+        proofFile(
+            tfrees: ["'a"],
+            frees: [("a", typeA)],
+            prop: app(const("Pure.imp"), ofclass(typeA, "T.withAxioms"), refl),
+        ),
+        at: [.i],
+        into: &t,
+    )
+    guard case .ifolAll(.i, let body) = t[got], case .folImplies(let member, _) = t[body] else {
         Issue.record("\(t[got])")
         return
     }
@@ -103,22 +126,32 @@ private let refl = trueprop(app(const("IFOL.eq", typeA), free("a"), free("a")))
 }
 
 /// `elim_format`'s `W :: prop` is a formula variable: Pure's `prop` reads as `o` (DESIGN §4.3).
-@Test func aMetaLevelPropositionalVariableReadsAsAFormulaVariable() throws {
+@Test
+func aMetaLevelPropositionalVariableReadsAsAFormulaVariable() throws {
     var t = Table()
-    let got = try read(proofFile(frees: [("a", i), ("A", i), ("W", prop)], prop: app(const("Pure.imp"), memAa, free("W"))), into: &t)
-    let mem = try t.intern(.isaConst(.primitive(.zf(.mem)), memT, args: [try t.intern(.isaBound(2, .i)), try t.intern(.isaBound(1, .i))]))
+    let got = try read(
+        proofFile(frees: [("a", i), ("A", i), ("W", prop)], prop: app(const("Pure.imp"), memAa, free("W"))),
+        into: &t,
+    )
+    let mem = try t.intern(.isaConst(
+        .primitive(.zf(.mem)),
+        memT,
+        args: [try t.intern(.isaBound(2, .i)), try t.intern(.isaBound(1, .i))],
+    ))
     let body = try t.intern(.folImplies(mem, try t.intern(.isaBound(0, .o))))
     let closed = try [IRType.o, .i, .i].reduce(body) { b, T in try t.intern(.ifolAll(T, body: b)) }
     #expect(got == closed)
 }
 
-@Test func aFactIndexIsSpelledAsAFinalSegment() throws {
+@Test
+func aFactIndexIsSpelledAsAFinalSegment() throws {
     #expect(try claimName("Arith.raw_add.simps(1)") == "Arith.raw_add.simps.1")
     #expect(try claimName("ZF_Base.CollectI") == "ZF_Base.CollectI")
     #expect(try claimName("QPair.qsum'(12)") == "QPair.qsum'.12")
 }
 
-@Test func aNameWithADigitInitialSegmentIsRefused() {
+@Test
+func aNameWithADigitInitialSegmentIsRefused() {
     #expect(throws: ReaderRefusal.nameSegment("T.3foo")) { try claimName("T.3foo") }
     #expect(throws: ReaderRefusal.nameSegment("T..foo")) { try claimName("T..foo") }
 }
@@ -140,28 +173,34 @@ private func zfBase(_ name: String, at types: [IRType] = []) throws -> (Table, N
     return (t, statement)
 }
 
-@Test func ballDefReadsEtaLongAsAnIff() throws {
+@Test
+func ballDefReadsEtaLongAsAnIff() throws {
     guard case (var t, let got)? = try zfBase("ZF_Base.Ball_def") else { return }
     let P = IRType.fn(.i, .o)
-    let x = try t.intern(.isaBound(0, .i)), A = try t.intern(.isaBound(1, .i)), AunderX = try t.intern(.isaBound(2, .i))
+    let x = try t.intern(.isaBound(0, .i))
+    let A = try t.intern(.isaBound(1, .i))
+    let AunderX = try t.intern(.isaBound(2, .i))
     let Px = try t.intern(.isaVarApp(head: try t.intern(.isaBound(1, P)), args: [x]))
-    let ball = try t.intern(.isaConst(defined(.zf, "ZF_Base.Ball", .object), .fn(.i, .fn(P, .o)), args: [A, try t.intern(.isaAbs(.i, body: Px))]))
+    let ball = try t.intern(.isaConst(
+        defined(.zf, "ZF_Base.Ball", .object),
+        .fn(.i, .fn(P, .o)),
+        args: [A, try t.intern(.isaAbs(.i, body: Px))],
+    ))
     let mem = try t.intern(.isaConst(.primitive(.zf(.mem)), memT, args: [x, AunderX]))
     let all = try t.intern(.ifolAll(.i, body: try t.intern(.folImplies(mem, Px))))
     let closed = try t.intern(.ifolAll(.i, body: try t.intern(.ifolAll(P, body: try t.intern(.folIff(ball, all))))))
     #expect(got == closed)
 }
 
-@Test func splitDefReadsAtAnInstance() throws {
-    guard try zfBase("ZF_Base.split_def", at: [.i]) != nil else {
-        Issue.record("split_def does not read at i")
-        return
-    }
+@Test
+func splitDefReadsAtAnInstance() throws {
+    try #require(try zfBase("ZF_Base.split_def", at: [.i]) != nil, "split_def does not read at i")
 }
 
-@Test func splitDefReadsAsStated() throws {
+@Test
+func splitDefReadsAsStated() throws {
     let a = IRType.variable("'a")
-    guard case let (t, root)? = try zfBase("ZF_Base.split_def", at: [a]) else {
+    guard case (let t, let root)? = try zfBase("ZF_Base.split_def", at: [a]) else {
         Issue.record("split_def does not read as stated")
         return
     }

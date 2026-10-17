@@ -5,8 +5,13 @@ typealias Body = [Ref]
 struct Decode {
     let forest: Forest
 
+    static func int(_ atom: String) throws -> Int {
+        guard let n = Int(atom) else { throw MalformedExport.notAnInt(atom) }
+        return n
+    }
+
     func node(_ t: Ref) throws -> Body {
-        guard case let .element(e) = forest[t], e.tag == ":", e.attributes.isEmpty else {
+        guard case .element(let e) = forest[t], e.tag == ":", e.attributes.isEmpty else {
             throw MalformedExport.notANode(tag: tag(t))
         }
         return e.children
@@ -15,13 +20,8 @@ struct Decode {
     func string(_ ts: Body) throws -> String {
         guard ts.count <= 1 else { throw MalformedExport.notAString }
         guard let t = ts.first else { return "" }
-        guard case let .text(s) = forest[t] else { throw MalformedExport.notAString }
+        guard case .text(let s) = forest[t] else { throw MalformedExport.notAString }
         return s
-    }
-
-    static func int(_ atom: String) throws -> Int {
-        guard let n = Int(atom) else { throw MalformedExport.notAnInt(atom) }
-        return n
     }
 
     func pair<A, B>(_ f: (Body) throws -> A, _ g: (Body) throws -> B, _ ts: Body) throws -> (A, B) {
@@ -35,7 +35,7 @@ struct Decode {
 
     func variant<A>(_ fs: [([String], Body) throws -> A], _ ts: Body) throws -> A {
         guard ts.count == 1 else { throw MalformedExport.bodyLength(expected: 1, found: ts.count) }
-        guard case let .element(e) = forest[ts[0]], let index = Int(e.tag), fs.indices.contains(index) else {
+        guard case .element(let e) = forest[ts[0]], let index = Int(e.tag), fs.indices.contains(index) else {
             throw MalformedExport.unknownVariant(tag: tag(ts[0]))
         }
         let names = e.attributes.map(\.name)
@@ -44,7 +44,7 @@ struct Decode {
     }
 
     func tag(_ t: Ref) -> String {
-        guard case let .element(e) = forest[t] else { return "" }
+        guard case .element(let e) = forest[t] else { return "" }
         return e.tag
     }
 }

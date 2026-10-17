@@ -1,22 +1,45 @@
-import Testing
 import IR
+import Testing
 
 private let i = IRType.i
 private let o = IRType.o
-private func fn(_ a: IRType, _ b: IRType) -> IRType { .fn(a, b) }
+private func fn(_ a: IRType, _ b: IRType) -> IRType {
+    .fn(a, b)
+}
+
 private let memT = fn(i, fn(i, o))
 
 private struct P {
     var t = Table()
-    mutating func b(_ k: Int) throws -> NodeID { try t.intern(.folBound(k)) }
-    mutating func pred(_ n: String, _ xs: NodeID...) throws -> NodeID { try t.intern(.folPred(.base(n), args: xs)) }
-    mutating func mem(_ a: NodeID, _ b: NodeID) throws -> NodeID { try t.intern(.isaConst(.primitive(.zf(.mem)), memT, args: [a, b])) }
-    mutating func hyp(_ k: Int, _ a: NodeID) throws -> NodeID { try t.intern(.hyp(k, a)) }
-    mutating func concl(_ s: NodeID) -> NodeID { t.conclusion(of: s)! }
+
+    mutating func b(_ k: Int) throws -> NodeID {
+        try t.intern(.folBound(k))
+    }
+
+    mutating func pred(_ n: String, _ xs: NodeID...) throws -> NodeID {
+        try t.intern(.folPred(.base(n), args: xs))
+    }
+
+    mutating func mem(_ a: NodeID, _ b: NodeID) throws -> NodeID {
+        try t.intern(.isaConst(
+            .primitive(.zf(.mem)),
+            memT,
+            args: [a, b],
+        ))
+    }
+
+    mutating func hyp(_ k: Int, _ a: NodeID) throws -> NodeID {
+        try t.intern(.hyp(k, a))
+    }
+
+    mutating func concl(_ s: NodeID) -> NodeID {
+        t.conclusion(of: s)!
+    }
 }
 
 /// A step constrains only its principal connective: `and_intro` over two isa statements is valid.
-@Test func anIntroductionTakesPremisesOfAnyDialect() throws {
+@Test
+func anIntroductionTakesPremisesOfAnyDialect() throws {
     var p = P()
     let a = try p.t.intern(.isaFree(.named("a"), i))
     let isaAtom = try p.mem(a, a)
@@ -27,7 +50,8 @@ private struct P {
 }
 
 /// An elimination consumes: its major premise must have the rule's connective at the top.
-@Test func anEliminationRefusesTheWrongPrincipalConnective() throws {
+@Test
+func anEliminationRefusesTheWrongPrincipalConnective() throws {
     var p = P()
     let set0 = try p.pred("set", try p.b(0))
     let premise = try p.hyp(0, set0)
@@ -37,9 +61,12 @@ private struct P {
     }
 }
 
-@Test func impliesElimMatchesTheAntecedentByID() throws {
+@Test
+func impliesElimMatchesTheAntecedentByID() throws {
     var p = P()
-    let a = try p.pred("A"), b = try p.pred("B"), c = try p.pred("C")
+    let a = try p.pred("A")
+    let b = try p.pred("B")
+    let c = try p.pred("C")
     let ab = try p.hyp(1, try p.t.intern(.folImplies(a, b)))
     #expect(p.concl(try p.t.intern(.folImpliesElim(ab, try p.hyp(0, a)))) == b)
     #expect(throws: TableError.premiseMismatch(expected: a, found: c)) {
@@ -47,9 +74,12 @@ private struct P {
     }
 }
 
-@Test func eachRuleConcludesWhatTheCheckerDerives() throws {
+@Test
+func eachRuleConcludesWhatTheCheckerDerives() throws {
     var p = P()
-    let a = try p.pred("A"), b = try p.pred("B"), bottom = try p.t.intern(.folBottom)
+    let a = try p.pred("A")
+    let b = try p.pred("B")
+    let bottom = try p.t.intern(.folBottom)
     let notA = try p.t.intern(.folNot(a))
     let ha = try p.hyp(0, a)
     #expect(p.concl(try p.t.intern(.folImpliesIntro(a, body: ha))) == (try p.t.intern(.folImplies(a, a))))
@@ -60,7 +90,10 @@ private struct P {
     let contra = try p.t.intern(.folNotElim(try p.hyp(1, notA), ha))
     #expect(p.concl(contra) == bottom)
     #expect(p.concl(try p.t.intern(.folNotIntro(a, body: contra))) == (try p.t.intern(.folNot(a))))
-    #expect(p.concl(try p.t.intern(.folClassicalAbsurd(a, body: try p.t.intern(.folNotElim(try p.hyp(0, notA), try p.hyp(1, a)))))) == a)
+    #expect(p.concl(try p.t.intern(.folClassicalAbsurd(
+        a,
+        body: try p.t.intern(.folNotElim(try p.hyp(0, notA), try p.hyp(1, a))),
+    ))) == a)
     #expect(p.concl(try p.t.intern(.folBottomElim(try p.hyp(0, bottom), b))) == b)
     let aa = try p.t.intern(.folImpliesIntro(a, body: ha))
     let iff = try p.t.intern(.folIffIntro(aa, aa))
@@ -74,18 +107,23 @@ private struct P {
 }
 
 /// A citation's types are part of what it is: one statement cited at two instances is two steps.
-@Test func aCitationCarriesItsTypes() throws {
+@Test
+func aCitationCarriesItsTypes() throws {
     var p = P()
     let root = try p.pred("A")
-    let atI = try p.t.intern(.use(.theorem("thm"), [i], root)), atO = try p.t.intern(.use(.theorem("thm"), [o], root))
+    let atI = try p.t.intern(.use(.theorem("thm"), [i], root))
+    let atO = try p.t.intern(.use(.theorem("thm"), [o], root))
     #expect(atI != atO)
     #expect(p.concl(atI) == root)
 }
 
-@Test func aTypeVariableTypesNodesLikeAnyType() throws {
+@Test
+func aTypeVariableTypesNodesLikeAnyType() throws {
     var p = P()
-    let a = IRType.variable("'a"), eqT = fn(a, fn(a, o))
-    let x = try p.t.intern(.isaBound(0, a)), y = try p.t.intern(.isaFree(.named("y"), a))
+    let a = IRType.variable("'a")
+    let eqT = fn(a, fn(a, o))
+    let x = try p.t.intern(.isaBound(0, a))
+    let y = try p.t.intern(.isaFree(.named("y"), a))
     let xx = try p.t.intern(.isaConst(.primitive(.ifol(.eq)), eqT, args: [x, x]))
     let yy = try p.t.intern(.isaConst(.primitive(.ifol(.eq)), eqT, args: [y, y]))
     let all = try p.hyp(0, try p.t.intern(.ifolAll(a, body: xx)))
@@ -95,7 +133,8 @@ private struct P {
 }
 
 /// A term binder's body proves φ with the bound variable loose at 0: no fixed variable exists.
-@Test func quantifierStepsWorkOnLooseIndices() throws {
+@Test
+func quantifierStepsWorkOnLooseIndices() throws {
     var p = P()
     let set0 = try p.pred("set", try p.b(0))
     let all = try p.t.intern(.folForall(body: set0))
@@ -111,7 +150,8 @@ private struct P {
 }
 
 /// `∃ intro` abstracts every occurrence of the witness; `∃ elim`'s conclusion may not mention it.
-@Test func existentialStepsAbstractAndGuardTheWitness() throws {
+@Test
+func existentialStepsAbstractAndGuardTheWitness() throws {
     var p = P()
     let elem01 = try p.pred("elem", try p.b(0), try p.b(1))
     let intro = try p.t.intern(.folExistsIntro(try p.hyp(0, elem01), try p.b(0)))
@@ -125,11 +165,15 @@ private struct P {
     }
 }
 
-/// Before fol, `∃` at an isa binder is the isa steps': a witness `isaBound(k, T)` concludes `ifolEx(T, …)`, which the isa
+/// Before fol, `∃` at an isa binder is the isa steps': a witness `isaBound(k, T)` concludes `ifolEx(T, …)`, which the
+/// isa
 /// `∃ elim` at `T` opens. Fol-zfc's own steps keep fol-zfc's binder, whatever the witness: Fol guards only the first.
-@Test func existentialStepsAtAnIsaBinderAreTheIsaSteps() throws {
+@Test
+func existentialStepsAtAnIsaBinderAreTheIsaSteps() throws {
     var p = P()
-    let x0 = try p.t.intern(.isaBound(0, i)), x1 = try p.t.intern(.isaBound(1, i)), x2 = try p.t.intern(.isaBound(2, i))
+    let x0 = try p.t.intern(.isaBound(0, i))
+    let x1 = try p.t.intern(.isaBound(1, i))
+    let x2 = try p.t.intern(.isaBound(2, i))
     let elem01 = try p.pred("elem", x0, x1)
     let intro = try p.t.intern(.isaExIntro(try p.hyp(0, elem01), x0))
     #expect(p.concl(intro) == (try p.t.intern(.ifolEx(i, body: try p.pred("elem", x0, x2)))))
@@ -147,7 +191,8 @@ private struct P {
     }
 }
 
-@Test func theIsaQuantifierStepsTypeTheirTerm() throws {
+@Test
+func theIsaQuantifierStepsTypeTheirTerm() throws {
     var p = P()
     let a = try p.t.intern(.isaFree(.named("a"), i))
     let body = try p.mem(try p.t.intern(.isaBound(0, i)), a)
@@ -165,7 +210,8 @@ private struct P {
 }
 
 /// η-long is the one canonical form: a function-typed term is a λ, here as in every argument position.
-@Test func isaAllElimAtAFunctionTypeTakesAnAbstraction() throws {
+@Test
+func isaAllElimAtAFunctionTypeTakesAnAbstraction() throws {
     var p = P()
     let a = try p.t.intern(.isaFree(.named("a"), i))
     let applied = try p.t.intern(.isaVarApp(head: try p.t.intern(.isaBound(0, fn(i, o))), args: [a]))
@@ -178,7 +224,8 @@ private struct P {
     #expect(p.concl(try p.t.intern(.isaAllElim(try p.hyp(0, all), lambda))) == (try p.mem(a, a)))
 }
 
-@Test func aStepIsNotAFormulaAndAFormulaIsNotAStep() throws {
+@Test
+func aStepIsNotAFormulaAndAFormulaIsNotAStep() throws {
     var p = P()
     let a = try p.pred("A")
     let step = try p.hyp(0, a)
@@ -191,33 +238,48 @@ private struct P {
 /// The DESIGN.md §4.7 example: once the citation's signature is lowered, `isaAllElim` on it is
 /// invalid, so `after` must rewrite it before `intern` sees it. Its conclusion is unchanged.
 private struct LowerCitationThenElimination: Rule {
-    let isaRoot: NodeID, folRoot: NodeID
-    func after(_ n: Node, was id: NodeID, context depth: Depth, in t: inout Table) throws -> NodeID? {
-        if case let .use(cited, types, root) = n, root == isaRoot { return try t.intern(.use(cited, types, folRoot)) }
-        guard case let .isaAllElim(p, x) = n, case let .folForall(body)? = t.conclusion(of: p).map({ t[$0] }),
-              case let .folImplies(guardFormula, _) = t[body] else { return nil }
+    let isaRoot: NodeID
+    let folRoot: NodeID
+
+    func after(_ n: Node, was _: NodeID, context _: Depth, in t: inout Table) throws -> NodeID? {
+        if case .use(let cited, let types, let root) = n, root == isaRoot { return try t.intern(.use(
+            cited,
+            types,
+            folRoot,
+        )) }
+        guard
+            case .isaAllElim(let p, let x) = n, case .folForall(let body)? = t.conclusion(of: p).map({ t[$0] }),
+            case .folImplies(let guardFormula, _) = t[body]
+        else { return nil }
         let guardHere = try instantiate(guardFormula, with: x, in: &t)
         let elim = try t.intern(.folForallElim(p, x))
         return try t.intern(.folImpliesElim(elim, try t.intern(.hyp(0, guardHere))))
     }
 }
 
-@Test func afterRewritesAStepOnceItsPremisesAreRewritten() throws {
+@Test
+func afterRewritesAStepOnceItsPremisesAreRewritten() throws {
     var p = P()
     let A = try p.t.intern(.isaFree(.named("A"), i))
     let memBody = try p.mem(try p.t.intern(.isaBound(0, i)), A)
     let isaRoot = try p.t.intern(.ifolAll(i, body: memBody))
-    let folRoot = try p.t.intern(.folForall(body: try p.t.intern(.folImplies(try p.pred("set", try p.b(0)), try p.mem(try p.b(0), A)))))
+    let folRoot = try p.t.intern(.folForall(body: try p.t.intern(.folImplies(
+        try p.pred("set", try p.b(0)),
+        try p.mem(try p.b(0), A),
+    ))))
     let x = try p.b(0)
     let before = try p.t.intern(.isaAllElim(try p.t.intern(.use(.theorem("thm"), [], isaRoot)), x))
     let concluded = p.concl(before)
     let after = try transform(before, LowerCitationThenElimination(isaRoot: isaRoot, folRoot: folRoot), in: &p.t)
     #expect(after != before)
     #expect(p.t.conclusion(of: after) == concluded, "the rewritten step concludes the same statement")
-    guard case .folImpliesElim = p.t[after] else { Issue.record("not rewritten: \(p.t[after])"); return }
+    guard case .folImpliesElim = p.t[after] else { Issue.record("not rewritten: \(p.t[after])")
+        return
+    }
 }
 
-@Test func legalizeRefusesAnIsaStep() throws {
+@Test
+func legalizeRefusesAnIsaStep() throws {
     var p = P()
     let set0 = try p.pred("set", try p.b(0))
     let step = try p.t.intern(.isaAllIntro(i, body: try p.hyp(0, set0)))

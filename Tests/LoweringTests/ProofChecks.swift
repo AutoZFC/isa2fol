@@ -1,40 +1,57 @@
-import Foundation
-import Testing
-import IR
 import FolDialect
+import Foundation
+import IR
 import Lowering
+import Testing
 
-/// Every `hyp(k, a)` against the assumption it names, shifted by the term binders between: the table computes each step's
+/// Every `hyp(k, a)` against the assumption it names, shifted by the term binders between: the table computes each
+/// step's
 /// conclusion but never compares a hypothesis with its binder, so a wrong one would surface only at the kernel.
 func misscoped(_ proof: NodeID, in t: Table) throws -> [NodeID] {
-    struct Assumed: Hashable { let formula: NodeID; let depth: Int }
-    struct Visit: Hashable { let id: NodeID; let assumed: [Assumed]; let depth: Int }
-    var wrong: [NodeID] = [], seen: Set<Visit> = []
+    struct Assumed: Hashable { let formula: NodeID
+        let depth: Int
+    }
+    struct Visit: Hashable { let id: NodeID
+        let assumed: [Assumed]
+        let depth: Int
+    }
+    var wrong = [NodeID]()
+    var seen = Set<Visit>()
     func walk(_ id: NodeID, _ assumed: [Assumed], _ depth: Int, _ t: inout Table) throws {
         guard seen.insert(Visit(id: id, assumed: assumed, depth: depth)).inserted else { return }
         switch t[id] {
-        case let .hyp(k, a):
-            guard k < assumed.count else { wrong.append(id); return }
+        case .hyp(let k, let a):
+            guard k < assumed.count else { wrong.append(id)
+                return
+            }
             let h = assumed[assumed.count - 1 - k]
             if try shift(h.formula, by: depth - h.depth, in: &t) != a { wrong.append(id) }
-        case let .folImpliesIntro(a, body), let .folNotIntro(a, body):
+
+        case .folImpliesIntro(let a, let body), .folNotIntro(let a, let body):
             try walk(body, assumed + [Assumed(formula: a, depth: depth)], depth, &t)
-        case let .folClassicalAbsurd(a, body):
+
+        case .folClassicalAbsurd(let a, let body):
             try walk(body, assumed + [Assumed(formula: try t.intern(.folNot(a)), depth: depth)], depth, &t)
-        case let .isaExElim(_, p, body), let .folExistsElim(p, body):
+
+        case .isaExElim(_, let p, let body), .folExistsElim(let p, let body):
             try walk(p, assumed, depth, &t)
-            guard let c = t.conclusion(of: p) else { wrong.append(id); return }
+            guard let c = t.conclusion(of: p) else { wrong.append(id)
+                return
+            }
             switch t[c] {
-            case let .ifolEx(_, inner), let .folExists(inner):
+            case .ifolEx(_, let inner), .folExists(let inner):
                 try walk(body, assumed + [Assumed(formula: inner, depth: depth + 1)], depth + 1, &t)
             default: wrong.append(id)
             }
-        case let .isaAllIntro(_, body), let .folForallIntro(body):
+
+        case .isaAllIntro(_, let body), .folForallIntro(let body):
             try walk(body, assumed, depth + 1, &t)
+
         case .use:
             return
+
         default:
-            var children: [NodeID] = []
+            var children = [NodeID]()
             t[id].forEachChild { c, _ in children.append(c) }
             for c in children where t.conclusion(of: c) != nil { try walk(c, assumed, depth, &t) }
         }
@@ -71,9 +88,12 @@ private let baseLibraries = Result { () throws -> URL in
 
 /// Each claim, lowered by Fol, and each definition emitted as one part and checked by `check-unit.sh` against base's
 /// libraries: valid only when every claim is Proved, exit 0, stderr empty.
-func kernelChecks(_ claims: [(name: String, root: NodeID, proof: NodeID)], definitions: [(Defined, NodeID)] = [],
-                  in t: inout Table) throws {
-    var statements: [Statement] = []
+func kernelChecks(
+    _ claims: [(name: String, root: NodeID, proof: NodeID)],
+    definitions: [(Defined, NodeID)] = [],
+    in t: inout Table,
+) throws {
+    var statements = [Statement]()
     for (c, root) in definitions {
         statements.append(Statement(defining: c, root: try Fol().run([root], [], in: &t)[0]))
     }

@@ -1,7 +1,8 @@
 import Foundation
 import IR
 
-@frozen public enum EmitError: Error, Equatable, Sendable {
+@frozen
+public enum EmitError: Error, Equatable, Sendable {
     case declaredByBase(String)
     case noTheory(String)
     case unproved(String)
@@ -35,10 +36,18 @@ public struct Emission: Sendable {
 
 public let defaultPartBytes = 1 << 26
 
-public func emit(_ unit: IR.Unit, to directory: URL, base texts: [String], partBytes: Int = defaultPartBytes) throws -> Emission {
-    let t = unit.table, statements = unit.statements
+public func emit(
+    _ unit: IR.Unit,
+    to directory: URL,
+    base texts: [String],
+    partBytes: Int = defaultPartBytes,
+) throws -> Emission {
+    let t = unit.table
+    let statements = unit.statements
     let declared = declaredNames(from: texts)
-    if let clash = statements.first(where: { declared.contains($0.name) }) { throw EmitError.declaredByBase(clash.name) }
+    if
+        let clash = statements
+            .first(where: { declared.contains($0.name) }) { throw EmitError.declaredByBase(clash.name) }
     var letters = schemaLetters(from: texts)
     for s in statements where s.defines == nil {
         let k = spineLetters(s.root, in: t)
@@ -51,12 +60,16 @@ public func emit(_ unit: IR.Unit, to directory: URL, base texts: [String], partB
     let sequence = inOrder(cites, partOf, parts: theories.count)
 
     try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-    var chunks: [Chunk] = [], chunkOf = Array(repeating: 0, count: statements.count), report: [EmittedStatement] = []
-    var trees: [NodeID: Int] = [:], files: Files?
+    var chunks = [Chunk]()
+    var chunkOf = Array(repeating: 0, count: statements.count)
+    var report = [EmittedStatement]()
+    var trees = [NodeID: Int]()
+    var files: Files?
     for (p, theory) in theories.enumerated() {
         var pieces = 0
         for k in sequence[p] {
-            let s = statements[k], d = declaration(s, letters)
+            let s = statements[k]
+            let d = declaration(s, letters)
             if s.defines == nil && s.proof == nil { throw EmitError.unproved(s.name) }
             let head = try render(d, in: t) + "\n"
             let body = try s.proof.map { try rendered(proof: $0, of: d, in: t, letters: letters) }
@@ -73,27 +86,42 @@ public func emit(_ unit: IR.Unit, to directory: URL, base texts: [String], partB
             chunks[c].add(d, bytes)
             chunks[c].statements.append(k)
             chunkOf[k] = c
-            report.append(EmittedStatement(name: s.name, part: chunks[c].name, written: body?.steps ?? 0,
-                                           tree: s.proof.map { treeSteps($0, t, &trees) } ?? 0,
-                                           dag: s.proof.map { dagSteps($0, t) } ?? 0))
+            report.append(EmittedStatement(
+                name: s.name,
+                part: chunks[c].name,
+                written: body?.steps ?? 0,
+                tree: s.proof.map { treeSteps($0, t, &trees) } ?? 0,
+                dag: s.proof.map { dagSteps($0, t) } ?? 0,
+            ))
         }
     }
     try files?.close()
 
-    var closure: [Set<Int>] = [], parts: [EmittedPart] = [], listing = ""
+    var closure = [Set<Int>]()
+    var parts = [EmittedPart]()
+    var listing = ""
     for (x, chunk) in chunks.enumerated() {
-        var loads: Set<Int> = []
+        var loads = Set<Int>()
         for k in chunk.statements {
             for c in cites[k] where chunkOf[c] != x {
-                guard chunkOf[c] < x else { throw EmitError.citesLater(name: statements[k].name, cited: statements[c].name) }
+                guard chunkOf[c] < x else { throw EmitError.citesLater(
+                    name: statements[k].name,
+                    cited: statements[c].name,
+                ) }
                 loads.insert(chunkOf[c])
                 loads.formUnion(closure[chunkOf[c]])
             }
         }
         closure.append(loads)
         let names = loads.sorted().map { chunks[$0].name }
-        parts.append(EmittedPart(name: chunk.name, loads: names, claims: chunk.claims, schemas: chunk.schemas,
-                                 definitions: chunk.definitions, bytes: chunk.bytes))
+        parts.append(EmittedPart(
+            name: chunk.name,
+            loads: names,
+            claims: chunk.claims,
+            schemas: chunk.schemas,
+            definitions: chunk.definitions,
+            bytes: chunk.bytes,
+        ))
         listing += chunk.name + ":" + names.map { " " + $0 }.joined() + "\n"
     }
     try listing.write(to: directory.appendingPathComponent("parts"), atomically: true, encoding: .utf8)
@@ -102,10 +130,11 @@ public func emit(_ unit: IR.Unit, to directory: URL, base texts: [String], partB
 
 private struct Chunk {
     let name: String
-    var statements: [Int] = []
-    var claims = 0, schemas = 0, definitions = 0, bytes = 0
-
-    init(name: String) { self.name = name }
+    var statements = [Int]()
+    var claims = 0
+    var schemas = 0
+    var definitions = 0
+    var bytes = 0
 
     mutating func add(_ d: Declaration, _ size: Int) {
         switch d.kind {
@@ -118,16 +147,17 @@ private struct Chunk {
 }
 
 private struct Files {
-    let definitions: FileHandle
-    let proofs: FileHandle
-
     init(_ directory: URL, _ name: String) throws {
-        let def = directory.appendingPathComponent(name + ".fol.def"), proof = directory.appendingPathComponent(name + ".fol.proof")
+        let def = directory.appendingPathComponent(name + ".fol.def")
+        let proof = directory.appendingPathComponent(name + ".fol.proof")
         try Data().write(to: def)
         try Data().write(to: proof)
         definitions = try FileHandle(forWritingTo: def)
         proofs = try FileHandle(forWritingTo: proof)
     }
+
+    let definitions: FileHandle
+    let proofs: FileHandle
 
     func write(_ head: String, _ text: String) throws {
         try definitions.write(contentsOf: Data(head.utf8))
@@ -147,10 +177,11 @@ private func declaration(_ s: Statement, _ letters: [String: [String]]) -> Decla
 }
 
 private func citations(_ statements: [Statement], _ t: Table) throws -> [[Int]] {
-    var index: [String: Int] = [:]
+    var index = [String: Int]()
     for (k, s) in statements.enumerated() { index[s.name] = k }
     return try statements.map { s in
-        var found: [Int] = [], seen: Set<Int> = []
+        var found = [Int]()
+        var seen = Set<Int>()
         for name in cited(by: s, in: t) {
             guard let k = index[name] else { throw EmitError.citesNothing(name: s.name, cited: name) }
             if seen.insert(k).inserted { found.append(k) }
@@ -159,10 +190,12 @@ private func citations(_ statements: [Statement], _ t: Table) throws -> [[Int]] 
     }
 }
 
-private func isTheorem(_ s: Statement) -> Bool { s.lemma == nil && s.defines == nil }
+private func isTheorem(_ s: Statement) -> Bool {
+    s.lemma == nil && s.defines == nil
+}
 
 private func theoryOrder(_ statements: [Statement], _ cites: [[Int]]) throws -> [String] {
-    var needs: [String: Set<String>] = [:]
+    var needs = [String: Set<String>]()
     for (k, s) in statements.enumerated() where isTheorem(s) {
         guard let theory = s.theory else { throw EmitError.noTheory(s.name) }
         needs[theory, default: []].formUnion(cites[k].compactMap { c in
@@ -170,7 +203,9 @@ private func theoryOrder(_ statements: [Statement], _ cites: [[Int]]) throws -> 
             return isTheorem(cited) && cited.theory != theory ? cited.theory : nil
         })
     }
-    var order: [String] = [], placed: Set<String> = [], remaining = needs.keys.sorted()
+    var order = [String]()
+    var placed = Set<String>()
+    var remaining = needs.keys.sorted()
     while !remaining.isEmpty {
         guard let next = remaining.firstIndex(where: { needs[$0, default: []].isSubset(of: placed) }) else {
             throw EmitError.theoriesCiteEachOther(remaining)
@@ -185,20 +220,21 @@ private func theoryOrder(_ statements: [Statement], _ cites: [[Int]]) throws -> 
 private let uncited = "_uncited"
 
 private func placed(_ statements: [Statement], _ cites: [[Int]], _ theories: [String]) throws -> [Int] {
-    var rank: [String: Int] = [:]
+    var rank = [String: Int]()
     for (k, theory) in theories.enumerated() { rank[theory] = k }
     var citers = Array(repeating: [Int](), count: statements.count)
     for (k, cs) in cites.enumerated() {
         for c in cs { citers[c].append(k) }
     }
-    var partOf = Array(repeating: -1, count: statements.count), pending = citers.map(\.count)
+    var partOf = Array(repeating: -1, count: statements.count)
+    var pending = citers.map(\.count)
     var ready = Array((0..<statements.count).filter { pending[$0] == 0 }.reversed())
     while let k = ready.popLast() {
         let s = statements[k]
         if isTheorem(s), let theory = s.theory, let p = rank[theory] {
             partOf[k] = p
         } else {
-            partOf[k] = citers[k].map({ partOf[$0] }).min() ?? theories.count
+            partOf[k] = citers[k].map { partOf[$0] }.min() ?? theories.count
         }
         for c in cites[k] {
             pending[c] -= 1
@@ -215,7 +251,8 @@ private func placed(_ statements: [Statement], _ cites: [[Int]], _ theories: [St
 }
 
 private func inOrder(_ cites: [[Int]], _ partOf: [Int], parts: Int) -> [[Int]] {
-    var visited = Array(repeating: false, count: cites.count), sequence = Array(repeating: [Int](), count: parts)
+    var visited = Array(repeating: false, count: cites.count)
+    var sequence = Array(repeating: [Int](), count: parts)
     for start in cites.indices where !visited[start] {
         visited[start] = true
         var stack = [(statement: start, next: 0)]
@@ -223,7 +260,7 @@ private func inOrder(_ cites: [[Int]], _ partOf: [Int], parts: Int) -> [[Int]] {
             if i < cites[k].count {
                 stack[stack.count - 1].next += 1
                 let c = cites[k][i]
-                if !visited[c] && partOf[c] == partOf[k] {
+                if !visited[c], partOf[c] == partOf[k] {
                     visited[c] = true
                     stack.append((c, 0))
                 }
@@ -243,7 +280,7 @@ private func writesALine(_ id: NodeID, _ t: Table) -> Bool {
 }
 
 private func proofChildren(_ id: NodeID, _ t: Table) -> [NodeID] {
-    var children: [NodeID] = []
+    var children = [NodeID]()
     t[id].forEachChild { c, _ in if t.conclusion(of: c) != nil { children.append(c) } }
     return children
 }
@@ -260,7 +297,9 @@ private func treeSteps(_ id: NodeID, _ t: Table, _ memo: inout [NodeID: Int]) ->
 }
 
 private func dagSteps(_ id: NodeID, _ t: Table) -> Int {
-    var seen: Set<NodeID> = [], work = [id], count = 0
+    var seen = Set<NodeID>()
+    var work = [id]
+    var count = 0
     while let x = work.popLast() {
         guard seen.insert(x).inserted else { continue }
         if writesALine(x, t) { count += 1 }

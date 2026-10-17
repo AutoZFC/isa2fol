@@ -11,13 +11,16 @@ enum Binder: Hashable {
 }
 
 struct Chain {
-    private(set) var binders: [Binder] = []
-    private(set) var constraints: [NodeID?] = []
-    private let opened: (variables: [NodeID], shift: Int)?
+    init() {
+        opened = nil
+    }
 
-    init() { opened = nil }
+    init(opened variables: [NodeID], shift: Int) {
+        opened = (variables, shift)
+    }
 
-    init(opened variables: [NodeID], shift: Int) { opened = (variables, shift) }
+    private(set) var binders = [Binder]()
+    private(set) var constraints = [NodeID?]()
 
     mutating func bind(_ b: Binder) -> Ref {
         binders.append(b)
@@ -26,16 +29,16 @@ struct Chain {
     }
 
     mutating func constrain(_ r: Ref, _ constraint: NodeID) {
-        guard case let .bound(k) = r else { return }
+        guard case .bound(let k) = r else { return }
         constraints[k] = constraint
     }
 
     func here(_ r: Ref, in t: inout Table) throws -> NodeID {
         switch (r, opened) {
-        case let (.outer(x), o?): return try shift(x, by: o.shift, in: &t)
-        case let (.bound(k), o?): return o.variables[k]
-        case let (.outer(x), nil): return try shift(x, by: binders.count, in: &t)
-        case let (.bound(k), nil):
+        case (.outer(let x), let o?): return try shift(x, by: o.shift, in: &t)
+        case (.bound(let k), let o?): return o.variables[k]
+        case (.outer(let x), nil): return try shift(x, by: binders.count, in: &t)
+        case (.bound(let k), nil):
             let d = binders.count - 1 - k
             return try t.intern(binders[k] == .set ? .isaBound(d, .i) : .folBound(d))
         }
@@ -66,8 +69,13 @@ struct Chain {
         }
     }
 
-    private func folded(_ core: NodeID, in t: inout Table,
-                        _ wrap: (Binder, NodeID, NodeID, inout Table) throws -> NodeID) throws -> NodeID {
+    private let opened: (variables: [NodeID], shift: Int)?
+
+    private func folded(
+        _ core: NodeID,
+        in t: inout Table,
+        _ wrap: (Binder, NodeID, NodeID, inout Table) throws -> NodeID,
+    ) throws -> NodeID {
         var body = core
         for k in binders.indices.reversed() {
             guard let constraint = constraints[k] else { throw ChainError.unconstrained(k) }
@@ -77,6 +85,7 @@ struct Chain {
     }
 }
 
-@frozen public enum ChainError: Error, Equatable, Sendable {
+@frozen
+public enum ChainError: Error, Equatable, Sendable {
     case unconstrained(Int)
 }

@@ -1,7 +1,8 @@
 import Foundation
 import IR
 
-@frozen public enum ParseError: Error, Equatable, Sendable {
+@frozen
+public enum ParseError: Error, Equatable, Sendable {
     case notASchema(String)
     case notAClaim(String)
     case letterArity(String)
@@ -15,7 +16,7 @@ public func parse(schema line: String, in t: inout Table) throws -> (name: Strin
     var p = Parser(tokens: try tokens(line))
     guard p.take() == "schema", let name = p.take(), isName(name) else { throw ParseError.notASchema(line) }
     try p.expect("[")
-    var letters: [(name: String, arity: Int)] = []
+    var letters = [(name: String, arity: Int)]()
     while true {
         guard let letter = p.take(), isName(letter) else { throw ParseError.notASchema(line) }
         try p.expect("(")
@@ -36,10 +37,13 @@ public func parse(schema line: String, in t: inout Table) throws -> (name: Strin
 }
 
 public func schemaLetters(from texts: [String]) -> [String: [String]] {
-    var found: [String: [String]] = [:]
+    var found = [String: [String]]()
     for text in texts {
         for line in text.split(separator: "\n").map(String.init) where line.hasPrefix("schema ") {
-            guard let tokens = try? tokens(line), tokens.count > 2, tokens[2] == "[", let close = tokens.firstIndex(of: "]") else { continue }
+            guard
+                let tokens = try? tokens(line), tokens.count > 2, tokens[2] == "[",
+                let close = tokens.firstIndex(of: "]")
+            else { continue }
             found[tokens[1]] = stride(from: 3, to: close, by: 5).map { tokens[$0] }
         }
     }
@@ -49,7 +53,7 @@ public func schemaLetters(from texts: [String]) -> [String: [String]] {
 public func parse(claim line: String, in t: inout Table) throws -> (name: String, root: NodeID) {
     guard let (kind, name) = statementName(line), kind != .schema else { throw ParseError.notAClaim(line) }
     var p = Parser(tokens: try tokens(line))
-    while let token = p.take(), token != ":" {}
+    while let token = p.take(), token != ":" { }
     let body = try p.formula(Scope(letters: []), in: &t)
     if let rest = p.take() { throw ParseError.unexpected(rest) }
     return (name, body)
@@ -57,14 +61,14 @@ public func parse(claim line: String, in t: inout Table) throws -> (name: String
 
 public func parse(statements names: [String], from texts: [String], in t: inout Table) throws -> [String: NodeID] {
     let wanted = Set(names)
-    var lines: [String: (Kind, String)] = [:]
+    var lines = [String: (Kind, String)]()
     for text in texts {
         for line in text.split(separator: "\n").map(String.init) {
             guard let (kind, name) = statementName(line), wanted.contains(name) else { continue }
             guard lines.updateValue((kind, line), forKey: name) == nil else { throw ParseError.duplicate(name) }
         }
     }
-    var parsed: [String: NodeID] = [:]
+    var parsed = [String: NodeID]()
     for name in names {
         guard let (kind, line) = lines[name] else { throw ParseError.missing(name) }
         parsed[name] = try (kind == .schema ? parse(schema: line, in: &t) : parse(claim: line, in: &t)).root
@@ -73,7 +77,7 @@ public func parse(statements names: [String], from texts: [String], in t: inout 
 }
 
 public func declaredNames(from texts: [String]) -> Set<String> {
-    var names: Set<String> = []
+    var names = Set<String>()
     for text in texts {
         for line in text.split(separator: "\n") {
             if let (_, name) = statementName(String(line)) { names.insert(name) }
@@ -89,21 +93,29 @@ private func statementName(_ line: String) -> (Kind, String)? {
     guard let first = words.first else { return nil }
     switch first {
     case "schema": return words.count > 1 ? (.schema, words[1]) : nil
-    case "claim", "axiom": return words.count > 1 && words[1].hasSuffix(":") ? (.claim, String(words[1].dropLast())) : nil
+
+    case "claim", "axiom": return words.count > 1 && words[1].hasSuffix(":")
+        ? (.claim, String(words[1].dropLast()))
+        : nil
+
     default:
-        guard first.hasPrefix("@def("), words.count > 2, words[1] == "axiom", words[2].hasSuffix(":") else { return nil }
+        guard
+            first.hasPrefix("@def("), words.count > 2, words[1] == "axiom",
+            words[2].hasSuffix(":")
+        else { return nil }
         return (.claim, String(words[2].dropLast()))
     }
 }
 
 private struct Scope {
     let letters: [(name: String, arity: Int)]
-    var variables: [(name: String, set: Bool)] = []
+    var variables = [(name: String, set: Bool)]()
 }
 
 public func baseTexts(_ directory: URL) throws -> [String] {
     let tiers = directory.appendingPathComponent("tiers")
-    let files = try FileManager.default.contentsOfDirectory(atPath: tiers.path).filter { $0.hasSuffix(".fol.def") }.sorted()
+    let files = try FileManager.default.contentsOfDirectory(atPath: tiers.path).filter { $0.hasSuffix(".fol.def") }
+        .sorted()
     return try ([directory.appendingPathComponent("axioms.fol.def")] + files.map { tiers.appendingPathComponent($0) })
         .map { try String(contentsOf: $0, encoding: .utf8) }
 }
@@ -137,15 +149,19 @@ private struct Parser {
             let inner = try formula(s, in: &t)
             try expect(")")
             return inner
+
         case "~":
             return try t.intern(.folNot(try unary(s, in: &t)))
+
         case "false":
             return try t.intern(.folBottom)
+
         case "forall", "exists":
             guard let bound = take(), bound.hasSuffix("."), isName(String(bound.dropLast())) else {
                 throw ParseError.unexpected(token)
             }
-            let name = String(bound.dropLast()), guarded = ["(", "set", "(", name, ")", token == "forall" ? "->" : "&"]
+            let name = String(bound.dropLast())
+            let guarded = ["(", "set", "(", name, ")", token == "forall" ? "->" : "&"]
             var inner = s
             guard Array(tokens.dropFirst(at).prefix(guarded.count)) == guarded else {
                 inner.variables.append((name, false))
@@ -157,6 +173,7 @@ private struct Parser {
             let body = try unary(inner, in: &t)
             try expect(")")
             return try t.intern(token == "forall" ? .ifolAll(.i, body: body) : .ifolEx(.i, body: body))
+
         default:
             let letter = s.letters.firstIndex { $0.name == token }
             let index = letter.map { s.variables.count + s.letters.count - 1 - $0 }
@@ -165,7 +182,7 @@ private struct Parser {
                 throw isName(token) ? ParseError.unknownName(token) : ParseError.unexpected(token)
             }
             at += 1
-            var args: [NodeID] = []
+            var args = [NodeID]()
             while true {
                 guard let name = take(), let k = s.variables.lastIndex(where: { $0.name == name }) else {
                     throw ParseError.unknownName(tokens[at - 1])
@@ -188,16 +205,21 @@ private func predicate(_ name: String) -> IR.Predicate {
 }
 
 private let binary: [String: (NodeID, NodeID) -> Node] = [
-    "->": { .folImplies($0, $1) }, "<->": { .folIff($0, $1) }, "&": { .folAnd($0, $1) }, "|": { .folOr($0, $1) },
+    "->": { .folImplies($0, $1) },
+    "<->": { .folIff($0, $1) },
+    "&": { .folAnd($0, $1) },
+    "|": { .folOr($0, $1) },
 ]
 
 private func isName(_ s: String) -> Bool {
     guard let first = s.unicodeScalars.first, CharacterSet.letters.contains(first) || first == "_" else { return false }
-    return s.unicodeScalars.allSatisfy { CharacterSet.alphanumerics.contains($0) || $0 == "_" || $0 == "'" || $0 == "." }
+    return s.unicodeScalars
+        .allSatisfy { CharacterSet.alphanumerics.contains($0) || $0 == "_" || $0 == "'" || $0 == "." }
 }
 
 private func tokens(_ line: String) throws -> [String] {
-    var found: [String] = [], word = ""
+    var found = [String]()
+    var word = ""
     var chars = Array(line)[...]
     func flush() {
         if !word.isEmpty { found.append(word) }
@@ -207,7 +229,10 @@ private func tokens(_ line: String) throws -> [String] {
         if c.isWhitespace {
             flush()
             chars = chars.dropFirst()
-        } else if let symbol = ["<->", "->", "(", ")", "[", "]", ",", ":", "~", "&", "|"].first(where: { chars.starts(with: $0) }) {
+        } else if
+            let symbol = ["<->", "->", "(", ")", "[", "]", ",", ":", "~", "&", "|"]
+                .first(where: { chars.starts(with: $0) })
+        {
             flush()
             found.append(symbol)
             chars = chars.dropFirst(symbol.count)

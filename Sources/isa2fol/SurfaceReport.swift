@@ -8,9 +8,10 @@ private func population(_ c: Census, _ line: (String) -> Void) {
     line("| **all** | **\(c.named.values.reduce(0, +))** |")
     line("")
     let refused = c.refused.values.reduce(0, +)
-    line(refused == 0 ? "The reader refuses none of them, nor any theorem they cite."
-                      : "The reader refuses \(refused), whose proofs are not followed: "
-                        + c.refused.map { "\(kind($0.key)) \($0.value)" }.sorted().joined(separator: ", ") + ".")
+    line(refused == 0
+        ? "The reader refuses none of them, nor any theorem they cite."
+        : "The reader refuses \(refused), whose proofs are not followed: "
+            + c.refused.map { "\(kind($0.key)) \($0.value)" }.sorted().joined(separator: ", ") + ".")
 }
 
 private func percent(_ n: Int, of c: Census) -> String {
@@ -18,18 +19,28 @@ private func percent(_ n: Int, of c: Census) -> String {
 }
 
 func surfaceReport(_ c: Census, command: String) -> String {
-    var out: [String] = []
-    func line(_ text: String) { out.append(text) }
+    var out = [String]()
+    func line(_ text: String) {
+        out.append(text)
+    }
     line("# SOURCE SURFACE — the patterns the translation owes a rule each")
     line("")
     line("**Generated — do not edit.** `\(command)`. A census, not mathematics: `docs/FOUNDATION.md` says what the")
     line("translation must satisfy; this lists what the corpus is built from, as the reader emits it — each pattern a")
-    line("primitive at its type (`DESIGN.md` §4.3b). With one rule per pattern, every theorem built from them translates.")
+    line(
+        "primitive at its type (`DESIGN.md` §4.3b). With one rule per pattern, every theorem built from them translates."
+    )
     line("")
-    line("- **The population** is the closure of the named ZF theorems: every theorem they cite, each read from its own")
-    line("  proof, and the definition of every constant that occurs, transitively. An unnamed box binding a proposition is")
+    line(
+        "- **The population** is the closure of the named ZF theorems: every theorem they cite, each read from its own"
+    )
+    line(
+        "  proof, and the definition of every constant that occurs, transitively. An unnamed box binding a proposition is"
+    )
     line("  a theorem it cites; any other is part of its citer's proof.")
-    line("- **A count** is the named ZF theorems whose closure holds the pattern: the theorems that do not translate until")
+    line(
+        "- **A count** is the named ZF theorems whose closure holds the pattern: the theorems that do not translate until"
+    )
     line("  it has a rule. A count orders the work; it never justifies a rule.")
     line("")
     line("## Population")
@@ -47,8 +58,10 @@ func surfaceReport(_ c: Census, command: String) -> String {
 }
 
 func closureReport(_ c: Census, command: String) -> String {
-    var out: [String] = []
-    func line(_ text: String) { out.append(text) }
+    var out = [String]()
+    func line(_ text: String) {
+        out.append(text)
+    }
     func table(_ header: String, _ rows: [(String, Int)]) {
         guard !rows.isEmpty else {
             line("(none)")
@@ -56,13 +69,16 @@ func closureReport(_ c: Census, command: String) -> String {
         }
         line("| \(header) | theorems reaching it | % |")
         line("|---|---:|---:|")
-        for (name, n) in rows.sorted(by: { ($1.1, $0.0) < ($0.1, $1.0) }) { line("| `\(name)` | \(n) | \(percent(n, of: c)) |") }
+        for (name, n) in rows
+            .sorted(by: { ($1.1, $0.0) < ($0.1, $1.0) }) { line("| `\(name)` | \(n) | \(percent(n, of: c)) |") }
     }
-    var axioms: [Family: [(String, Int)]] = [:], definitions: [Family: [(String, Int)]] = [:], theory: [(String, Int)] = []
+    var axioms = [Family: [(String, Int)]]()
+    var definitions = [Family: [(String, Int)]]()
+    var theory = [(String, Int)]()
     for (cited, n) in c.citations {
         switch cited {
-        case let .axiom(a): axioms[a.family, default: []].append((a.name, n))
-        case let .theoryAxiom(name): theory.append((name, n))
+        case .axiom(let a): axioms[a.family, default: []].append((a.name, n))
+        case .theoryAxiom(let name): theory.append((name, n))
         case .theorem, .lemma, .base, .definition: break
         }
     }
@@ -70,9 +86,15 @@ func closureReport(_ c: Census, command: String) -> String {
 
     line("# CLOSURE — what every named ZF theorem rests on")
     line("")
-    line("**Generated.** `\(command)`. Each named theorem of the ZF sessions is followed through every citation — named")
-    line("theorems, derived Pure/IFOL/FOL rules, unnamed boxes, class discharges — down to axioms. A citation is read as")
-    line("the reader types it (`DESIGN.md` §4.3b): an axiom of the foundation, a definition, or an axiom a theory above")
+    line(
+        "**Generated.** `\(command)`. Each named theorem of the ZF sessions is followed through every citation — named"
+    )
+    line(
+        "theorems, derived Pure/IFOL/FOL rules, unnamed boxes, class discharges — down to axioms. A citation is read as"
+    )
+    line(
+        "the reader types it (`DESIGN.md` §4.3b): an axiom of the foundation, a definition, or an axiom a theory above"
+    )
     line("the foundation states. Counts are named theorems whose closure contains it.")
     line("")
     population(c, line)
@@ -89,7 +111,7 @@ func closureReport(_ c: Census, command: String) -> String {
     line("")
     let zf = (definitions[.zf] ?? []).sorted { ($1.1, $0.0) < ($0.1, $1.0) }
     line("Plus **\(zf.count) definitions** of the zf family; the most-reached is reached by "
-         + (zf.first.map { "\($0.1) (`\($0.0)`)" } ?? "none") + ".")
+        + (zf.first.map { "\($0.1) (`\($0.0)`)" } ?? "none") + ".")
     line("")
     line("## Axioms of theories above the foundation — not ZF's")
     line("")
@@ -97,7 +119,9 @@ func closureReport(_ c: Census, command: String) -> String {
     line("")
     line("## Type variables")
     line("")
-    line("**\(c.polymorphic) named theorems state a type variable.** A citation at a type variable its citing proof does not")
+    line(
+        "**\(c.polymorphic) named theorems state a type variable.** A citation at a type variable its citing proof does not"
+    )
     line("bind stops the read (`undeclaredTypeVariable`), so every instance is determined by its citer.")
     return out.joined(separator: "\n") + "\n"
 }

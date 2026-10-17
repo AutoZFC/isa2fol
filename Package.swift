@@ -1,8 +1,8 @@
 // swift-tools-version: 6.0
 import PackageDescription
 
-// Swift 5 language mode deliberately: this is a single-threaded graph rewriter,
-// and 6's strict concurrency would be pure friction here.
+/// Swift 5 language mode deliberately: this is a single-threaded graph rewriter,
+/// and 6's strict concurrency would be pure friction here.
 let package = Package(
     name: "isa2fol",
     targets: [
@@ -18,5 +18,5 @@ let package = Package(
         .testTarget(name: "ReaderTests", dependencies: ["Reader", "YXML", "IR"]),
         .testTarget(name: "LoweringTests", dependencies: ["Lowering", "IR", "FolDialect"]),
     ],
-    swiftLanguageModes: [.v5]
+    swiftLanguageModes: [.v5],
 )

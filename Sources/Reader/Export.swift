@@ -2,7 +2,17 @@ import Foundation
 import IR
 import YXML
 
-public let zfSessions = ["ZF", "ZF-AC", "ZF-Coind", "ZF-Constructible", "ZF-IMP", "ZF-Induct", "ZF-Resid", "ZF-UNITY", "ZF-ex"]
+public let zfSessions = [
+    "ZF",
+    "ZF-AC",
+    "ZF-Coind",
+    "ZF-Constructible",
+    "ZF-IMP",
+    "ZF-Induct",
+    "ZF-Resid",
+    "ZF-UNITY",
+    "ZF-ex",
+]
 
 public func session(of theory: String) -> String? {
     if theory.hasPrefix("ZF-") { return String(theory.prefix { $0 != "." }) }
@@ -31,14 +41,18 @@ struct TheoremKey: Hashable {
     let theory: String
     let serial: Int
 
-    var path: String { "\(theory)/proofs/\(serial)" }
+    var path: String {
+        "\(theory)/proofs/\(serial)"
+    }
 }
 
 struct AxiomEntry {
     let theory: String
     let body: Body
 
-    var file: String { "\(theory)/theory/axioms" }
+    var file: String {
+        "\(theory)/theory/axioms"
+    }
 }
 
 struct Corpus {
@@ -47,21 +61,23 @@ struct Corpus {
     let axioms: [String: AxiomEntry]
 
     func file(_ key: TheoremKey) throws -> Body {
-        guard let body = files[key] else { throw MalformedExport.unresolvedCitation(theory: key.theory, serial: key.serial) }
+        guard let body = files[key] else { throw MalformedExport.unresolvedCitation(
+            theory: key.theory,
+            serial: key.serial,
+        ) }
         return body
     }
 }
 
 struct Families {
-    private static let foundation: [String: Family] = ["Pure": .pure, "IFOL": .ifol, "FOL": .fol, "ZF.ZF_Base": .zf]
-
-    private var known: [String: Family] = foundation
-
-    func isFoundation(_ theory: String) -> Bool { Families.foundation[theory] != nil }
+    func isFoundation(_ theory: String) -> Bool {
+        Families.foundation[theory] != nil
+    }
 
     mutating func family(of theory: String, parents: (String) throws -> [String]) throws -> Family? {
         if let f = known[theory] { return f }
-        var seen: Set<String> = [], work = [theory]
+        var seen = Set<String>()
+        var work = [theory]
         while let t = work.popLast() {
             guard seen.insert(t).inserted else { continue }
             if known[t] == .zf {
@@ -72,20 +88,19 @@ struct Families {
         }
         return nil
     }
+
+    private static let foundation: [String: Family] = ["Pure": .pure, "IFOL": .ifol, "FOL": .fol, "ZF.ZF_Base": .zf]
+
+    private var known: [String: Family] = foundation
+
 }
 
 private func parents(of theory: String, in root: String) throws -> [String] {
-    try String(contentsOfFile: "\(root)/\(theory)/theory/parents", encoding: .utf8).split(separator: "\n").map(String.init)
+    try String(contentsOfFile: "\(root)/\(theory)/theory/parents", encoding: .utf8).split(separator: "\n")
+        .map(String.init)
 }
 
 public struct Export {
-    public let root: String
-    public let theories: [String]
-    var forest = Forest()
-    private(set) var constants = Constants()
-    private(set) var classes = Classes()
-    private(set) var families = Families()
-
     public init(root: String) throws {
         self.root = root
         theories = try FileManager.default.contentsOfDirectory(atPath: root).sorted()
@@ -117,10 +132,18 @@ public struct Export {
         }
     }
 
+    public let root: String
+    public let theories: [String]
+
+    var forest = Forest()
+    private(set) var constants = Constants()
+    private(set) var classes = Classes()
+    private(set) var families = Families()
+
     mutating func load() throws -> Corpus {
-        var names: [TheoremKey: String] = [:]
-        var files: [TheoremKey: Body] = [:]
-        var axioms: [String: AxiomEntry] = [:]
+        var names = [TheoremKey: String]()
+        var files = [TheoremKey: Body]()
+        var axioms = [String: AxiomEntry]()
         for theory in theories {
             for (serial, name) in try located("\(theory)/theory/thms", { try self.names(theory) }) {
                 names[TheoremKey(theory: theory, serial: serial)] = name
@@ -140,6 +163,16 @@ public struct Export {
         return Corpus(names: names, files: files, axioms: axioms)
     }
 
+    mutating func names(_ theory: String) throws -> [Int: String] {
+        var names = [Int: String]()
+        for (name, element) in try entityElements(theory, "thms") {
+            let serial = try element.attribute("serial")
+            guard let s = Int(serial) else { throw MalformedExport.notASerial(serial) }
+            guard names.updateValue(name, forKey: s) == nil else { throw MalformedExport.duplicateSerial(s) }
+        }
+        return names
+    }
+
     private func proofSerials(_ theory: String) throws -> [Int] {
         let dir = "\(root)/\(theory)/proofs"
         guard FileManager.default.fileExists(atPath: dir) else { return [] }
@@ -149,23 +182,13 @@ public struct Export {
         }.sorted()
     }
 
-    mutating func names(_ theory: String) throws -> [Int: String] {
-        var names: [Int: String] = [:]
-        for (name, element) in try entityElements(theory, "thms") {
-            let serial = try element.attribute("serial")
-            guard let s = Int(serial) else { throw MalformedExport.notASerial(serial) }
-            guard names.updateValue(name, forKey: s) == nil else { throw MalformedExport.duplicateSerial(s) }
-        }
-        return names
-    }
-
     private mutating func entities(_ theory: String, _ file: String) throws -> [(String, Body)] {
         try entityElements(theory, file).map { ($0.0, $0.1.children) }
     }
 
     private mutating func entityElements(_ theory: String, _ file: String) throws -> [(String, Element)] {
         try (try theoryFile(theory, file) ?? []).map { r in
-            guard case let .element(e) = forest[r], e.tag == "entity" else {
+            guard case .element(let e) = forest[r], e.tag == "entity" else {
                 throw MalformedExport.notAnEntity(tag: Decode(forest: forest).tag(r))
             }
             return (try e.attribute("name"), e)

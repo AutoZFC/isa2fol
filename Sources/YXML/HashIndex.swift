@@ -1,18 +1,9 @@
 struct HashIndex: Sendable {
-    private struct Slot: Sendable {
-        var hash: Int
-        var payload: Int32
-    }
-
-    private static let empty = Slot(hash: 0, payload: -1)
-    private var slots = [Slot](repeating: empty, count: 1 << 10)
-    private var count = 0
-
     func find(_ hash: Int, _ matches: (Int32) -> Bool) -> Int32? {
         let mask = slots.count - 1
         var i = hash & mask
         while slots[i].payload >= 0 {
-            if slots[i].hash == hash && matches(slots[i].payload) { return slots[i].payload }
+            if slots[i].hash == hash, matches(slots[i].payload) { return slots[i].payload }
             i = (i + 1) & mask
         }
         return nil
@@ -28,6 +19,16 @@ struct HashIndex: Sendable {
         count += 1
     }
 
+    private struct Slot: Sendable {
+        var hash: Int
+        var payload: Int32
+    }
+
+    private static let empty = Slot(hash: 0, payload: -1)
+
+    private var slots = [Slot](repeating: empty, count: 1 << 10)
+    private var count = 0
+
     private static func place(_ s: Slot, in slots: inout [Slot]) {
         let mask = slots.count - 1
         var i = s.hash & mask
@@ -37,10 +38,6 @@ struct HashIndex: Sendable {
 }
 
 struct ByteSet: Sendable {
-    private var store: [UInt8] = []
-    private var ranges: [Range<Int>] = []
-    private var index = HashIndex()
-
     static func hash(_ bytes: UnsafeRawBufferPointer) -> Int {
         var h = Hasher()
         h.combine(bytes: bytes)
@@ -59,4 +56,9 @@ struct ByteSet: Sendable {
         index.insert(hash, id)
         return id
     }
+
+    private var store = [UInt8]()
+    private var ranges = [Range<Int>]()
+    private var index = HashIndex()
+
 }

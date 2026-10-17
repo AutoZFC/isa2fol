@@ -1,14 +1,18 @@
-import Testing
 import IR
+import Testing
 
 private let i = IRType.i
 private let o = IRType.o
-private func fn(_ a: IRType, _ b: IRType) -> IRType { .fn(a, b) }
+private func fn(_ a: IRType, _ b: IRType) -> IRType {
+    .fn(a, b)
+}
+
 private let memT = fn(i, fn(i, o))
 private let pairT = fn(i, fn(i, i))
 
 private struct Seeded {
     var state: UInt64
+
     mutating func next(_ bound: Int) -> Int {
         state = state &* 6364136223846793005 &+ 1442695040888963407
         return Int((state >> 33) % UInt64(bound))
@@ -28,7 +32,8 @@ private struct Gen {
         case 0: return try t.intern(.isaFree(.named(frees[rng.next(frees.count)]), i))
         case 1: return try t.intern(.isaBound(rng.next(depth + 2), i))
         default:
-            let a = try term(&t, depth, size - 1), b = try term(&t, depth, size - 1)
+            let a = try term(&t, depth, size - 1)
+            let b = try term(&t, depth, size - 1)
             return try t.intern(.isaConst(.defined(Defined(.zf, "QPair.QPair", .object)), pairT, args: [a, b]))
         }
     }
@@ -36,17 +41,27 @@ private struct Gen {
     mutating func formula(_ t: inout Table, _ depth: Int, _ size: Int) throws -> NodeID {
         switch size <= 0 ? 0 : rng.next(6) {
         case 0:
-            let a = try term(&t, depth, size - 1), b = try term(&t, depth, size - 1)
+            let a = try term(&t, depth, size - 1)
+            let b = try term(&t, depth, size - 1)
             return try t.intern(.isaConst(.primitive(.zf(.mem)), memT, args: [a, b]))
+
         case 1: return try t.intern(.folAnd(try formula(&t, depth, size - 1), try formula(&t, depth, size - 1)))
+
         case 2: return try t.intern(.folNot(try formula(&t, depth, size - 1)))
+
         case 3: return try t.intern(.ifolAll(i, body: try formula(&t, depth + 1, size - 1)))
+
         case 4: return try t.intern(.folForall(body: try folAtom(&t, depth + 1)))
+
         default:
             let body = try term(&t, depth + 1, size - 1)
             let abs = try t.intern(.isaAbs(i, body: body))
             let a = try term(&t, depth, size - 1)
-            let repfun = try t.intern(.isaConst(.defined(Defined(.zf, "ZF_Base.RepFun", .object)), fn(i, fn(fn(i, i), i)), args: [a, abs]))
+            let repfun = try t.intern(.isaConst(
+                .defined(Defined(.zf, "ZF_Base.RepFun", .object)),
+                fn(i, fn(fn(i, i), i)),
+                args: [a, abs],
+            ))
             return try t.intern(.isaConst(.primitive(.zf(.mem)), memT, args: [a, repfun]))
         }
     }
@@ -58,8 +73,12 @@ private struct Gen {
     }
 }
 
-private func samples(_ seed: UInt64, frees: [String] = ["a", "b", "x"], looseFol: Bool = true,
-                     _ body: (inout Table, NodeID) throws -> Void) throws {
+private func samples(
+    _ seed: UInt64,
+    frees: [String] = ["a", "b", "x"],
+    looseFol: Bool = true,
+    _ body: (inout Table, NodeID) throws -> Void,
+) throws {
     var gen = Gen(rng: Seeded(state: seed), frees: frees, looseFol: looseFol)
     for _ in 0..<300 {
         var t = Table()
@@ -70,35 +89,40 @@ private func samples(_ seed: UInt64, frees: [String] = ["a", "b", "x"], looseFol
 
 // MARK: laws
 
-@Test func instantiatingAFreshlyShiftedBinderChangesNothing() throws {
+@Test
+func instantiatingAFreshlyShiftedBinderChangesNothing() throws {
     try samples(1) { t, phi in
         let filler = try t.intern(.isaFree(.named("filler"), i))
         #expect(try instantiate(try shift(phi, by: 1, in: &t), with: filler, in: &t) == phi)
     }
 }
 
-@Test func closingThenReopeningAtTheSameNameChangesNothing() throws {
+@Test
+func closingThenReopeningAtTheSameNameChangesNothing() throws {
     try samples(2) { t, phi in
         let x = try t.intern(.isaFree(.named("x"), i))
         #expect(try instantiate(try abstract(phi, over: [x], in: &t), with: x, in: &t) == phi)
     }
 }
 
-@Test func openingAtAFreshNameThenClosingChangesNothing() throws {
+@Test
+func openingAtAFreshNameThenClosingChangesNothing() throws {
     try samples(3, frees: ["a", "b"], looseFol: false) { t, psi in
         let x = try t.intern(.isaFree(.named("x"), i))
         #expect(try abstract(try instantiate(psi, with: x, in: &t), over: [x], in: &t) == psi)
     }
 }
 
-@Test func shiftsCompose() throws {
+@Test
+func shiftsCompose() throws {
     try samples(4) { t, phi in
         let twice = try shift(try shift(phi, by: 2, in: &t), by: 3, in: &t)
         #expect(twice == (try shift(phi, by: 5, in: &t)))
     }
 }
 
-@Test func aClosedFormulaIsUntouched() throws {
+@Test
+func aClosedFormulaIsUntouched() throws {
     try samples(5) { t, phi in
         var closed = phi
         while t.looseBound(of: closed) > 0 { closed = try t.intern(.folForall(body: closed)) }
@@ -114,9 +138,12 @@ private func memOf(_ a: NodeID, _ b: NodeID, _ t: inout Table) throws -> NodeID 
     try t.intern(.isaConst(.primitive(.zf(.mem)), memT, args: [a, b]))
 }
 
-@Test func shiftMovesOnlyLooseIndices() throws {
+@Test
+func shiftMovesOnlyLooseIndices() throws {
     var t = Table()
-    let b0 = try t.intern(.isaBound(0, i)), b1 = try t.intern(.isaBound(1, i)), b2 = try t.intern(.isaBound(2, i))
+    let b0 = try t.intern(.isaBound(0, i))
+    let b1 = try t.intern(.isaBound(1, i))
+    let b2 = try t.intern(.isaBound(2, i))
     let a = try t.intern(.isaFree(.named("a"), i))
     #expect(try shift(try memOf(b0, a, &t), by: 1, in: &t) == (try memOf(b1, a, &t)))
     let under = try t.intern(.ifolAll(i, body: try memOf(b0, b1, &t)))
@@ -124,89 +151,126 @@ private func memOf(_ a: NodeID, _ b: NodeID, _ t: inout Table) throws -> NodeID 
 }
 
 /// `∀x.∀y. (mem(x,y) → mem(y,x))` eliminated at `a`: x is 1 inside the inner ∀.
-@Test func instantiateReplacesTheIndexEqualToTheDepth() throws {
+@Test
+func instantiateReplacesTheIndexEqualToTheDepth() throws {
     var t = Table()
-    let b0 = try t.intern(.isaBound(0, i)), b1 = try t.intern(.isaBound(1, i))
+    let b0 = try t.intern(.isaBound(0, i))
+    let b1 = try t.intern(.isaBound(1, i))
     let a = try t.intern(.isaFree(.named("a"), i))
     let body = try t.intern(.ifolAll(i, body: try t.intern(.folImplies(try memOf(b1, b0, &t), try memOf(b0, b1, &t)))))
-    let expected = try t.intern(.ifolAll(i, body: try t.intern(.folImplies(try memOf(a, b0, &t), try memOf(b0, a, &t)))))
+    let expected = try t.intern(.ifolAll(
+        i,
+        body: try t.intern(.folImplies(try memOf(a, b0, &t), try memOf(b0, a, &t))),
+    ))
     #expect(try instantiate(body, with: a, in: &t) == expected)
 }
 
 /// `∀y. mem(x, y)` with x := z, z bound outside: z must not be captured by y.
-@Test func instantiateShiftsTheReplacementUnderInnerBinders() throws {
+@Test
+func instantiateShiftsTheReplacementUnderInnerBinders() throws {
     var t = Table()
-    let b0 = try t.intern(.isaBound(0, i)), b1 = try t.intern(.isaBound(1, i))
+    let b0 = try t.intern(.isaBound(0, i))
+    let b1 = try t.intern(.isaBound(1, i))
     let body = try t.intern(.ifolAll(i, body: try memOf(b1, b0, &t)))
     #expect(try instantiate(body, with: b0, in: &t) == body)
 }
 
 /// `(λx. mem(x, z)) z`: z was 1 only because the λ sat between.
-@Test func instantiateLowersIndicesPointingFurtherOut() throws {
+@Test
+func instantiateLowersIndicesPointingFurtherOut() throws {
     var t = Table()
-    let b0 = try t.intern(.isaBound(0, i)), b1 = try t.intern(.isaBound(1, i))
+    let b0 = try t.intern(.isaBound(0, i))
+    let b1 = try t.intern(.isaBound(1, i))
     #expect(try instantiate(try memOf(b0, b1, &t), with: b0, in: &t) == (try memOf(b0, b0, &t)))
 }
 
 /// `P(a)` with P := `λx. mem(x, A)`: the redex instantiate makes, it reduces.
-@Test func instantiatingAFunctionVariableReducesTheRedexItMakes() throws {
+@Test
+func instantiatingAFunctionVariableReducesTheRedexItMakes() throws {
     var t = Table()
-    let a = try t.intern(.isaFree(.named("a"), i)), A = try t.intern(.isaFree(.named("A"), i)), b0 = try t.intern(.isaBound(0, i))
+    let a = try t.intern(.isaFree(.named("a"), i))
+    let A = try t.intern(.isaFree(.named("A"), i))
+    let b0 = try t.intern(.isaBound(0, i))
     let body = try t.intern(.isaVarApp(head: try t.intern(.isaBound(0, fn(i, o))), args: [a]))
     let lambda = try t.intern(.isaAbs(i, body: try memOf(b0, A, &t)))
     #expect(try instantiate(body, with: lambda, in: &t) == (try memOf(a, A, &t)))
 }
 
 /// `F(λx. mem(x, A))` with F := `λp. p(a)`: reducing one redex makes another, and it reduces too.
-@Test func instantiateReducesHereditarily() throws {
+@Test
+func instantiateReducesHereditarily() throws {
     var t = Table()
-    let a = try t.intern(.isaFree(.named("a"), i)), A = try t.intern(.isaFree(.named("A"), i)), b0 = try t.intern(.isaBound(0, i))
+    let a = try t.intern(.isaFree(.named("a"), i))
+    let A = try t.intern(.isaFree(.named("A"), i))
+    let b0 = try t.intern(.isaBound(0, i))
     let argument = try t.intern(.isaAbs(i, body: try memOf(b0, A, &t)))
     let body = try t.intern(.isaVarApp(head: try t.intern(.isaBound(0, fn(fn(i, o), o))), args: [argument]))
-    let applyToA = try t.intern(.isaAbs(fn(i, o), body: try t.intern(.isaVarApp(head: try t.intern(.isaBound(0, fn(i, o))), args: [a]))))
+    let applyToA = try t.intern(.isaAbs(
+        fn(i, o),
+        body: try t.intern(.isaVarApp(head: try t.intern(.isaBound(0, fn(i, o))), args: [a])),
+    ))
     #expect(try instantiate(body, with: applyToA, in: &t) == (try memOf(a, A, &t)))
 }
 
 /// `(λx y. mem(x, y))` at `a, A`, one argument at a time; at none, the `λ` itself.
-@Test func betaAppliesALambdaArgumentByArgument() throws {
+@Test
+func betaAppliesALambdaArgumentByArgument() throws {
     var t = Table()
-    let a = try t.intern(.isaFree(.named("a"), i)), A = try t.intern(.isaFree(.named("A"), i))
-    let b0 = try t.intern(.isaBound(0, i)), b1 = try t.intern(.isaBound(1, i))
+    let a = try t.intern(.isaFree(.named("a"), i))
+    let A = try t.intern(.isaFree(.named("A"), i))
+    let b0 = try t.intern(.isaBound(0, i))
+    let b1 = try t.intern(.isaBound(1, i))
     let lambda = try t.intern(.isaAbs(i, body: try t.intern(.isaAbs(i, body: try memOf(b1, b0, &t)))))
     #expect(try beta(lambda, [a, A], in: &t) == (try memOf(a, A, &t)))
     #expect(try beta(lambda, [], in: &t) == lambda)
 }
 
 /// `∀y. P(y)` with P := `λx. mem(x, z)`, z bound outside: z moves under y, x becomes y.
-@Test func aReducedRedexUnderABinderKeepsItsOuterVariables() throws {
+@Test
+func aReducedRedexUnderABinderKeepsItsOuterVariables() throws {
     var t = Table()
-    let b0 = try t.intern(.isaBound(0, i)), b1 = try t.intern(.isaBound(1, i))
-    let body = try t.intern(.ifolAll(i, body: try t.intern(.isaVarApp(head: try t.intern(.isaBound(1, fn(i, o))), args: [b0]))))
+    let b0 = try t.intern(.isaBound(0, i))
+    let b1 = try t.intern(.isaBound(1, i))
+    let body = try t.intern(.ifolAll(
+        i,
+        body: try t.intern(.isaVarApp(head: try t.intern(.isaBound(1, fn(i, o))), args: [b0])),
+    ))
     let lambda = try t.intern(.isaAbs(i, body: try memOf(b0, b1, &t)))
     #expect(try instantiate(body, with: lambda, in: &t) == (try t.intern(.ifolAll(i, body: try memOf(b0, b1, &t)))))
 }
 
 /// `mem(x, A) → ∀. mem(0, x)` closed over x: the one node x becomes 0 here, 1 there.
-@Test func abstractNumbersANameByItsDepth() throws {
+@Test
+func abstractNumbersANameByItsDepth() throws {
     var t = Table()
-    let x = try t.intern(.isaFree(.named("x"), i)), A = try t.intern(.isaFree(.named("A"), i))
-    let b0 = try t.intern(.isaBound(0, i)), b1 = try t.intern(.isaBound(1, i))
+    let x = try t.intern(.isaFree(.named("x"), i))
+    let A = try t.intern(.isaFree(.named("A"), i))
+    let b0 = try t.intern(.isaBound(0, i))
+    let b1 = try t.intern(.isaBound(1, i))
     let phi = try t.intern(.folImplies(try memOf(x, A, &t), try t.intern(.ifolAll(i, body: try memOf(b0, x, &t)))))
-    let expected = try t.intern(.folImplies(try memOf(b0, A, &t), try t.intern(.ifolAll(i, body: try memOf(b0, b1, &t)))))
+    let expected = try t.intern(.folImplies(
+        try memOf(b0, A, &t),
+        try t.intern(.ifolAll(i, body: try memOf(b0, b1, &t))),
+    ))
     #expect(try abstract(phi, over: [x], in: &t) == expected)
 }
 
 /// Frees `[x, A]`, x outermost: `mem(x, A)` → `mem(1, 0)`.
-@Test func abstractClosesSeveralNamesInOrder() throws {
+@Test
+func abstractClosesSeveralNamesInOrder() throws {
     var t = Table()
-    let x = try t.intern(.isaFree(.named("x"), i)), A = try t.intern(.isaFree(.named("A"), i))
-    let b0 = try t.intern(.isaBound(0, i)), b1 = try t.intern(.isaBound(1, i))
+    let x = try t.intern(.isaFree(.named("x"), i))
+    let A = try t.intern(.isaFree(.named("A"), i))
+    let b0 = try t.intern(.isaBound(0, i))
+    let b1 = try t.intern(.isaBound(1, i))
     #expect(try abstract(try memOf(x, A, &t), over: [x, A], in: &t) == (try memOf(b1, b0, &t)))
 }
 
-@Test func instantiateRefusesAReplacementOfTheWrongType() throws {
+@Test
+func instantiateRefusesAReplacementOfTheWrongType() throws {
     var t = Table()
-    let b0 = try t.intern(.isaBound(0, i)), a = try t.intern(.isaFree(.named("a"), i))
+    let b0 = try t.intern(.isaBound(0, i))
+    let a = try t.intern(.isaFree(.named("a"), i))
     let formula = try memOf(a, a, &t)
     #expect(throws: IRRefusal.instantiateType(expected: i, found: o)) {
         try instantiate(try memOf(b0, a, &t), with: formula, in: &t)

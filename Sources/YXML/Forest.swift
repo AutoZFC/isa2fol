@@ -4,34 +4,19 @@ private let X = UInt8(0x05)
 private let Y = UInt8(0x06)
 
 public struct Forest: Sendable {
-    private enum Stored: Sendable {
-        case element(label: Int32, children: Range<Int>)
-        case text(String)
+    public init() { }
+
+    public var count: Int {
+        items.count
     }
-
-    private struct Label: Sendable {
-        let tag: String
-        let attributes: [Attribute]
-    }
-
-    private var items: [Stored] = []
-    private var children: [Ref] = []
-    private var labels: [Label] = []
-    private var labelBytes = ByteSet()
-    private var textBytes = ByteSet()
-    private var textRefs: [Ref] = []
-    private var elements = HashIndex()
-
-    public init() {}
-
-    public var count: Int { items.count }
 
     public subscript(_ r: Ref) -> Item {
         switch items[Int(r.raw)] {
-        case let .element(label, range):
+        case .element(let label, let range):
             let l = labels[Int(label)]
             return .element(Element(tag: l.tag, attributes: l.attributes, children: Array(children[range])))
-        case let .text(s):
+
+        case .text(let s):
             return .text(s)
         }
     }
@@ -46,12 +31,12 @@ public struct Forest: Sendable {
     }
 
     public mutating func parse(_ bytes: UnsafeRawBufferPointer) throws -> [Ref] {
-        var frames: [(label: Int32, start: Int)] = []
-        var open: [Ref] = []
+        var frames = [(label: Int32, start: Int)]()
+        var open = [Ref]()
         var i = 0
         while i < bytes.count {
             var j = i
-            while j < bytes.count && bytes[j] != X { j += 1 }
+            while j < bytes.count, bytes[j] != X { j += 1 }
             if j > i {
                 let chunk = UnsafeRawBufferPointer(rebasing: bytes[i..<j])
                 if chunk[0] != Y {
@@ -69,6 +54,41 @@ public struct Forest: Sendable {
         }
         if let f = frames.last { throw YXMLError.unclosed(tag: labels[Int(f.label)].tag) }
         return open
+    }
+
+    private enum Stored: Sendable {
+        case element(label: Int32, children: Range<Int>)
+        case text(String)
+    }
+
+    private struct Label: Sendable {
+        let tag: String
+        let attributes: [Attribute]
+    }
+
+    private var items = [Stored]()
+    private var children = [Ref]()
+    private var labels = [Label]()
+    private var labelBytes = ByteSet()
+    private var textBytes = ByteSet()
+    private var textRefs = [Ref]()
+    private var elements = HashIndex()
+
+    private static func decodeLabel(_ bytes: UnsafeRawBufferPointer) throws -> Label {
+        let fields = bytes.split(separator: Y, omittingEmptySubsequences: false)
+        let tag = try utf8(fields[0])
+        guard !tag.isEmpty else { throw YXMLError.emptyTag }
+        var attributes = [Attribute]()
+        for field in fields.dropFirst() {
+            let s = try utf8(field)
+            guard let eq = s.firstIndex(of: "=") else { throw YXMLError.malformedAttribute(tag: tag, field: s) }
+            let name = String(s[..<eq])
+            guard !attributes.contains(where: { $0.name == name }) else {
+                throw YXMLError.duplicateAttribute(tag: tag, name: name)
+            }
+            attributes.append(Attribute(name: name, value: String(s[s.index(after: eq)...])))
+        }
+        return Label(tag: tag, attributes: attributes)
     }
 
     private mutating func text(_ bytes: UnsafeRawBufferPointer) throws -> Ref {
@@ -105,29 +125,13 @@ public struct Forest: Sendable {
     }
 
     private func isElement(_ raw: Int32, _ label: Int32, _ kids: ArraySlice<Ref>) -> Bool {
-        guard case let .element(l, range) = items[Int(raw)], l == label else { return false }
+        guard case .element(let l, let range) = items[Int(raw)], l == label else { return false }
         return children[range].elementsEqual(kids)
     }
 
-    private static func decodeLabel(_ bytes: UnsafeRawBufferPointer) throws -> Label {
-        let fields = bytes.split(separator: Y, omittingEmptySubsequences: false)
-        let tag = try utf8(fields[0])
-        guard !tag.isEmpty else { throw YXMLError.emptyTag }
-        var attributes: [Attribute] = []
-        for field in fields.dropFirst() {
-            let s = try utf8(field)
-            guard let eq = s.firstIndex(of: "=") else { throw YXMLError.malformedAttribute(tag: tag, field: s) }
-            let name = String(s[..<eq])
-            guard !attributes.contains(where: { $0.name == name }) else {
-                throw YXMLError.duplicateAttribute(tag: tag, name: name)
-            }
-            attributes.append(Attribute(name: name, value: String(s[s.index(after: eq)...])))
-        }
-        return Label(tag: tag, attributes: attributes)
-    }
 }
 
-private func utf8<S: Sequence<UInt8>>(_ bytes: S) throws -> String {
+private func utf8(_ bytes: some Sequence<UInt8>) throws -> String {
     guard let s = String(validating: bytes, as: UTF8.self) else { throw YXMLError.invalidUTF8 }
     return s
 }

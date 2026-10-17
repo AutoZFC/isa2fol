@@ -1,6 +1,7 @@
 import IR
 
-@frozen public enum MalformedExport: Error, Equatable, Sendable {
+@frozen
+public enum MalformedExport: Error, Equatable, Sendable {
     case notANode(tag: String)
     case bodyLength(expected: Int, found: Int)
     case notAString
@@ -44,7 +45,8 @@ import IR
     case notADefinition(String)
 }
 
-@frozen public enum DialectGap: Error, Equatable, Sendable {
+@frozen
+public enum DialectGap: Error, Equatable, Sendable {
     case leaf(String)
     case axiom(String)
 }

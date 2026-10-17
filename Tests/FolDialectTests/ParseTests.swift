@@ -1,56 +1,81 @@
-import Foundation
-import Testing
-import IR
 import FolDialect
+import Foundation
+import IR
+import Testing
 
 private let o = IRType.o
 
 private struct Formulas {
     var t = Table()
-    mutating func n(_ node: Node) throws -> NodeID { try t.intern(node) }
-    mutating func v(_ k: Int) throws -> NodeID { try n(.isaBound(k, o)) }
+
+    mutating func n(_ node: Node) throws -> NodeID {
+        try t.intern(node)
+    }
+
+    mutating func v(_ k: Int) throws -> NodeID {
+        try n(.isaBound(k, o))
+    }
+
     mutating func letters(_ k: Int, _ body: NodeID) throws -> NodeID {
         k == 0 ? body : try n(.ifolAll(o, body: try letters(k - 1, body)))
     }
 }
 
 /// A schema's letters are its own binders, the first outermost: `cong_and`'s `A A2 B B2` are `⋀A A2 B B2::o`.
-@Test func aSchemaLineParsesToItsLettersBinders() throws {
+@Test
+func aSchemaLineParsesToItsLettersBinders() throws {
     var f = Formulas()
     let line = "schema cong_and [A(0), A2(0), B(0), B2(0)]: ((A <-> A2) -> ((B <-> B2) -> ((A & B) <-> (A2 & B2))))"
     let (name, root) = try parse(schema: line, in: &f.t)
-    let (A, A2, B, B2) = (try f.v(3), try f.v(2), try f.v(1), try f.v(0))
-    let body = try f.n(.folImplies(try f.n(.folIff(A, A2)), try f.n(.folImplies(try f.n(.folIff(B, B2)),
-        try f.n(.folIff(try f.n(.folAnd(A, B)), try f.n(.folAnd(A2, B2))))))))
+    let A = try f.v(3)
+    let A2 = try f.v(2)
+    let B = try f.v(1)
+    let B2 = try f.v(0)
+    let body = try f.n(.folImplies(try f.n(.folIff(A, A2)), try f.n(.folImplies(
+        try f.n(.folIff(B, B2)),
+        try f.n(.folIff(
+            try f.n(.folAnd(A, B)),
+            try f.n(.folAnd(A2, B2)),
+        )),
+    ))))
     #expect(name == "cong_and")
     #expect(root == (try f.letters(4, body)))
 }
 
 /// A letter with arguments is fol-zfc's own binder and application, never isa's `⋀` at a class type, which is a class
-/// (FOUNDATION S4): `cong_exists`'s `P Q` are `folLetterAll(1, …)`, `P(z)` the letter applied, its head the letter's variable.
-@Test func aSchemaLetterWithArgumentsParsesAsAFolLetter() throws {
+/// (FOUNDATION S4): `cong_exists`'s `P Q` are `folLetterAll(1, …)`, `P(z)` the letter applied, its head the letter's
+/// variable.
+@Test
+func aSchemaLetterWithArgumentsParsesAsAFolLetter() throws {
     var f = Formulas()
     let line = "schema cong_exists [P(1), Q(1)]: ((forall z. (set(z) -> (P(z) <-> Q(z)))) -> ((exists z. (set(z) & P(z))) <-> (exists z. (set(z) & Q(z)))))"
     let (name, root) = try parse(schema: line, in: &f.t)
     let z = try f.n(.isaBound(0, .i))
-    let (P, Q) = (try f.n(.folLetter(head: try f.n(.folBound(2)), args: [z])), try f.n(.folLetter(head: try f.n(.folBound(1)), args: [z])))
+    let P = try f.n(.folLetter(head: try f.n(.folBound(2)), args: [z]))
+    let Q = try f.n(.folLetter(head: try f.n(.folBound(1)), args: [z]))
     let premise = try f.n(.ifolAll(.i, body: try f.n(.folIff(P, Q))))
-    let body = try f.n(.folImplies(premise, try f.n(.folIff(try f.n(.ifolEx(.i, body: P)), try f.n(.ifolEx(.i, body: Q))))))
+    let body = try f.n(.folImplies(
+        premise,
+        try f.n(.folIff(try f.n(.ifolEx(.i, body: P)), try f.n(.ifolEx(.i, body: Q)))),
+    ))
     #expect(name == "cong_exists")
     #expect(root == (try f.n(.folLetterAll(1, body: try f.n(.folLetterAll(1, body: body))))))
 }
 
 /// Every connective base's propositional schemas use: `~`, `|`, `->`, `<->`, `&`, and `false`.
-@Test func everyConnectiveParses() throws {
+@Test
+func everyConnectiveParses() throws {
     var f = Formulas()
     let (_, root) = try parse(schema: "schema s [A(0), B(0)]: (((~ A) | (A & B)) -> ((A <-> B) -> false))", in: &f.t)
-    let (A, B) = (try f.v(1), try f.v(0))
+    let A = try f.v(1)
+    let B = try f.v(0)
     let left = try f.n(.folOr(try f.n(.folNot(A)), try f.n(.folAnd(A, B))))
     let right = try f.n(.folImplies(try f.n(.folIff(A, B)), try f.n(.folBottom)))
     #expect(root == (try f.letters(2, try f.n(.folImplies(left, right)))))
 }
 
-@Test func aMalformedLineIsRefused() throws {
+@Test
+func aMalformedLineIsRefused() throws {
     var t = Table()
     #expect(throws: ParseError.self) { try parse(schema: "schema s [A(0)]: ((A <-> A)", in: &t) }
     #expect(throws: ParseError.self) { try parse(schema: "schema s [A(0)]: (A <-> C)", in: &t) }
@@ -60,69 +85,116 @@ private struct Formulas {
 }
 
 /// The schemas Logic cites parse from base's own files.
-@Test func theSchemasLogicCitesParseFromBase() throws {
+@Test
+func theSchemasLogicCitesParseFromBase() throws {
     let tiers = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
         .deletingLastPathComponent().appendingPathComponent("base/tiers")
-    let texts = try ["cong.fol.def", "logic.fol.def", "truth.fol.def"].map { try String(contentsOf: tiers.appendingPathComponent($0), encoding: .utf8) }
+    let texts = try ["cong.fol.def", "logic.fol.def", "truth.fol.def"].map { try String(
+        contentsOf: tiers.appendingPathComponent($0),
+        encoding: .utf8,
+    ) }
     var f = Formulas()
-    let names = ["iff_refl", "iff_symm", "iff_trans", "cong_not", "cong_and", "cong_or", "cong_imp", "cong_iff", "truth_EX",
-                 "weaken"]
+    let names = [
+        "iff_refl",
+        "iff_symm",
+        "iff_trans",
+        "cong_not",
+        "cong_and",
+        "cong_or",
+        "cong_imp",
+        "cong_iff",
+        "truth_EX",
+        "weaken",
+    ]
     let parsed = try parse(statements: names, from: texts, in: &f.t)
     #expect(Set(parsed.keys) == Set(names))
     let A = try f.v(0)
     #expect(parsed["iff_refl"] == (try f.letters(1, try f.n(.folIff(A, A)))))
     let E = try f.n(.folBound(0))
-    let (truth, holds) = (try f.n(.folPred(.base("truth"), args: [E])), try f.n(.folPred(.base("holds"), args: [E])))
+    let truth = try f.n(.folPred(.base("truth"), args: [E]))
+    let holds = try f.n(.folPred(.base("holds"), args: [E]))
     let named = try f.n(.folExists(body: try f.n(.folAnd(truth, try f.n(.folIff(holds, try f.v(1)))))))
-    #expect(parsed["truth_EX"] == (try f.letters(1, named)), "a truth set's binder is guarded by truth, so it is fol-zfc's")
+    #expect(
+        parsed["truth_EX"] == (try f.letters(1, named)),
+        "a truth set's binder is guarded by truth, so it is fol-zfc's",
+    )
     #expect(throws: ParseError.self) { try parse(statements: ["no_such_schema"], from: texts, in: &f.t) }
 }
 
 private struct Claims {
     var t = Table()
-    mutating func n(_ node: Node) throws -> NodeID { try t.intern(node) }
-    mutating func b(_ k: Int) throws -> NodeID { try n(.folBound(k)) }
-    mutating func p(_ name: String, _ xs: NodeID...) throws -> NodeID { try n(.folPred(.base(name), args: xs)) }
-    mutating func all(_ body: NodeID) throws -> NodeID { try n(.folForall(body: body)) }
-    mutating func x(_ k: Int) throws -> NodeID { try n(.isaBound(k, .i)) }
+
+    mutating func n(_ node: Node) throws -> NodeID {
+        try t.intern(node)
+    }
+
+    mutating func b(_ k: Int) throws -> NodeID {
+        try n(.folBound(k))
+    }
+
+    mutating func p(_ name: String, _ xs: NodeID...) throws -> NodeID {
+        try n(.folPred(.base(name), args: xs))
+    }
+
+    mutating func all(_ body: NodeID) throws -> NodeID {
+        try n(.folForall(body: body))
+    }
+
+    mutating func x(_ k: Int) throws -> NodeID {
+        try n(.isaBound(k, .i))
+    }
 }
 
 /// A claim's variables are its quantifiers' own, the innermost `folBound(0)`; its atoms are base's predicates.
-@Test func aClaimLineParsesToItsQuantifiersAndAtoms() throws {
+@Test
+func aClaimLineParsesToItsQuantifiersAndAtoms() throws {
     var c = Claims()
     let line = "claim cong_elem_l: forall a. forall b. forall t. (eq(a,b) -> (elem(a,t) <-> elem(b,t)))"
     let (name, root) = try parse(claim: line, in: &c.t)
-    let (a, b, t) = (try c.b(2), try c.b(1), try c.b(0))
+    let a = try c.b(2)
+    let b = try c.b(1)
+    let t = try c.b(0)
     let body = try c.n(.folImplies(try c.p("eq", a, b), try c.n(.folIff(try c.p("elem", a, t), try c.p("elem", b, t)))))
     #expect(name == "cong_elem_l")
     #expect(root == (try c.all(try c.all(try c.all(body)))))
 }
 
-/// A quantifier whose guard follows its binder is a set binder, as lowering writes one: `∀ᵢ`, `∃ᵢ`, its variable at `i`;
+/// A quantifier whose guard follows its binder is a set binder, as lowering writes one: `∀ᵢ`, `∃ᵢ`, its variable at
+/// `i`;
 /// `F`, unguarded, stays fol-zfc's.
-@Test func aGuardedQuantifierParsesAsASetBinder() throws {
+@Test
+func aGuardedQuantifierParsesAsASetBinder() throws {
     var c = Claims()
-    let (_, root) = try parse(claim: "claim apply_EX: forall F. (forall t. (set(t) -> (exists r. (set(r) & apply(t,r,F)))))", in: &c.t)
+    let (_, root) = try parse(
+        claim: "claim apply_EX: forall F. (forall t. (set(t) -> (exists r. (set(r) & apply(t,r,F)))))",
+        in: &c.t,
+    )
     let witness = try c.n(.ifolEx(.i, body: try c.p("apply", try c.x(1), try c.x(0), try c.b(2))))
     #expect(root == (try c.all(try c.n(.ifolAll(.i, body: witness)))))
 }
 
 /// A guard that does not follow its binder leaves the binder fol-zfc's, its variable untyped.
-@Test func aGuardElsewhereLeavesTheBinderFolZfcs() throws {
+@Test
+func aGuardElsewhereLeavesTheBinderFolZfcs() throws {
     var c = Claims()
     let (_, root) = try parse(claim: "claim s: forall x. forall y. (set(x) -> elem(x,y))", in: &c.t)
-    #expect(root == (try c.all(try c.all(try c.n(.folImplies(try c.p("set", try c.b(1)), try c.p("elem", try c.b(1), try c.b(0))))))))
+    #expect(root == (try c.all(try c.all(try c.n(.folImplies(
+        try c.p("set", try c.b(1)),
+        try c.p("elem", try c.b(1), try c.b(0)),
+    ))))))
 }
 
 /// A primitive's class predicate is that constant's, typed, as Reify writes it.
-@Test func aPrimitivesClassPredicateParsesAsItsConstant() throws {
+@Test
+func aPrimitivesClassPredicateParsesAsItsConstant() throws {
     var c = Claims()
     let (_, root) = try parse(claim: "claim ZF_Base.zero_EX: exists v. (set(v) & ZF_Base.zero(v))", in: &c.t)
     let zero = try c.n(.folPred(.constant(.primitive(.zf(.zero))), args: [try c.x(0)]))
     #expect(root == (try c.n(.ifolEx(.i, body: zero))))
 }
 
-@Test func aMalformedClaimIsRefused() throws {
+@Test
+func aMalformedClaimIsRefused() throws {
     var t = Table()
     #expect(throws: ParseError.self) { try parse(claim: "claim s: forall a. elem(a,b)", in: &t) }
     #expect(throws: ParseError.self) { try parse(claim: "claim s: forall a. (elem(a,a)", in: &t) }
@@ -130,12 +202,22 @@ private struct Claims {
 }
 
 /// The claims Reify cites parse from base's own files, axioms and claims alike.
-@Test func theClaimsReifyCitesParseFromBase() throws {
+@Test
+func theClaimsReifyCitesParseFromBase() throws {
     let directory = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
         .deletingLastPathComponent().appendingPathComponent("base")
     var c = Claims()
-    let names = ["eq_refl", "eq_symm", "cong_elem_l", "cong_elem_r", "cong_eq_l", "cong_eq_r", "cong_snoc_v", "apply_EX",
-                 "apply_UNIQ"]
+    let names = [
+        "eq_refl",
+        "eq_symm",
+        "cong_elem_l",
+        "cong_elem_r",
+        "cong_eq_l",
+        "cong_eq_r",
+        "cong_snoc_v",
+        "apply_EX",
+        "apply_UNIQ",
+    ]
     let parsed = try parse(statements: names, from: try baseTexts(directory), in: &c.t)
     #expect(Set(parsed.keys) == Set(names))
     #expect(parsed["eq_refl"] == (try c.all(try c.p("eq", try c.b(0), try c.b(0)))))

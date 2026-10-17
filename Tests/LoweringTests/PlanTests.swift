@@ -1,11 +1,13 @@
-import Testing
 import IR
 import Lowering
+import Testing
 
 private let i = IRType.i
 private let o = IRType.o
 private let a = IRType.variable("'a")
-private func fn(_ a: IRType, _ b: IRType) -> IRType { .fn(a, b) }
+private func fn(_ a: IRType, _ b: IRType) -> IRType {
+    .fn(a, b)
+}
 
 private let oo = IRType.fn(.o, .o)
 
@@ -14,7 +16,9 @@ private func fixture() throws -> [Pass] {
     return plan(try base(in: &t))
 }
 
-private func owners(_ p: Pattern) throws -> [String] { try fixture().filter { $0.owns(p) != nil }.map(\.name) }
+private func owners(_ p: Pattern) throws -> [String] {
+    try fixture().filter { $0.owns(p) != nil }.map(\.name)
+}
 
 /// The unit's table holds base's schemas, parsed before the pipeline runs, as `lower` parses them.
 private func lowered(_ t: Table, _ statements: [Statement]) throws -> Unit {
@@ -26,7 +30,8 @@ private func lowered(_ t: Table, _ statements: [Statement]) throws -> Unit {
 }
 
 /// Reify is no pass: its code is called in logic's walk, and the registry proves between logic and fol.
-@Test func thePlanIsTheDesignsOrder() throws {
+@Test
+func thePlanIsTheDesignsOrder() throws {
     var t = Table()
     let b = try base(in: &t)
     #expect(plan(b).map(\.name) == ["expand", "logic", "fol"])
@@ -34,9 +39,11 @@ private func lowered(_ t: Table, _ statements: [Statement]) throws -> Unit {
     #expect(pipeline(b).provingAfter == "logic")
 }
 
-/// Reify has no pass: the logic pass owns its pieces as Reify's own switch answers them, and Reify's switch claims none of
+/// Reify has no pass: the logic pass owns its pieces as Reify's own switch answers them, and Reify's switch claims none
+/// of
 /// Logic's.
-@Test func reifysPiecesAreTheLogicPasss() throws {
+@Test
+func reifysPiecesAreTheLogicPasss() throws {
     var t = Table()
     let b = try base(in: &t)
     let reifys: [Pattern] = [
@@ -63,7 +70,8 @@ private func lowered(_ t: Table, _ statements: [Statement]) throws -> Unit {
 /// and one at most. A pattern at a type variable, the hidden variable and a citation fol-zfc lacks have none yet; a
 /// binder, its intro and its variable at `o` are fol-zfc's schema letter, no pass's; Pure's `⋀` over a proposition is
 /// Logic's, a truth set.
-@Test func eachPatternHasTheOwnerTheDivisionGivesIt() throws {
+@Test
+func eachPatternHasTheOwnerTheDivisionGivesIt() throws {
     let expected: [(Pattern, String?, Owned?)] = [
         (.isaConst(.defined(.ifol, .object), fn(o, fn(o, o)), args: [o, o]), "expand", .rule),
         (.isaConst(.defined(.pure, .meta), fn(o, o), args: [o]), "expand", .rule),
@@ -100,9 +108,17 @@ private func lowered(_ t: Table, _ statements: [Statement]) throws -> Unit {
         (.use(.axiom(.ifol(.subst)), [i], o), "logic", .rule),
         (.use(.axiom(.ifol(.exE)), [i], o), "logic", .unbuilt),
         (.use(.axiom(.ifol(.refl)), [i], o), "logic", .unbuilt),
-        (.isaConst(.primitive(.pure(.eq)), fn(fn(i, i), fn(fn(i, i), o)), args: [fn(i, i), fn(i, i)]), "logic", .unbuilt),
+        (
+            .isaConst(.primitive(.pure(.eq)), fn(fn(i, i), fn(fn(i, i), o)), args: [fn(i, i), fn(i, i)]),
+            "logic",
+            .unbuilt,
+        ),
         (.isaConst(.primitive(.pure(.eq)), fn(fn(o, o), fn(fn(o, o), o)), args: [fn(o, o), fn(o, o)]), "logic", .rule),
-        (.isaConst(.primitive(.pure(.eq)), fn(fn(oo, o), fn(fn(oo, o), o)), args: [fn(oo, o), fn(oo, o)]), "logic", .unbuilt),
+        (
+            .isaConst(.primitive(.pure(.eq)), fn(fn(oo, o), fn(fn(oo, o), o)), args: [fn(oo, o), fn(oo, o)]),
+            "logic",
+            .unbuilt,
+        ),
         (.isaReflexive(a), nil, nil),
         (.ifolAll(fn(o, o), body: o), "logic", .unbuilt),
         (.isaAllElim(o, fn(o, o)), "logic", .unbuilt),
@@ -119,7 +135,11 @@ private func lowered(_ t: Table, _ statements: [Statement]) throws -> Unit {
         (.isaConst(.primitive(.zf(.mem)), fn(i, fn(i, o)), args: [i, i]), "logic", .rule),
         (.isaConst(.primitive(.ifol(.eq)), fn(i, fn(i, o)), args: [i, i]), "logic", .rule),
         (.isaConst(.primitive(.zf(.zero)), i, args: []), "logic", .rule),
-        (.isaConst(.primitive(.zf(.primReplace)), fn(i, fn(fn(i, fn(i, o)), i)), args: [i, fn(i, fn(i, o))]), "logic", .rule),
+        (
+            .isaConst(.primitive(.zf(.primReplace)), fn(i, fn(fn(i, fn(i, o)), i)), args: [i, fn(i, fn(i, o))]),
+            "logic",
+            .rule,
+        ),
         (.isaConst(.defined(.zf, .object), fn(i, i), args: [i]), "logic", .rule),
         (.isaConst(.defined(.zf, .object), i, args: []), "logic", .rule),
         (.isaConst(.defined(.zf, .object), fn(i, o), args: [i]), "logic", .rule),
@@ -183,14 +203,21 @@ private func lowered(_ t: Table, _ statements: [Statement]) throws -> Unit {
 }
 
 /// `⋀x. ⊥ ⟶ ⊥`: expand and logic own nothing in it, and Fol writes its binder as fol-zfc's, guarded.
-@Test func aStatementOfABinderAtIAloneReachesFolZfc() throws {
+@Test
+func aStatementOfABinderAtIAloneReachesFolZfc() throws {
     var t = Table()
     let bottom = try t.intern(.folBottom)
     let root = try t.intern(.ifolAll(i, body: try t.intern(.folImplies(bottom, bottom))))
-    let proof = try t.intern(.isaAllIntro(i, body: try t.intern(.folImpliesIntro(bottom, body: try t.intern(.hyp(0, bottom))))))
+    let proof = try t.intern(.isaAllIntro(
+        i,
+        body: try t.intern(.folImpliesIntro(bottom, body: try t.intern(.hyp(0, bottom)))),
+    ))
     var unit = try lowered(t, [Statement(name: "thm", root: root, proof: proof)])
     let set = try unit.table.intern(.folPred(.base("set"), args: [try unit.table.intern(.folBound(0))]))
-    let guarded = try unit.table.intern(.folForall(body: try unit.table.intern(.folImplies(set, try unit.table.intern(.folImplies(bottom, bottom))))))
+    let guarded = try unit.table.intern(.folForall(body: try unit.table.intern(.folImplies(
+        set,
+        try unit.table.intern(.folImplies(bottom, bottom)),
+    ))))
     #expect(unit.refused.isEmpty)
     #expect(unit.statements.map(\.root) == [guarded])
 }
@@ -201,65 +228,115 @@ private func compoundElimination(_ t: inout Table) throws -> [Statement] {
     let selfMember = try t.intern(.isaConst(.primitive(.zf(.mem)), memT, args: [x, x]))
     let lemRoot = try t.intern(.ifolAll(i, body: try t.intern(.folImplies(selfMember, selfMember))))
     let lem = Statement(name: "lem", root: lemRoot, proof: try t.intern(.isaAllIntro(i, body: try t.intern(
-        .folImpliesIntro(selfMember, body: try t.intern(.hyp(0, selfMember)))))))
-    let pow = try t.intern(.isaConst(.primitive(.zf(.pow)), fn(i, i), args: [try t.intern(.isaConst(.primitive(.zf(.zero)), i, args: []))]))
+        .folImpliesIntro(selfMember, body: try t.intern(.hyp(0, selfMember)))
+    ))))
+    let pow = try t.intern(.isaConst(
+        .primitive(.zf(.pow)),
+        fn(i, i),
+        args: [try t.intern(.isaConst(.primitive(.zf(.zero)), i, args: []))],
+    ))
     let atPow = try t.intern(.isaConst(.primitive(.zf(.mem)), memT, args: [pow, pow]))
     let proof = try t.intern(.isaAllElim(try t.intern(.use(.theorem("lem"), [], lemRoot)), pow))
     return [lem, Statement(name: "thm", root: try t.intern(.folImplies(atPow, atPow)), proof: proof)]
 }
 
-/// `lem : ⋀x. x ∈ x ⟶ x ∈ x` at `Pow(0)`: the logic pass proves the instance, citing EX and UNIQ of `Pow(0)`, both proved —
+/// `lem : ⋀x. x ∈ x ⟶ x ∈ x` at `Pow(0)`: the logic pass proves the instance, citing EX and UNIQ of `Pow(0)`, both
+/// proved —
 /// UNIQ by `Pow`'s facts from base, EX by `Pow`'s class — and the statement lowers. The cited theorem is lowered whole.
-@Test func anEliminationAtACompoundTermCitesItsTermsLemmas() throws {
+@Test
+func anEliminationAtACompoundTermCitesItsTermsLemmas() throws {
     var t = Table()
     let statements = try compoundElimination(&t)
     let unit = try lowered(t, statements)
     #expect(unit.refused.isEmpty)
     let kept = Set(unit.statements.map(\.name))
-    #expect(kept.isSuperset(of: ["lem", "thm", "ZF_Base.Pow_CLASS", "ZF_Base.Pow_AGREE", "ZF_Base.Pow_FUNC", "ZF_Base.Pow_TOTAL",
-                                 "TUPLE_UNIQ_1", "TUPLE_INJ_1"]))
+    #expect(kept.isSuperset(of: [
+        "lem",
+        "thm",
+        "ZF_Base.Pow_CLASS",
+        "ZF_Base.Pow_AGREE",
+        "ZF_Base.Pow_FUNC",
+        "ZF_Base.Pow_TOTAL",
+        "TUPLE_UNIQ_1",
+        "TUPLE_INJ_1",
+    ]))
     #expect(kept.contains { $0.hasPrefix("UNIQ_") } && kept.contains { $0.hasPrefix("EX_") })
 }
 
 private struct Q {
     var t = Table()
     let P = IRType.fn(.i, .o)
-    mutating func n(_ node: Node) throws -> NodeID { try t.intern(node) }
-    mutating func set(_ k: Int) throws -> NodeID { try n(.isaBound(k, .i)) }
+
+    mutating func n(_ node: Node) throws -> NodeID {
+        try t.intern(node)
+    }
+
+    mutating func set(_ k: Int) throws -> NodeID {
+        try n(.isaBound(k, .i))
+    }
+
     mutating func applied(_ p: Int, _ x: Int) throws -> NodeID {
         try n(.isaVarApp(head: try n(.isaBound(p, P)), args: [try set(x)]))
     }
+
     mutating func eq(_ a: NodeID, _ b: NodeID) throws -> NodeID {
         try n(.isaConst(.primitive(.ifol(.eq)), .fn(.i, .fn(.i, .o)), args: [a, b]))
     }
-    mutating func imp(_ a: NodeID, _ b: NodeID) throws -> NodeID { try n(.folImplies(a, b)) }
-    mutating func all(_ T: IRType, _ body: NodeID) throws -> NodeID { try n(.ifolAll(T, body: body)) }
+
+    mutating func imp(_ a: NodeID, _ b: NodeID) throws -> NodeID {
+        try n(.folImplies(a, b))
+    }
+
+    mutating func all(_ T: IRType, _ body: NodeID) throws -> NodeID {
+        try n(.ifolAll(T, body: body))
+    }
+
     mutating func cited(_ name: String, _ a: Axiom, _ root: NodeID) throws -> Statement {
         Statement(name: name, root: root, proof: try n(.use(.axiom(a), [.i], root)), theory: "IFOL")
     }
 }
 
-/// IFOL's quantifier rules, `eq_reflection`, `refl` and `subst` at `[i]`, each its statement proved by citing the axiom, as
+/// IFOL's quantifier rules, `eq_reflection`, `refl` and `subst` at `[i]`, each its statement proved by citing the
+/// axiom, as
 /// Isabelle registers the fact: `subst` is base's `class_subst`, the kernel proving `IFOL.subst`, the unit's own claim
 /// beside base's; the other six are Logic's, unbuilt, and refused there.
-@Test func ifolsSubstAtIIsBasesClassSubstAndItsOtherRulesAreUnbuilt() throws {
+@Test
+func ifolsSubstAtIIsBasesClassSubstAndItsOtherRulesAreUnbuilt() throws {
     var q = Q()
     let P = q.P
     let allI = try q.all(P, try q.imp(try q.all(.i, try q.applied(1, 0)), try q.all(.i, try q.applied(1, 0))))
     let spec = try q.all(P, try q.all(.i, try q.imp(try q.all(.i, try q.applied(2, 0)), try q.applied(1, 0))))
-    let exI = try q.all(P, try q.all(.i, try q.imp(try q.applied(1, 0), try q.n(.ifolEx(.i, body: try q.applied(2, 0))))))
+    let exI = try q.all(
+        P,
+        try q.all(.i, try q.imp(try q.applied(1, 0), try q.n(.ifolEx(.i, body: try q.applied(2, 0))))),
+    )
     let R = try q.n(.isaBound(1, .o))
-    let exE = try q.all(P, try q.all(.o, try q.imp(try q.n(.ifolEx(.i, body: try q.applied(2, 0))),
-        try q.imp(try q.all(.i, try q.imp(try q.applied(2, 0), R)), try q.n(.isaBound(0, .o))))))
+    let exE = try q.all(P, try q.all(.o, try q.imp(
+        try q.n(.ifolEx(.i, body: try q.applied(2, 0))),
+        try q.imp(
+            try q.all(.i, try q.imp(try q.applied(2, 0), R)),
+            try q.n(.isaBound(0, .o)),
+        ),
+    )))
     let xy = try q.eq(try q.set(1), try q.set(0))
     let eqReflection = try q.all(.i, try q.all(.i, try q.imp(xy, xy)))
     let refl = try q.all(.i, try q.eq(try q.set(0), try q.set(0)))
-    let subst = try q.all(.i, try q.all(.i, try q.all(P, try q.imp(try q.eq(try q.set(2), try q.set(1)),
-        try q.imp(try q.applied(0, 2), try q.applied(0, 1))))))
-    let statements = [try q.cited("IFOL.allI", .ifol(.allI), allI), try q.cited("IFOL.spec", .ifol(.spec), spec),
-                      try q.cited("IFOL.exI", .ifol(.exI), exI), try q.cited("IFOL.exE", .ifol(.exE), exE),
-                      try q.cited("IFOL.eq_reflection", .ifol(.eqReflection), eqReflection),
-                      try q.cited("IFOL.refl", .ifol(.refl), refl), try q.cited("IFOL.subst", .ifol(.subst), subst)]
+    let subst = try q.all(.i, try q.all(.i, try q.all(P, try q.imp(
+        try q.eq(try q.set(2), try q.set(1)),
+        try q.imp(
+            try q.applied(0, 2),
+            try q.applied(0, 1),
+        ),
+    ))))
+    let statements = [
+        try q.cited("IFOL.allI", .ifol(.allI), allI),
+        try q.cited("IFOL.spec", .ifol(.spec), spec),
+        try q.cited("IFOL.exI", .ifol(.exI), exI),
+        try q.cited("IFOL.exE", .ifol(.exE), exE),
+        try q.cited("IFOL.eq_reflection", .ifol(.eqReflection), eqReflection),
+        try q.cited("IFOL.refl", .ifol(.refl), refl),
+        try q.cited("IFOL.subst", .ifol(.subst), subst),
+    ]
     let unit = try lowered(q.t, statements)
     let unbuilt: [Axiom] = [.ifol(.allI), .ifol(.spec), .ifol(.exI), .ifol(.exE), .ifol(.eqReflection), .ifol(.refl)]
     #expect(unit.refused.map(\.name) == statements.dropLast().map(\.name))
@@ -269,9 +346,11 @@ private struct Q {
 }
 
 /// `subst` as Isabelle states it, its class premise stated: `OFCLASS(i, term) ⟹ ⋀a b P. a = b ⟹ P(a) ⟹ P(b)`, proved by
-/// citing the axiom. Base's `class_subst` states no class premise: the citation proves the axiom's statement, the premise
+/// citing the axiom. Base's `class_subst` states no class premise: the citation proves the axiom's statement, the
+/// premise
 /// introduced over base's claim, and the kernel proves it.
-@Test func substWithItsClassPremiseStatedIsBasesClassSubstUnderIt() throws {
+@Test
+func substWithItsClassPremiseStatedIsBasesClassSubstUnderIt() throws {
     var l = LogicTable()
     let term = TypeClass(.ifol, "IFOL.term")
     let P = try l.t.intern(.isaPropBound(0))
@@ -282,10 +361,20 @@ private struct Q {
     let applied = { (p: Int, x: Int, l: inout LogicTable) throws -> NodeID in
         try l.t.intern(.isaVarApp(head: try l.bound(p, C), args: [try l.bound(x, i)]))
     }
-    let body = try l.all(i, try l.all(i, try l.all(C, try l.imp(try l.equal(i, try l.bound(2, i), try l.bound(1, i)),
-        try l.imp(try applied(0, 2, &l), try applied(0, 1, &l))))))
+    let body = try l.all(i, try l.all(i, try l.all(C, try l.imp(
+        try l.equal(i, try l.bound(2, i), try l.bound(1, i)),
+        try l.imp(
+            try applied(0, 2, &l),
+            try applied(0, 1, &l),
+        ),
+    ))))
     let root = try l.imp(member, body)
-    let subst = Statement(name: "IFOL.subst", root: root, proof: try l.t.intern(.use(.axiom(.ifol(.subst)), [i], root)), theory: "IFOL")
+    let subst = Statement(
+        name: "IFOL.subst",
+        root: root,
+        proof: try l.t.intern(.use(.axiom(.ifol(.subst)), [i], root)),
+        theory: "IFOL",
+    )
     let b = try base(in: &l.t)
     var unit = Unit(table: l.t, statements: [subst], definitions: [definition])
     try pipeline(b).run(&unit)
@@ -293,40 +382,63 @@ private struct Q {
     try kernelChecks(unit)
 }
 
-/// Pure's `reflexive`, `symmetric` and `transitive` at `i`: base's `eq_refl`, `eq_symm` and `eq_trans` at variables, and at
+/// Pure's `reflexive`, `symmetric` and `transitive` at `i`: base's `eq_refl`, `eq_symm` and `eq_trans` at variables,
+/// and at
 /// `Pow(0)` through the instance Reify proves at a compound term; the kernel proves every statement.
-@Test func puresEqualityAtIIsBasesEqualityAtVariablesAndAtACompoundTerm() throws {
+@Test
+func puresEqualityAtIIsBasesEqualityAtVariablesAndAtACompoundTerm() throws {
     var q = Q()
-    let xy = try q.eq(try q.set(1), try q.set(0)), yx = try q.eq(try q.set(0), try q.set(1))
+    let xy = try q.eq(try q.set(1), try q.set(0))
+    let yx = try q.eq(try q.set(0), try q.set(1))
     let symRoot = try q.all(.i, try q.all(.i, try q.imp(xy, yx)))
-    let symProof = try q.n(.isaAllIntro(.i, body: try q.n(.isaAllIntro(.i, body: try q.n(.folImpliesIntro(xy, body: try q.n(
-        .isaSymmetric(.i, try q.n(.hyp(0, xy))))))))))
-    let (a, b, c) = (try q.set(2), try q.set(1), try q.set(0))
-    let ab = try q.eq(a, b), bc = try q.eq(b, c), ac = try q.eq(a, c)
+    let symProof = try q.n(.isaAllIntro(
+        .i,
+        body: try q.n(.isaAllIntro(.i, body: try q.n(.folImpliesIntro(xy, body: try q.n(
+            .isaSymmetric(.i, try q.n(.hyp(0, xy)))
+        ))))),
+    ))
+    let a = try q.set(2)
+    let b = try q.set(1)
+    let c = try q.set(0)
+    let ab = try q.eq(a, b)
+    let bc = try q.eq(b, c)
+    let ac = try q.eq(a, c)
     let transRoot = try q.all(.i, try q.all(.i, try q.all(.i, try q.imp(ab, try q.imp(bc, ac)))))
     let transBody = try q.n(.folImpliesIntro(ab, body: try q.n(.folImpliesIntro(bc, body: try q.n(
-        .isaTransitive(.i, try q.n(.hyp(1, ab)), try q.n(.hyp(0, bc))))))))
+        .isaTransitive(.i, try q.n(.hyp(1, ab)), try q.n(.hyp(0, bc)))
+    )))))
     var transProof = transBody
     for _ in 0..<3 { transProof = try q.n(.isaAllIntro(.i, body: transProof)) }
-    let pow = try q.n(.isaConst(.primitive(.zf(.pow)), .fn(.i, .i), args: [try q.n(.isaConst(.primitive(.zf(.zero)), .i, args: []))]))
+    let pow = try q.n(.isaConst(
+        .primitive(.zf(.pow)),
+        .fn(.i, .i),
+        args: [try q.n(.isaConst(.primitive(.zf(.zero)), .i, args: []))],
+    ))
     let reflPow = try q.eq(pow, pow)
-    let x = try q.set(0), xPow = try q.eq(x, pow), powX = try q.eq(pow, x)
+    let x = try q.set(0)
+    let xPow = try q.eq(x, pow)
+    let powX = try q.eq(pow, x)
     let symPowRoot = try q.all(.i, try q.imp(xPow, powX))
     let symPowProof = try q.n(.isaAllIntro(.i, body: try q.n(.folImpliesIntro(xPow, body: try q.n(
-        .isaSymmetric(.i, try q.n(.hyp(0, xPow))))))))
-    let statements = [Statement(name: "T.sym", root: symRoot, proof: symProof, theory: "Test"),
-                      Statement(name: "T.trans", root: transRoot, proof: transProof, theory: "Test"),
-                      Statement(name: "T.reflPow", root: reflPow, proof: try q.n(.isaReflexive(pow)), theory: "Test"),
-                      Statement(name: "T.symPow", root: symPowRoot, proof: symPowProof, theory: "Test")]
+        .isaSymmetric(.i, try q.n(.hyp(0, xPow)))
+    )))))
+    let statements = [
+        Statement(name: "T.sym", root: symRoot, proof: symProof, theory: "Test"),
+        Statement(name: "T.trans", root: transRoot, proof: transProof, theory: "Test"),
+        Statement(name: "T.reflPow", root: reflPow, proof: try q.n(.isaReflexive(pow)), theory: "Test"),
+        Statement(name: "T.symPow", root: symPowRoot, proof: symPowProof, theory: "Test"),
+    ]
     let unit = try lowered(q.t, statements)
     #expect(unit.refused.isEmpty)
     #expect(Set(unit.statements.map(\.name)).isSuperset(of: statements.map(\.name)))
     try kernelChecks(unit)
 }
 
-/// `reflexive` at a term holding a λ over a formula, `PrimReplace(0, λx y. y ∈ Pow(x))`: the walk names the atoms inside the
+/// `reflexive` at a term holding a λ over a formula, `PrimReplace(0, λx y. y ∈ Pow(x))`: the walk names the atoms
+/// inside the
 /// λ, so the side is read off the step as the walk was given it — the λ's class is built from the λ as read.
-@Test func puresReflexiveAtITakesItsSideAsRead() throws {
+@Test
+func puresReflexiveAtITakesItsSideAsRead() throws {
     var q = Q()
     let zero = try q.n(.isaConst(.primitive(.zf(.zero)), .i, args: []))
     let pow = try q.n(.isaConst(.primitive(.zf(.pow)), .fn(.i, .i), args: [try q.set(1)]))
@@ -334,7 +446,12 @@ private struct Q {
     let relation = IRType.fn(.i, .fn(.i, .o))
     let lambda = try q.n(.isaAbs(.i, body: try q.n(.isaAbs(.i, body: member))))
     let image = try q.n(.isaConst(.primitive(.zf(.primReplace)), .fn(.i, .fn(relation, .i)), args: [zero, lambda]))
-    let statement = Statement(name: "T.reflImage", root: try q.eq(image, image), proof: try q.n(.isaReflexive(image)), theory: "Test")
+    let statement = Statement(
+        name: "T.reflImage",
+        root: try q.eq(image, image),
+        proof: try q.n(.isaReflexive(image)),
+        theory: "Test",
+    )
     let unit = try lowered(q.t, [statement])
     #expect(unit.refused.isEmpty)
     #expect(unit.statements.contains { $0.name == "T.reflImage" })
@@ -343,15 +460,29 @@ private struct Q {
 
 private struct Unbuilt: Prover {
     let name = "unbuilt"
-    func owns(_ l: Lemma) -> Owned? { l.name.hasSuffix("_CLASS") ? .unbuilt : nil }
-    func prove(_ l: Lemma, _ statement: NodeID, _ definitions: [Definition], in t: inout Table) throws -> NodeID { statement }
-    func defines(_ c: Defined) -> Owned? { nil }
-    func define(_ c: Defined, _ definitions: [Definition], in t: inout Table) throws -> NodeID { try t.intern(.folBottom) }
+
+    func owns(_ l: Lemma) -> Owned? {
+        l.name.hasSuffix("_CLASS") ? .unbuilt : nil
+    }
+
+    func prove(_: Lemma, _ statement: NodeID, _: [Definition], in _: inout Table) throws -> NodeID {
+        statement
+    }
+
+    func defines(_: Defined) -> Owned? {
+        nil
+    }
+
+    func define(_: Defined, _: [Definition], in t: inout Table) throws -> NodeID {
+        try t.intern(.folBottom)
+    }
 }
 
-/// The same, a registry answering class existence unbuilt: `Pow`'s class is refused at the registry, EX citing it falls,
+/// The same, a registry answering class existence unbuilt: `Pow`'s class is refused at the registry, EX citing it
+/// falls,
 /// and the statement with it; what it does not cite stays.
-@Test func aStatementFallsWithAnUnbuiltLemmaItsProofCites() throws {
+@Test
+func aStatementFallsWithAnUnbuiltLemmaItsProofCites() throws {
     var t = Table()
     let b = try base(in: &t)
     let statements = try compoundElimination(&t)
@@ -365,24 +496,36 @@ private struct Unbuilt: Prover {
     #expect(refused[ex] == .cites("ZF_Base.Pow_CLASS"))
     #expect(refused["thm"] == .cites(ex))
     let kept = Set(unit.statements.map(\.name))
-    #expect(kept.isSuperset(of: ["lem", "ZF_Base.Pow_AGREE", "ZF_Base.Pow_FUNC", "ZF_Base.Pow_TOTAL", "TUPLE_UNIQ_1", "TUPLE_INJ_1"]))
+    #expect(kept.isSuperset(of: [
+        "lem",
+        "ZF_Base.Pow_AGREE",
+        "ZF_Base.Pow_FUNC",
+        "ZF_Base.Pow_TOTAL",
+        "TUPLE_UNIQ_1",
+        "TUPLE_INJ_1",
+    ]))
     #expect(kept.contains { $0.hasPrefix("UNIQ_") })
 }
 
 /// An elimination at the reader's hidden variable: no pass owns it yet, so the statement stops before the first.
-@Test func aPatternNoPassOwnsStopsTheStatementBeforeThePlan() throws {
+@Test
+func aPatternNoPassOwnsStopsTheStatementBeforeThePlan() throws {
     var t = Table()
     let bottom = try t.intern(.folBottom)
     let root = try t.intern(.folImplies(bottom, bottom))
     let hidden = try t.intern(.isaFree(.hidden, i))
-    let proof = try t.intern(.isaAllElim(try t.intern(.use(.theorem("lem"), [], try t.intern(.ifolAll(i, body: root)))), hidden))
+    let proof = try t.intern(.isaAllElim(
+        try t.intern(.use(.theorem("lem"), [], try t.intern(.ifolAll(i, body: root)))),
+        hidden,
+    ))
     let unit = try lowered(t, [Statement(name: "thm", root: root, proof: proof)])
     #expect(unit.refused.map(\.refusal) == [.noOwner([.isaFree(i)])])
 }
 
 /// `¬⊥ ⟹ ¬⊥` by its hypothesis: once Expand unfolds `¬`, nothing is left that fol-zfc lacks, and the plan lowers it
 /// whole.
-@Test func aStatementWhoseOnlyIsaPieceIsALogicConstantIsLoweredWhole() throws {
+@Test
+func aStatementWhoseOnlyIsaPieceIsALogicConstantIsLoweredWhole() throws {
     var l = LogicTable()
     let not = try l.not()
     let bottom = try l.bottom()
@@ -398,47 +541,71 @@ private struct Unbuilt: Prover {
 }
 
 /// `T.d ≡ λx. ¬(x ∈ x)` is Reify's: it passes Expand, which unfolds its `¬`, and reaches the logic pass so.
-@Test func aDefinitionOwnedByALaterPassReachesItUnfolded() throws {
+@Test
+func aDefinitionOwnedByALaterPassReachesItUnfolded() throws {
     var l = LogicTable()
     let not = try l.not()
     let x = try l.bound(0, i)
     let member = try l.mem(x, x)
-    let d = try l.definition(Defined(.zf, "T.d", .object), fn(i, o), try l.lam(i, try l.const(.defined(not.constant), fn(o, o), member)))
+    let d = try l.definition(
+        Defined(.zf, "T.d", .object),
+        fn(i, o),
+        try l.lam(i, try l.const(.defined(not.constant), fn(o, o), member)),
+    )
     let b = try base(in: &l.t)
     var unit = Unit(table: l.t, statements: [], definitions: [not, d])
     try pipeline(b).run(&unit)
     var reached = d
-    reached.definiens = try unit.table.intern(.isaAbs(i, body: try unit.table.intern(.folImplies(member, try unit.table.intern(.folBottom)))))
+    reached.definiens = try unit.table.intern(.isaAbs(
+        i,
+        body: try unit.table.intern(.folImplies(member, try unit.table.intern(.folBottom))),
+    ))
     #expect(unit.definitions == [not, reached])
 }
 
 /// `⋀Q. Q ⟹ Q`, proved by instantiating the schema `id : ⋀P. P ⟹ P` at its own letter: `schema_inst` on a citation,
 /// both lowered whole.
-@Test func aSchemaAndAStatementInstantiatingItAreLoweredWhole() throws {
+@Test
+func aSchemaAndAStatementInstantiatingItAreLoweredWhole() throws {
     var t = Table()
     let p = try t.intern(.isaBound(0, o))
     let root = try t.intern(.ifolAll(o, body: try t.intern(.folImplies(p, p))))
     let id = Statement(name: "id", root: root, proof: try t.intern(.isaAllIntro(o, body: try t.intern(
-        .folImpliesIntro(p, body: try t.intern(.hyp(0, p)))))))
+        .folImpliesIntro(p, body: try t.intern(.hyp(0, p)))
+    ))))
     let cited = try t.intern(.use(.theorem("id"), [], root))
-    let user = Statement(name: "user", root: root, proof: try t.intern(.isaAllIntro(o, body: try t.intern(.isaAllElim(cited, p)))))
+    let user = Statement(
+        name: "user",
+        root: root,
+        proof: try t.intern(.isaAllIntro(o, body: try t.intern(.isaAllElim(cited, p)))),
+    )
     var unit = try lowered(t, [id, user])
     #expect(unit.refused.isEmpty)
     #expect(unit.statements.map(\.name) == ["id", "user"])
-    #expect(unit.statements[1].proof == (try unit.table.intern(.isaAllIntro(o, body: try unit.table.intern(.folSchemaInst(cited, p))))))
+    #expect(unit.statements[1].proof == (try unit.table.intern(.isaAllIntro(
+        o,
+        body: try unit.table.intern(.folSchemaInst(cited, p)),
+    ))))
 }
 
 /// `⋀x. T.d(x) ⟶ T.d(x)`, `T.d ≡ λx. x ∈ x`: the logic pass names `T.d(x)` by `T.d`'s class, the registry states the
 /// class's `@def` from the definition, and the unit holds both, linked.
-@Test func aStatementNamingAConstantIsLoweredWithTheConstantsDefinition() throws {
+@Test
+func aStatementNamingAConstantIsLoweredWithTheConstantsDefinition() throws {
     var l = LogicTable()
     let x = try l.bound(0, i)
     let d = try l.definition(Defined(.zf, "T.d", .object), fn(i, o), try l.lam(i, try l.mem(x, x)))
     let atom = try l.const(.defined(d.constant), fn(i, o), x)
-    let proof = try l.t.intern(.isaAllIntro(i, body: try l.t.intern(.folImpliesIntro(atom, body: try l.t.intern(.hyp(0, atom))))))
+    let proof = try l.t.intern(.isaAllIntro(
+        i,
+        body: try l.t.intern(.folImpliesIntro(atom, body: try l.t.intern(.hyp(0, atom)))),
+    ))
     let b = try base(in: &l.t)
-    var unit = Unit(table: l.t, statements: [Statement(name: "thm", root: try l.all(i, try l.imp(atom, atom)), proof: proof)],
-                    definitions: [d])
+    var unit = Unit(
+        table: l.t,
+        statements: [Statement(name: "thm", root: try l.all(i, try l.imp(atom, atom)), proof: proof)],
+        definitions: [d],
+    )
     try pipeline(b).run(&unit)
     #expect(unit.refused.isEmpty)
     #expect(unit.statements.map(\.name) == ["thm", "T.d_DEF"])
@@ -447,68 +614,116 @@ private struct Unbuilt: Prover {
 
 /// `T.e ≡ λx. x ∈ a`, `a` a declared constant: no `@def` names it, so the `@def` is refused at the logic pass, and the
 /// statement naming `T.e` with it.
-@Test func aDefinitionHoldingAPieceNotBuiltRefusesItsUsers() throws {
+@Test
+func aDefinitionHoldingAPieceNotBuiltRefusesItsUsers() throws {
     var l = LogicTable()
     let x = try l.bound(0, i)
     let declared = try l.const(.declared("T.a"), i)
     let e = try l.definition(Defined(.zf, "T.e", .object), fn(i, o), try l.lam(i, try l.mem(x, declared)))
     let atom = try l.const(.defined(e.constant), fn(i, o), x)
-    let proof = try l.t.intern(.isaAllIntro(i, body: try l.t.intern(.folImpliesIntro(atom, body: try l.t.intern(.hyp(0, atom))))))
+    let proof = try l.t.intern(.isaAllIntro(
+        i,
+        body: try l.t.intern(.folImpliesIntro(atom, body: try l.t.intern(.hyp(0, atom)))),
+    ))
     let b = try base(in: &l.t)
-    var unit = Unit(table: l.t, statements: [Statement(name: "thm", root: try l.all(i, try l.imp(atom, atom)), proof: proof)],
-                    definitions: [e])
+    var unit = Unit(
+        table: l.t,
+        statements: [Statement(name: "thm", root: try l.all(i, try l.imp(atom, atom)), proof: proof)],
+        definitions: [e],
+    )
     try pipeline(b).run(&unit)
     #expect(unit.statements.isEmpty)
     #expect(unit.refused.map(\.name) == ["T.e_DEF", "thm"])
-    #expect(unit.refused.map(\.refusal) == [.unbuilt(pass: "logic", [.isaConst(.declared, i, args: [])]), .cites("T.e_DEF")])
+    #expect(unit.refused.map(\.refusal) == [
+        .unbuilt(pass: "logic", [.isaConst(.declared, i, args: [])]),
+        .cites("T.e_DEF"),
+    ])
 }
 
 /// `T.ball ≡ λA P. ∀x. x ∈ A ⟶ P(x)`: the abstraction over the class parameter `P` is the `@def`'s own variable, no λ
 /// of its body, so the `@def` is stated and `⋀A. T.ball(A, λx. x ∈ A) ⟶ T.ball(A, λx. x ∈ A)` lowered with it.
-@Test func aDefinitionsClassParameterIsItsDefinitionsVariable() throws {
+@Test
+func aDefinitionsClassParameterIsItsDefinitionsVariable() throws {
     var l = LogicTable()
-    let P = fn(i, o), x = try l.bound(0, i)
+    let P = fn(i, o)
+    let x = try l.bound(0, i)
     let applied = try l.t.intern(.isaVarApp(head: try l.bound(1, P), args: [x]))
-    let ball = try l.definition(Defined(.zf, "T.ball", .object), fn(i, fn(P, o)),
-                                try l.lam(i, try l.lam(P, try l.all(i, try l.imp(try l.mem(x, try l.bound(2, i)), applied)))))
+    let ball = try l.definition(
+        Defined(.zf, "T.ball", .object),
+        fn(i, fn(P, o)),
+        try l.lam(
+            i,
+            try l.lam(P, try l.all(i, try l.imp(try l.mem(x, try l.bound(2, i)), applied))),
+        ),
+    )
     let lambda = try l.lam(i, try l.mem(try l.bound(0, i), try l.bound(1, i)))
     let atom = try l.const(.defined(ball.constant), fn(i, fn(P, o)), try l.bound(0, i), lambda)
-    let proof = try l.t.intern(.isaAllIntro(i, body: try l.t.intern(.folImpliesIntro(atom, body: try l.t.intern(.hyp(0, atom))))))
+    let proof = try l.t.intern(.isaAllIntro(
+        i,
+        body: try l.t.intern(.folImpliesIntro(atom, body: try l.t.intern(.hyp(0, atom)))),
+    ))
     let b = try base(in: &l.t)
-    var unit = Unit(table: l.t, statements: [Statement(name: "thm", root: try l.all(i, try l.imp(atom, atom)), proof: proof)],
-                    definitions: [ball])
+    var unit = Unit(
+        table: l.t,
+        statements: [Statement(name: "thm", root: try l.all(i, try l.imp(atom, atom)), proof: proof)],
+        definitions: [ball],
+    )
     try pipeline(b).run(&unit)
     #expect(unit.refused.isEmpty)
     #expect(unit.statements.map(\.name) == ["thm", "T.ball_DEF"])
 }
 
-/// The logic's rules as the reader reads them: `conjI` as `and_intro`, `disjE` as `or_elim`, `classical` as its isa step
+/// The logic's rules as the reader reads them: `conjI` as `and_intro`, `disjE` as `or_elim`, `classical` as its isa
+/// step
 /// over IFOL's `¬`. Expand unfolds `¬`, Logic makes `classical` the kernel's reductio, and the kernel proves the three
 /// schemas.
-@Test func theLogicsRulesReadAsStepsAreLoweredAndProved() throws {
+@Test
+func theLogicsRulesReadAsStepsAreLoweredAndProved() throws {
     var l = LogicTable()
     let not = try l.not()
-    let (A2, B2) = (try l.bound(1, o), try l.bound(0, o))
-    func h(_ k: Int, _ a: NodeID) throws -> NodeID { try l.t.intern(.hyp(k, a)) }
-    func assume(_ a: NodeID, _ body: NodeID) throws -> NodeID { try l.t.intern(.folImpliesIntro(a, body: body)) }
+    let A2 = try l.bound(1, o)
+    let B2 = try l.bound(0, o)
+    func h(_ k: Int, _ a: NodeID) throws -> NodeID {
+        try l.t.intern(.hyp(k, a))
+    }
+    func assume(_ a: NodeID, _ body: NodeID) throws -> NodeID {
+        try l.t.intern(.folImpliesIntro(a, body: body))
+    }
     func fix(_ n: Int, _ body: NodeID) throws -> NodeID {
         var p = body
         for _ in 0..<n { p = try l.t.intern(.isaAllIntro(o, body: p)) }
         return p
     }
-    let conj = Statement(name: "T.conj", root: try l.all(o, try l.all(o, try l.imp(A2, try l.imp(B2, try l.and(A2, B2))))),
-                         proof: try fix(2, try assume(A2, try assume(B2, try l.t.intern(.folAndIntro(try h(1, A2), try h(0, B2)))))),
-                         theory: "Test")
-    let (A3, B3, C3) = (try l.bound(2, o), try l.bound(1, o), try l.bound(0, o))
-    let or3 = try l.t.intern(.folOr(A3, B3)), ac = try l.imp(A3, C3), bc = try l.imp(B3, C3)
+    let conj = Statement(
+        name: "T.conj",
+        root: try l.all(o, try l.all(o, try l.imp(A2, try l.imp(B2, try l.and(A2, B2))))),
+        proof: try fix(2, try assume(A2, try assume(B2, try l.t.intern(.folAndIntro(try h(1, A2), try h(0, B2)))))),
+        theory: "Test",
+    )
+    let A3 = try l.bound(2, o)
+    let B3 = try l.bound(1, o)
+    let C3 = try l.bound(0, o)
+    let or3 = try l.t.intern(.folOr(A3, B3))
+    let ac = try l.imp(A3, C3)
+    let bc = try l.imp(B3, C3)
     let cases = try l.t.intern(.folOrElim(try h(2, or3), try h(1, ac), try h(0, bc)))
-    let disj = Statement(name: "T.cases", root: try l.all(o, try l.all(o, try l.all(o, try l.imp(or3, try l.imp(ac, try l.imp(bc, C3)))))),
-                         proof: try fix(3, try assume(or3, try assume(ac, try assume(bc, cases)))), theory: "Test")
+    let disj = Statement(
+        name: "T.cases",
+        root: try l.all(o, try l.all(o, try l.all(o, try l.imp(or3, try l.imp(ac, try l.imp(bc, C3)))))),
+        proof: try fix(3, try assume(or3, try assume(ac, try assume(bc, cases)))),
+        theory: "Test",
+    )
     let A1 = try l.bound(0, o)
     let premise = try l.imp(try l.const(.defined(not.constant), .fn(o, o), A1), A1)
-    let classical = Statement(name: "T.classical", root: try l.all(o, try l.imp(premise, A1)),
-                              proof: try fix(1, try assume(premise, try l.t.intern(.isaClassical(A1, try h(0, premise))))),
-                              theory: "Test")
+    let classical = Statement(
+        name: "T.classical",
+        root: try l.all(o, try l.imp(premise, A1)),
+        proof: try fix(
+            1,
+            try assume(premise, try l.t.intern(.isaClassical(A1, try h(0, premise)))),
+        ),
+        theory: "Test",
+    )
     let b = try base(in: &l.t)
     var unit = Unit(table: l.t, statements: [conj, disj, classical], definitions: [not])
     try pipeline(b).run(&unit)
@@ -519,17 +734,23 @@ private struct Unbuilt: Prover {
 
 /// `IFOL.conjunct1` as Isabelle proves it: its box at `P` and `Q`, the box `and_elim_l` at its letters. The box is a
 /// schema of the unit, the theorem its `schema_inst`, and the kernel proves both.
-@Test func aTheoremProvedThroughABoxIsASchemaInstanceOfItsSchema() throws {
+@Test
+func aTheoremProvedThroughABoxIsASchemaInstanceOfItsSchema() throws {
     var l = LogicTable()
-    let (A, B) = (try l.bound(1, o), try l.bound(0, o))
+    let A = try l.bound(1, o)
+    let B = try l.bound(0, o)
     let both = try l.and(A, B)
     let root = try l.all(o, try l.all(o, try l.imp(both, A)))
     func fix(_ body: NodeID) throws -> NodeID {
         try l.t.intern(.isaAllIntro(o, body: try l.t.intern(.isaAllIntro(o, body: body))))
     }
     let elim = try l.t.intern(.folAndElimL(try l.t.intern(.hyp(0, both))))
-    let box = Statement(name: "T.BOX_conjunct1", root: root, proof: try fix(try l.t.intern(.folImpliesIntro(both, body: elim))),
-                        theory: "Test")
+    let box = Statement(
+        name: "T.BOX_conjunct1",
+        root: root,
+        proof: try fix(try l.t.intern(.folImpliesIntro(both, body: elim))),
+        theory: "Test",
+    )
     let cited = try l.t.intern(.use(.theorem("T.BOX_conjunct1"), [], root))
     let instance = try l.t.intern(.isaAllElim(try l.t.intern(.isaAllElim(cited, A)), B))
     let conjunct1 = Statement(name: "T.conjunct1", root: root, proof: try fix(instance), theory: "Test")
@@ -542,18 +763,29 @@ private struct Unbuilt: Prover {
 }
 
 /// `equal_elim (symmetric (combination (reflexive Trueprop) q)) fact`, the simplifier's rewrite of `fact ⊢ B` by
-/// `q ⊢ A ↔ B`: `Trueprop` is `λP. P`, its `reflexive` pointwise over truth sets, the `combination` its truth instance at
+/// `q ⊢ A ↔ B`: `Trueprop` is `λP. P`, its `reflexive` pointwise over truth sets, the `combination` its truth instance
+/// at
 /// `A`. The kernel proves the schema.
-@Test func aRewriteUnderTruepropIsLoweredAndProved() throws {
+@Test
+func aRewriteUnderTruepropIsLoweredAndProved() throws {
     var l = LogicTable()
-    let (A, B) = (try l.bound(1, o), try l.bound(0, o))
+    let A = try l.bound(1, o)
+    let B = try l.bound(0, o)
     let ab = try l.t.intern(.folIff(A, B))
     let identity = try l.t.intern(.isaAbs(o, body: try l.bound(0, o)))
-    let lifted = try l.t.intern(.isaCombination(.fn(o, o), try l.t.intern(.isaReflexive(identity)), try l.t.intern(.hyp(1, ab))))
+    let lifted = try l.t.intern(.isaCombination(
+        .fn(o, o),
+        try l.t.intern(.isaReflexive(identity)),
+        try l.t.intern(.hyp(1, ab)),
+    ))
     let rewrite = try l.t.intern(.folIffElimL(try l.t.intern(.isaSymmetric(o, lifted)), try l.t.intern(.hyp(0, B))))
     let body = try l.t.intern(.folImpliesIntro(ab, body: try l.t.intern(.folImpliesIntro(B, body: rewrite))))
-    let rw = Statement(name: "T.rewrite", root: try l.all(o, try l.all(o, try l.imp(ab, try l.imp(B, A)))),
-                       proof: try l.t.intern(.isaAllIntro(o, body: try l.t.intern(.isaAllIntro(o, body: body)))), theory: "Test")
+    let rw = Statement(
+        name: "T.rewrite",
+        root: try l.all(o, try l.all(o, try l.imp(ab, try l.imp(B, A)))),
+        proof: try l.t.intern(.isaAllIntro(o, body: try l.t.intern(.isaAllIntro(o, body: body)))),
+        theory: "Test",
+    )
     let b = try base(in: &l.t)
     var unit = Unit(table: l.t, statements: [rw])
     try pipeline(b).run(&unit)
@@ -561,34 +793,68 @@ private struct Unbuilt: Prover {
     try kernelChecks(unit)
 }
 
-/// Pure's `⋀` over a proposition, introduced in a proof and instantiated at the statement's letter: the intro a truth set,
+/// Pure's `⋀` over a proposition, introduced in a proof and instantiated at the statement's letter: the intro a truth
+/// set,
 /// its elimination the truth instance. In a premise it is a truth set too, instantiated from its hypothesis. And `TERM`
 /// unfolded, `⋀C. C ⟹ C`, is one truth set whether it stands at a statement's top (`T.term`) or in a premise
 /// (`T.useTerm`): a proof passing the one to the other meets one formula, where a letter on the top did not. The kernel
 /// proves all four.
-@Test func pureAllOverAPropositionIsLoweredAndProved() throws {
+@Test
+func pureAllOverAPropositionIsLoweredAndProved() throws {
     var l = LogicTable()
-    let A = try l.bound(0, o), P = try l.t.intern(.isaPropBound(0))
+    let A = try l.bound(0, o)
+    let P = try l.t.intern(.isaPropBound(0))
     let reflexive = try l.t.intern(.isaPropIntro(body: try l.t.intern(.isaReflexive(P))))
     let unfolded = try l.t.intern(.folIffElimL(try l.t.intern(.isaAllElim(reflexive, A)), try l.t.intern(.hyp(0, A))))
-    let protect = Statement(name: "T.protect", root: try l.all(o, try l.imp(A, A)),
-                            proof: try l.t.intern(.isaAllIntro(o, body: try l.t.intern(.folImpliesIntro(A, body: unfolded)))),
-                            theory: "Test")
+    let protect = Statement(
+        name: "T.protect",
+        root: try l.all(o, try l.imp(A, A)),
+        proof: try l.t.intern(.isaAllIntro(
+            o,
+            body: try l.t.intern(.folImpliesIntro(A, body: unfolded)),
+        )),
+        theory: "Test",
+    )
     let premise = try l.t.intern(.isaPropAll(body: try l.imp(P, P)))
     let applied = try l.t.intern(.isaAllElim(try l.t.intern(.hyp(0, premise)), A))
-    let use = Statement(name: "T.usePremise", root: try l.all(o, try l.imp(premise, try l.imp(A, A))),
-                        proof: try l.t.intern(.isaAllIntro(o, body: try l.t.intern(.folImpliesIntro(premise, body: applied)))),
-                        theory: "Test")
+    let use = Statement(
+        name: "T.usePremise",
+        root: try l.all(o, try l.imp(premise, try l.imp(A, A))),
+        proof: try l.t.intern(.isaAllIntro(
+            o,
+            body: try l.t.intern(.folImpliesIntro(premise, body: applied)),
+        )),
+        theory: "Test",
+    )
     let termRoot = try l.all(o, premise)
-    let identity = try l.t.intern(.isaPropIntro(body: try l.t.intern(.folImpliesIntro(P, body: try l.t.intern(.hyp(0, P))))))
-    let term = Statement(name: "T.term", root: termRoot, proof: try l.t.intern(.isaAllIntro(o, body: identity)), theory: "Test")
-    let (X, Q) = (try l.bound(1, o), try l.bound(0, o))
+    let identity = try l.t.intern(.isaPropIntro(body: try l.t.intern(.folImpliesIntro(
+        P,
+        body: try l.t.intern(.hyp(0, P)),
+    ))))
+    let term = Statement(
+        name: "T.term",
+        root: termRoot,
+        proof: try l.t.intern(.isaAllIntro(o, body: identity)),
+        theory: "Test",
+    )
+    let X = try l.bound(1, o)
+    let Q = try l.bound(0, o)
     let cited = try l.t.intern(.isaAllElim(try l.t.intern(.use(.theorem("T.term"), [], termRoot)), X))
-    let consumer = try l.t.intern(.folImpliesIntro(premise, body: try l.t.intern(.folImpliesIntro(Q, body: try l.t.intern(.hyp(0, Q))))))
-    let useTerm = Statement(name: "T.useTerm", root: try l.all(o, try l.all(o, try l.imp(premise, try l.imp(Q, Q)))),
-                            proof: try l.t.intern(.isaAllIntro(o, body: try l.t.intern(.isaAllIntro(o, body: try l.t.intern(
-                                .folImpliesIntro(premise, body: try l.t.intern(.folImpliesElim(consumer, cited)))))))),
-                            theory: "Test")
+    let consumer = try l.t.intern(.folImpliesIntro(
+        premise,
+        body: try l.t.intern(.folImpliesIntro(Q, body: try l.t.intern(.hyp(0, Q)))),
+    ))
+    let useTerm = Statement(
+        name: "T.useTerm",
+        root: try l.all(o, try l.all(o, try l.imp(premise, try l.imp(Q, Q)))),
+        proof: try l.t.intern(.isaAllIntro(
+            o,
+            body: try l.t.intern(.isaAllIntro(o, body: try l.t.intern(
+                .folImpliesIntro(premise, body: try l.t.intern(.folImpliesElim(consumer, cited)))
+            ))),
+        )),
+        theory: "Test",
+    )
     let b = try base(in: &l.t)
     var unit = Unit(table: l.t, statements: [protect, use, term, useTerm])
     try pipeline(b).run(&unit)
@@ -598,7 +864,8 @@ private struct Unbuilt: Prover {
 
 /// `protectD`'s box, `⋀A. PROP A ⟹ A`, by `equal_elim` of `prop_def` at its letter: the definition at its term is
 /// `reflexive` there, base's `iff_refl`, and no binder stands in the box's proof. The kernel proves it.
-@Test func aDefinitionAtItsTermsIsLoweredAndProved() throws {
+@Test
+func aDefinitionAtItsTermsIsLoweredAndProved() throws {
     var l = LogicTable()
     let prop = Defined(.pure, "Pure.prop", .meta)
     let definition = try l.definition(prop, oo, parameters: 1, try l.lam(o, try l.bound(0, o)))
@@ -606,9 +873,16 @@ private struct Unbuilt: Prover {
     let protected = try l.const(.defined(prop), oo, A)
     let stated = try l.all(o, try l.equal(o, protected, A))
     let unfolded = try l.t.intern(.isaDefinition("Pure.prop_def", of: .constant(prop), [], stated, args: [A]))
-    let body = try l.t.intern(.folImpliesIntro(protected, body: try l.t.intern(.folIffElimL(unfolded, try l.t.intern(.hyp(0, protected))))))
-    let box = Statement(name: "T.protectD", root: try l.all(o, try l.imp(protected, A)),
-                        proof: try l.t.intern(.isaAllIntro(o, body: body)), theory: "Test")
+    let body = try l.t.intern(.folImpliesIntro(
+        protected,
+        body: try l.t.intern(.folIffElimL(unfolded, try l.t.intern(.hyp(0, protected)))),
+    ))
+    let box = Statement(
+        name: "T.protectD",
+        root: try l.all(o, try l.imp(protected, A)),
+        proof: try l.t.intern(.isaAllIntro(o, body: body)),
+        theory: "Test",
+    )
     let b = try base(in: &l.t)
     var unit = Unit(table: l.t, statements: [box], definitions: [definition])
     try pipeline(b).run(&unit)
@@ -619,7 +893,8 @@ private struct Unbuilt: Prover {
 /// `arity_term_i`'s shape: `OFCLASS(i, term)` by `term_class.intro` in place at `[i]`, `equal_elim` of the class's
 /// definition made symmetric, at `⋀P. λH. H`; and a theorem whose class premise its citer discharges with it. Expand
 /// states the membership by its definition, `⋀P. P ⟹ P`, a truth set; the kernel proves all three.
-@Test func aClassMembershipIsLoweredByItsDefinitionAndProved() throws {
+@Test
+func aClassMembershipIsLoweredByItsDefinitionAndProved() throws {
     var l = LogicTable()
     let term = TypeClass(.ifol, "IFOL.term")
     let P = try l.t.intern(.isaPropBound(0))
@@ -628,18 +903,29 @@ private struct Unbuilt: Prover {
     let member = try l.t.intern(.isaOfClass(i, term))
     let stated = try l.equal(o, member, definiens)
     let cited = try l.t.intern(.isaDefinition("IFOL.term_class_def", of: .ofClass(term), [i], stated, args: []))
-    let identity = try l.t.intern(.isaPropIntro(body: try l.t.intern(.folImpliesIntro(P, body: try l.t.intern(.hyp(0, P))))))
+    let identity = try l.t.intern(.isaPropIntro(body: try l.t.intern(.folImpliesIntro(
+        P,
+        body: try l.t.intern(.hyp(0, P)),
+    ))))
     let intro = try l.t.intern(.folIffElimL(try l.t.intern(.isaSymmetric(o, cited)), identity))
     let arity = Statement(name: "T.arity", root: member, proof: intro, theory: "Test")
     let x = try l.bound(0, i)
     let selfEqual = try l.equal(i, x, x)
     let premisedProof = try l.t.intern(.folImpliesIntro(member, body: try l.t.intern(.isaReflexive(x))))
-    let premised = Statement(name: "T.premised", root: try l.all(i, try l.imp(member, selfEqual)),
-                             proof: try l.t.intern(.isaAllIntro(i, body: premisedProof)), theory: "Test")
+    let premised = Statement(
+        name: "T.premised",
+        root: try l.all(i, try l.imp(member, selfEqual)),
+        proof: try l.t.intern(.isaAllIntro(i, body: premisedProof)),
+        theory: "Test",
+    )
     let atX = try l.t.intern(.isaAllElim(try l.t.intern(.use(.theorem("T.premised"), [], premised.root)), x))
     let discharged = try l.t.intern(.folImpliesElim(atX, try l.t.intern(.use(.theorem("T.arity"), [], member))))
-    let user = Statement(name: "T.discharges", root: try l.all(i, selfEqual),
-                         proof: try l.t.intern(.isaAllIntro(i, body: discharged)), theory: "Test")
+    let user = Statement(
+        name: "T.discharges",
+        root: try l.all(i, selfEqual),
+        proof: try l.t.intern(.isaAllIntro(i, body: discharged)),
+        theory: "Test",
+    )
     let b = try base(in: &l.t)
     var unit = Unit(table: l.t, statements: [arity, premised, user], definitions: [definition])
     try pipeline(b).run(&unit)
@@ -649,26 +935,50 @@ private struct Unbuilt: Prover {
 
 /// Reify's instance at a compound term concludes the walk's own rendering of the instance: a theorem whose class
 /// premise is a truth set after Expand, cited at `Pow(A)`, has the premise rendered on both sides of the instance.
-@Test func aClassPremiseCitedAtACompoundTermIsLoweredAndProved() throws {
+@Test
+func aClassPremiseCitedAtACompoundTermIsLoweredAndProved() throws {
     var l = LogicTable()
     let term = TypeClass(.ifol, "IFOL.term")
     let P = try l.t.intern(.isaPropBound(0))
     let definiens = try l.t.intern(.isaPropAll(body: try l.imp(P, P)))
     let definition = Definition(defines: .ofClass(term), type: o, axiomTypes: [i], parameters: 0, definiens: definiens)
     let member = try l.t.intern(.isaOfClass(i, term))
-    let cited = try l.t.intern(.isaDefinition("IFOL.term_class_def", of: .ofClass(term), [i], try l.equal(o, member, definiens), args: []))
-    let identity = try l.t.intern(.isaPropIntro(body: try l.t.intern(.folImpliesIntro(P, body: try l.t.intern(.hyp(0, P))))))
-    let arity = Statement(name: "T.arity", root: member, proof: try l.t.intern(.folIffElimL(try l.t.intern(.isaSymmetric(o, cited)), identity)),
-                          theory: "Test")
+    let cited = try l.t.intern(.isaDefinition(
+        "IFOL.term_class_def",
+        of: .ofClass(term),
+        [i],
+        try l.equal(o, member, definiens),
+        args: [],
+    ))
+    let identity = try l.t.intern(.isaPropIntro(body: try l.t.intern(.folImpliesIntro(
+        P,
+        body: try l.t.intern(.hyp(0, P)),
+    ))))
+    let arity = Statement(
+        name: "T.arity",
+        root: member,
+        proof: try l.t.intern(.folIffElimL(try l.t.intern(.isaSymmetric(o, cited)), identity)),
+        theory: "Test",
+    )
     let x = try l.bound(0, i)
-    let premised = Statement(name: "T.premised", root: try l.all(i, try l.imp(member, try l.equal(i, x, x))),
-                             proof: try l.t.intern(.isaAllIntro(i, body: try l.t.intern(.folImpliesIntro(member, body: try l.t.intern(.isaReflexive(x)))))),
-                             theory: "Test")
+    let premised = Statement(
+        name: "T.premised",
+        root: try l.all(i, try l.imp(member, try l.equal(i, x, x))),
+        proof: try l.t.intern(.isaAllIntro(
+            i,
+            body: try l.t.intern(.folImpliesIntro(member, body: try l.t.intern(.isaReflexive(x)))),
+        )),
+        theory: "Test",
+    )
     let pow = try l.const(.primitive(.zf(.pow)), fn(i, i), x)
     let atPow = try l.t.intern(.isaAllElim(try l.t.intern(.use(.theorem("T.premised"), [], premised.root)), pow))
     let discharged = try l.t.intern(.folImpliesElim(atPow, try l.t.intern(.use(.theorem("T.arity"), [], member))))
-    let user = Statement(name: "T.atPow", root: try l.all(i, try l.equal(i, pow, pow)), proof: try l.t.intern(.isaAllIntro(i, body: discharged)),
-                         theory: "Test")
+    let user = Statement(
+        name: "T.atPow",
+        root: try l.all(i, try l.equal(i, pow, pow)),
+        proof: try l.t.intern(.isaAllIntro(i, body: discharged)),
+        theory: "Test",
+    )
     let b = try base(in: &l.t)
     var unit = Unit(table: l.t, statements: [arity, premised, user], definitions: [definition])
     try pipeline(b).run(&unit)
@@ -676,9 +986,11 @@ private struct Unbuilt: Prover {
     try kernelChecks(unit)
 }
 
-/// `⋀a. ⋀P. P(a) ⟹ P(a)` cited at `Pow(b)`: the instance's congruence walks under the class binder `⋀P` by fol-zfc's own
+/// `⋀a. ⋀P. P(a) ⟹ P(a)` cited at `Pow(b)`: the instance's congruence walks under the class binder `⋀P` by fol-zfc's
+/// own
 /// `forall_elim` at the bound class; under `⋀F::i ⇒ i` (`F(a) ∈ a`), its guard first.
-@Test func aClassBinderBelowTheInstantiatedVariableIsWalkedAtACompoundTerm() throws {
+@Test
+func aClassBinderBelowTheInstantiatedVariableIsWalkedAtACompoundTerm() throws {
     for C in [fn(i, o), fn(i, i)] {
         var l = LogicTable()
         let phi = { (a: NodeID, l: inout LogicTable) throws -> NodeID in
@@ -688,13 +1000,20 @@ private struct Unbuilt: Prover {
         let inner = try phi(try l.bound(1, i), &l)
         let root = try l.all(i, try l.all(C, try l.imp(inner, inner)))
         let proof = try l.t.intern(.isaAllIntro(i, body: try l.t.intern(.isaAllIntro(C, body: try l.t.intern(
-            .folImpliesIntro(inner, body: try l.t.intern(.hyp(0, inner))))))))
+            .folImpliesIntro(inner, body: try l.t.intern(.hyp(0, inner)))
+        )))))
         let thm = Statement(name: "T.thm", root: root, proof: proof, theory: "Test")
-        let atPow = try l.t.intern(.isaAllElim(try l.t.intern(.use(.theorem("T.thm"), [], root)),
-                                                try l.const(.primitive(.zf(.pow)), fn(i, i), try l.bound(0, i))))
+        let atPow = try l.t.intern(.isaAllElim(
+            try l.t.intern(.use(.theorem("T.thm"), [], root)),
+            try l.const(.primitive(.zf(.pow)), fn(i, i), try l.bound(0, i)),
+        ))
         let innerPow = try phi(try l.const(.primitive(.zf(.pow)), fn(i, i), try l.bound(1, i)), &l)
-        let user = Statement(name: "T.atPow", root: try l.all(i, try l.all(C, try l.imp(innerPow, innerPow))),
-                             proof: try l.t.intern(.isaAllIntro(i, body: atPow)), theory: "Test")
+        let user = Statement(
+            name: "T.atPow",
+            root: try l.all(i, try l.all(C, try l.imp(innerPow, innerPow))),
+            proof: try l.t.intern(.isaAllIntro(i, body: atPow)),
+            theory: "Test",
+        )
         let b = try base(in: &l.t)
         var unit = Unit(table: l.t, statements: [thm, user])
         try pipeline(b).run(&unit)
@@ -705,23 +1024,35 @@ private struct Unbuilt: Prover {
 
 /// `⋀P. x = x ⟹ P ⟹ P`, a truth set holding the variable an instance replaces: cited at `Pow(A)`, the instance's
 /// congruence walks under the truth set's binder as under the `∀` it renders.
-@Test func aTruthSetHoldingTheInstantiatedVariableIsLoweredAndProvedAtACompoundTerm() throws {
+@Test
+func aTruthSetHoldingTheInstantiatedVariableIsLoweredAndProvedAtACompoundTerm() throws {
     var l = LogicTable()
     let P = try l.t.intern(.isaPropBound(0))
     let truthSet = { (x: NodeID, l: inout LogicTable) throws -> NodeID in
         try l.t.intern(.isaPropAll(body: try l.imp(try l.equal(i, x, x), try l.imp(P, P))))
     }
-    let x = try l.bound(0, i), inner = try l.bound(1, i)
+    let x = try l.bound(0, i)
+    let inner = try l.bound(1, i)
     let phi = try truthSet(inner, &l)
-    let boundOver = Statement(name: "T.boundOver", root: try l.all(i, try l.imp(phi, phi)),
-                              proof: try l.t.intern(.isaAllIntro(i, body: try l.t.intern(.folImpliesIntro(phi, body: try l.t.intern(.hyp(0, phi)))))),
-                              theory: "Test")
+    let boundOver = Statement(
+        name: "T.boundOver",
+        root: try l.all(i, try l.imp(phi, phi)),
+        proof: try l.t.intern(.isaAllIntro(
+            i,
+            body: try l.t.intern(.folImpliesIntro(phi, body: try l.t.intern(.hyp(0, phi)))),
+        )),
+        theory: "Test",
+    )
     let powInner = try l.const(.primitive(.zf(.pow)), fn(i, i), inner)
     let phiAtPow = try truthSet(powInner, &l)
     let pow = try l.const(.primitive(.zf(.pow)), fn(i, i), x)
     let atPow = try l.t.intern(.isaAllElim(try l.t.intern(.use(.theorem("T.boundOver"), [], boundOver.root)), pow))
-    let user = Statement(name: "T.boundAtPow", root: try l.all(i, try l.imp(phiAtPow, phiAtPow)),
-                         proof: try l.t.intern(.isaAllIntro(i, body: atPow)), theory: "Test")
+    let user = Statement(
+        name: "T.boundAtPow",
+        root: try l.all(i, try l.imp(phiAtPow, phiAtPow)),
+        proof: try l.t.intern(.isaAllIntro(i, body: atPow)),
+        theory: "Test",
+    )
     let b = try base(in: &l.t)
     var unit = Unit(table: l.t, statements: [boundOver, user])
     try pipeline(b).run(&unit)

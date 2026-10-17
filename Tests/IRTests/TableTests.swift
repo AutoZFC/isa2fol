@@ -1,15 +1,18 @@
-import Testing
 import IR
+import Testing
 
 private let i = IRType.i
 private let o = IRType.o
-private func fn(_ a: IRType, _ b: IRType) -> IRType { .fn(a, b) }
+private func fn(_ a: IRType, _ b: IRType) -> IRType {
+    .fn(a, b)
+}
 
 private let qpair = Constant.defined(Defined(.zf, "QPair.QPair", .object))
 private let mem = Constant.primitive(.zf(.mem))
 private let collect = Constant.defined(Defined(.zf, "ZF_Base.Collect", .object))
 
-@Test func equalContentIsTheSameNode() throws {
+@Test
+func equalContentIsTheSameNode() throws {
     var t = Table()
     let a = try t.intern(.isaFree(.named("a"), i))
     let b = try t.intern(.isaFree(.named("b"), i))
@@ -20,14 +23,16 @@ private let collect = Constant.defined(Defined(.zf, "ZF_Base.Collect", .object))
     #expect(try t.intern(.isaConst(qpair, fn(i, fn(i, i)), args: [b, a])) != q)
 }
 
-@Test func aNodeReadsBackAsItsContent() throws {
+@Test
+func aNodeReadsBackAsItsContent() throws {
     var t = Table()
     let a = try t.intern(.isaFree(.named("a"), i))
     #expect(t[a] == .isaFree(.named("a"), i))
 }
 
 /// `∀x. mem(x, A)` and `∀y. mem(y, A)` are one formula: no node carries the bound name.
-@Test func alphaEquivalentFormulasAreOneNode() throws {
+@Test
+func alphaEquivalentFormulasAreOneNode() throws {
     func forallMemA(_ t: inout Table) throws -> NodeID {
         let bound = try t.intern(.isaBound(0, i))
         let A = try t.intern(.isaFree(.named("A"), i))
@@ -40,7 +45,8 @@ private let collect = Constant.defined(Defined(.zf, "ZF_Base.Collect", .object))
     #expect(x == y)
 }
 
-@Test func looseBoundCountsBindersAboveTheNode() throws {
+@Test
+func looseBoundCountsBindersAboveTheNode() throws {
     var t = Table()
     let b0 = try t.intern(.folBound(0))
     let b1 = try t.intern(.folBound(1))
@@ -59,7 +65,8 @@ private let collect = Constant.defined(Defined(.zf, "ZF_Base.Collect", .object))
     #expect(t.looseBound(of: free) == 0)
 }
 
-@Test func everyNodeHasItsTypeFromItsContent() throws {
+@Test
+func everyNodeHasItsTypeFromItsContent() throws {
     var t = Table()
     let a = try t.intern(.isaFree(.named("a"), i))
     let b = try t.intern(.isaFree(.named("b"), i))
@@ -80,7 +87,8 @@ private let collect = Constant.defined(Defined(.zf, "ZF_Base.Collect", .object))
 }
 
 /// One table per run, so an ID the table never issued is out of range.
-@Test func anIDTheTableNeverIssuedIsRefused() throws {
+@Test
+func anIDTheTableNeverIssuedIsRefused() throws {
     var issuer = Table()
     _ = try issuer.intern(.isaFree(.named("a"), i))
     let unissued = try issuer.intern(.isaFree(.named("b"), i))
@@ -90,7 +98,8 @@ private let collect = Constant.defined(Defined(.zf, "ZF_Base.Collect", .object))
     }
 }
 
-@Test func aChildOfTheWrongTypeIsRefused() throws {
+@Test
+func aChildOfTheWrongTypeIsRefused() throws {
     var t = Table()
     let a = try t.intern(.isaFree(.named("a"), i))
     #expect(throws: TableError.childType(expected: o, found: i)) {
@@ -103,7 +112,8 @@ private let collect = Constant.defined(Defined(.zf, "ZF_Base.Collect", .object))
 }
 
 /// S1: a fol predicate takes variables, never a term.
-@Test func aPredicateArgumentThatIsNotAVariableIsRefused() throws {
+@Test
+func aPredicateArgumentThatIsNotAVariableIsRefused() throws {
     var t = Table()
     let a = try t.intern(.isaFree(.named("a"), i))
     #expect(throws: TableError.predicateArgumentNotVariable(a)) {
@@ -113,7 +123,8 @@ private let collect = Constant.defined(Defined(.zf, "ZF_Base.Collect", .object))
 
 /// A variable keeps its IR type until fol, so a predicate takes isa's variables too — a set, a
 /// predicate class, a function class — and `legalize`, not the predicate, refuses them at the end.
-@Test func aPredicateTakesAVariableOfEveryTermType() throws {
+@Test
+func aPredicateTakesAVariableOfEveryTermType() throws {
     var t = Table()
     let x = try t.intern(.isaBound(0, i))
     let P = try t.intern(.isaBound(1, fn(i, o)))
@@ -126,10 +137,15 @@ private let collect = Constant.defined(Defined(.zf, "ZF_Base.Collect", .object))
 }
 
 /// The guard writes fol-zfc's binder while variables are still isa's, so `forall_elim` takes them as a predicate does.
-@Test func aForallEliminationTakesAVariableOfEveryTermType() throws {
+@Test
+func aForallEliminationTakesAVariableOfEveryTermType() throws {
     var t = Table()
-    let x = try t.intern(.isaBound(0, i)), P = try t.intern(.isaBound(1, fn(i, o)))
-    let body = try t.intern(.folPred(.base("elem"), args: [try t.intern(.isaBound(0, i)), try t.intern(.isaBound(2, fn(i, o)))]))
+    let x = try t.intern(.isaBound(0, i))
+    let P = try t.intern(.isaBound(1, fn(i, o)))
+    let body = try t.intern(.folPred(
+        .base("elem"),
+        args: [try t.intern(.isaBound(0, i)), try t.intern(.isaBound(2, fn(i, o)))],
+    ))
     let all = try t.intern(.folForall(body: body))
     let atX = try t.intern(.folForallElim(try t.intern(.hyp(0, all)), x))
     #expect(t.conclusion(of: atX) == (try t.intern(.folPred(.base("elem"), args: [x, P]))))
@@ -138,7 +154,8 @@ private let collect = Constant.defined(Defined(.zf, "ZF_Base.Collect", .object))
 }
 
 /// S4: a proposition is never reified, so a variable at `o` is no predicate's argument.
-@Test func aVariableAtOIsNotAPredicateArgument() throws {
+@Test
+func aVariableAtOIsNotAPredicateArgument() throws {
     var t = Table()
     let p = try t.intern(.isaBound(0, o))
     #expect(throws: TableError.propositionAsTerm(p)) {
@@ -147,7 +164,8 @@ private let collect = Constant.defined(Defined(.zf, "ZF_Base.Collect", .object))
 }
 
 /// The ZF surface: `Collect(A, P)` with `P` η-short is not surface-shaped.
-@Test func aFunctionArgumentThatIsNotAnAbstractionIsRefused() throws {
+@Test
+func aFunctionArgumentThatIsNotAnAbstractionIsRefused() throws {
     var t = Table()
     let A = try t.intern(.isaFree(.named("A"), i))
     let P = try t.intern(.isaFree(.named("P"), fn(i, o)))
@@ -156,7 +174,8 @@ private let collect = Constant.defined(Defined(.zf, "ZF_Base.Collect", .object))
     }
 }
 
-@Test func aPartialApplicationIsRefused() throws {
+@Test
+func aPartialApplicationIsRefused() throws {
     var t = Table()
     let a = try t.intern(.isaFree(.named("a"), i))
     #expect(throws: TableError.arityMismatch(expected: 2, found: 1)) {
@@ -164,14 +183,16 @@ private let collect = Constant.defined(Defined(.zf, "ZF_Base.Collect", .object))
     }
 }
 
-@Test func aNegativeBoundIndexIsRefused() throws {
+@Test
+func aNegativeBoundIndexIsRefused() throws {
     var t = Table()
     #expect(throws: TableError.negativeIndex(-1)) { try t.intern(.isaBound(-1, i)) }
     #expect(throws: TableError.negativeIndex(-2)) { try t.intern(.folBound(-2)) }
 }
 
 /// A class variable applied, `P(x)`: the head is a variable, never a constant.
-@Test func anAppliedHeadThatIsNotAVariableIsRefused() throws {
+@Test
+func anAppliedHeadThatIsNotAVariableIsRefused() throws {
     var t = Table()
     let a = try t.intern(.isaFree(.named("a"), i))
     let P = try t.intern(.isaFree(.named("P"), fn(i, o)))
@@ -185,7 +206,8 @@ private let collect = Constant.defined(Defined(.zf, "ZF_Base.Collect", .object))
 }
 
 /// The guard of a variable concludes the formula it carries, as a hypothesis does; IR knows no guard.
-@Test func theGuardOfAVariableConcludesItsFormula() throws {
+@Test
+func theGuardOfAVariableConcludesItsFormula() throws {
     var t = Table()
     let x = try t.intern(.isaBound(0, i))
     let set = try t.intern(.folPred(.base("set"), args: [x]))
@@ -198,7 +220,8 @@ private let collect = Constant.defined(Defined(.zf, "ZF_Base.Collect", .object))
 
 /// `schema_inst`: the step instantiates the letter at the top of its premise's conclusion. A premise whose conclusion
 /// binds no letter at its top is refused.
-@Test func aSchemaInstantiationConcludesItsPremisesLetterAtTheInstance() throws {
+@Test
+func aSchemaInstantiationConcludesItsPremisesLetterAtTheInstance() throws {
     var t = Table()
     let p = try t.intern(.isaBound(0, o))
     let schema = try t.intern(.ifolAll(o, body: try t.intern(.folImplies(p, p))))
@@ -211,9 +234,11 @@ private let collect = Constant.defined(Defined(.zf, "ZF_Base.Collect", .object))
 
 /// Pure's `≡` is read by its type: `↔` at `o`, `IFOL.eq` at `i`, `Pure.eq` at a function type; `sides(ofEquation:)`
 /// reads it back with its type.
-@Test func anEquationIsReadByItsType() throws {
+@Test
+func anEquationIsReadByItsType() throws {
     var t = Table()
-    let A = try t.intern(.folPred(.base("A"), args: [])), a = try t.intern(.isaConst(.declared("a"), i, args: []))
+    let A = try t.intern(.folPred(.base("A"), args: []))
+    let a = try t.intern(.isaConst(.declared("a"), i, args: []))
     let f = try t.intern(.isaAbs(i, body: try t.intern(.isaBound(0, i))))
     #expect(try t.equation(o, A, A) == t.intern(.folIff(A, A)))
     #expect(try t.equation(i, a, a) == t.intern(.isaConst(.primitive(.ifol(.eq)), fn(i, fn(i, o)), args: [a, a])))
@@ -225,16 +250,22 @@ private let collect = Constant.defined(Defined(.zf, "ZF_Base.Collect", .object))
 }
 
 /// Pure's equality rules are steps: each concludes by the reading of `≡` at its type.
-@Test func pureEqualityStepsConcludeByTheReadingOfEquality() throws {
+@Test
+func pureEqualityStepsConcludeByTheReadingOfEquality() throws {
     var t = Table()
-    let A = try t.intern(.folPred(.base("A"), args: [])), B = try t.intern(.folPred(.base("B"), args: []))
+    let A = try t.intern(.folPred(.base("A"), args: []))
+    let B = try t.intern(.folPred(.base("B"), args: []))
     let C = try t.intern(.folPred(.base("C"), args: []))
-    let a = try t.intern(.isaConst(.declared("a"), i, args: [])), b = try t.intern(.isaConst(.declared("b"), i, args: []))
-    let reflO = try t.intern(.isaReflexive(A)), reflI = try t.intern(.isaReflexive(a))
+    let a = try t.intern(.isaConst(.declared("a"), i, args: []))
+    let b = try t.intern(.isaConst(.declared("b"), i, args: []))
+    let reflO = try t.intern(.isaReflexive(A))
+    let reflI = try t.intern(.isaReflexive(a))
     #expect(t.conclusion(of: reflO) == (try t.equation(o, A, A)))
     #expect(t.conclusion(of: reflI) == (try t.equation(i, a, a)))
-    let ab = try t.intern(.hyp(0, try t.equation(o, A, B))), bc = try t.intern(.hyp(1, try t.equation(o, B, C)))
-    let sym = try t.intern(.isaSymmetric(o, ab)), trans = try t.intern(.isaTransitive(o, ab, bc))
+    let ab = try t.intern(.hyp(0, try t.equation(o, A, B)))
+    let bc = try t.intern(.hyp(1, try t.equation(o, B, C)))
+    let sym = try t.intern(.isaSymmetric(o, ab))
+    let trans = try t.intern(.isaTransitive(o, ab, bc))
     #expect(t.conclusion(of: sym) == (try t.equation(o, B, A)))
     #expect(t.conclusion(of: trans) == (try t.equation(o, A, C)))
     #expect(throws: TableError.premiseMismatch(expected: B, found: A)) { try t.intern(.isaTransitive(o, ab, ab)) }
@@ -247,9 +278,11 @@ private let collect = Constant.defined(Defined(.zf, "ZF_Base.Collect", .object))
 }
 
 /// `combination` concludes `f x ≡ g y` β-reduced: at `λP. P ∧ C`, from `A ↔ B`, `A ∧ C ↔ B ∧ C`.
-@Test func aCombinationConcludesTheApplicationsBetaReduced() throws {
+@Test
+func aCombinationConcludesTheApplicationsBetaReduced() throws {
     var t = Table()
-    let A = try t.intern(.folPred(.base("A"), args: [])), B = try t.intern(.folPred(.base("B"), args: []))
+    let A = try t.intern(.folPred(.base("A"), args: []))
+    let B = try t.intern(.folPred(.base("B"), args: []))
     let C = try t.intern(.folPred(.base("C"), args: []))
     let context = try t.intern(.isaAbs(o, body: try t.intern(.folAnd(try t.intern(.isaBound(0, o)), C))))
     let q = try t.intern(.hyp(0, try t.equation(o, A, B)))
@@ -259,22 +292,27 @@ private let collect = Constant.defined(Defined(.zf, "ZF_Base.Collect", .object))
 }
 
 /// `abstract_rule` concludes the equation of the two λs from `⋀x. f x ≡ g x`.
-@Test func anAbstractionConcludesTheEquationOfItsLambdas() throws {
+@Test
+func anAbstractionConcludesTheEquationOfItsLambdas() throws {
     var t = Table()
     let x = try t.intern(.isaBound(0, i))
     let fx = try t.intern(.isaConst(.declared("F"), fn(i, o), args: [x]))
     let gx = try t.intern(.isaConst(.declared("G"), fn(i, o), args: [x]))
     let pointwise = try t.intern(.hyp(0, try t.intern(.ifolAll(i, body: try t.equation(o, fx, gx)))))
     let step = try t.intern(.isaAbstract(fn(i, o), pointwise))
-    let (f, g) = (try t.intern(.isaAbs(i, body: fx)), try t.intern(.isaAbs(i, body: gx)))
+    let f = try t.intern(.isaAbs(i, body: fx))
+    let g = try t.intern(.isaAbs(i, body: gx))
     #expect(t.conclusion(of: step) == (try t.equation(fn(i, o), f, g)))
 }
 
-/// `classical`'s isa step concludes `P` from `h : X → P`, and refuses an `h` concluding something else; `iff_reflection`'s
+/// `classical`'s isa step concludes `P` from `h : X → P`, and refuses an `h` concluding something else;
+/// `iff_reflection`'s
 /// concludes `P ↔ Q`.
-@Test func theLogicsIsaStepsConcludeTheirRulesConclusions() throws {
+@Test
+func theLogicsIsaStepsConcludeTheirRulesConclusions() throws {
     var t = Table()
-    let (A, B) = (try t.intern(.isaBound(1, .o)), try t.intern(.isaBound(0, .o)))
+    let A = try t.intern(.isaBound(1, .o))
+    let B = try t.intern(.isaBound(0, .o))
     let premise = try t.intern(.folImplies(B, A))
     let h = try t.intern(.hyp(0, premise))
     let classical = try t.intern(.isaClassical(A, h))
@@ -284,9 +322,11 @@ private let collect = Constant.defined(Defined(.zf, "ZF_Base.Collect", .object))
     #expect(t.conclusion(of: reflection) == (try t.intern(.folIff(A, B))))
 }
 
-/// Pure's `⋀` over a proposition: its intro concludes it, its variable is a formula and never a predicate's argument, and
+/// Pure's `⋀` over a proposition: its intro concludes it, its variable is a formula and never a predicate's argument,
+/// and
 /// it is eliminated at a formula as a letter is.
-@Test func pureAllOverAPropositionIsIntroducedAndEliminatedAtAFormula() throws {
+@Test
+func pureAllOverAPropositionIsIntroducedAndEliminatedAtAFormula() throws {
     var t = Table()
     let P = try t.intern(.isaPropBound(0))
     let implication = try t.intern(.folImplies(P, P))
@@ -299,16 +339,24 @@ private let collect = Constant.defined(Defined(.zf, "ZF_Base.Collect", .object))
     #expect(t.conclusion(of: instance) == (try t.intern(.folImplies(C, C))))
 }
 
-/// A definition at its terms concludes its statement instantiated at them, `prop_def` at `C` concluding `PROP C ≡ C`; at
+/// A definition at its terms concludes its statement instantiated at them, `prop_def` at `C` concluding `PROP C ≡ C`;
+/// at
 /// no terms, its statement; a term of another type than its parameter's is refused.
-@Test func aDefinitionConcludesItsStatementAtItsTerms() throws {
+@Test
+func aDefinitionConcludesItsStatementAtItsTerms() throws {
     var t = Table()
     let prop = Defined(.pure, "Pure.prop", .meta)
     let A = try t.intern(.isaBound(0, o))
-    let stated = try t.intern(.ifolAll(o, body: try t.intern(.folIff(try t.intern(.isaConst(.defined(prop), fn(o, o), args: [A])), A))))
+    let stated = try t.intern(.ifolAll(
+        o,
+        body: try t.intern(.folIff(try t.intern(.isaConst(.defined(prop), fn(o, o), args: [A])), A)),
+    ))
     let C = try t.intern(.folPred(.base("C"), args: []))
     let at = try t.intern(.isaDefinition("Pure.prop_def", of: .constant(prop), [], stated, args: [C]))
-    #expect(t.conclusion(of: at) == (try t.intern(.folIff(try t.intern(.isaConst(.defined(prop), fn(o, o), args: [C])), C))))
+    #expect(t.conclusion(of: at) == (try t.intern(.folIff(
+        try t.intern(.isaConst(.defined(prop), fn(o, o), args: [C])),
+        C,
+    ))))
     let bare = try t.intern(.isaDefinition("Pure.prop_def", of: .constant(prop), [], stated, args: []))
     #expect(t.conclusion(of: bare) == stated)
     let x = try t.intern(.isaFree(.named("x"), i))
@@ -317,18 +365,32 @@ private let collect = Constant.defined(Defined(.zf, "ZF_Base.Collect", .object))
     }
 }
 
-/// fol-zfc's `forall_elim` takes Isabelle's class binder as Fol writes it: at `i ⇒ o` its body at the class, at `i ⇒ i` the
+/// fol-zfc's `forall_elim` takes Isabelle's class binder as Fol writes it: at `i ⇒ o` its body at the class, at `i ⇒ i`
+/// the
 /// binder's guard first, `function(K) → …` — the body Fol and the table write by one function.
-@Test func folsForallEliminationTakesAnIsaClassBinderAsFolWritesIt() throws {
+@Test
+func folsForallEliminationTakesAnIsaClassBinderAsFolWritesIt() throws {
     var t = Table()
-    let (P, F) = (IRType.fn(.i, .o), IRType.fn(.i, .i))
+    let P = IRType.fn(.i, .o)
+    let F = IRType.fn(.i, .i)
     let K = try t.intern(.folBound(3))
-    let predicate = try t.intern(.ifolAll(P, body: try t.intern(.folPred(.base("elem"), args: [try t.intern(.folBound(1)), try t.intern(.isaBound(0, P))]))))
+    let predicate = try t.intern(.ifolAll(
+        P,
+        body: try t.intern(.folPred(.base("elem"), args: [try t.intern(.folBound(1)), try t.intern(.isaBound(0, P))])),
+    ))
     let atP = try t.intern(.folForallElim(try t.intern(.hyp(0, predicate)), K))
     #expect(t.conclusion(of: atP) == (try t.intern(.folPred(.base("elem"), args: [try t.intern(.folBound(0)), K]))))
-    let function = try t.intern(.ifolAll(F, body: try t.intern(.folPred(.base("elem"), args: [try t.intern(.folBound(1)), try t.intern(.isaBound(0, F))]))))
+    let function = try t.intern(.ifolAll(
+        F,
+        body: try t.intern(.folPred(.base("elem"), args: [try t.intern(.folBound(1)), try t.intern(.isaBound(0, F))])),
+    ))
     let atF = try t.intern(.folForallElim(try t.intern(.hyp(0, function)), K))
-    let guarded = try t.intern(.folImplies(try t.intern(.folPred(.base("function"), args: [K])),
-                                           try t.intern(.folPred(.base("elem"), args: [try t.intern(.folBound(0)), K]))))
+    let guarded = try t.intern(.folImplies(
+        try t.intern(.folPred(.base("function"), args: [K])),
+        try t.intern(.folPred(
+            .base("elem"),
+            args: [try t.intern(.folBound(0)), K],
+        )),
+    ))
     #expect(t.conclusion(of: atF) == guarded)
 }
