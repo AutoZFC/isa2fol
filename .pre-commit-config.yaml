@@ -1,6 +1,8 @@
 repos:
-  - repo: https://github.com/nicklockwood/SwiftFormat
-    rev: 0.63.1
+  # SwiftFormat 0.63.1 with the wrapEnumCases fix of nicklockwood/SwiftFormat#2772; back to nicklockwood/SwiftFormat
+  # at the first release that holds it.
+  - repo: https://github.com/P1ckingStars/SwiftFormat
+    rev: 4b5ff5de2f36eca3d83d8648d538114f421815de
     hooks:
       - id: swiftformat
   - repo: https://github.com/realm/SwiftLint

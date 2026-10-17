@@ -32,7 +32,8 @@ public enum Primitive: Hashable, Sendable, CustomStringConvertible {
         case zero = "ZF_Base.zero"
         case pow = "ZF_Base.Pow"
         case union = "ZF_Base.Union"
-        case primReplace = "ZF_Base.PrimReplace", inf = "ZF_Base.Inf"
+        case primReplace = "ZF_Base.PrimReplace"
+        case inf = "ZF_Base.Inf"
     }
 
     public static let all = Pure.allCases.map(pure) + IFOL.allCases.map(ifol) + ZF.allCases.map(zf)
@@ -145,10 +146,19 @@ public enum Axiom: Hashable, Sendable, CustomStringConvertible {
         case subst = "IFOL.subst"
         case impI = "IFOL.impI"
         case mp = "IFOL.mp"
-        case conjI = "IFOL.conjI", conjunct1 = "IFOL.conjunct1", conjunct2 = "IFOL.conjunct2"
-        case disjI1 = "IFOL.disjI1", disjI2 = "IFOL.disjI2", disjE = "IFOL.disjE", falseE = "IFOL.FalseE"
-        case allI = "IFOL.allI", spec = "IFOL.spec", exI = "IFOL.exI", exE = "IFOL.exE"
-        case eqReflection = "IFOL.eq_reflection", iffReflection = "IFOL.iff_reflection"
+        case conjI = "IFOL.conjI"
+        case conjunct1 = "IFOL.conjunct1"
+        case conjunct2 = "IFOL.conjunct2"
+        case disjI1 = "IFOL.disjI1"
+        case disjI2 = "IFOL.disjI2"
+        case disjE = "IFOL.disjE"
+        case falseE = "IFOL.FalseE"
+        case allI = "IFOL.allI"
+        case spec = "IFOL.spec"
+        case exI = "IFOL.exI"
+        case exE = "IFOL.exE"
+        case eqReflection = "IFOL.eq_reflection"
+        case iffReflection = "IFOL.iff_reflection"
     }
 
     @frozen
@@ -160,8 +170,11 @@ public enum Axiom: Hashable, Sendable, CustomStringConvertible {
     public enum ZF: String, Hashable, Sendable, CaseIterable {
         case `extension` = "ZF_Base.extension"
         case replacement = "ZF_Base.replacement"
-        case powIff = "ZF_Base.Pow_iff", unionIff = "ZF_Base.Union_iff"
-        case foundation = "ZF_Base.foundation", infinity = "ZF_Base.infinity", choice = "AC.AC"
+        case powIff = "ZF_Base.Pow_iff"
+        case unionIff = "ZF_Base.Union_iff"
+        case foundation = "ZF_Base.foundation"
+        case infinity = "ZF_Base.infinity"
+        case choice = "AC.AC"
     }
 
     public static let all = IFOL.allCases.map(ifol) + FOL.allCases.map(fol) + ZF.allCases.map(zf)

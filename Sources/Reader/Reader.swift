@@ -69,8 +69,10 @@ private enum PureRule: String {
     case reflexive = "Pure.reflexive"
     case symmetric = "Pure.symmetric"
     case transitive = "Pure.transitive"
-    case combination = "Pure.combination", abstractRule = "Pure.abstract_rule"
-    case equalIntr = "Pure.equal_intr", equalElim = "Pure.equal_elim"
+    case combination = "Pure.combination"
+    case abstractRule = "Pure.abstract_rule"
+    case equalIntr = "Pure.equal_intr"
+    case equalElim = "Pure.equal_elim"
 
     var premises: Int {
         switch self {
