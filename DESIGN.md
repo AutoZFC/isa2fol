@@ -2533,7 +2533,8 @@ set, applied", below), **BUILT 2026-10-16**; then **a definition read at its ter
 below), **BUILT 2026-10-16**; then **`OFCLASS`, and a generic theorem in place** ("OFCLASS — a class's membership by its
 definition", below), **BUILT 2026-10-16**; then **step 3, an instance at a class type** ("Step 3 — an instance at a class
 type", below), **BUILT 2026-10-16**; then **step 4, Pure's equality between functions** ("Step 4 — Pure's equality
-between functions", below), **BUILT 2026-10-17**. From 2026-10-17 every run is the ZF session alone
+between functions", below), **BUILT 2026-10-17**; then **letters first** ("Letters first — a citation's propositions
+instantiated at the citation", below), **BUILT 2026-10-17**. From 2026-10-17 every run is the ZF session alone
 until it is fully translated (user), so each step's scope is measured there.
 
 0. **Emission** (below): no statement of the corpus has met the checker, and class existence's proofs are unmeasured.
@@ -3981,6 +3982,95 @@ each lowering kernel-checked but the reading's own; `PlanTests`' rows.
   `Bool.cond_DEF` 13. No owner 1,301, unchanged. The ZF session alone was not run complete before this step.
 - ⚠ **99% OF THE UNIT IS LEMMAS NOTHING CITES**: 6,013 of its 6,057 claims, in the `_uncited` parts; `λ classExists`
   writes 4.3 of its 5.7 million steps.
+
+### Letters first — a citation's propositions instantiated at the citation  **[DECISION 1 AGREED 2026-10-17 (user: "Do one, don't do 2. One forall elim is cheap"); decision 2 DROPPED; BUILT 2026-10-17, kept in the reader over a citation node holding its arguments (user), its decisions in the build for the user's review — `Sources/Reader/Terms.swift`, `Reader.swift`, `ReaderRefusal.swift`]**
+
+**The step.** 938 statements of the ZF session's unit are refused after the last pass for a letter off its spine —
+797 named theorems and 141 statements they cite, `IFOL.allE` and `IFOL.exE` themselves among them (a throwaway dump of
+the refusals, not kept) — and every statement citing one falls with it. Each holds the same three patterns:
+`ifolAll(o)`, `isaAllIntro(o)` and `folSchemaInst` off a citation's head.
+
+**The problem, in target text.** fol-zfc has a proposition variable only as a schema's letter, `schema N [A0(0), …]`,
+instantiated only by `schema_inst` on the citation itself; inside a proof there is no binder over a proposition (S4).
+Isabelle binds one anywhere in a statement's leading chain. `IFOL.allE`'s frees are `P`, `x`, `R` in the export's
+header, so it is read `⋀P x R. (∀x. P(x)) ⟹ (P(x) ⟹ R) ⟹ R`, and its proof is its box at its own variables, `P` read
+η-long as a λ:
+
+```
+IFOL.allE   BOX_596d… · (λy. P(y)) · x · R
+Logic       forall_elim BOX at K, then β walked over ∀x. ∀R. …       an instance at a class type (step 3)
+            the walk under ∀R: isaAllIntro(o) …, schema_inst h R      a binder over a proposition, inside a proof
+            schema_inst at R on the walk's proof, not on use BOX      off the citation's head
+```
+
+A citation is `use` and one elimination per argument, which yield its instance; the order is Isabelle's, and an
+instance at a λ or a compound term walks every binder still standing after its own — here `R`'s. A plain chain is
+fine: the emitter already writes its `schema_inst` ahead of its `forall_elim`s.
+
+**1. A statement's letters come first, and every citation instantiates them first.** **AGREED 2026-10-17 (user).**
+The reader closes a statement over
+its frees letters first — the propositions among them in the export's order, then the rest in the export's order — its
+proof's leading intros likewise, and an axiom's leading `⋀` chain likewise; a citation's leading term arguments are
+permuted to match. Logic then meets each letter's instance directly on `use` — `schema_inst` at the citation's head,
+its rule today — and no walk after it meets a binder over a proposition. Sound: binders at a statement's top commute,
+and every citation instantiates all the propositions among its frees ("Functions of propositions …", 6: 358,349 of
+358,349 sites). The IR then has the order the emitter writes. Not at Logic: the rule at a λ's instance cannot see the
+letter's instance above it (D1); a citation and all its arguments meet at the reader.
+
+| | now | letters first |
+|---|---|---|
+| `IFOL.allE` | `⋀P x R. (∀x. P(x)) ⟹ (P(x) ⟹ R) ⟹ R` | `⋀R P x. (∀x. P(x)) ⟹ (P(x) ⟹ R) ⟹ R` |
+| its proof | `BOX · (λy. P(y)) · x · R` | `BOX · R · (λy. P(y)) · x` |
+| Logic | the λ's walk under `∀R`; `schema_inst` on the walk | `schema_inst` on `use BOX`; the λ's walk under no letter |
+
+**2. A step used in several scopes is written once, at the outermost scope it depends on.** **DROPPED 2026-10-17
+(user: "One forall elim is cheap").** Instantiating early is
+always no worse only where it costs no step. At translation an instance moved outward needs a let — a cut,
+`implies_elim (implies_intro c …) p`, three lines, its hypothesis threaded through every scope between — worse for an
+instance used once. At emission it is free: the checker keeps a step citable until a scope it depends on closes
+(`cleanup_scope`), so a step written at its first use already stands at its outermost scope, and a later use in a
+sibling or an outer scope cites it. What is missing is recognizing the same step at another depth: the renderer keys a
+step by its node and the names of every index below its loosest, so the same instance one binder deeper — the same
+elimination of the same upper term in two scopes — is another node and is written again. Keyed instead by the node with
+its loose indices renumbered to the ones it uses, and those indices' names, every fact is written once wherever it is
+used, and never more than today.
+
+**Tests, written first.** `StatementTests`: a statement's proposition is bound before the frees the header lists ahead
+of it. `ProofReaderTests`: `T.late`, `⋀P R. (⋀x. P x) ⟹ R ⟹ R`, reads `R` first, and its citation at a λ and a letter
+eliminates the letter first, on the `use`. `LambdaTests`: the letters-first form of the off-spine theorem lowers, the
+kernel proving it; the off-spine form stays refused, now a shape the reader no longer writes.
+
+**Built.** Reader: `Terms` takes its frees' order, `FreeOrder` — `lettersFirst` for a theorem's statement and proof,
+`stated` for a definiens and an axiom — and keeps each free's letterhood in the header's order; `step` permutes a
+theorem citation's leading term arguments by it (`lettersFirst`), the mask read with the cited statement (`stating`) or
+its in-place proof. `ReaderRefusal.letterLeft`: a citation leaving a letter uninstantiated.
+
+**Decisions made in the build**, for the user's review:
+1. **An axiom keeps the export's order.** A rule read as a step and a definition read at its terms consume an axiom's
+   binders positionally (`applied`, `definition`), and a definiens' λs are its constant's parameters; letters first
+   there would permute each of those readings too. 1 named "an axiom's leading `⋀` chain likewise"; an axiom cited by
+   `use` with a letter after an object would stay off its spine, and the run below shows whether any is.
+2. **Every caller states the order** (`FreeOrder`), no default: a definiens closed letters first would reorder its
+   constant's arguments, silently.
+
+**Measured** (the ZF session alone, `--skip` the other seven; the release build on 48 cores; the lint first):
+- **Through logic**: 2:11, peak 6.7 GB. Unchanged: 2,058 of the 3,616 named theorems stand, Logic refuses 257 and no
+  pass owns 1,301 — where a binder stands in the closure changes no pattern.
+- **Complete, emitted and kernel-checked**: 11:38, peak 34.3 GB — read 44.9 s; expand 1.5 s, logic 80.7 s, registry
+  39.8 s, fol 356.4 s, link 26.5 s; emitted 144.2 s, 17 parts, 382 MB; 76.5M nodes. `check-unit.sh`: 50 s, every part
+  exit 0 and empty stderr, claims 6,058 of 6,058, schemas 104 of 104; 6,007 of the claims in the `_uncited` parts.
+- **No statement is refused at a letter off its spine** (938), and the reader refuses none, `letterLeft` included: no
+  statement that passes the last pass cites an axiom binding a letter after an object (decision 1).
+- **Named theorems lowered: 14, unchanged.** The 797 fall at a refused citation instead: 2,044 in all (1,247), led by
+  `IFOL.exI` 374, `ZF_Base.Ball_def` 91, `List.app.app_Cons` 20.
+- **What holds the 3,602 back** (a throwaway dump, each refused named theorem followed through its citations to the
+  statements refused at their own pieces, not kept): 1,750 such statements, most in IFOL, FOL and `ZF_Base`, so 1,328
+  of the 3,602 need eight or nine of the groups below at once. Of steps 5–8, 6 is needed by 2,665, 7 by 2,482, 5 by
+  2,054 and 8 by 1,374; alone, each frees at most 341 (7), 269 (6), 255 (5) and 7 (8) — at most, since a statement
+  refused at its own pieces has its citations unread. Beside them: `FOL.meta_simps.1` at `[i]` ("OFCLASS — …", 3: its
+  instance a later step), 1,293, freeing 620 more once 6 and 7 stand; a function of classes (step 9) 1,746; a variable
+  at `o⃗ ⇒ o`, two IFOL boxes ("Functions of propositions …", 4), 1,704; the class prover's 134 unbuilt lemmas 1,444;
+  `IFOL.exI`, an ∃-intro carrying its body ("The logic's rules read as steps", 4), 1,382.
 
 ### Fol — binders, guards and variables  **[BUILT 2026-09-28 as the guard; Fol's 2026-10-14; every object type and `∃` at `i` with "Reify — S1 at the site" — `Sources/Lowering/Fol.swift`]**
 

@@ -36,10 +36,13 @@ rules, and an instance at a class type is Lambda's (`DESIGN.md` "Step 3 — an i
 at the λ's class at its arguments, `LAMBDA_<fp>`, then β at each occurrence of the class variable — its slot's class
 kept, an application at its value), and Pure's equality between functions is Logic's (`DESIGN.md` "Step 4 — Pure's
 equality between functions": pointwise, `f ≡ g` read `⋀x⃗. f x⃗ ≡ g x⃗`, the λs wrappers; `combination` the premise at
-the argument, then the argument's equation substituted into the function by the replacement walk). Of the ZF session's
+the argument, then the argument's equation substituted into the function by the replacement walk). **A statement's
+letters come first** (`DESIGN.md` "Letters first"): the reader closes a theorem over its propositions before its other
+frees and permutes each citation's leading term arguments to match, so a letter is instantiated by `schema_inst` on the
+citation and no instance walks a binder over a proposition; an axiom keeps the export's order. Of the ZF session's
 3,616 named theorems (`--skip` the other seven), `lower` lowers 14 to fol-zfc and states 154 `@def`s: 1,301 stop at no
-owner, 257 at logic, 797 at a letter off its spine, and 1,247 cite a refused statement — a `@def` holding a piece not
-built, or a theorem refused for one of the others. **The rules that consumed a proposition where it stood are removed**
+owner, 257 at logic, and 2,044 cite a refused statement — a `@def` holding a piece not built, or a theorem refused for
+one of the others. **The rules that consumed a proposition where it stood are removed**
 (`DESIGN.md` "Removed — the rules that consumed a proposition where it stood"): FOUNDATION S4 makes a proposition an
 object as its truth set. **A proposition bound below a statement's top and a function of propositions have its rules**
 (`DESIGN.md` "Functions of propositions and the bound `⋀P`"): the reader reads Pure's `⋀` over a proposition apart from a
@@ -62,11 +65,11 @@ constant's from its `@def` and a primitive's from base. **Class existence has it
 `member_class` or `graph_class`; a class binder a hypothesis of what lies under it; one lift per class-taking constant,
 uniform in the record's length, re-keyed by `REKEY`. Every lemma the ZF session requests is proved but 134, among
 them the classes of λs holding a proposition, which the class prover does not read yet; ⚠ **99% OF THE EMITTED UNIT IS
-LEMMAS NOTHING CITES** (6,013 of the ZF session's 6,057 claims): requested for statements that then fall, and proved
+LEMMAS NOTHING CITES** (6,007 of the ZF session's 6,058 claims): requested for statements that then fall, and proved
 before that is known. **Emission
 is built** (`DESIGN.md` "Emission"): `isa2fol lower data/zf_export --emit DIR` writes the unit as parts — a theory's
 theorems, a lemma in its first citer's part — and `scripts/check-unit.sh DIR` kernel-checks each against the libraries
-of base and of the parts it cites: all 6,057 claims and 100 schemas of the ZF session's unit Proved. `DESIGN.md` is the plan; its "The steps after class
+of base and of the parts it cites: all 6,058 claims and 104 schemas of the ZF session's unit Proved. `DESIGN.md` is the plan; its "The steps after class
 existence, in order" is the order of work, agreed again from step 2 on around FOUNDATION S4.
 
 ## Build
@@ -250,7 +253,7 @@ determinism R1–R3 (§4.6).
    print(f'{c}/{t} = {100*c/t:.1f}%')"
    ```
 
-   ✓ **CURRENTLY 59/12101 = 0.5%, under the cap.** Keep it there: a breach is
+   ✓ **CURRENTLY 59/12176 = 0.5%, under the cap.** Keep it there: a breach is
    fixed by deleting prose, never by raising the cap.
 
    Does not apply to `base/**/*.fol.def` headers: those record provenance of

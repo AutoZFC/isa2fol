@@ -15,6 +15,7 @@ func kind(_ r: ReaderRefusal) -> String {
     case .nameSegment: "nameSegment"
     case .omittedProof: "omittedProof"
     case .oracle: "oracle"
+    case .letterLeft: "letterLeft"
     }
 }
 

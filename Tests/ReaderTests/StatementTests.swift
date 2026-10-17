@@ -9,7 +9,14 @@ private func read(_ file: String, at types: [IRType] = [], into t: inout Table) 
     let body = try f.parse(Array(file.utf8))
     let d = Decode(forest: f)
     let (e, _) = try d.proofFile(body)
-    var terms = try Terms(decode: d, constants: try testConstants(), classes: try testClasses(), file: e, at: types)
+    var terms = try Terms(
+        decode: d,
+        constants: try testConstants(),
+        classes: try testClasses(),
+        file: e,
+        at: types,
+        order: .lettersFirst,
+    )
     return try terms.statement(e.prop, in: &t)
 }
 
@@ -125,7 +132,8 @@ func aClassWithAxiomsReadsLikeAnyClass() throws {
     }
 }
 
-/// `elim_format`'s `W :: prop` is a formula variable: Pure's `prop` reads as `o` (DESIGN §4.3).
+/// `elim_format`'s `W :: prop` is a formula variable: Pure's `prop` reads as `o` (DESIGN §4.3). A letter, it is bound
+/// first, before the frees the header lists ahead of it (DESIGN "Letters first").
 @Test
 func aMetaLevelPropositionalVariableReadsAsAFormulaVariable() throws {
     var t = Table()
@@ -136,10 +144,10 @@ func aMetaLevelPropositionalVariableReadsAsAFormulaVariable() throws {
     let mem = try t.intern(.isaConst(
         .primitive(.zf(.mem)),
         memT,
-        args: [try t.intern(.isaBound(2, .i)), try t.intern(.isaBound(1, .i))],
+        args: [try t.intern(.isaBound(1, .i)), try t.intern(.isaBound(0, .i))],
     ))
-    let body = try t.intern(.folImplies(mem, try t.intern(.isaBound(0, .o))))
-    let closed = try [IRType.o, .i, .i].reduce(body) { b, T in try t.intern(.ifolAll(T, body: b)) }
+    let body = try t.intern(.folImplies(mem, try t.intern(.isaBound(2, .o))))
+    let closed = try [IRType.i, .i, .o].reduce(body) { b, T in try t.intern(.ifolAll(T, body: b)) }
     #expect(got == closed)
 }
 
@@ -167,7 +175,14 @@ private func zfBase(_ name: String, at types: [IRType] = []) throws -> (Table, N
     let body = try export.forest.parse(contentsOf: "\(root)/ZF.ZF_Base/proofs/\(serial)")
     let d = Decode(forest: export.forest)
     let (e, _) = try d.proofFile(body)
-    var terms = try Terms(decode: d, constants: export.constants, classes: export.classes, file: e, at: types)
+    var terms = try Terms(
+        decode: d,
+        constants: export.constants,
+        classes: export.classes,
+        file: e,
+        at: types,
+        order: .lettersFirst,
+    )
     var t = Table()
     let statement = try terms.statement(e.prop, in: &t)
     return (t, statement)

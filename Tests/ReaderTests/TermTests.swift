@@ -29,6 +29,7 @@ private struct Reading {
             classes: try testClasses(),
             file: e,
             at: tfrees.map(IRType.variable),
+            order: .stated,
         )
         self.frees = frees.map(\.0)
         return try terms.proposition(body, terms.closure, in: &t)

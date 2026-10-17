@@ -98,8 +98,20 @@ private enum Argument {
     case decoded(NodeID)
 }
 
+enum FreeOrder {
+    case lettersFirst
+    case stated
+}
+
 struct Terms {
-    init(decode: Decode, constants: Constants, classes: Classes, file e: Envelope, at instance: [IRType]) throws {
+    init(
+        decode: Decode,
+        constants: Constants,
+        classes: Classes,
+        file e: Envelope,
+        at instance: [IRType],
+        order: FreeOrder,
+    ) throws {
         guard instance.count == e.tfrees.count else {
             throw MalformedExport.instanceArity(expected: e.tfrees.count, found: instance.count)
         }
@@ -113,13 +125,21 @@ struct Terms {
         guard types.updateValue(.variable("dummy"), forKey: "dummy") == nil
         else { throw MalformedExport.tfreesHeader(e.tfrees) }
         let typed = try e.frees.map { ($0.0, try $0.1.irType().substituting(types)) }
+        let closed =
+            switch order {
+            case .lettersFirst: typed.filter { $0.1 == .o } + typed.filter { $0.1 != .o }
+            case .stated: typed
+            }
         self.types = types
-        freeTypes = typed.map(\.1)
-        frees = Dictionary(uniqueKeysWithValues: typed.enumerated().map { (
+        letters = typed.map { $0.1 == .o }
+        freeTypes = closed.map(\.1)
+        frees = Dictionary(uniqueKeysWithValues: closed.enumerated().map { (
             $0.element.0,
             (level: $0.offset, type: $0.element.1),
         ) })
     }
+
+    let letters: [Bool]
 
     let decode: Decode
     let constants: Constants

@@ -238,7 +238,14 @@ public struct Reader {
                 guard let U = bound[v] else { throw MalformedExport.notADefinition(axiom) }
                 return U
             }
-            var terms = try Terms(decode: decode, constants: constants, classes: classes, file: e, at: instance)
+            var terms = try Terms(
+                decode: decode,
+                constants: constants,
+                classes: classes,
+                file: e,
+                at: instance,
+                order: .stated,
+            )
             let body = try terms.term(rhs, try terms.irType(type), terms.closure, in: &table)
             let definiens = try terms.close(body, Node.isaAbs, in: &table)
             return Definition(
@@ -263,7 +270,14 @@ public struct Reader {
             else {
                 throw MalformedExport.notADefinition(axiom)
             }
-            var terms = try Terms(decode: decode, constants: constants, classes: classes, file: e, at: [T])
+            var terms = try Terms(
+                decode: decode,
+                constants: constants,
+                classes: classes,
+                file: e,
+                at: [T],
+                order: .stated,
+            )
             let U = try terms.irType(type)
             let definiens = try terms.term(rhs, U, terms.closure, in: &table)
             return Definition(defines: .ofClass(k), type: U, axiomTypes: [T], parameters: 0, definiens: definiens)
@@ -286,6 +300,7 @@ public struct Reader {
     private let families: Families
     private let corpus: Corpus
     private var statements = [Instance: NodeID]()
+    private var letterMasks = [Instance: [Bool]]()
     private var proofs = [Instance: (statement: NodeID, proof: NodeID)]()
     private var claims = [TheoremKey: String?]()
     private var readAt = [TheoremKey: [IRType]]()
@@ -327,7 +342,9 @@ public struct Reader {
                 classes: classes,
                 file: e,
                 at: types,
+                order: .lettersFirst,
             ))
+            letterMasks[instance] = f.terms.letters
             let root = try f.terms.statement(e.prop, in: &table)
             let body = try step(proof, ProofScope(f.terms.closure), &f, top: true)
             let p = try f.terms.close(body, Node.isaAllIntro, in: &table)
@@ -382,6 +399,13 @@ public struct Reader {
             )
         } else {
             p = try head(spine.node, s, &f, top: top && arguments.isEmpty)
+            if case .theorem(let c) = spine.node {
+                let instance = Instance(
+                    source: .theorem(TheoremKey(theory: c.theory, serial: c.serial)),
+                    types: try c.types.map(f.terms.irType),
+                )
+                arguments = try lettersFirst(arguments, try letters(of: instance))
+            }
         }
         for argument in arguments {
             switch argument {
@@ -401,6 +425,27 @@ public struct Reader {
         }
         f.steps[key] = p
         return p
+    }
+
+    private mutating func letters(of instance: Instance) throws -> [Bool] {
+        if let letters = letterMasks[instance] { return letters }
+        return try stating(instance).letters
+    }
+
+    private func lettersFirst(
+        _ arguments: ArraySlice<ProofArgument>,
+        _ letters: [Bool],
+    ) throws -> ArraySlice<ProofArgument> {
+        guard letters.contains(true) else { return arguments }
+        var given = [ProofArgument]()
+        for a in arguments.prefix(letters.count) {
+            guard case .term = a else { break }
+            given.append(a)
+        }
+        guard !letters[given.count...].contains(true) else { throw ReaderRefusal.letterLeft }
+        let first = given.indices.filter { letters[$0] }.map { given[$0] }
+        let rest = given.indices.filter { !letters[$0] }.map { given[$0] }
+        return ArraySlice(first + rest + arguments.dropFirst(given.count))
     }
 
     private mutating func head(
@@ -707,6 +752,10 @@ public struct Reader {
 
     private mutating func statement(_ instance: Instance) throws -> NodeID {
         if let p = statements[instance] { return p }
+        return try stating(instance).root
+    }
+
+    private mutating func stating(_ instance: Instance) throws -> (root: NodeID, letters: [Bool]) {
         let path: String
         let e: Envelope
         switch instance.source {
@@ -719,12 +768,21 @@ public struct Reader {
             path = entry.file
             e = try located(path) { try decode.axiom(entry.body) }
         }
-        let p = try located(path) {
-            var terms = try Terms(decode: decode, constants: constants, classes: classes, file: e, at: instance.types)
-            return try terms.statement(e.prop, in: &table)
+        let order: FreeOrder = if case .theorem = instance.source { .lettersFirst } else { .stated }
+        let (p, letters) = try located(path) {
+            var terms = try Terms(
+                decode: decode,
+                constants: constants,
+                classes: classes,
+                file: e,
+                at: instance.types,
+                order: order,
+            )
+            return (try terms.statement(e.prop, in: &table), terms.letters)
         }
         statements[instance] = p
-        return p
+        letterMasks[instance] = letters
+        return (p, letters)
     }
 }
 

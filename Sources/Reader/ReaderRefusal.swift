@@ -6,4 +6,5 @@ public enum ReaderRefusal: Error, Hashable, Sendable {
     case nameSegment(String)
     case omittedProof
     case oracle(String)
+    case letterLeft
 }

@@ -372,3 +372,36 @@ func aLetterTheCitedTheoremBindsAfterTheInstantiatedClassIsOffItsSpine() throws 
         return
     }
 }
+
+/// The theorem above with its letter first, as the reader reads it (DESIGN "Letters first"): `schema_inst` at `Q` on
+/// the citation, then the instance at the λ walks no binder over a proposition. The kernel proves the unit.
+@Test
+func aLetterInstantiatedFirstLeavesTheInstanceNoLetterToWalk() throws {
+    var l = LogicTable()
+    let applied = try l.t.intern(.isaVarApp(head: try l.bound(1, P), args: [try l.bound(0, i)]))
+    let phi = try l.t.intern(.folAnd(applied, try l.bound(2, o)))
+    let root = try l.all(o, try l.all(P, try l.all(i, try l.imp(phi, phi))))
+    let proof = try l.t.intern(.isaAllIntro(
+        o,
+        body: try l.t.intern(.isaAllIntro(P, body: try l.t.intern(.isaAllIntro(i, body: try l.t.intern(
+            .folImpliesIntro(phi, body: try l.t.intern(.hyp(0, phi)))
+        ))))),
+    ))
+    let thm = Statement(name: "T.thm", root: root, proof: proof, theory: "Test")
+    let lambda = try l.lam(i, try l.mem(try l.bound(0, i), try l.bound(2, i)))
+    let atQ = try l.t.intern(.isaAllElim(try l.t.intern(.use(.theorem("T.thm"), [], root)), try l.bound(2, o)))
+    let instance = try l.t.intern(.isaAllElim(try l.t.intern(.isaAllElim(atQ, lambda)), try l.bound(0, i)))
+    let used = try l.t.intern(.folAnd(try l.mem(try l.bound(0, i), try l.bound(1, i)), try l.bound(2, o)))
+    let use = Statement(
+        name: "T.use",
+        root: try l.all(o, try l.all(i, try l.all(i, try l.imp(used, used)))),
+        proof: try l.t.intern(.isaAllIntro(
+            o,
+            body: try l.t.intern(.isaAllIntro(i, body: try l.t.intern(.isaAllIntro(i, body: instance)))),
+        )),
+        theory: "Test",
+    )
+    let unit = try lowered(l, [thm, use])
+    #expect(unit.refused.isEmpty, "\(unit.refused)")
+    try kernelChecks(unit)
+}

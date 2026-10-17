@@ -292,6 +292,23 @@ private func miniReader() throws -> Reader {
                 free("Q"),
             ),
         )),
+        ("T.late", 300, proofFile(
+            frees: [("P", fn(i, o)), ("R", o)],
+            prop: imp(all("x", i, trueprop(app(free("P"), bound(0)))), imp(trueprop(free("R")), trueprop(free("R")))),
+            proof: pabsp(
+                "H",
+                all("x", i, trueprop(app(free("P"), bound(0)))),
+                pabsp("r", trueprop(free("R")), pbound(0)),
+            ),
+        )),
+        ("T.citesLate", 310, proofFile(
+            frees: [("A", i), ("Q", o)],
+            prop: imp(all("x", i, mem(bound(0), free("A"))), imp(Q, Q)),
+            proof: pappt(
+                pappt(pcite(300, "ZF.T", "T.late"), lam("y", i, app(const("ZF_Base.mem"), bound(0), free("A")))),
+                free("Q"),
+            ),
+        )),
         ("T.polyPartial", 230, proofFile(
             tfrees: ["'a", "'b"],
             frees: [("Q", o)],
@@ -458,6 +475,32 @@ func aTheoremsClaimNameIsTheNameItsCitationsUse() throws {
     let fix = try claimName(try #require(r.name(of: try theorem(r, "T.fix"))))
     guard let (_, proof) = try proved(&r, "T.cite") else { return }
     #expect(uses(proof, r.table) == [fix])
+}
+
+/// DESIGN "Letters first": a statement binds its propositions outermost, and a citation instantiates them first —
+/// `T.late`'s `R` before its `P`, though Isabelle's header lists `P` first.
+@Test
+func aCitationInstantiatesItsLettersFirst() throws {
+    var r = try miniReader()
+    guard
+        let (late, _) = try proved(&r, "T.late"),
+        let (_, proof) = try proved(&r, "T.citesLate")
+    else { return }
+    guard case .ifolAll(.o, _) = r.table[late] else {
+        Issue.record("T.late: \(r.table[late])")
+        return
+    }
+    var atTheCitation = [IRType]()
+    var seen = Set<NodeID>()
+    var work = [proof]
+    while let n = work.popLast() {
+        guard seen.insert(n).inserted else { continue }
+        if case .isaAllElim(let p, let a) = r.table[n], case .use = r.table[p], let T = r.table.type(of: a) {
+            atTheCitation.append(T)
+        }
+        r.table[n].forEachChild { c, _ in work.append(c) }
+    }
+    #expect(atTheCitation == [.o])
 }
 
 @Test
@@ -708,7 +751,7 @@ func theReaderEmitsOnlyTheIsaDialect() throws {
     for theorem in r.population {
         if case .proved(let statement, let proof)? = try? r.read(theorem) { roots += [statement, proof] }
     }
-    #expect(roots.count == 50)
+    #expect(roots.count == 54)
     var seen = Set<NodeID>()
     var work = roots
     while let n = work.popLast() {

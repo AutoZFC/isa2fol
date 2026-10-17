@@ -1,95 +1,90 @@
 # STATE — isa2fol
-HEAD (see §0) · primitives · 2026-10-17.  RUN §0 BEFORE TRUSTING ANY LINE BELOW.
+HEAD "Letters first" (parent `f315a16d`) · primitives · 2026-10-17.  RUN §0 BEFORE TRUSTING ANY LINE BELOW.
 
 ## 0. Staleness checks
 `$ZF` is `--skip ZF-AC,ZF-Coind,ZF-Constructible,ZF-IMP,ZF-Induct,ZF-Resid,ZF-ex`: every run is the ZF session alone
-until it is fully translated (user, 2026-10-17). Lint first: `pre-commit run --all-files`.
+until it is fully translated (user). Lint before every run: `pre-commit run --all-files`.
 
 | command | expect |
 |---|---|
 | `git branch --show-current` | `primitives` |
-| `git log -1 --format=%s` | `Step 4: Pure's equality between functions, read pointwise; combination substitutes by the replacement walk` |
+| `git log -1 --format=%s` | `Letters first: a theorem closed over its propositions first, each citation instantiating them on its head` |
 | `git status --short \| wc -l` | `0` |
 | `git rev-parse --short kinds-proposal` | `21ca100f` |
-| `find Sources -name '*.swift' -exec cat {} + \| grep -cv '^\s*$'` | `12101` |
+| `find Sources -name '*.swift' -exec cat {} + \| grep -cv '^\s*$'` | `12176` |
 | `git -C ~/repos/fol-zfc-comb log -1 --format=%h` | `224d60e` (branch `libraries-and-streaming`) |
 | `grep -c '^axiom ' base/axioms.fol.def` | `17` — NBG and `elem_first_subst`; the tiers admit none |
-| `MEM=24G scripts/capped.sh swift test 2>&1 \| grep "Test run with"` | five lines, all passed: 14, 137, 102, 113, 42 tests |
 | `pre-commit run --all-files` | `SwiftFormat ... Passed`, `SwiftLint ... Passed` |
-| `MEM=16G scripts/capped.sh bash scripts/check-base.sh` | 14 tiers, each `exit 0  stderr 0`, Proved n of n; `metafun` 18 of 18 |
-| `swift build -c release`, then `MEM=48G scripts/capped.sh .build/release/isa2fol lower data/zf_export --through logic $ZF` (2:09, peak 6.7 GB) | `through logic: 2058 named theorems stand`; `logic, unbuilt: 257` |
-| `MEM=56G scripts/capped.sh .build/release/isa2fol lower data/zf_export $ZF --emit DIR` (11:04, peak 34.3 GB; the CI), then `scripts/check-unit.sh DIR` | `lowered … 14`; 17 parts; claims 6057 of 6057, schemas 100 of 100; exit 0 |
+| `MEM=24G scripts/capped.sh swift test 2>&1 \| grep "Test run with"` | five lines, all passed: 14, 138, 103, 113, 42 tests |
+| `MEM=16G scripts/capped.sh bash scripts/check-base.sh` | 14 tiers, each `exit 0  stderr 0`; `metafun` Proved 18 of 18 |
+| `swift build -c release`, then `MEM=48G scripts/capped.sh .build/release/isa2fol lower data/zf_export --through logic $ZF` (2:11, peak 6.7 GB) | `through logic: 2058 named theorems stand`; `no owner: 1301`; `logic, unbuilt: 257` |
+| `MEM=56G scripts/capped.sh .build/release/isa2fol lower data/zf_export $ZF --emit DIR` (11:38, peak 34.3 GB; the CI), then `MEM=32G scripts/capped.sh scripts/check-unit.sh DIR` | `lowered … 14`; groups no owner, logic, cites a refused statement only; 17 parts; claims 6058 of 6058, schemas 104 of 104; exit 0 |
 If any row disagrees, THIS FILE IS STALE. Trust the code and fix this file first.
 
 ## 1. Where
-`/home/arthur/repos/isa2fol`, branch `primitives`, no upstream, tree clean. The checker is fol-zfc-comb `224d60e`, branch
-`libraries-and-streaming`, unmerged; build it only with `bazel build -c opt`. `kinds-proposal` (`21ca100f`) is the
-REFERENCE: consulted, never merged.
+`/home/arthur/repos/isa2fol`, branch `primitives`, no upstream, nothing uncommitted. The checker is fol-zfc-comb
+`224d60e`, built only with `bazel build -c opt`. `kinds-proposal` (`21ca100f`) is the REFERENCE.
 
 ## 2. Read these first-hand
-- `DESIGN.md` "Step 4 — Pure's equality between functions" — the two agreed decisions (pointwise; `combination` by the
-  replacement walk), why not classes nor a lemma per function, the four decisions in the build, Measured.
-- `Sources/Lowering/Functions.swift` — the pointwise formula, the five rules, `atSet` and `atClass` with `Substitution`
-  (`Y` and `Z` fixed for the walk alone, dropped by `unshift`).
-- `Sources/Lowering/Congruence.swift` — `Replacement`: the walk, now reading a stated function equation pointwise.
-- `Sources/Lowering/Instance.swift` — `units`, `slotConverted(template:)`, `chained`: shared by Reify, Lambda, Functions.
-- `Sources/Lowering/Lambda.swift` — the instance at a λ, which `combination` uses at a class argument.
+- `DESIGN.md` "The steps after class existence, in order" — steps 5–9, and the rule that the refusals order 5–8.
+- `DESIGN.md` "Letters first", **Measured**, "What holds the 3,602 back" — each step's reach, followed to the roots.
+- `DESIGN.md` §4.3b, "⚠ `Pure.dummy_pattern` IS NO CONSTANT" — step 7's piece, `isaFree(.hidden, T)`.
+- `DESIGN.md` "OFCLASS — …", decision 3 — `FOL.meta_simps.1`, `(⋀x::'a. PROP P) ≡ PROP P`, stays `use(theorem, [i], o)`.
+- `Sources/isa2fol/Lower.swift` — the report: `cites a refused statement` names ONE citation per theorem, the least.
 
 ## 3. Invariants
 | invariant | enforced by |
 |---|---|
 | a unit is valid only when every part exits 0, stderr empty, every claim and schema Proved | `scripts/check-unit.sh`, `check-base.sh` |
-| nothing Isabelle states is admitted: base admits 17 axioms, NBG and `elem_first_subst` | §0's `grep`; `check-base.sh` |
+| nothing Isabelle states is admitted: base admits 17 axioms | §0's `grep`; `check-base.sh` |
 | each pattern has the owner the division gives it, one at most | `eachPatternHasTheOwnerTheDivisionGivesIt` |
-| `f ≡ g` and `⋀x. f x ≡ g x` are one formula, at a predicate, a function and a function of classes | `anEquationBetweenFunctionsIsItsPointwiseFormula` |
-| Pure's five rules between functions, kernel-checked: `combination` at a set argument (variable, compound, value `i`) and a class argument (applied, in a slot) | `FunctionEqualityTests` |
-| an instance at a λ concludes the walk's own rewrite of Isabelle's formula, kernel-checked | `LambdaTests` |
-| a λ holding a proposition is a schema in it; the class prover refuses it, and its citers fall | `aLambdaHoldingALetterIsASchemaInIt` |
-| a run through a stage stops there; an unknown stage stops the run | `PipelineTests` |
-| emission writes the same bytes at any number of threads | `emissionWritesTheSameBytesAtAnyNumberOfThreads` |
-| format and lint are the tools', run before every run of the program | `pre-commit run --all-files`; the commit hook |
+| a theorem's statement binds its propositions first; a citation instantiates them first | `aMetaLevelPropositionalVariableReadsAsAFormulaVariable`, `aCitationInstantiatesItsLettersFirst` |
+| the letters-first form lowers kernel-checked; the off-spine form stays refused | `aLetterInstantiatedFirstLeavesTheInstanceNoLetterToWalk`, `aLetterTheCitedTheoremBindsAfterTheInstantiatedClassIsOffItsSpine` |
+| Pure's equality between functions, its five rules, kernel-checked | `FunctionEqualityTests` |
+| format and lint are the tools', before every run of the program | `pre-commit run --all-files`; the commit hook |
 | every build, test, checker and lowering run is capped | `scripts/capped.sh` |
 
 **Standing warnings — each repeated silently otherwise:**
-- ⚠ **A FORMULA LOGIC REWRITES IS OWED A READING IN `Replacement`.** A stated `≡` at `i ⇒ i` inside a walked template
-  stopped the ZF run (`noCongruence`, `Bin.bin.case_eqns.1`) until the walk read it pointwise.
-- ⚠ **A FRAME'S VARIABLE READ BEFORE AN `open` OR A `fix` NAMES THE WRONG BINDER AFTER IT**; `s.variable(s.fix(.i))`
-  reads the scope before the fix. Read `frame.variable(level)` where it is used.
-- ⚠ **`x.f(try x.g(…))` READS A COPY OF `x` TAKEN BEFORE `g` MUTATES IT** (rule 13): `t[try s.hypothesis(…)]` again in
-  step 4. Bind first.
+- ⚠ **THE REPORT'S `cites a refused statement` COUNTS ARE NOT WHAT A STEP FREES**: each theorem names its least refused
+  citation only. Follow citations down to the statements refused at their own pieces before ordering steps.
+- ⚠ **A DEFINIENS IS NEVER CLOSED LETTERS FIRST**: its λs are its constant's positional parameters. `Terms` takes the
+  order explicitly; no default.
+- ⚠ **`pre-commit run --all-files` LINTS TRACKED FILES ONLY**: `git add` a new file first, or the commit hook reformats
+  it and the commit fails.
+- ⚠ **A FORMULA LOGIC REWRITES IS OWED A READING IN `Replacement`** (a stated `≡` at `i ⇒ i` stopped the ZF run).
+- ⚠ **`s.variable(s.fix(.i))` AND `t[try s.hypothesis(…)]` READ A COPY TAKEN BEFORE THE MUTATION** (rule 13). Bind first.
 - ⚠ **THE TABLE TRUSTS A CITATION'S ROOT**: kernel-check every new reach.
-- ⚠ **`exists_intro` ABSTRACTS EVERY OCCURRENCE OF ITS WITNESS**: close a naming around a fresh `z = value`.
 - ⚠ **FOL TRANSFORMS EACH STATEMENT BY ITSELF**: one transform over every root passed 32 GB.
 - ⚠ **A SECOND COPY OF A PASS'S REWRITE DIVERGES SILENTLY.** Rules conclude `walked`, the walk's own rule.
 - ⚠ **A BOX'S NAME MOVES WITH THE IR'S PRINTED PAYLOAD**: count boxes, never diff their names.
-- ⚠ **A LETTER IS THE READER'S, NEVER A POSITION AFTER EXPAND.** A serial never reaches output.
 - ⚠ **NO RULE READS A NODE BESIDE ITS OWN PIECE.** A rule reads its premises' conclusions, never their proofs' shapes.
-- ⚠ **THE RELEASE BINARY IS NOT REBUILT BY `swift test`**: `swift build -c release` before §0's runs.
-- ⚠ **A SHORT SWIFT STRING IS STORED INLINE**: `strings` misses a ≤15-byte literal; check a build by its timestamp.
+- ⚠ **THE RELEASE BINARY IS NOT REBUILT BY `swift test`**; a short Swift string is stored inline, so check a build by
+  its timestamp, not `strings`.
 - ⚠ **STATE GOES IN ITS STEP'S COMMIT**, never a commit of its own.
 
 ## 4. State
 | claim | verified by |
 |---|---|
-| ZF session (3,616 named): 14 lowered; refused: no owner 1,301, logic 257, letter off spine 797, cites refused 1,247 | §0's complete run |
-| Logic's 257: `If` 245 (step 6), binders over a function of classes (step 9); no owner led by `isaFree(i)` 731, `use(theorem, [i], o)` 668, `isaDefinition(zf, object, [], args: [])` 210 | §0's through-logic report |
-| complete ZF run: read 41.6 s, expand 1.4 s, logic 75.8 s, registry 38.0 s, fol 341.2 s, link 21.2 s, emission 140.8 s; 76.7M nodes; 382 MB | §0's complete run |
-| 6,013 of the 6,057 claims are in the `_uncited` parts; `λ classExists` writes 4.3 of 5.7 million steps | the same report; `check-unit.sh` |
-| 134 lemmas requested and refused, unbuilt | the same report |
-| comments 59/12101 = 0.5% of `Sources` | `CLAUDE.md` rule 9's script |
+| ZF (3,616 named): 14 lowered; refused: no owner 1,301, logic 257, cites a refused statement 2,044; none at a letter off its spine | §0's complete run |
+| the refused citations are led by `IFOL.exI` (374 citers) and `ZF_Base.Ball_def` (91) | the same report |
+| no owner is led by `isaFree(i)` 731 (step 7), `use(theorem, [i], o)` 668, `isaDefinition(zf, object, [], args: [])` 210 (step 5) | §0's through-logic report |
+| Logic's 257: `If` 245 (step 6), binders over a function of classes (step 9) | the same report |
+| complete ZF run: read 44.9 s; expand 1.5, logic 80.7, registry 39.8, fol 356.4, link 26.5 s; emitted 144.2 s, 382 MB; 76.5M nodes | §0's complete run |
+| comments 59/12176 = 0.5% of `Sources` | `CLAUDE.md` rule 9's script |
 
 ## 5. Beliefs — NOT verified
-- The 797 letters off their spine are step 3's gap — an instance walking under a `⋀` at `o` that the cited theorem
-  binds after the instantiated variable (`allE`-like rules) — from their three patterns alone, no per-theorem trace.
-- Few if any of the 14 are new: before step 4 no ZF theorem holding Pure's equality between functions passed Logic, and
-  the ZF session alone was never run complete before.
+- `DESIGN.md` "What holds the 3,602 back" — every figure from a throwaway dump, not kept; "alone" figures are upper bounds
+  (a statement refused at its own pieces has its citations unread).
+- `use(theorem, [i], o)` is `FOL.meta_simps.1` at `[i]` in all 675 statements holding it (the same dump).
+- `SOURCE_SURFACE.md` and `CLOSURE.md` are unchanged by letters first (patterns are order-free); not regenerated.
 
 ## 6. Open decisions
-- **The next step**, the user's to choose: the letter off its spine (797, the largest refusal after no owner); step 5,
-  a ZF definition cited (270 need only it); the lemmas nothing cites, dropped at link (99% of the unit); the run's cost
-  (11 min, 34 GB; Logic 10× slower than before step 4); step 6's `If` (245); step 7's hidden variable (731).
-- For the user's review: "Step 4 — …"'s four decisions in the build; the earlier steps' listed in their sections;
-  merging the checker branch.
+- **The next step.** By the refusals: 7, the hidden variable (frees the most alone; its design is new), or 6, `If` and
+  `bool_of_o` (needed by the most); 5, a ZF definition cited, is the plan's next number and third on both; beside 5–8,
+  `FOL.meta_simps.1` at `[i]`, one theorem's instance, frees the most once 6 and 7 stand.
+- For review: "Letters first"'s two build decisions; "Step 4"'s four; merging the checker branch.
 
 ## 7. Next action
-Put the next step to the user — the letter off its spine against step 5. Done when the user has chosen.
+Get the user's choice of the next step; then write its section in `DESIGN.md` — the problem in target text, its
+decisions, the contracts, the tests first — and agree it decision by decision before any code. Done when the user has
+agreed every decision of that section.
