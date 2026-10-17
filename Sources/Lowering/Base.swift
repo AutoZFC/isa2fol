@@ -11,7 +11,7 @@ import IR
     case nsuccEX = "nsucc_EX", nsuccUNIQ = "nsucc_UNIQ", nsuccCONG = "nsucc_CONG"
     case snocEX = "snoc_EX", snocUNIQ = "snoc_UNIQ", snocCONG = "snoc_CONG", snocInj = "snoc_inj", snocResCong = "snoc_res_cong"
     case tupleZero = "tuple_zero", tupleSnoc = "tuple_snoc"
-    case functionDef = "function_def", applyEX = "apply_EX", applyAt = "apply_at", applyClassCong = "apply_class_cong"
+    case functionDef = "function_def", applyEX = "apply_EX", applyAt = "apply_at", applyClassCong = "apply_class_cong", applyPmem = "apply_pmem"
     case funcAt = "func_at", extensionality
     case zfZeroEX = "ZF_Base.zero_EX", zfZeroUNIQ = "ZF_Base.zero_UNIQ", zfInfEX = "ZF_Base.Inf_EX", zfInfUNIQ = "ZF_Base.Inf_UNIQ"
     case zfPowDef = "ZF_Base.Pow_def", zfUnionDef = "ZF_Base.Union_def", zfPrimReplaceDef = "ZF_Base.PrimReplace_def"

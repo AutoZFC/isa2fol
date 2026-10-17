@@ -27,9 +27,7 @@ public struct Reify {
             return mentionsTypeVariable(T) ? nil : isObject(T) ? .rule : .unbuilt
         case let .isaAbs(T, body: U):
             return isObject(.fn(T, U)) ? .rule : nil
-        case let .isaAllElim(_, T):
-            return T != .i && isObject(T) ? .unbuilt : nil
-        case .ifolAll, .ifolEx, .isaFree, .isaBound, .isaOfClass, .isaAllIntro, .isaReflexive, .isaSymmetric,
+        case .isaAllElim, .ifolAll, .ifolEx, .isaFree, .isaBound, .isaOfClass, .isaAllIntro, .isaReflexive, .isaSymmetric,
              .isaTransitive, .isaCombination, .isaAbstract, .isaClassical, .isaIffReflection, .isaDefinition, .isaPropAll, .isaPropIntro, .isaPropBound, .folImplies, .folAnd, .folOr, .folIff, .folBottom,
              .folImpliesIntro, .folImpliesElim, .use, .hyp, .isaGuard, .isaExIntro, .isaExElim, .folNot, .folBound,
              .folPred, .folForall, .folExists, .folAndIntro, .folAndElimL, .folAndElimR, .folOrIntroL, .folOrIntroR,
@@ -53,19 +51,6 @@ public struct Reify {
 
     func names(_ p: Pattern) -> Bool { owns(p) == .rule && value(p) == .o }
 
-    static func guardPredicate(_ T: IRType) -> Predicate? {
-        switch T {
-        case .i: return .base("set")
-        case .fn: return isObject(T) && result(T) == .i ? .base("function") : nil
-        case .o, .variable: return nil
-        }
-    }
-
-    static func guarded(_ x: NodeID, _ T: IRType, in t: inout Table) throws -> NodeID? {
-        guard let p = guardPredicate(T) else { return nil }
-        return try t.intern(.folPred(p, args: [x]))
-    }
-
 }
 
 func named(formula: NodeID, in t: inout Table) throws -> NodeID {
@@ -81,11 +66,6 @@ private struct Atoms: Rule {
 private func namesConstant(_ T: IRType) -> Bool {
     let domains = T.domains
     return domains.allSatisfy(isObject) && (result(T) == .i || result(T) == .o && !domains.isEmpty)
-}
-
-func result(_ T: IRType) -> IRType {
-    guard case let .fn(_, U) = T else { return T }
-    return result(U)
 }
 
 private func value(_ p: Pattern) -> IRType? {
@@ -282,7 +262,7 @@ public struct ReifyProver: Prover {
             }
         case let f as LambdaFact:
             switch f.fact {
-            case .classExists: return nil
+            case .classExists, .arguments: return nil
             case .function: return .rule
             }
         default: return nil

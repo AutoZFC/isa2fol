@@ -167,7 +167,8 @@ struct Frame {
         var proof = body
         for step in steps.reversed() {
             switch step {
-            case let .forall(T): proof = try t.intern(T == .i ? .isaAllIntro(.i, body: proof) : .folForallIntro(body: proof))
+            case let .forall(T):
+                if let T, T == .i || T == .o { proof = try t.intern(.isaAllIntro(T, body: proof)) } else { proof = try t.intern(.folForallIntro(body: proof)) }
             case let .implies(a): proof = try t.intern(.folImpliesIntro(a, body: proof))
             case let .exists(b, p): proof = try t.intern(b == .set ? .isaExElim(.i, p, body: proof) : .folExistsElim(p, body: proof))
             case let .cut(c, p): proof = try t.intern(.folImpliesElim(try t.intern(.folImpliesIntro(c, body: proof)), p))

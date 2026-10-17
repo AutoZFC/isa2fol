@@ -15,6 +15,7 @@
 #   apply       r is F's value at t, or 0 where F has none: Isabelle/ZF's f`a, a function variable's application
 #   apply_EX    every application has a value, with no guard: totality lives in apply's default, not the guard
 #   apply_UNIQ  and only one, given the guard -- so neither carries an arity
+#   apply_pmem  where F has a value at t, an application is plain membership: a λ's class, total, read through apply
 #   func_at     a function class's values at equal tuples are equal, across agreeing classes
 #   apply_at    an application's likewise, under its guard; apply_class_cong, apply respects agreement of its class
 #
@@ -48,6 +49,7 @@ claim apply_UNIQ: forall F. (function(F) -> (forall t. (set(t) -> (forall r. (se
 claim func_at: forall C. forall C2. (function(C) -> ((forall t. (set(t) -> (forall r. (set(r) -> (pmem(t,r,C) <-> pmem(t,r,C2)))))) -> (forall t. (set(t) -> (forall t2. (set(t2) -> (eq(t,t2) -> (forall r. (set(r) -> (forall r2. (set(r2) -> (pmem(t,r,C) -> (pmem(t2,r2,C2) -> eq(r,r2))))))))))))))
 claim apply_at: forall F. (function(F) -> (forall t. (set(t) -> (forall t2. (set(t2) -> (eq(t,t2) -> (forall r. (set(r) -> (forall r2. (set(r2) -> (apply(t,r,F) -> (apply(t2,r2,F) -> eq(r,r2)))))))))))))
 claim apply_class_cong: forall F. forall G. ((forall t. (set(t) -> (forall r. (set(r) -> (pmem(t,r,F) <-> pmem(t,r,G)))))) -> (forall t. (set(t) -> (forall r. (set(r) -> (apply(t,r,F) <-> apply(t,r,G)))))))
+claim apply_pmem: forall F. (forall t. ((exists u. (set(u) & pmem(t,u,F))) -> (forall r. (apply(t,r,F) <-> pmem(t,r,F)))))
 
 # A class of records exact at every extension of a context c is a class of what follows c: the step from the class a
 # formula's rows build to the class a lemma names (DESIGN "Class existence — its prover", decision 1). From lam_pred and

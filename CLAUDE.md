@@ -32,9 +32,11 @@ reads as isa steps, the kernel's after Expand; Pure's equality, which the reader
 and `eq_*` at `i`, base's schemas parsed from base's own text), Reify in Logic's walk (S1: a term and a λ in a class slot named where they stand; a constant's
 class by its `@def`, which its prover states from the definition; an instance at a compound term by EX and UNIQ of the
 term) and Fol (the guard Reify gives each object type — `set`, `function`, none — fol-zfc's variables, `∃` at `i`) have
-rules, so `isa2fol lower data/zf_export` lowers 65 of the 9,420 to fol-zfc and states 453 `@def`s: 3,702 stop at no
-owner, 3,955 at logic, 13 at a letter off its spine, and 1,685 cite a refused statement — a `@def` holding a piece not
-built, or a theorem refused for one of the others. **The rules that consumed a proposition where it stood are removed**
+rules, and an instance at a class type is Lambda's (`DESIGN.md` "Step 3 — an instance at a class type": `forall_elim`
+at the λ's class at its arguments, `LAMBDA_<fp>`, then β at each occurrence of the class variable — its slot's class
+kept, an application at its value), so `isa2fol lower data/zf_export` lowers 73 of the 9,420 to fol-zfc and states 541
+`@def`s: 3,702 stop at no owner, 3,071 at logic, 204 at a letter off its spine, and 2,370 cite a refused statement — a
+`@def` holding a piece not built, or a theorem refused for one of the others. **The rules that consumed a proposition where it stood are removed**
 (`DESIGN.md` "Removed — the rules that consumed a proposition where it stood"): FOUNDATION S4 makes a proposition an
 object as its truth set. **A proposition bound below a statement's top and a function of propositions have its rules**
 (`DESIGN.md` "Functions of propositions and the bound `⋀P`"): the reader reads Pure's `⋀` over a proposition apart from a
@@ -48,20 +50,19 @@ class's definition** (`DESIGN.md` "OFCLASS — a class's membership by its defin
 side is, a constant or a class's membership (`Definiendum`), and Expand states `OFCLASS(i, term)` as `⋀P. P ⟹ P`, true;
 `arity_term_i` proves it by `term_class.intro` in place at `i`. Reify's instance at a compound term concludes the walk's
 own rewrite of the instance (`walked`), truth sets rendered. The logic's facts reach
-the kernel through theirs (`IFOL.conjunct1`, `TrueI`, `refl`, `FOL.ccontr`, `Pure.protectD`, `conjunctionI`, …), and with
-them 51 `mutual_induct`s; the rest stop at a variable of type `o ⇒ o` (`not_def`, `iff_def`) or at an instance at a class
-type (`spec`, `subst` at a λ: step 3). **EX and UNIQ have their prover** (`DESIGN.md` "EX and UNIQ — their
+the kernel through theirs (`IFOL.conjunct1`, `TrueI`, `refl`, `spec`, `subst`, `FOL.ccontr`, `Pure.protectD`,
+`conjunctionI`, …), and with them 51 `mutual_induct`s; the rest stop at a variable of type `o ⇒ o` (`not_def`,
+`iff_def`) or at Pure's equality at a function type (step 4). **EX and UNIQ have their prover** (`DESIGN.md` "EX and UNIQ — their
 prover"): a term's naming walked binder by binder, one fact per piece, per constant, per closed λ and per arity, a
 constant's from its `@def` and a primitive's from base. **Class existence has its prover** (`DESIGN.md` "Class existence
 — its prover", FOUNDATION §3, R5, R4): a formula's class of records built from base's rows and read back exact, named by
 `member_class` or `graph_class`; a class binder a hypothesis of what lies under it; one lift per class-taking constant,
-uniform in the record's length, re-keyed by `REKEY`. Every lemma the corpus requests is proved: 2,720 statements beside
-the 65 reach fol-zfc, among them 199 `_CLASS`, 112 `CLASS ⟨λ⟩`, 27 `_LIFT`, 502 EX and 563 UNIQ, and no named theorem
-waits on class existence alone — most stop at an instance at a class type (step 3), or at a theorem binding a
-proposition on its spine, cited at `i` (`FOL.meta_simps.1`). **Emission
+uniform in the record's length, re-keyed by `REKEY`. Every lemma the corpus requests is proved but 16, the classes of
+λs holding a proposition, which the class prover does not read yet; ⚠ **93% OF THE EMITTED UNIT IS LEMMAS NOTHING
+CITES** (4,242 of 4,579 claims): requested for statements that then fall, and proved before that is known. **Emission
 is built** (`DESIGN.md` "Emission"): `isa2fol lower data/zf_export --emit DIR` writes the unit as parts — a theory's
 theorems, a lemma in its first citer's part — and `scripts/check-unit.sh DIR` kernel-checks each against the libraries
-of base and of the parts it cites: all 2,222 claims and 110 schemas Proved. `DESIGN.md` is the plan; its "The steps after class
+of base and of the parts it cites: all 4,579 claims and 111 schemas Proved. `DESIGN.md` is the plan; its "The steps after class
 existence, in order" is the order of work, agreed again from step 2 on around FOUNDATION S4.
 
 ## Build
@@ -231,7 +232,7 @@ determinism R1–R3 (§4.6).
    print(f'{c}/{t} = {100*c/t:.1f}%')"
    ```
 
-   ✓ **CURRENTLY 40/8381 = 0.5%, under the cap.** Keep it there: a breach is
+   ✓ **CURRENTLY 46/8828 = 0.5%, under the cap.** Keep it there: a breach is
    fixed by deleting prose, never by raising the cap.
 
    Does not apply to `base/**/*.fol.def` headers: those record provenance of
@@ -294,7 +295,8 @@ The reader (YXML → IR) reads statements and proofs (`Sources/Reader`); `Source
 the plan, Expand, Logic and Fol its passes with rules, Reify's code, which the logic pass calls, and the registry's provers,
 Reify's (EX and UNIQ of a term, a constant's and a λ's facts), Tuple's and the class prover's (`CLASS ⟨λ⟩`, `c_CLASS`,
 `c_LIFT`, `REKEY`, from Comprehension's classes of records); the emitter (`Sources/FolDialect/Emit.swift`) writes a unit
-as parts; S4's truth set is Truth's (`Sources/Lowering/Truth.swift`); Lambda's instance at a class type and the rest of Logic's are unbuilt.
+as parts; S4's truth set is Truth's (`Sources/Lowering/Truth.swift`); an instance at a class type is Lambda's
+(`Sources/Lowering/Lambda.swift`), its lemma `LAMBDA_<fp>` and its prover; the rest of Logic's are unbuilt.
 
 **There is ONE formula table per unit, holding isa and fol nodes together** —
 interned, immutable, de Bruijn; proof steps live in scope regions and point into

@@ -2531,7 +2531,8 @@ then **boxes binding a proposition, read as schemas** ("Boxes binding a proposit
 2026-10-16**; then **functions of propositions and the bound `⋀P`** ("Functions of propositions and the bound `⋀P` — S4's truth
 set, applied", below), **BUILT 2026-10-16**; then **a definition read at its terms** ("A definition read at its terms",
 below), **BUILT 2026-10-16**; then **`OFCLASS`, and a generic theorem in place** ("OFCLASS — a class's membership by its
-definition", below), **BUILT 2026-10-16**.
+definition", below), **BUILT 2026-10-16**; then **step 3, an instance at a class type** ("Step 3 — an instance at a class
+type", below), **BUILT 2026-10-16**.
 
 0. **Emission** (below): no statement of the corpus has met the checker, and class existence's proofs are unmeasured.
 1. **Decision 4** (§4a): a theorem cited at a type instance. Restricted to `term`, it is read at `i` and `OFCLASS(i,
@@ -3515,6 +3516,240 @@ data/zf_export --emit DIR`: 5:59, peak 16.0 GB; read 74.9 s, lowered 77.7 s, emi
   `arity_term_i` holds `term_class.intro` in place; `isaDefinition(ifol, meta, ['a], args: [])` gone (7,965),
   `isaDefinition(ifol, meta, [i], args: [])` 7,966 (7,316); the generic theorems' patterns at `'b` gone (2,386 to 1).
   `CLOSURE.md` unchanged.
+
+### Step 3 — an instance at a class type  **[AGREED 2026-10-16 (user), the six decisions one by one, then reviewed against the principles and proof size: 2 refined, 3 revised; BUILT 2026-10-16, its decisions in the build for the user's review — `Sources/IR/IRType.swift`, `Table.swift`, `Sources/Lowering/Lambda.swift`, `Instance.swift`, `Congruence.swift`, `Facts.swift`, `Terms.swift`, `Scope.swift`, `Classes.swift`, `Logic.swift`, `Fol.swift`, `Reify.swift`, `Graph.swift`, `Plan.swift`, `base/tiers/metafun`, `docs/FOUNDATION.md`]**
+
+**The step.** Logic leaves one piece unbuilt above all: `isaAllElim(o, T)` at an object function type, `iⁿ ⇒ o` or
+`iⁿ ⇒ i` — a `⋀`-elimination whose argument is a λ, the only argument the table admits at a function type. Of the named
+theorems refused at Logic, 2,820 hold it at `i ⇒ o` and 1,692 at `i ⇒ i`; 617 hold no other unbuilt piece (380 at
+`i ⇒ o`, 207 at `i ⇒ i`, 30 at `i ⇒ i ⇒ i`; a throwaway print in `lower`, not kept). One rule for the piece covers every
+case: what the λ's body holds, and where the class variable stands in the formula, are other pieces' rules.
+
+**The problem, in target text.** fol-zfc has no λ: `forall_elim` puts a class where Isabelle puts `λx. x ∈ A`, and
+Isabelle's conclusion holds the λ's body where the class variable was applied — β, which Isabelle's terms do for free.
+
+```
+Isabelle   thm: ⋀P a. P(a) ⟹ P(a)          thm · (λx. x ∈ A)  concludes  ⋀a. a ∈ A ⟹ a ∈ A
+fol-zfc    claim thm: forall P. (forall a. (set(a) -> (Pa -> Pa)))
+               Pa:  exists t. (set(t) & ((exists z. (set(z) & (zero(z) & snoc(z, z, a, t)))) & elem(t, P)))    ⟨a⟩ ∈ P
+```
+
+**1. An instance at a λ is `forall_elim` at the λ's class, then β as proof.** **AGREED 2026-10-16 (user).** (FOUNDATION
+S1, "a λ is a wrapper"; "The meta level, lowered": "`⋀`-elim at a λ — `forall_elim` at the λ's class, then β as
+proof".) The λ's class at its arguments, `LAMBDA_<fp>` (3), at the λ's free variables, opened, gives a class `K` and β
+there; the theorem's class binder is eliminated at `K` (2); at each atom where the class variable stood, β as proof —
+the atom at `K` against the λ's body there — carried through the formula by Logic's replacement walk; the instance
+concludes the walk's own rewrite of Isabelle's conclusion (`walked`). One rule at every object function type. It is
+Lambda's, in the logic pass's walk, as Reify's instance at a compound term is — its frame, with the λ's class where
+that has the term's value.
+
+```
+LAMBDA_<fp> at A   exists K. forall a. (set(a) -> (Ka <-> elem(a, A)))
+exists_elim        K, B
+forall_elim        thm at K:  forall a. (set(a) -> (Ka -> Ka))
+β at each Ka       B at a:  Ka <-> elem(a, A)
+iff_elim_l         forall a. (set(a) -> (elem(a, A) -> elem(a, A)))
+```
+
+**2. fol-zfc's `forall_elim` takes Isabelle's class binder as Fol writes it.** **AGREED 2026-10-16 (user); refined at
+the review.** `K` is fol-zfc's own class, bound by `LAMBDA_<fp>`'s `∃` as Reify's chains bind every class they name
+("One class, one form"). The theorem's binder `⋀P` is isa until Fol writes it — `forall P. ψ` at `iⁿ ⇒ o`,
+`forall F. (function(F) -> ψ)` at `iⁿ ⇒ i`. The table admits `forall_elim` at `K` on the isa binder and concludes what
+it concludes on the binder Fol writes: `ψ(K)`, and `function(K) -> ψ(K)` at `iⁿ ⇒ i`, whose guard Lambda discharges
+from `LAMBDA_<fp>` (3; the guard table: "at a λ, Lambda's"). `schema_inst` takes an isa binder at `o` the same way. The
+guard per type — `set` at `i`, `function` at `iⁿ ⇒ i`, none at `iⁿ ⇒ o` — moves from Reify to IR, the lowest component
+reading it; and ONE IR function writes a binder's guarded body, which Fol's rendering of the binder and the table's
+`forall_elim` both call — two computations of it would diverge as `named(formula:)` did from Logic's rewrite.
+
+```
+iⁿ ⇒ o    forall_elim thm, K                         ψ(K)
+iⁿ ⇒ i    forall_elim thm, K                         function(K) -> ψ(K)
+          implies_elim _, LAMBDA_<fp>'s function(K)  ψ(K)
+```
+
+| | before | after |
+|---|---|---|
+| table | `folForallElim(p, v)`: `p` concludes `folForall(φ)` | also `ifolAll(T, φ)` at an object type: `v` in the guarded body |
+| IR | — | the guard per type, from `Reify.guardPredicate`; the guarded body of a binder, from Fol |
+
+Not `isaAllElim` at `K`: the table admits only a λ there, and an instance at a variable would share Lambda's pattern,
+`isaAllElim(o, T)`. Not an isa `∃` binding `K` so Fol finds its guard in its context: a class would then have two forms.
+
+**3. β at an atom is the λ's class at its arguments, `LAMBDA_<fp>`, proved once per λ.** **AGREED 2026-10-16 (user);
+revised at the review** from `BETA_<fp>` beside `CLASS_<fp>`. Its statement is built from the λ alone (I2): there is a
+class whose atom at fresh arguments is the walk's rewrite of the body there — and at `iⁿ ⇒ i`, a function, whose value
+at a tuple is the body's value there. At an atom `P(t⃗)` with `t⃗` variables, β is the opened hypothesis at `t⃗`, by ID
+(naming commutes with an instance at a variable). Its proof cites `CLASS_<fp>`; `CLASS_<fp>` stays the λ's class
+existence, which Reify's chains bind.
+
+```
+LAMBDA_<fp>   ∀b0. ∃B1. ∀b2. (∃b3 = ⟨b2⟩. b3 ∈ B1) ↔ b2 ∈ b0                          λx. x ∈ A, folview
+   at iⁿ ⇒ i  ∀v⃗. ∃K. function(K) ∧ ∀t⃗. ∀τ = ⟨t⃗⟩. ∀r. apply(τ, r, K) ↔ ⟦r = b(t⃗)⟧
+its proof     CLASS_<fp>'s K and definition H; -> open ⟨t⃗⟩ ∈ K, H at the tuple, the tuple's injectivity (TUPLE_INJ_n),
+              membership's congruence; <- TUPLE_EX_n, H; at iⁿ ⇒ i FUNC_<fp> and apply_pmem (5)
+```
+
+Not `BETA_<fp>` beside `CLASS_<fp>`, as agreed first: the instance never needs `K`'s definition, only β at its atoms;
+`BETA`'s citation re-eliminates `v⃗`, `K` and the definition at every atom (about 7 steps against 3, about 430k over the
+107,588 atoms, before emission's sharing), its statement restates the definition, and `FUNC_<fp>` was a citation per
+instance. Not β open-coded at each atom: the same proof at every atom of every instance of one λ. Not a base schema per
+arity, `[A(n)]`: its `->` substitutes the tuple's entries into an uninterpreted `A`, Leibniz's law, which base does not
+admit.
+
+**4. β at a compound argument is β at its value, then EX and UNIQ where Isabelle's conclusion names the argument
+again.** **AGREED 2026-10-16 (user).** (FOUNDATION S1: "where two forms of one term meet — a hypothesis's and a
+conclusion's, a λ's body unfolded at its argument — EX and UNIQ convert between them".) Logic names `P(succ(a))` by
+naming `succ(a)` where it stands — its class, the tuple of `a`, its value `r` — and applying `P` to `r`. At `K`, β is
+`LAMBDA_<fp>` at the variable `r`, under the argument's naming. Isabelle's conclusion holds the body at `succ(a)`, which
+the walk names per occurrence: a body holding its variable once, where naming puts the value (`λx. x ∈ A`), gives that
+same formula, by ID; otherwise `succ(a)` stands named twice, or not at all — two forms of one term, which EX and UNIQ of
+`succ(a)` convert: the conversion Reify's instance at a compound term makes, with the value `r` as its variable.
+
+```
+λx. x ∈ A   atom at K           ∀B0 b1. ∃B2. ZF_Base.succ(B2) ∧ ∃b3 = ⟨b1⟩. ∃b4. (b3, b4) ∈ B2 ∧ ∃b5 = ⟨b4⟩. b5 ∈ B0
+            β at b4             ∀b0 b1. ∃B2. ZF_Base.succ(B2) ∧ ∃b3 = ⟨b1⟩. ∃b4. (b3, b4) ∈ B2 ∧ b4 ∈ b0       Isabelle's, by ID
+λx. x = x   β at b3             ∀b0. ∃B1. ZF_Base.succ(B1) ∧ ∃b2 = ⟨b0⟩. ∃b3. (b2, b3) ∈ B1 ∧ b3 = b3
+            Isabelle's          ∀b0. ∃B1. ZF_Base.succ(B1) ∧ ∃b2 = ⟨b0⟩. ∃b3. (b2, b3) ∈ B1 ∧
+                                     ∃B4. ZF_Base.succ(B4) ∧ ∃b5 = ⟨b0⟩. ∃b6. (b5, b6) ∈ B4 ∧ b3 = b6
+                                EX and UNIQ of succ(a): the second naming's value b6 is b3
+```
+(`folview`; `(t, r) ∈ C` is `pmem(t, r, C)`, `∃b = ⟨a⟩` the 1-tuple.)
+
+**5. A function λ's β is about its value.** **AGREED 2026-10-16 (user).** At `iⁿ ⇒ i` an application `F(t⃗)` is a
+term, named by its value through `apply` (S5, Isabelle/ZF's `f`a`): `∃τ = ⟨t⃗⟩. ∃r. apply(τ, r, F) ∧ …`. At `K`,
+`LAMBDA_<fp>` states the application's value against the body's — the λ's class at `t⃗` has the body's value there. Its
+proof reads `apply` as `pmem` where `K` has a value — `apply_pmem`, a base claim, new, from `apply`'s definition — and
+`K` has one at every tuple of sets, by its definition and the body's EX. At the atom where `F(t⃗)` stood, `r` meets
+Isabelle's body named there: two forms of one term, which EX and UNIQ convert, as in 4.
+
+```
+apply_pmem       ∀B0 b1. (∃b2. (b1, b2) ∈ B0) → ∀b2. apply(b1, b2, B0) ↔ (b1, b2) ∈ B0
+F(a) ∈ B at K    ∀B0 b1 b2. ∃b3 = ⟨b1⟩. ∃b4. apply(b3, b4, B0) ∧ b4 ∈ b2
+Isabelle's       ∀b0 b1. ∃B2. ZF_Base.Pow(B2) ∧ ∃b3 = ⟨b0⟩. ∃b4. (b3, b4) ∈ B2 ∧ b4 ∈ b1          Pow(a) ∈ B
+```
+(`folview`, at `F := λx. Pow(x)`.)
+
+**6. A class variable inside a λ in a constant's class slot: the slot's class is kept and its definition converted.**
+**AGREED 2026-10-16 (user).** Logic names the λ in the slot where it stands, by a class and its definition ("a λ is a
+wrapper"); the class variable stands inside that definition, applied to the slot λ's own variables. Isabelle's
+conclusion holds the slot λ's body reduced, which the walk names by its own class and definition: the two chains agree
+but inside the definitions, where β — 3 at variables, 4 at compound arguments — converts one into the other, the slot's
+class the same witness on both sides. Reify's instance at a compound term treats a λ argument holding its variable the
+same way.
+
+```
+Ball(A, λx. P(x)) at K   ∀B0 b1. ∃B2. (∀b3. b3 ∈ B2 ↔ (∃b4. b3 = ⟨b4⟩ ∧ ∃b5 = ⟨b4⟩. b5 ∈ B0)) ∧
+                           ∃B3. ZF_Base.Ball(B3, B2) ∧ ∃b4 = ⟨b1⟩. b4 ∈ B3
+Isabelle's, at λy. y ∈ B  ∀b0 b1. ∃B2. (∀b3. b3 ∈ B2 ↔ (∃b4. b3 = ⟨b4⟩ ∧ b4 ∈ b0)) ∧
+                           ∃B3. ZF_Base.Ball(B3, B2) ∧ ∃b4 = ⟨b1⟩. b4 ∈ B3
+                          B2, the slot's class, kept; inside its definition β at b4
+```
+
+**The review** (2026-10-16, the user: against the agreed principles, and proof size). Measured over the read unit (a
+throwaway print in `lower`, not kept): 46,219 distinct instances at a function type — 29,569 at `i ⇒ o`, 9,817 at
+`i ⇒ i` — 11,948 of them (26%) at an η-expanded class variable `λx⃗. Q(x⃗)`; at most 23,081 distinct other λs; 107,588
+occurrences of the class variable in the instantiated formulas, about 2.3 atoms per instance. Each decision keeps D1
+(one local rule), D2, D3, I2 and FOUNDATION S1; 4–6 have no cheaper form under S1's per-occurrence naming. Trade-offs:
+- **1 — an η-expanded variable pays the whole rule**, where `forall_elim` at `Q` would give Isabelle's formula by ID: about
+  12k instances pay a citation, an `∃`-elim and their β reads. Kept: one rule, no shape detected — a size optimization is
+  never a translation rule (2026-10-15), and the λ's class is `Q`'s tuples, not `Q`; the closed λ `λQ x⃗. Q(x⃗)` is one
+  per type, so its lemma is proved once per type.
+- **2 — the table knows how Fol writes a guarded binder**: one IR function, which both call (above).
+- **3 — `BETA` beside `CLASS`, or the class at its arguments**: revised to `LAMBDA_<fp>` (above).
+
+**The contracts (D2):**
+
+| | provides | assumes |
+|---|---|---|
+| IR | the guard per type; a binder's guarded body; the table's `forall_elim` on an isa binder at an object type | — |
+| Lambda (logic's walk) | an instance at a λ at an object function type, concluding the walk's own rewrite of Isabelle's formula, by ID; `LAMBDA_<fp>`, requested from the λ alone | `LAMBDA_<fp>` proved or refused at its prover; Reify's conversion at a compound term; Logic's replacement walk |
+| Lambda's prover | `LAMBDA_<fp>` | `CLASS_<fp>` (the class prover), `FUNC_<fp>` (Reify's), `TUPLE_*` (Tuple's), EX of the body, base's `apply_pmem` |
+| Fol | the binder's guarded body from IR | — |
+| base | `apply_pmem`, proved in `metafun` | — |
+
+**FOUNDATION first.** §3b's mapping: "`AppT` at a λ (a class type) | `forall_elim` at the λ's class at its arguments,
+then β: at each atom, the class's against the body's (S1)". S1 and S5 hold the rest.
+
+**Tests, written first.**
+- `TableTests`: `forall_elim` on an isa binder at `i ⇒ o` concludes its body at the variable; at `i ⇒ i`, its guard
+  first.
+- `FolTests`: Fol writes a binder's guarded body by IR's function, as before.
+- `LambdaTests` (Lowering): `LAMBDA_<fp>`'s statement at a predicate λ and a function λ, from the λ alone; its proof, the
+  kernel checking it.
+- `PlanTests`, each kernel-checked: an instance at a λ at variables (`thm · (λx. x ∈ A)`); at a compound argument, the
+  body holding its variable once and twice; at a function λ (`F := λx. Pow(x)`); a class variable in a class slot
+  (`Ball(A, λx. P(x))`); an η-expanded variable; the ownership rows `isaAllElim(o, (i ⇒ o))` and `(i ⇒ i)` (logic, rule).
+- `base`: `apply_pmem` kernel-checked (`check-base.sh`).
+
+**Built.** IR: the guard per type and a binder's guarded body (`guardPredicate`, `guarded`, `guardedBody`), which Fol's
+`∀` and the table's `forall_elim` on an isa binder at an object type both call. Lambda (`Sources/Lowering/Lambda.swift`):
+the instance at a λ — `R = ⋀P::T. A(P) → (ψ*(P) ↔ wanted)` proved with `P` Isabelle's typed variable, the walk's hole β
+at each unit of `P`, then `forall_elim` at the opened `LAMBDA_<fp>`'s class, its guard and `A(K)` discharged; its prover,
+`LAMBDA_<fp>` from `CLASS_<fp>`, `TUPLE_INJ_n`, `TUPLE_EX_n`, and at `iⁿ ⇒ i` `FUNC_<fp>`, the body's EX and
+`apply_pmem`. The tests above live in `LambdaTests` (thirteen, each kernel-checked or its refusal named), the table's in
+`TableTests`, the ownership rows in `PlanTests`.
+
+**Decisions made in the build**, for the user's review:
+1. **β is per unit of the class variable, the units Reify's instance walks**: `units` reports an application of the
+   variable (η-long, it stands nowhere else) beside a term and a λ argument holding it, an application after its own
+   arguments; `converted` chains a step per unit, one loop for both instances. A unit's target is the variable
+   instantiated there by the IR's `instantiate`, which β-reduces as Isabelle does.
+2. **The slot's conversion is one function, `slotConverted`**, moved out of Reify's instance (decision 6's "the same way"
+   made literal): the slot's class kept, its definition walked by the caller's own hole.
+3. **At a predicate λ, β at an application is the walk of Isabelle's own β at its arguments**: `⋀x⃗. P(x⃗) ⟷ φ(x⃗)` at
+   the hypothesis `A(P)` is the walk's rewrite of, instantiated at `t⃗` and walked — Reify's instance at a compound term
+   making decision 4's conversion. **At a function λ, the same through a cut**: the atom's two forms at fresh variables,
+   `⋀x⃗. φ[F(x⃗)] ⟷ φ[b(x⃗)]`, proved at its rewrite — `F(x⃗)`'s value `r` is the body's by β, the body's naming standing
+   where `F(x⃗)`'s did, `TUPLE_EX_n` for the way back — then instantiated at `t⃗` and walked.
+4. **`LAMBDA_<fp>`'s proof shares one piece**: at a tuple `τ = ⟨t⃗⟩`, the class's membership ↔ the body, `K`'s
+   definition one way through `TUPLE_INJ_n`, the entries the other. A predicate λ wraps it in the atom's `∃τ`
+   (`TUPLE_EX_n` back); a function λ chains it with `apply_pmem`, `K` having a value at `τ` by the body's EX.
+5. ⚠ **EX OF A TERM INTRODUCES ITS WITNESS AT THE FRESH `z`, THEN INSTANTIATES `z`.** It introduced it after
+   instantiating `z` at the term's value, abstracting every occurrence of the value — which a variable term shares with
+   its own term: EX of `a` concluded `∃y. y = y` (`misproved`). A function λ's body may be a variable (`λx. x`,
+   `λx y z. y`). Test: `anIdentityFunctionLambdaIsBetaAtItsArgument`.
+6. **The congruence walks a class binder by fol-zfc's own `forall_elim` at the bound class, its guard first** (decision
+   2's rule): Reify's instance at a compound term met `⋀a b P. a = b ⟹ P(b) ⟹ P(a)` once step 3 let such statements reach
+   the walk, and stopped the run (`noCongruence`). Test: `aClassBinderBelowTheInstantiatedVariableIsWalkedAtACompoundTerm`.
+7. **A lemma closes over a proposition as a letter at its top (S4)**: a statement's letter as itself; a variable Pure's
+   `⋀` binds below a top as a letter too, its citation instantiating it at `holds(E)`, its reading. The closure wrote the
+   first as a `∀` (the table refused its citation, `propositionAsTerm`, and the run stopped) and left the second out,
+   dangling, silently. The class prover reads no letter: `CLASS_<fp>` of a λ holding one is unbuilt there, and its
+   citers fall with it — 382 instances at a λ holding a letter, 24 at one holding a truth-set variable, of 46,219
+   (a throwaway count, not kept). Tests: `aLambdaHoldingALetterIsASchemaInIt`,
+   `aLambdaHoldingATruthSetVariableIsASchemaCitedAtItsTruth`.
+8. **Fol transforms each statement by itself**: one transform over every root kept one cache for all, a key per node and
+   context, and passed 32 GB once Logic built these instances. Per statement the cache lives for one; outputs are
+   interned, so the unit is the same.
+9. ⚠ **AN AXIOM BASE CLAIMS IS BASE'S CLAIM UNDER THE CLASS PREMISES THE AXIOM STATES.** Logic relabelled `subst`'s
+   citation whole as base's `class_subst`; since OFCLASS the axiom states its class premise and base's claim none, so
+   the IR's citation concluded what base's does not — the table trusts a citation's root, and only the kernel saw it
+   (`implies_elim` at `class_subst`). Nothing lowered cited `subst` until its instances at a λ were built. The rule
+   introduces the premises the axiom states beyond base's claim, by their count ahead of its first binder, over base's
+   citation. Test: `substWithItsClassPremiseStatedIsBasesClassSubstUnderIt`, the kernel refusing it before.
+
+**Measured** (`MEM=32G scripts/capped.sh .build/release/isa2fol read data/zf_export`: all 9,420 proved, and the 195 named
+theorems and 956 boxes they cite, unchanged. `MEM=48G … lower data/zf_export --emit DIR`: 23:54, peak 25.5 GB (16.0 GB);
+read 74.6 s, lowered 374.2 s (77.7 s), emitted 982.9 s (205.6 s); 59,158,892 nodes (18,069,345). Then
+`scripts/check-unit.sh DIR`: 41.2 s, peak 572 MB):
+- **The kernel proves the unit**: 45 parts (40), each exit 0 and empty stderr; claims 4,579 of 4,579 (2,222), schemas
+  111 of 111 (110); 541 `@def`s (453).
+- **Named theorems lowered: 73** (65): the eight beside them whose proofs cite the instance — `ZF_Base.subst_elem`,
+  `ZF_Base.strip.2`, `AC_Equiv.AC18.AC18`, `Normal.cub_family.next_greater_def` and `sup_greater_def`,
+  `Reflection.reflection.F0_def`, `M_def` and `Reflects_def`; and of the facts they cite, `IFOL.spec`, `allI`, `subst`,
+  `sym`, `trans`, `ssubst`, `forw_subst`, `back_subst` and `strip.2` reach the kernel.
+- **Refused at no owner 3,702** (3,702), **logic 3,071** (3,955), a letter off its spine 204 (13), a refused citation
+  2,370 (1,685). Logic's list is led by Pure's equality at a function type (step 4: `isaCombination((i => o), o, o)`
+  2,274, `isaAbstract((i => o), o)` 1,991); `isaAllElim(o, T)` at an object function type leads it no more. A letter off
+  its spine is the instance's own walk under a `⋀` at `o` that the cited theorem binds after the instantiated variable
+  ("Logic", point 2's grammar: `ifolAll(o)`, `isaAllIntro(o)`, `folSchemaInst` off a citation's head), as
+  `aLetterTheCitedTheoremBindsAfterTheInstantiatedClassIsOffItsSpine` pins; that all 204 are this rests on their three
+  patterns alone.
+- ⚠ **93% OF THE UNIT IS LEMMAS NOTHING CITES**: 4,242 of its 4,579 claims, 303 of its 326 MB, in the five `_uncited`
+  parts — 638 `LAMBDA_` (7 cited), 724 `CLASS_` (30), 771 EX, 823 UNIQ, 196 `FUNC_`. Logic's walk requests them for
+  statements that then fall, at a refused citation or a letter off its spine, and the registry proves every request
+  before either is known. `λ classExists` alone writes 2.2 of the 4.5 million steps.
+- `SOURCE_SURFACE.md` and `CLOSURE.md` regenerated: unchanged.
 
 ### Fol — binders, guards and variables  **[BUILT 2026-09-28 as the guard; Fol's 2026-10-14; every object type and `∃` at `i` with "Reify — S1 at the site" — `Sources/Lowering/Fol.swift`]**
 

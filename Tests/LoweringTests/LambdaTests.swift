@@ -1,0 +1,257 @@
+import Testing
+import IR
+import Lowering
+
+private let i = IRType.i
+private let o = IRType.o
+private let P = IRType.fn(.i, .o)
+private let F = IRType.fn(.i, .i)
+private func fn(_ a: IRType, _ b: IRType) -> IRType { .fn(a, b) }
+
+private func lowered(_ l: LogicTable, _ statements: [Statement], _ definitions: [Definition] = []) throws -> Unit {
+    var l = l
+    let b = try base(in: &l.t)
+    var unit = Unit(table: l.t, statements: statements, definitions: definitions)
+    try pipeline(b).run(&unit)
+    return unit
+}
+
+private func pow(_ x: NodeID, _ l: inout LogicTable) throws -> NodeID { try l.const(.primitive(.zf(.pow)), fn(i, i), x) }
+
+/// `⋀P a. P(t(a)) ⟶ P(t(a))`, proved by its hypothesis; `t` gives the class variable's argument under `⋀P a`.
+private func theorem(_ name: String, _ l: inout LogicTable, _ argument: (NodeID, inout LogicTable) throws -> NodeID) throws -> Statement {
+    let applied = try l.t.intern(.isaVarApp(head: try l.bound(1, P), args: [try argument(try l.bound(0, i), &l)]))
+    let root = try l.all(P, try l.all(i, try l.imp(applied, applied)))
+    let proof = try l.t.intern(.isaAllIntro(P, body: try l.t.intern(.isaAllIntro(i, body: try l.t.intern(
+        .folImpliesIntro(applied, body: try l.t.intern(.hyp(0, applied))))))))
+    return Statement(name: name, root: root, proof: proof, theory: "Test")
+}
+
+/// `⋀A b. φ ⟶ φ` by `cited · λ · b`, `λ` and `φ` under `⋀A b`.
+private func user(_ name: String, _ cited: Statement, _ lambda: NodeID, _ phi: NodeID, _ l: inout LogicTable) throws -> Statement {
+    let atLambda = try l.t.intern(.isaAllElim(try l.t.intern(.use(.theorem(cited.name), [], cited.root)), lambda))
+    let proof = try l.t.intern(.isaAllElim(atLambda, try l.bound(0, i)))
+    return Statement(name: name, root: try l.all(i, try l.all(i, try l.imp(phi, phi))),
+                     proof: try l.t.intern(.isaAllIntro(i, body: try l.t.intern(.isaAllIntro(i, body: proof)))), theory: "Test")
+}
+
+/// `thm · (λx. x ∈ A)`: the λ's class at its arguments, `LAMBDA_<fp>`, opened; `thm`'s class binder eliminated at its class;
+/// β at the atom `⟨b⟩ ∈ K` is the opened lemma at `b`. The kernel proves the unit.
+@Test func anInstanceAtALambdaIsItsClassThenBeta() throws {
+    var l = LogicTable()
+    let thm = try theorem("T.thm", &l) { x, _ in x }
+    let lambda = try l.lam(i, try l.mem(try l.bound(0, i), try l.bound(2, i)))
+    let use = try user("T.use", thm, lambda, try l.mem(try l.bound(0, i), try l.bound(1, i)), &l)
+    let unit = try lowered(l, [thm, use])
+    #expect(unit.refused.isEmpty)
+    #expect(unit.statements.contains { $0.name.hasPrefix("LAMBDA_") })
+    try kernelChecks(unit)
+}
+
+/// `⋀P a. P(Pow(a)) ⟶ …` at `λx. x ∈ A`: β at `Pow(b)`'s value, under its naming, is Isabelle's `Pow(b) ∈ A` by ID. At
+/// `λx. x = x` the body names `Pow(b)` twice, and EX and UNIQ of `Pow(b)` convert.
+@Test func anInstanceAtACompoundArgumentIsBetaAtItsValue() throws {
+    var l = LogicTable()
+    let thm = try theorem("T.thm", &l) { x, l in try pow(x, &l) }
+    let member = try l.lam(i, try l.mem(try l.bound(0, i), try l.bound(2, i)))
+    let once = try user("T.once", thm, member, try l.mem(try pow(try l.bound(0, i), &l), try l.bound(1, i)), &l)
+    let selfEqual = try l.lam(i, try l.equal(i, try l.bound(0, i), try l.bound(0, i)))
+    let powB = try pow(try l.bound(0, i), &l)
+    let twice = try user("T.twice", thm, selfEqual, try l.equal(i, powB, powB), &l)
+    let unit = try lowered(l, [thm, once, twice])
+    #expect(unit.refused.isEmpty)
+    try kernelChecks(unit)
+}
+
+/// `⋀F a⃗ B. t ∈ B ⟶ t ∈ B`, `t` built from `F` and `a⃗`, proved by its hypothesis; and its use at `λ`, concluding `used`
+/// under `⋀a⃗ B`.
+private func functional(_ F: IRType, _ n: Int, _ lambda: NodeID, _ used: NodeID, _ l: inout LogicTable,
+                        _ term: (NodeID, [NodeID], inout LogicTable) throws -> NodeID) throws -> [Statement] {
+    let args = try (0..<n).map { try l.bound(n - $0, i) }
+    let member = try l.mem(try term(try l.bound(n + 1, F), args, &l), try l.bound(0, i))
+    var root = try l.imp(member, member)
+    var proof = try l.t.intern(.folImpliesIntro(member, body: try l.t.intern(.hyp(0, member))))
+    for _ in 0...n { (root, proof) = (try l.all(i, root), try l.t.intern(.isaAllIntro(i, body: proof))) }
+    root = try l.all(F, root)
+    let thm = Statement(name: "T.thm", root: root, proof: try l.t.intern(.isaAllIntro(F, body: proof)), theory: "Test")
+    var instance = try l.t.intern(.isaAllElim(try l.t.intern(.use(.theorem("T.thm"), [], root)), lambda))
+    for k in (0...n).reversed() { instance = try l.t.intern(.isaAllElim(instance, try l.bound(k, i))) }
+    var usedRoot = try l.imp(used, used)
+    for _ in 0...n { (usedRoot, instance) = (try l.all(i, usedRoot), try l.t.intern(.isaAllIntro(i, body: instance))) }
+    return [thm, Statement(name: "T.use", root: usedRoot, proof: instance, theory: "Test")]
+}
+
+/// `⋀F a B. F(a) ∈ B ⟶ F(a) ∈ B` at `λx. Pow(x)`: `F(a)` is read through `apply`; the λ's class at `a` has `Pow(a)`'s value,
+/// and its guard, `function(K)`, is the lemma's own.
+@Test func anInstanceAtAFunctionLambdaIsBetaAtItsValue() throws {
+    var l = LogicTable()
+    let lambda = try l.lam(i, try pow(try l.bound(0, i), &l))
+    let used = try l.mem(try pow(try l.bound(1, i), &l), try l.bound(0, i))
+    let statements = try functional(F, 1, lambda, used, &l) { F, a, l in try l.t.intern(.isaVarApp(head: F, args: a)) }
+    let unit = try lowered(l, statements)
+    #expect(unit.refused.isEmpty)
+    try kernelChecks(unit)
+}
+
+/// `F(a)` at `λx. x`: the body a variable, its value itself, whose EX the λ's lemma cites as any term's.
+@Test func anIdentityFunctionLambdaIsBetaAtItsArgument() throws {
+    var l = LogicTable()
+    let lambda = try l.lam(i, try l.bound(0, i))
+    let used = try l.mem(try l.bound(1, i), try l.bound(0, i))
+    let statements = try functional(F, 1, lambda, used, &l) { F, a, l in try l.t.intern(.isaVarApp(head: F, args: a)) }
+    let unit = try lowered(l, statements)
+    #expect(unit.refused.isEmpty)
+    try kernelChecks(unit)
+}
+
+/// `F(a, b, c)` at `λx y z. y`: a projection, the body a variable among three.
+@Test func aProjectionLambdaOfThreeArgumentsIsBetaAtItsArgument() throws {
+    var l = LogicTable()
+    let lambda = try l.lam(i, try l.lam(i, try l.lam(i, try l.bound(1, i))))
+    let used = try l.mem(try l.bound(2, i), try l.bound(0, i))
+    let statements = try functional(fn(i, fn(i, fn(i, i))), 3, lambda, used, &l) { F, abc, l in try l.t.intern(.isaVarApp(head: F, args: abc)) }
+    let unit = try lowered(l, statements)
+    #expect(unit.refused.isEmpty)
+    try kernelChecks(unit)
+}
+
+/// `F(F(a))` at `λx. Pow(x)`: the inner application at the variable `a`, the outer at `Pow(a)`, a compound argument, which
+/// Reify's instance converts.
+@Test func aNestedApplicationOfAFunctionLambdaIsBetaAtEachValue() throws {
+    var l = LogicTable()
+    let lambda = try l.lam(i, try pow(try l.bound(0, i), &l))
+    let used = try l.mem(try pow(try pow(try l.bound(1, i), &l), &l), try l.bound(0, i))
+    let statements = try functional(F, 1, lambda, used, &l) { F, a, l in
+        try l.t.intern(.isaVarApp(head: F, args: [try l.t.intern(.isaVarApp(head: F, args: a))]))
+    }
+    let unit = try lowered(l, statements)
+    #expect(unit.refused.isEmpty)
+    try kernelChecks(unit)
+}
+
+/// `F(a, b)` at `λx y. Pow(y)`: the λ's class at a pair.
+@Test func aFunctionLambdaOfTwoArgumentsIsBetaAtItsPair() throws {
+    var l = LogicTable()
+    let lambda = try l.lam(i, try l.lam(i, try pow(try l.bound(0, i), &l)))
+    let used = try l.mem(try pow(try l.bound(1, i), &l), try l.bound(0, i))
+    let statements = try functional(fn(i, fn(i, i)), 2, lambda, used, &l) { F, ab, l in try l.t.intern(.isaVarApp(head: F, args: ab)) }
+    let unit = try lowered(l, statements)
+    #expect(unit.refused.isEmpty)
+    try kernelChecks(unit)
+}
+
+/// `⋀A a B. T.app(A, a) ∈ B ⟶ …` by `thm · (λx. T.app(A, x))`: a function λ holding a free variable, its body a defined
+/// constant's value.
+@Test func aFunctionLambdaHoldingAVariableIsBetaAtItsValue() throws {
+    var l = LogicTable()
+    let app = try l.definition(Defined(.zf, "T.app", .object), fn(i, fn(i, i)), try l.lam(i, try l.lam(i, try pow(try l.bound(1, i), &l))))
+    let applied = { (a: NodeID, b: NodeID, l: inout LogicTable) throws -> NodeID in try l.const(.defined(app.constant), fn(i, fn(i, i)), a, b) }
+    let member = try l.mem(try l.t.intern(.isaVarApp(head: try l.bound(2, F), args: [try l.bound(1, i)])), try l.bound(0, i))
+    let root = try l.all(F, try l.all(i, try l.all(i, try l.imp(member, member))))
+    let proof = try l.t.intern(.isaAllIntro(F, body: try l.t.intern(.isaAllIntro(i, body: try l.t.intern(.isaAllIntro(i, body: try l.t.intern(
+        .folImpliesIntro(member, body: try l.t.intern(.hyp(0, member))))))))))
+    let thm = Statement(name: "T.thm", root: root, proof: proof, theory: "Test")
+    let lambda = try l.lam(i, try applied(try l.bound(3, i), try l.bound(0, i), &l))
+    let atLambda = try l.t.intern(.isaAllElim(try l.t.intern(.use(.theorem("T.thm"), [], root)), lambda))
+    let instance = try l.t.intern(.isaAllElim(try l.t.intern(.isaAllElim(atLambda, try l.bound(1, i))), try l.bound(0, i)))
+    let used = try l.mem(try applied(try l.bound(2, i), try l.bound(1, i), &l), try l.bound(0, i))
+    let use = Statement(name: "T.use", root: try l.all(i, try l.all(i, try l.all(i, try l.imp(used, used)))),
+                        proof: try l.t.intern(.isaAllIntro(i, body: try l.t.intern(.isaAllIntro(i, body: try l.t.intern(.isaAllIntro(i, body: instance)))))),
+                        theory: "Test")
+    let unit = try lowered(l, [thm, use], [app])
+    #expect(unit.refused.isEmpty)
+    try kernelChecks(unit)
+}
+
+/// `⋀P A. T.ball(A, λx. P(x)) ⟶ …` at `λy. y ∈ B`: the class variable stands in `T.ball`'s class slot; the slot's class is
+/// kept and its definition converted, β inside it at the slot's own variable.
+@Test func aClassVariableInAClassSlotKeepsTheSlotsClass() throws {
+    var l = LogicTable()
+    let x = try l.bound(0, i)
+    let ball = try l.definition(Defined(.zf, "T.ball", .object), fn(i, fn(P, o)),
+                                try l.lam(i, try l.lam(P, try l.all(i, try l.imp(try l.mem(x, try l.bound(2, i)),
+                                    try l.t.intern(.isaVarApp(head: try l.bound(1, P), args: [x])))))))
+    let slot = try l.lam(i, try l.t.intern(.isaVarApp(head: try l.bound(2, P), args: [try l.bound(0, i)])))
+    let atom = try l.const(.defined(ball.constant), fn(i, fn(P, o)), try l.bound(0, i), slot)
+    let root = try l.all(P, try l.all(i, try l.imp(atom, atom)))
+    let proof = try l.t.intern(.isaAllIntro(P, body: try l.t.intern(.isaAllIntro(i, body: try l.t.intern(
+        .folImpliesIntro(atom, body: try l.t.intern(.hyp(0, atom))))))))
+    let thm = Statement(name: "T.thm", root: root, proof: proof, theory: "Test")
+    let lambda = try l.lam(i, try l.mem(try l.bound(0, i), try l.bound(2, i)))
+    let reduced = try l.lam(i, try l.mem(try l.bound(0, i), try l.bound(2, i)))
+    let used = try l.const(.defined(ball.constant), fn(i, fn(P, o)), try l.bound(0, i), reduced)
+    let use = try user("T.use", thm, lambda, used, &l)
+    let unit = try lowered(l, [thm, use], [ball])
+    #expect(unit.refused.isEmpty)
+    try kernelChecks(unit)
+}
+
+/// `thm · (λx. Q(x))`, `Q` the user's own class variable: an instance like any other, one rule for the piece.
+@Test func anEtaExpandedClassVariableIsAnInstanceLikeAnyOther() throws {
+    var l = LogicTable()
+    let thm = try theorem("T.thm", &l) { x, _ in x }
+    let eta = try l.lam(i, try l.t.intern(.isaVarApp(head: try l.bound(2, P), args: [try l.bound(0, i)])))
+    let applied = try l.t.intern(.isaVarApp(head: try l.bound(1, P), args: [try l.bound(0, i)]))
+    let atLambda = try l.t.intern(.isaAllElim(try l.t.intern(.use(.theorem("T.thm"), [], thm.root)), eta))
+    let proof = try l.t.intern(.isaAllElim(atLambda, try l.bound(0, i)))
+    let use = Statement(name: "T.use", root: try l.all(P, try l.all(i, try l.imp(applied, applied))),
+                        proof: try l.t.intern(.isaAllIntro(P, body: try l.t.intern(.isaAllIntro(i, body: proof)))), theory: "Test")
+    let unit = try lowered(l, [thm, use])
+    #expect(unit.refused.isEmpty)
+    try kernelChecks(unit)
+}
+
+/// `⋀Q A b. (b ∈ A ∧ Q) ⟶ …` by `thm · (λx. x ∈ A ∧ Q)`: the λ holds the statement's letter `Q`, so its lemmas are schemas
+/// in it, cited by `schema_inst` at `Q`. The class prover reads no letter yet: `CLASS_<fp>` falls there, and the use with it.
+@Test func aLambdaHoldingALetterIsASchemaInIt() throws {
+    var l = LogicTable()
+    let thm = try theorem("T.thm", &l) { x, _ in x }
+    let Q = { (k: Int, l: inout LogicTable) throws -> NodeID in try l.bound(k, o) }
+    let lambda = try l.lam(i, try l.t.intern(.folAnd(try l.mem(try l.bound(0, i), try l.bound(2, i)), try Q(3, &l))))
+    let phi = try l.t.intern(.folAnd(try l.mem(try l.bound(0, i), try l.bound(1, i)), try Q(2, &l)))
+    let use = try user("T.use", thm, lambda, phi, &l)
+    let schematic = Statement(name: "T.use", root: try l.all(o, use.root), proof: try l.t.intern(.isaAllIntro(o, body: use.proof!)), theory: "Test")
+    let unit = try lowered(l, [thm, schematic])
+    #expect(unit.refused.contains { $0.name.hasPrefix("CLASS_") && $0.refusal == .lemmaUnbuilt })
+    #expect(unit.refused.contains { $0.name.hasPrefix("LAMBDA_") })
+    #expect(unit.refused.contains { $0.name == "T.use" })
+}
+
+/// `⋀A b. ⋀P::prop. (b ∈ A ∧ P) ⟶ …` by `thm · (λx. x ∈ A ∧ P)`, `P` bound below the statement's top: a truth-set
+/// variable, which the λ's lemma takes as a letter, cited at `holds(E)`; it falls at the class prover as a letter does.
+@Test func aLambdaHoldingATruthSetVariableIsASchemaCitedAtItsTruth() throws {
+    var l = LogicTable()
+    let thm = try theorem("T.thm", &l) { x, _ in x }
+    let lambda = try l.lam(i, try l.t.intern(.folAnd(try l.mem(try l.bound(0, i), try l.bound(3, i)), try l.t.intern(.isaPropBound(1)))))
+    let phi = try l.t.intern(.folAnd(try l.mem(try l.bound(1, i), try l.bound(2, i)), try l.t.intern(.isaPropBound(0))))
+    let atLambda = try l.t.intern(.isaAllElim(try l.t.intern(.use(.theorem(thm.name), [], thm.root)), lambda))
+    let instance = try l.t.intern(.isaAllElim(atLambda, try l.bound(1, i)))
+    let root = try l.all(i, try l.all(i, try l.t.intern(.isaPropAll(body: try l.imp(phi, phi)))))
+    let proof = try l.t.intern(.isaAllIntro(i, body: try l.t.intern(.isaAllIntro(i, body: try l.t.intern(.isaPropIntro(body: instance))))))
+    let unit = try lowered(l, [thm, Statement(name: "T.use", root: root, proof: proof, theory: "Test")])
+    #expect(unit.refused.contains { $0.name.hasPrefix("CLASS_") && $0.refusal == .lemmaUnbuilt })
+    #expect(unit.refused.contains { $0.name == "T.use" })
+}
+
+/// `⋀P Q::o a. (P(a) ∧ Q) ⟶ …` at `λx. x ∈ A`, then at `Q`: the instance walks under `⋀Q`, a letter the theorem binds after
+/// its class binder, and `schema_inst` at `Q` stands off the citation's head — refused, `letterOffSpine`, after the last pass.
+@Test func aLetterTheCitedTheoremBindsAfterTheInstantiatedClassIsOffItsSpine() throws {
+    var l = LogicTable()
+    let applied = try l.t.intern(.isaVarApp(head: try l.bound(2, P), args: [try l.bound(0, i)]))
+    let phi = try l.t.intern(.folAnd(applied, try l.bound(1, o)))
+    let root = try l.all(P, try l.all(o, try l.all(i, try l.imp(phi, phi))))
+    let proof = try l.t.intern(.isaAllIntro(P, body: try l.t.intern(.isaAllIntro(o, body: try l.t.intern(.isaAllIntro(i, body: try l.t.intern(
+        .folImpliesIntro(phi, body: try l.t.intern(.hyp(0, phi))))))))))
+    let thm = Statement(name: "T.thm", root: root, proof: proof, theory: "Test")
+    let lambda = try l.lam(i, try l.mem(try l.bound(0, i), try l.bound(3, i)))
+    let atQ = try l.t.intern(.isaAllElim(try l.t.intern(.isaAllElim(try l.t.intern(.use(.theorem("T.thm"), [], root)), lambda)),
+                                          try l.bound(1, o)))
+    let instance = try l.t.intern(.isaAllElim(atQ, try l.bound(0, i)))
+    let used = try l.t.intern(.folAnd(try l.mem(try l.bound(0, i), try l.bound(2, i)), try l.bound(1, o)))
+    let use = Statement(name: "T.use", root: try l.all(i, try l.all(o, try l.all(i, try l.imp(used, used)))),
+                        proof: try l.t.intern(.isaAllIntro(i, body: try l.t.intern(.isaAllIntro(o, body: try l.t.intern(.isaAllIntro(i, body: instance)))))),
+                        theory: "Test")
+    let unit = try lowered(l, [thm, use])
+    #expect(unit.refused.map(\.name) == ["T.use"])
+    guard case .letterOffSpine? = unit.refused.first?.refusal else { Issue.record("\(unit.refused)"); return }
+}

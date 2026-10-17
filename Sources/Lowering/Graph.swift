@@ -29,7 +29,7 @@ struct GraphProofs {
 
     func prove(_ f: LambdaFact, in t: inout Table) throws -> NodeID {
         switch f.fact {
-        case .classExists: throw GraphError.notMine(f.name)
+        case .classExists, .arguments: throw GraphError.notMine(f.name)
         case .function: return try lambdaFunction(f, &t)
         }
     }
@@ -138,7 +138,7 @@ struct GraphProofs {
         let ps = classes.map { fr.fix($0) }
         var guards: [Int: Int] = [:]
         for (j, D) in classes.enumerated() where isFunctionClass(D) {
-            if let g = try Reify.guarded(try fr.variable(ps[j], in: &t), D, in: &t) { guards[ps[j]] = fr.assume(g) }
+            if let g = try guarded(try fr.variable(ps[j], in: &t), D, in: &t) { guards[ps[j]] = fr.assume(g) }
         }
         let C = fr.fix(nil)
         let hc = fr.assume(try named(f.constant, C, ps, fr, &t))
@@ -151,7 +151,7 @@ struct GraphProofs {
         var guards: [Int: Int] = [:]
         for T in f.types {
             let v = fr.fix(T)
-            if T != .i, let g = try Reify.guarded(try fr.variable(v, in: &t), T, in: &t) { guards[v] = fr.assume(g) }
+            if T != .i, let g = try guarded(try fr.variable(v, in: &t), T, in: &t) { guards[v] = fr.assume(g) }
         }
         let outer = fr.scope.depth
         let K = fr.fix(nil)

@@ -316,3 +316,19 @@ private let collect = Constant.defined(Defined(.zf, "ZF_Base.Collect", .object))
         try t.intern(.isaDefinition("Pure.prop_def", of: .constant(prop), [], stated, args: [x]))
     }
 }
+
+/// fol-zfc's `forall_elim` takes Isabelle's class binder as Fol writes it: at `i ⇒ o` its body at the class, at `i ⇒ i` the
+/// binder's guard first, `function(K) → …` — the body Fol and the table write by one function.
+@Test func folsForallEliminationTakesAnIsaClassBinderAsFolWritesIt() throws {
+    var t = Table()
+    let (P, F) = (IRType.fn(.i, .o), IRType.fn(.i, .i))
+    let K = try t.intern(.folBound(3))
+    let predicate = try t.intern(.ifolAll(P, body: try t.intern(.folPred(.base("elem"), args: [try t.intern(.folBound(1)), try t.intern(.isaBound(0, P))]))))
+    let atP = try t.intern(.folForallElim(try t.intern(.hyp(0, predicate)), K))
+    #expect(t.conclusion(of: atP) == (try t.intern(.folPred(.base("elem"), args: [try t.intern(.folBound(0)), K]))))
+    let function = try t.intern(.ifolAll(F, body: try t.intern(.folPred(.base("elem"), args: [try t.intern(.folBound(1)), try t.intern(.isaBound(0, F))]))))
+    let atF = try t.intern(.folForallElim(try t.intern(.hyp(0, function)), K))
+    let guarded = try t.intern(.folImplies(try t.intern(.folPred(.base("function"), args: [K])),
+                                           try t.intern(.folPred(.base("elem"), args: [try t.intern(.folBound(0)), K]))))
+    #expect(t.conclusion(of: atF) == guarded)
+}

@@ -195,9 +195,11 @@ public struct Table: Sendable {
         case let .folForallIntro(body):
             return .step(concluding: try intern(.folForall(body: try premise(body))))
         case let .folForallElim(p, v):
-            guard case let .folForall(body) = self[try premise(p)] else { throw TableError.principalConnective(p) }
             try termVariable(v, else: .notATermVariable(v))
-            return .step(concluding: try instantiate(body, with: v, in: &self))
+            let premised = try premise(p)
+            if case let .folForall(body) = self[premised] { return .step(concluding: try instantiate(body, with: v, in: &self)) }
+            guard case let .ifolAll(T, body) = self[premised], isObject(T) else { throw TableError.principalConnective(p) }
+            return .step(concluding: try instantiate(try guardedBody(T, body, in: &self), with: v, in: &self))
         case let .folExistsIntro(p, v):
             let k = try termVariable(v, else: .notATermVariable(v))
             return .step(concluding: try intern(.folExists(body: try abstractIndex(try premise(p), k, in: &self))))

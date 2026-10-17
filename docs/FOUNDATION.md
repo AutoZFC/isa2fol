@@ -1226,6 +1226,7 @@ specialisation at `kpair`.
 | `AbsP` / `AppP` | `implies_intro` / `implies_elim` — one for one |
 | `AbsT` / `AppT` at a VARIABLE | `forall_intro` / `forall_elim`, **plus the R3 guard step** |
 | `AppT` at a compound term | `appt_complex` / `appt_nested` |
+| `AppT` at a λ, a class type | `forall_elim` at the λ's class at its arguments — proved once per λ — then β: at each atom, the class's against the body's, EX and UNIQ where the argument is compound (S1); at `iⁿ ⇒ i` the guard by the class's own `function` (S5) |
 | `Thm` | `use` |
 | `Thm` of a theorem polymorphic in a type no class restricts, at a type binding no proposition on its spine | its proof at that type, in place: the target has no type |
 | an application of a logical rule (`conjI`, `mp`, `spec`, `exE`, …) | the kernel's OWN step at its premises; never translated (S4) |

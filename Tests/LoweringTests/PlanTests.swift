@@ -106,8 +106,8 @@ private func lowered(_ t: Table, _ statements: [Statement]) throws -> Unit {
         (.isaReflexive(a), nil, nil),
         (.ifolAll(fn(o, o), body: o), "logic", .unbuilt),
         (.isaAllElim(o, fn(o, o)), "logic", .unbuilt),
-        (.isaAllElim(o, fn(i, fn(i, i))), "logic", .unbuilt),
-        (.isaAllElim(o, fn(i, o)), "logic", .unbuilt),
+        (.isaAllElim(o, fn(i, fn(i, i))), "logic", .rule),
+        (.isaAllElim(o, fn(i, o)), "logic", .rule),
         (.ifolAll(o, body: o), nil, nil),
         (.isaAllIntro(o, body: o), nil, nil),
         (.isaBound(o), nil, nil),
@@ -265,6 +265,31 @@ private struct Q {
     #expect(unit.refused.map(\.name) == statements.dropLast().map(\.name))
     #expect(unit.refused.map(\.refusal) == unbuilt.map { .unbuilt(pass: "logic", [.use(.axiom($0), [.i], .o)]) })
     #expect(unit.statements.map(\.name) == ["IFOL.subst"])
+    try kernelChecks(unit)
+}
+
+/// `subst` as Isabelle states it, its class premise stated: `OFCLASS(i, term) ⟹ ⋀a b P. a = b ⟹ P(a) ⟹ P(b)`, proved by
+/// citing the axiom. Base's `class_subst` states no class premise: the citation proves the axiom's statement, the premise
+/// introduced over base's claim, and the kernel proves it.
+@Test func substWithItsClassPremiseStatedIsBasesClassSubstUnderIt() throws {
+    var l = LogicTable()
+    let term = TypeClass(.ifol, "IFOL.term")
+    let P = try l.t.intern(.isaPropBound(0))
+    let definiens = try l.t.intern(.isaPropAll(body: try l.imp(P, P)))
+    let definition = Definition(defines: .ofClass(term), type: o, axiomTypes: [i], parameters: 0, definiens: definiens)
+    let member = try l.t.intern(.isaOfClass(i, term))
+    let C = fn(i, o)
+    let applied = { (p: Int, x: Int, l: inout LogicTable) throws -> NodeID in
+        try l.t.intern(.isaVarApp(head: try l.bound(p, C), args: [try l.bound(x, i)]))
+    }
+    let body = try l.all(i, try l.all(i, try l.all(C, try l.imp(try l.equal(i, try l.bound(2, i), try l.bound(1, i)),
+        try l.imp(try applied(0, 2, &l), try applied(0, 1, &l))))))
+    let root = try l.imp(member, body)
+    let subst = Statement(name: "IFOL.subst", root: root, proof: try l.t.intern(.use(.axiom(.ifol(.subst)), [i], root)), theory: "IFOL")
+    let b = try base(in: &l.t)
+    var unit = Unit(table: l.t, statements: [subst], definitions: [definition])
+    try pipeline(b).run(&unit)
+    #expect(unit.refused.isEmpty)
     try kernelChecks(unit)
 }
 
@@ -649,6 +674,33 @@ private struct Unbuilt: Prover {
     try pipeline(b).run(&unit)
     #expect(unit.refused.isEmpty)
     try kernelChecks(unit)
+}
+
+/// `⋀a. ⋀P. P(a) ⟹ P(a)` cited at `Pow(b)`: the instance's congruence walks under the class binder `⋀P` by fol-zfc's own
+/// `forall_elim` at the bound class; under `⋀F::i ⇒ i` (`F(a) ∈ a`), its guard first.
+@Test func aClassBinderBelowTheInstantiatedVariableIsWalkedAtACompoundTerm() throws {
+    for C in [fn(i, o), fn(i, i)] {
+        var l = LogicTable()
+        let phi = { (a: NodeID, l: inout LogicTable) throws -> NodeID in
+            let applied = try l.t.intern(.isaVarApp(head: try l.bound(0, C), args: [a]))
+            return C == fn(i, o) ? applied : try l.mem(applied, a)
+        }
+        let inner = try phi(try l.bound(1, i), &l)
+        let root = try l.all(i, try l.all(C, try l.imp(inner, inner)))
+        let proof = try l.t.intern(.isaAllIntro(i, body: try l.t.intern(.isaAllIntro(C, body: try l.t.intern(
+            .folImpliesIntro(inner, body: try l.t.intern(.hyp(0, inner))))))))
+        let thm = Statement(name: "T.thm", root: root, proof: proof, theory: "Test")
+        let atPow = try l.t.intern(.isaAllElim(try l.t.intern(.use(.theorem("T.thm"), [], root)),
+                                                try l.const(.primitive(.zf(.pow)), fn(i, i), try l.bound(0, i))))
+        let innerPow = try phi(try l.const(.primitive(.zf(.pow)), fn(i, i), try l.bound(1, i)), &l)
+        let user = Statement(name: "T.atPow", root: try l.all(i, try l.all(C, try l.imp(innerPow, innerPow))),
+                             proof: try l.t.intern(.isaAllIntro(i, body: atPow)), theory: "Test")
+        let b = try base(in: &l.t)
+        var unit = Unit(table: l.t, statements: [thm, user])
+        try pipeline(b).run(&unit)
+        #expect(unit.refused.isEmpty)
+        try kernelChecks(unit)
+    }
 }
 
 /// `⋀P. x = x ⟹ P ⟹ P`, a truth set holding the variable an instance replaces: cited at `Pow(A)`, the instance's

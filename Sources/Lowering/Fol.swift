@@ -22,8 +22,10 @@ public struct Fol: Pass {
         }
     }
 
+    /// ⚠ ONE TRANSFORM OVER EVERY ROOT KEEPS ONE CACHE FOR ALL, A KEY PER NODE AND CONTEXT: it passed 32 GB once Logic built
+    /// the instances at a class type. Per statement the cache lives for one; the outputs are interned, the unit the same.
     public func run(_ roots: [NodeID], _ definitions: [Definition], in t: inout Table) throws -> [NodeID] {
-        try transform(roots, FolRule(), in: &t)
+        try roots.map { try transform($0, FolRule(), in: &t) }
     }
 }
 
@@ -66,7 +68,7 @@ private struct FolRule: Rule {
 
     func enter(_ c: [Entry], _ binder: Node, _ binds: Binds, in t: Table) -> [Entry] {
         switch piece(Pattern(binder, in: t)) {
-        case let .intro(T)?: return c + [.fix(T)] + (Reify.guardPredicate(T) == nil ? [] : [.inserted(guard: true)])
+        case let .intro(T)?: return c + [.fix(T)] + (guardPredicate(T) == nil ? [] : [.inserted(guard: true)])
         case let .forall(T)?, let .exists(T)?: return c + [.fix(T)]
         case .existsElim?: return c + [.fix(.i), .inserted(guard: false), .inserted(guard: true), .assume]
         case .instance?, .guardOf?, .variable?, .existsIntro?, .unbuilt?, .renumber?, nil:
@@ -90,9 +92,7 @@ private struct FolRule: Rule {
     func after(_ n: Node, was id: NodeID, context c: [Entry], in t: inout Table) throws -> NodeID? {
         switch piece(Pattern(t[id], in: t)) {
         case let .forall(T)?:
-            let body = children(n)[0]
-            guard let g = try guardOfBound0(T, &t) else { return try t.intern(.folForall(body: body)) }
-            return try t.intern(.folForall(body: try t.intern(.folImplies(g, body))))
+            return try t.intern(.folForall(body: try guardedBody(T, children(n)[0], in: &t)))
         case let .exists(T)?:
             let body = children(n)[0]
             guard let g = try guardOfBound0(T, &t) else { return try t.intern(.folExists(body: body)) }
@@ -132,7 +132,7 @@ private struct FolRule: Rule {
 }
 
 private func guardOfBound0(_ T: IRType, _ t: inout Table) throws -> NodeID? {
-    try Reify.guarded(try t.intern(.folBound(0)), T, in: &t)
+    try guarded(try t.intern(.folBound(0)), T, in: &t)
 }
 
 private func discharge(_ x: NodeID, _ c: [Entry], _ t: inout Table) throws -> NodeID {
@@ -142,7 +142,7 @@ private func discharge(_ x: NodeID, _ c: [Entry], _ t: inout Table) throws -> No
         switch e {
         case let .fix(T):
             if fixes == k {
-                guard let T, let j = guardAt, let g = try Reify.guarded(x, T, in: &t) else { throw FolError.unguardedBinder(x) }
+                guard let T, let j = guardAt, let g = try guarded(x, T, in: &t) else { throw FolError.unguardedBinder(x) }
                 return try t.intern(.hyp(j, g))
             }
             fixes += 1

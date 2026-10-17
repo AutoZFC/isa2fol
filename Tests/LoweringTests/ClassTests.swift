@@ -13,7 +13,7 @@ private func classOf(_ c: Constant, _ T: IRType, in t: inout Table) throws -> [(
 
 private func classOf(lambda: NodeID, in t: inout Table) throws -> [(Lemma, NodeID)] {
     let (f, _) = try lambdaFact(lambda, .classExists, in: &t)
-    return [(Lemma(f), try statement(f, in: &t))]
+    return [(Lemma(f), try statement(f, base: try base(in: &t), in: &t))]
 }
 
 /// `CLASS ⟨λx. x ∈ y⟩`: `∃` by `row_ex`, the tuple's atoms read through `cls_zero`'s and `cls_snoc4`'s classes, `x ∈ y`

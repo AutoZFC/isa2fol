@@ -6,25 +6,39 @@ struct Closed: Hashable {
     let types: [IRType]
 }
 
+/// ⚠ A PROPOSITION VARIABLE CLOSES AS A LETTER OF THE LEMMA, AT ITS TOP (S4): left out, a truth-set variable dangles in
+/// the statement silently; closed as a `∀`, the table refuses its citation (`propositionAsTerm`).
 func closed(_ a: NodeID, in t: inout Table) throws -> Closed {
-    let frees = freeVariables(a, in: t)
-    var term = a
+    let all = freeVariables(a, in: t)
+    let frees = all.filter { $0.type == .o } + all.filter { $0.type != .o }
+    var term = try transform(a, Lettered(), in: &t)
     for (j, v) in frees.enumerated() { term = try abstractIndex(term, v.index + j, in: &t) }
-    return Closed(term: term, variables: try frees.map { try t.intern(.isaBound($0.index, $0.type)) }, types: frees.map(\.type))
+    return Closed(term: term, variables: try frees.map { try t.intern($0.variable) }, types: frees.map(\.type))
 }
 
-func freeVariables(_ x: NodeID, in t: Table) -> [(index: Int, type: IRType)] {
-    var found: [(index: Int, type: IRType)] = []
+func freeVariables(_ x: NodeID, in t: Table) -> [(index: Int, type: IRType, variable: Node)] {
+    var found: [(index: Int, type: IRType, variable: Node)] = []
     func walk(_ n: NodeID, _ d: Int) {
         guard t.looseBound(of: n) > d else { return }
-        if case let .isaBound(k, T) = t[n] {
-            if !found.contains(where: { $0.index == k - d }) { found.append((k - d, T)) }
-            return
+        switch t[n] {
+        case let .isaBound(k, T):
+            if !found.contains(where: { $0.index == k - d }) { found.append((k - d, T, .isaBound(k - d, T))) }
+        case let .isaPropBound(k):
+            if !found.contains(where: { $0.index == k - d }) { found.append((k - d, .o, .isaPropBound(k - d))) }
+        default:
+            t[n].forEachChild { c, binds in walk(c, d + binds.terms) }
         }
-        t[n].forEachChild { c, binds in walk(c, d + binds.terms) }
     }
     walk(x, 0)
     return found
+}
+
+private struct Lettered: Rule {
+    func before(_ id: NodeID, context depth: Depth, in t: inout Table) throws -> NodeID? {
+        if t.looseBound(of: id) <= depth.terms { return id }
+        guard case let .isaPropBound(k) = t[id], k >= depth.terms else { return nil }
+        return try t.intern(.isaBound(k, .o))
+    }
 }
 
 struct Existence: Request {
@@ -70,7 +84,7 @@ struct LambdaFact: Request {
     let name: String
 
     enum Fact: Hashable, Sendable {
-        case classExists, function
+        case classExists, function, arguments
     }
 }
 
@@ -125,6 +139,7 @@ func lambdaFact(_ lambda: NodeID, _ fact: LambdaFact.Fact, in t: inout Table) th
     switch fact {
     case .classExists: prefix = "CLASS_"
     case .function: prefix = "FUNC_"
+    case .arguments: prefix = "LAMBDA_"
     }
     return (LambdaFact(lambda: c.term, types: c.types, fact: fact, name: prefix + fingerprint(c.term, t)), c)
 }
@@ -132,11 +147,11 @@ func lambdaFact(_ lambda: NodeID, _ fact: LambdaFact.Fact, in t: inout Table) th
 func universal(_ types: [IRType], guards: Bool, _ body: NodeID, in t: inout Table) throws -> NodeID {
     var root = body
     for T in types.reversed() {
-        if T == .i {
-            root = try t.intern(.ifolAll(.i, body: root))
+        if T == .i || T == .o {
+            root = try t.intern(.ifolAll(T, body: root))
             continue
         }
-        if guards, let g = try Reify.guarded(try t.intern(.isaBound(0, T)), T, in: &t) { root = try t.intern(.folImplies(g, root)) }
+        if guards, let g = try guarded(try t.intern(.isaBound(0, T)), T, in: &t) { root = try t.intern(.folImplies(g, root)) }
         root = try t.intern(.folForall(body: root))
     }
     return root
@@ -146,18 +161,18 @@ func instantiated(_ lemma: NodeID, at xs: [NodeID], _ types: [IRType], guards: B
                   guardOf: (NodeID, IRType, inout Table) throws -> NodeID, in t: inout Table) throws -> NodeID {
     var p = lemma
     for (x, T) in zip(xs, types) {
-        if T == .i {
-            p = try t.intern(.isaAllElim(p, x))
+        if T == .i || T == .o {
+            p = try t.intern(T == .i ? .isaAllElim(p, x) : .folSchemaInst(p, x))
             continue
         }
         p = try t.intern(.folForallElim(p, x))
-        if guards, Reify.guardPredicate(T) != nil { p = try t.intern(.folImpliesElim(p, try guardOf(x, T, &t))) }
+        if guards, guardPredicate(T) != nil { p = try t.intern(.folImpliesElim(p, try guardOf(x, T, &t))) }
     }
     return p
 }
 
 func isaGuard(_ x: NodeID, _ T: IRType, _ t: inout Table) throws -> NodeID {
-    guard let g = try Reify.guarded(x, T, in: &t) else { throw ReifyError.notATerm(x) }
+    guard let g = try guarded(x, T, in: &t) else { throw ReifyError.notATerm(x) }
     return try t.intern(.isaGuard(x, g))
 }
 
@@ -246,13 +261,13 @@ func statement(_ f: ConstantFact, in t: inout Table) throws -> NodeID {
         body = try t.intern(.folForall(body: body))
         let outer = try classParameters(f.type, under: 0, in: &t)
         for j in (0..<k).reversed() where isFunctionClass(classes[j]) {
-            if let g = try Reify.guarded(outer[j], classes[j], in: &t) { body = try t.intern(.folImplies(g, body)) }
+            if let g = try guarded(outer[j], classes[j], in: &t) { body = try t.intern(.folImplies(g, body)) }
         }
         return try foralls(k, body, &t)
     }
 }
 
-func statement(_ f: LambdaFact, in t: inout Table) throws -> NodeID {
+func statement(_ f: LambdaFact, base: Base, in t: inout Table) throws -> NodeID {
     switch f.fact {
     case .classExists:
         let K = try t.intern(.folBound(0))
@@ -263,6 +278,9 @@ func statement(_ f: LambdaFact, in t: inout Table) throws -> NodeID {
         let def = try classDefinition(try shift(f.lambda, by: 1, in: &t), K: K, in: &t)
         let body = try t.intern(.folForall(body: try t.intern(.folImplies(def, try t.intern(.folPred(.base("function"), args: [K]))))))
         return try universal(f.types, guards: true, body, in: &t)
+    case .arguments:
+        let at = try atArguments(try shift(f.lambda, by: 1, in: &t), try t.intern(.folBound(0)), base: base, in: &t)
+        return try universal(f.types, guards: true, try t.intern(.folExists(body: at)), in: &t)
     }
 }
 

@@ -13,7 +13,7 @@ public struct Logic: Pass {
 
     public func owns(_ p: Pattern) -> Owned? {
         switch piece(p) {
-        case .claimed?, .instance?, .equality?, .classical?, .iffReflection?, .proposition?, .function?: return .rule
+        case .claimed?, .instance?, .lambda?, .equality?, .classical?, .iffReflection?, .proposition?, .function?: return .rule
         case .unbuilt?: return .unbuilt
         case nil: return Reify().owns(p)
         }
@@ -31,6 +31,7 @@ func walked(_ formula: NodeID, base: Base, in t: inout Table) throws -> NodeID {
 private enum Piece {
     case claimed(BaseStatement)
     case instance
+    case lambda
     case equality(Equality)
     case classical
     case iffReflection
@@ -78,7 +79,9 @@ private func piece(_ p: Pattern) -> Piece? {
         if propositional(.fn(T, U)) { return .function(.wrapper) }
         return beyondObjects(.fn(T, U)) ? .unbuilt : nil
     case let .isaAllElim(_, T):
-        return T == .o ? .instance : beyondObjects(T) ? .unbuilt : nil
+        if T == .o { return .instance }
+        if T != .i && isObject(T) { return .lambda }
+        return beyondObjects(T) ? .unbuilt : nil
     case let .ifolAll(T, _), let .ifolEx(T, _), let .isaAllIntro(T, _):
         return T != .o && beyondObjects(T) ? .unbuilt : nil
     case .isaPropAll:
@@ -133,11 +136,13 @@ private struct Steps: Rule {
         switch piece(Pattern(n, in: t)) {
         case let .claimed(s)?:
             guard case let .use(_, _, root) = n else { throw LogicError.notTheRule(id) }
-            return try t.intern(.use(.base(s.rawValue), [], root))
+            return try claimed(s, root, was: id, in: &t)
         case .instance?:
             let (p, a) = (children(n)[0], children(n)[1])
             if case .ifolAll(.o, _)? = t.conclusion(of: p).map({ t[$0] }) { return try t.intern(.folSchemaInst(p, a)) }
             return try truths.instance(p, at: a, in: &t)
+        case .lambda?:
+            return try LambdaInstance(base: base).proof(children(n)[0], was: id, in: &t)
         case let .equality(e)?:
             return try equalities.rewrite(e, n, was: id, in: &t)
         case .classical?:
@@ -169,6 +174,28 @@ private struct Steps: Rule {
         case nil:
             return try Reify().after(n, was: id, base: base, in: &t)
         }
+    }
+
+    /// ⚠ AN AXIOM BASE CLAIMS STATES ITS CLASS PREMISES, AND BASE'S CLAIM NONE: relabelled whole, the citation concludes
+    /// in the IR what base's claim does not, and only the kernel sees it.
+    private func claimed(_ s: BaseStatement, _ root: NodeID, was id: NodeID, in t: inout Table) throws -> NodeID {
+        let cited = try base.cite(s, in: &t)
+        guard case let .use(_, _, stated) = t[cited] else { throw LogicError.notTheRule(id) }
+        func premises(_ x: NodeID) -> [NodeID] {
+            var x = x, found: [NodeID] = []
+            while case let .folImplies(a, b) = t[x] { (found, x) = (found + [a], b) }
+            return found
+        }
+        let (axiom, claim) = (premises(root), premises(stated))
+        guard axiom.count >= claim.count else { throw LogicError.notTheRule(id) }
+        var body = root
+        for _ in 0..<(axiom.count - claim.count) {
+            guard case let .folImplies(_, b) = t[body] else { throw LogicError.notTheRule(id) }
+            body = b
+        }
+        var proof = try t.intern(.use(.base(s.rawValue), [], body))
+        for a in axiom[..<(axiom.count - claim.count)].reversed() { proof = try t.intern(.folImpliesIntro(a, body: proof)) }
+        return proof
     }
 }
 

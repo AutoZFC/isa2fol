@@ -34,10 +34,9 @@ struct TermProofs {
         let hz = z.assume(try t.intern(.folPred(.base("eq"), args: [try z.variable(zl, in: &t), try z.scope.lift(r0, from: f.scope.depth, in: &t)])))
         let closedChain = try closing(naming.chain.binders, try witnesses.map { try z.variable($0, in: &t) },
                                       try hypotheses.map { try z.hypothesis($0, in: &t) }, try z.hypothesis(hz, in: &t), in: &t)
-        let everyZ = try z.close(closedChain, in: &t)
+        let everyZ = try z.close(try t.intern(.isaExIntro(closedChain, try z.variable(zl, in: &t))), in: &t)
         let reflexive = try eliminated(try base.cite(.eqRefl, in: &t), at: [r0], in: &t)
-        let atValue = try t.intern(.folImpliesElim(try t.intern(.isaAllElim(everyZ, r0)), reflexive))
-        return try f.close(try t.intern(.isaExIntro(atValue, r0)), in: &t)
+        return try f.close(try t.intern(.folImpliesElim(try t.intern(.isaAllElim(everyZ, r0)), reflexive)), in: &t)
     }
 
     func uniqueness(_ r: Uniqueness, in t: inout Table) throws -> NodeID {
@@ -45,7 +44,7 @@ struct TermProofs {
         var guards: [Int: Int] = [:]
         for (j, T) in r.types.enumerated() {
             let v = f.fix(T)
-            if T != .i, let g = try Reify.guarded(try f.variable(v, in: &t), T, in: &t) { guards[j] = f.assume(g) }
+            if T != .i, let g = try guarded(try f.variable(v, in: &t), T, in: &t) { guards[j] = f.assume(g) }
         }
         let outer = f.scope.depth
         var naming = Naming()
@@ -82,7 +81,7 @@ struct TermProofs {
             return try eliminated(try cited(f, try statement(f, in: &t), &t), at: try classes.map { try at.node($0, &t) }, in: &t)
         case let .lambdaClass(lambda):
             let (f, c) = try lambdaFact(try at.lift(lambda, &t), .classExists, in: &t)
-            return try instantiated(try cited(f, try statement(f, in: &t), &t), at: c.variables, c.types, guards: false,
+            return try instantiated(try cited(f, try statement(f, base: base, in: &t), &t), at: c.variables, c.types, guards: false,
                                     guardOf: isaGuard, in: &t)
         case let .tuple(entries):
             let f = TupleFact(arity: entries.count, fact: .existence)
@@ -165,7 +164,7 @@ struct TermProofs {
                                 _ guardOf: (NodeID, inout Table) throws -> NodeID, _ t: inout Table) throws -> NodeID {
         guard case let .bound(kk) = k, case let .lambdaClass(lambda) = pieces[kk] else { throw TermsError.noFact("a function λ") }
         let (f, c) = try lambdaFact(try at.lift(lambda, &t), .function, in: &t)
-        let atVariables = try instantiated(try cited(f, try statement(f, in: &t), &t), at: c.variables, c.types, guards: true,
+        let atVariables = try instantiated(try cited(f, try statement(f, base: base, in: &t), &t), at: c.variables, c.types, guards: true,
                                            guardOf: { x, _, t in try guardOf(x, &t) }, in: &t)
         return try eliminated(atVariables, at: [try at.node(k, &t)], premises: [try at.frame.hypothesis(hypotheses[kk], in: &t)], in: &t)
     }

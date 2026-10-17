@@ -1716,3 +1716,36 @@ proof cls_apply:
     _eb = exists_intro _ea
     _r = forall_intro _eb
     qed _r
+
+proof apply_pmem:
+    _ad = use apply_def
+    fix F
+    fix t
+    _h = assume (exists u. (set(u) & pmem(t,u,F)))
+    fix r
+    _a1 = forall_elim _ad, t
+    _a2 = forall_elim _a1, r
+    _a3 = forall_elim _a2, F
+    _f1 = assume apply(t,r,F)
+    _f2 = iff_elim_l _a3, _f1
+    _g1 = assume pmem(t,r,F)
+    _g1i = implies_intro _g1
+    _g2 = assume ((~ (exists u. (set(u) & pmem(t,u,F)))) & zero(r))
+    _g2a = and_elim_l _g2
+    _g2b = not_elim _g2a, _h
+    _g2l = let pmem(t,r,F)
+    _g2c = bottom_elim _g2b, _g2l
+    _g2i = implies_intro _g2c
+    _f3 = or_elim _f2, _g1i, _g2i
+    _fi = implies_intro _f3
+    _b1 = assume pmem(t,r,F)
+    _b2d = let ((~ (exists u. (set(u) & pmem(t,u,F)))) & zero(r))
+    _b2 = or_intro_l _b1, _b2d
+    _b3 = iff_elim_r _a3, _b2
+    _bi = implies_intro _b3
+    _iff = iff_intro _fi, _bi
+    _q = forall_intro _iff
+    _i = implies_intro _q
+    _q1 = forall_intro _i
+    _q2 = forall_intro _q1
+    qed _q2

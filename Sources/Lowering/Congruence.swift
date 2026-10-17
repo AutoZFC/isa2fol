@@ -52,7 +52,7 @@ struct Replacement {
             let left = try proof(a, la, ra, in: s, &t), right = try proof(b, lb, rb, in: s, &t)
             return try base.applied(c, [la, ra, lb, rb], [left, right], in: &t)
         case let .ifolAll(T, body):
-            guard T == .o || T == .i, case .ifolAll(T, let lb) = t[l], case .ifolAll(T, let rb) = t[r] else {
+            guard T == .o || isObject(T), case .ifolAll(T, let lb) = t[l], case .ifolAll(T, let rb) = t[r] else {
                 throw CongruenceError.noCongruence(phi)
             }
             if T == .i { return try quantified(.congForall, .i, body, lb, rb, s, &t) }
@@ -63,7 +63,10 @@ struct Replacement {
             let x = try t.intern(.isaBound(0, T))
             let at = { (side: NodeID, t: inout Table) throws -> NodeID in
                 let h = try t.intern(.hyp(0, try shift(side, by: 1, in: &t)))
-                return try t.intern(T == .o ? .folSchemaInst(h, x) : .isaAllElim(h, x))
+                if T == .o { return try t.intern(.folSchemaInst(h, x)) }
+                let e = try t.intern(.folForallElim(h, x))
+                guard let g = try guarded(x, T, in: &t) else { return e }
+                return try t.intern(.folImpliesElim(e, try t.intern(.isaGuard(x, g))))
             }
             let forward = try t.intern(.folImpliesIntro(l, body: try t.intern(.isaAllIntro(T, body: try t.intern(.folIffElimL(p, try at(l, &t)))))))
             let backward = try t.intern(.folImpliesIntro(r, body: try t.intern(.isaAllIntro(T, body: try t.intern(.folIffElimR(p, try at(r, &t)))))))

@@ -23,7 +23,8 @@ public struct ClassProver: Prover {
             case .primitive, .declared: return .unbuilt
             }
         case let f as LambdaFact:
-            return f.fact == .classExists ? .rule : nil
+            guard f.fact == .classExists else { return nil }
+            return f.types.contains(.o) ? .unbuilt : .rule
         case is RekeyFact:
             return .rule
         default:

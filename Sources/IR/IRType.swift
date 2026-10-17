@@ -26,3 +26,34 @@ public func mentionsTypeVariable(_ T: IRType) -> Bool {
     case let .fn(a, b): return mentionsTypeVariable(a) || mentionsTypeVariable(b)
     }
 }
+
+public func isObject(_ T: IRType) -> Bool {
+    switch T {
+    case .i: return true
+    case .o, .variable: return false
+    case let .fn(a, b): return a == .i && (b == .o || isObject(b))
+    }
+}
+
+public func result(_ T: IRType) -> IRType {
+    guard case let .fn(_, U) = T else { return T }
+    return result(U)
+}
+
+public func guardPredicate(_ T: IRType) -> Predicate? {
+    switch T {
+    case .i: return .base("set")
+    case .fn: return isObject(T) && result(T) == .i ? .base("function") : nil
+    case .o, .variable: return nil
+    }
+}
+
+public func guarded(_ x: NodeID, _ T: IRType, in t: inout Table) throws -> NodeID? {
+    guard let p = guardPredicate(T) else { return nil }
+    return try t.intern(.folPred(p, args: [x]))
+}
+
+public func guardedBody(_ T: IRType, _ body: NodeID, in t: inout Table) throws -> NodeID {
+    guard let g = try guarded(try t.intern(.folBound(0)), T, in: &t) else { return body }
+    return try t.intern(.folImplies(g, body))
+}
