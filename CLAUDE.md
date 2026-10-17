@@ -34,9 +34,12 @@ class by its `@def`, which its prover states from the definition; an instance at
 term) and Fol (the guard Reify gives each object type — `set`, `function`, none — fol-zfc's variables, `∃` at `i`) have
 rules, and an instance at a class type is Lambda's (`DESIGN.md` "Step 3 — an instance at a class type": `forall_elim`
 at the λ's class at its arguments, `LAMBDA_<fp>`, then β at each occurrence of the class variable — its slot's class
-kept, an application at its value), so `isa2fol lower data/zf_export` lowers 73 of the 9,420 to fol-zfc and states 541
-`@def`s: 3,702 stop at no owner, 3,071 at logic, 204 at a letter off its spine, and 2,370 cite a refused statement — a
-`@def` holding a piece not built, or a theorem refused for one of the others. **The rules that consumed a proposition where it stood are removed**
+kept, an application at its value), and Pure's equality between functions is Logic's (`DESIGN.md` "Step 4 — Pure's
+equality between functions": pointwise, `f ≡ g` read `⋀x⃗. f x⃗ ≡ g x⃗`, the λs wrappers; `combination` the premise at
+the argument, then the argument's equation substituted into the function by the replacement walk). Of the ZF session's
+3,616 named theorems (`--skip` the other seven), `lower` lowers 14 to fol-zfc and states 154 `@def`s: 1,301 stop at no
+owner, 257 at logic, 797 at a letter off its spine, and 1,247 cite a refused statement — a `@def` holding a piece not
+built, or a theorem refused for one of the others. **The rules that consumed a proposition where it stood are removed**
 (`DESIGN.md` "Removed — the rules that consumed a proposition where it stood"): FOUNDATION S4 makes a proposition an
 object as its truth set. **A proposition bound below a statement's top and a function of propositions have its rules**
 (`DESIGN.md` "Functions of propositions and the bound `⋀P`"): the reader reads Pure's `⋀` over a proposition apart from a
@@ -52,17 +55,18 @@ side is, a constant or a class's membership (`Definiendum`), and Expand states `
 own rewrite of the instance (`walked`), truth sets rendered. The logic's facts reach
 the kernel through theirs (`IFOL.conjunct1`, `TrueI`, `refl`, `spec`, `subst`, `FOL.ccontr`, `Pure.protectD`,
 `conjunctionI`, …), and with them 51 `mutual_induct`s; the rest stop at a variable of type `o ⇒ o` (`not_def`,
-`iff_def`) or at Pure's equality at a function type (step 4). **EX and UNIQ have their prover** (`DESIGN.md` "EX and UNIQ — their
+`iff_def`). **EX and UNIQ have their prover** (`DESIGN.md` "EX and UNIQ — their
 prover"): a term's naming walked binder by binder, one fact per piece, per constant, per closed λ and per arity, a
 constant's from its `@def` and a primitive's from base. **Class existence has its prover** (`DESIGN.md` "Class existence
 — its prover", FOUNDATION §3, R5, R4): a formula's class of records built from base's rows and read back exact, named by
 `member_class` or `graph_class`; a class binder a hypothesis of what lies under it; one lift per class-taking constant,
-uniform in the record's length, re-keyed by `REKEY`. Every lemma the corpus requests is proved but 16, the classes of
-λs holding a proposition, which the class prover does not read yet; ⚠ **93% OF THE EMITTED UNIT IS LEMMAS NOTHING
-CITES** (4,242 of 4,579 claims): requested for statements that then fall, and proved before that is known. **Emission
+uniform in the record's length, re-keyed by `REKEY`. Every lemma the ZF session requests is proved but 134, among
+them the classes of λs holding a proposition, which the class prover does not read yet; ⚠ **99% OF THE EMITTED UNIT IS
+LEMMAS NOTHING CITES** (6,013 of the ZF session's 6,057 claims): requested for statements that then fall, and proved
+before that is known. **Emission
 is built** (`DESIGN.md` "Emission"): `isa2fol lower data/zf_export --emit DIR` writes the unit as parts — a theory's
 theorems, a lemma in its first citer's part — and `scripts/check-unit.sh DIR` kernel-checks each against the libraries
-of base and of the parts it cites: all 4,579 claims and 111 schemas Proved. `DESIGN.md` is the plan; its "The steps after class
+of base and of the parts it cites: all 6,057 claims and 100 schemas of the ZF session's unit Proved. `DESIGN.md` is the plan; its "The steps after class
 existence, in order" is the order of work, agreed again from step 2 on around FOUNDATION S4.
 
 ## Build
@@ -85,13 +89,15 @@ Swift 6.4, language mode 5. `scripts/02-install-swift.sh` installs it into
 ## Verification
 
 **Iterate on the stage being built; run the whole unit only as CI** (`DESIGN.md` "Iteration"). A feature fails at the
-earliest stage that sees it, so a run stops there (`--through expand|logic|registry`, 2–4 min) and on the theorems it
-concerns (`--theorem NAME,…`, `--skip SESSION,…`; the export's load, ~30 s, stays). The complete run, emitted and
-kernel-checked, is the check of a feature believed complete (~9 min):
+earliest stage that sees it, so a run stops there (`--through expand|logic|registry`) and on the theorems it concerns
+(`--theorem NAME,…`, `--skip SESSION,…`; the export's load, ~30 s, stays). The complete run, emitted and
+kernel-checked, is the check of a feature believed complete. **Until the ZF session is fully translated, every run is
+the ZF session alone** (user, 2026-10-17): `$ZF` below is `--skip ZF-AC,ZF-Coind,ZF-Constructible,ZF-IMP,ZF-Induct,
+ZF-Resid,ZF-ex`. **Lint before every run** (user, 2026-10-17): `pre-commit run --all-files` first.
 
 ```bash
-MEM=48G scripts/capped.sh .build/release/isa2fol lower data/zf_export --through logic [--theorem NAME,…] [--skip SESSION,…]
-MEM=48G scripts/capped.sh .build/release/isa2fol lower data/zf_export --emit DIR [--threads N]   # CI; N: every core
+MEM=48G scripts/capped.sh .build/release/isa2fol lower data/zf_export --through logic $ZF [--theorem NAME,…]
+MEM=56G scripts/capped.sh .build/release/isa2fol lower data/zf_export $ZF --emit DIR [--threads N]   # CI; N: every core
 MEM=32G scripts/capped.sh scripts/check-unit.sh DIR        # each part, against base's and its parts' libraries
 MEM=16G scripts/capped.sh scripts/check-base.sh [LIBDIR]   # base alone, each tier once
 ```
@@ -244,7 +250,7 @@ determinism R1–R3 (§4.6).
    print(f'{c}/{t} = {100*c/t:.1f}%')"
    ```
 
-   ✓ **CURRENTLY 59/11686 = 0.5%, under the cap.** Keep it there: a breach is
+   ✓ **CURRENTLY 59/12101 = 0.5%, under the cap.** Keep it there: a breach is
    fixed by deleting prose, never by raising the cap.
 
    Does not apply to `base/**/*.fol.def` headers: those record provenance of

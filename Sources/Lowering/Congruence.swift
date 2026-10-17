@@ -63,6 +63,12 @@ struct Replacement {
     func proof(_ phi: NodeID, _ l: NodeID, _ r: NodeID, in s: Scope, _ t: inout Table) throws -> NodeID {
         if l == r { return try base.instance(.iffRefl, [l], in: &t) }
         if let p = try hole(phi, l, r, s, &t) { return p }
+        if
+            case .isaConst(.primitive(.pure(.eq)), .fn(let F, _), let args) = t[phi], args.count == 2,
+            overObjects(F)
+        {
+            return try proof(try Functions(base: base).isaPointwise(F, args[0], args[1], in: &t), l, r, in: s, &t)
+        }
         switch t[phi] {
         case .folNot(let a):
             guard

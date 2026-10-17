@@ -284,7 +284,7 @@ func converted(
     return joined
 }
 
-private func chained(_ p: NodeID, _ q: NodeID, _ base: Base, _ t: inout Table) throws -> NodeID {
+func chained(_ p: NodeID, _ q: NodeID, _ base: Base, _ t: inout Table) throws -> NodeID {
     guard
         case .folIff(let a, let b)? = t.conclusion(of: p).map({ t[$0] }),
         case .folIff(_, let c)? = t.conclusion(of: q).map({ t[$0] })
@@ -336,10 +336,11 @@ func slotConverted(
     in s: Scope,
     _ t: inout Table,
     hole: @escaping Hole,
+    template: NodeID? = nil,
 ) throws -> NodeID {
     let sides = try Sides(source, target, path, &t)
     guard let site = sides.targetSite else { throw InstanceError.notAnInstance(target) }
-    let lambda = try argument(at: path, in: source, t)
+    let lambda = try argument(at: path, in: template ?? source, t)
     let K = site.binders.lowerBound
     let depth = s.depth
     let definition = { (l: NodeID, r: NodeID, k: Int, s: Scope, t: inout Table) throws -> NodeID in

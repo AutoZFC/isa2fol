@@ -15,7 +15,8 @@ public struct Logic: Pass {
 
     public func owns(_ p: Pattern) -> Owned? {
         switch piece(p) {
-        case .claimed?, .instance?, .lambda?, .equality?, .classical?, .iffReflection?, .proposition?, .function?: .rule
+        case .claimed?, .instance?, .lambda?, .equality?, .classical?, .iffReflection?, .proposition?, .function?,
+             .pointwise?: .rule
         case .unbuilt?: .unbuilt
         case nil: Reify().owns(p)
         }
@@ -42,10 +43,11 @@ private enum Piece {
     case iffReflection
     case proposition(Proposition)
     case function(Function)
+    case pointwise(Pointwise)
     case unbuilt
 }
 
-private enum Equality {
+enum Equality {
     case reflexive
     case symmetric
     case transitive
@@ -63,6 +65,13 @@ private enum Function {
     case combination
 }
 
+private enum Pointwise {
+    case wrapper
+    case equation
+    case combination
+    case abstract
+}
+
 private func piece(_ p: Pattern) -> Piece? {
     switch p {
     case .use(.axiom(let a), let types, _):
@@ -71,6 +80,7 @@ private func piece(_ p: Pattern) -> Piece? {
 
     case .isaConst(.primitive(.pure(.eq)), let T, _):
         if case .fn(let F, _) = T, propositional(F) { return .function(.equation) }
+        if case .fn(let F, _) = T, overObjects(F) { return .pointwise(.equation) }
         return mentionsTypeVariable(T) ? nil : .unbuilt
 
     case .isaReflexive(let T):
@@ -84,9 +94,11 @@ private func piece(_ p: Pattern) -> Piece? {
 
     case .isaCombination(let F, _, _):
         if propositional(F) { return .function(.combination) }
+        if overObjects(F) { return .pointwise(.combination) }
         return mentionsTypeVariable(F) ? nil : .unbuilt
 
     case .isaAbstract(let F, _):
+        if overObjects(F) { return .pointwise(.abstract) }
         return mentionsTypeVariable(F) ? nil : .unbuilt
 
     case .isaClassical:
@@ -97,6 +109,7 @@ private func piece(_ p: Pattern) -> Piece? {
 
     case .isaAbs(let T, body: let U):
         if propositional(.fn(T, U)) { return .function(.wrapper) }
+        if !isObject(.fn(T, U)), overObjects(.fn(T, U)) { return .pointwise(.wrapper) }
         return beyondObjects(.fn(T, U)) ? .unbuilt : nil
 
     case .isaAllElim(_, let T):
@@ -130,7 +143,7 @@ private func piece(_ p: Pattern) -> Piece? {
 
 private func equality(_ T: IRType, _ e: Equality) -> Piece? {
     if mentionsTypeVariable(T) { return nil }
-    return T == .o || T == .i || propositional(T) ? .equality(e) : .unbuilt
+    return T == .o || T == .i || propositional(T) || overObjects(T) ? .equality(e) : .unbuilt
 }
 
 private func beyondObjects(_ T: IRType) -> Bool {
@@ -226,6 +239,24 @@ private struct Steps: Rule {
             guard case .isaCombination(let F, let p, let q) = n else { throw LogicError.notTheRule(id) }
             return try truths.combination(F, p, q, in: &t)
 
+        case .pointwise(.wrapper)?:
+            return nil
+
+        case .pointwise(.equation)?:
+            guard
+                case .isaConst(_, .fn(let F, _), let args) = n,
+                args.count == 2
+            else { throw LogicError.notTheRule(id) }
+            return try Functions(base: base).pointwise(F, args[0], args[1], in: &t)
+
+        case .pointwise(.combination)?:
+            guard case .isaCombination(let F, let p, let q) = n else { throw LogicError.notTheRule(id) }
+            return try Functions(base: base).combination(F, p, q, was: id, in: &t)
+
+        case .pointwise(.abstract)?:
+            guard case .isaAbstract(_, let p) = n else { throw LogicError.notTheRule(id) }
+            return try Functions(base: base).abstract(p, was: id, in: &t)
+
         case .unbuilt?:
             return nil
 
@@ -263,7 +294,7 @@ private struct Steps: Rule {
     }
 }
 
-private struct Equalities {
+struct Equalities {
     let base: Base
 
     func rewrite(_ e: Equality, _ n: Node, was id: NodeID, in t: inout Table) throws -> NodeID {
@@ -272,6 +303,7 @@ private struct Equalities {
         case .reflexive:
             guard case .isaReflexive(let f) = n, let T = t.type(of: f) else { throw LogicError.notCongruence(first) }
             if propositional(T) { return try Truths(base: base).reflexive(T, f, in: &t) }
+            if overObjects(T) { return try Functions(base: base).reflexive(T, f, in: &t) }
             if T == .i { return try atI(e, try sidesAtI(id, t), [], in: &t) }
             guard T == .o else { throw LogicError.notCongruence(first) }
             return try base.instance(.iffRefl, [f], in: &t)
@@ -279,6 +311,7 @@ private struct Equalities {
         case .symmetric:
             guard case .isaSymmetric(let T, let p) = n else { throw LogicError.notCongruence(first) }
             if propositional(T) { return try Truths(base: base).symmetric(T, p, in: &t) }
+            if overObjects(T) { return try Functions(base: base).symmetric(T, p, was: id, in: &t) }
             if T == .i { return try atI(e, try sidesAtI(id, t), [p], in: &t) }
             guard T == .o else { throw LogicError.notCongruence(first) }
             return try base.applied(.iffSymm, try sidesAtO(p, in: t), [p], in: &t)
@@ -286,6 +319,7 @@ private struct Equalities {
         case .transitive:
             guard case .isaTransitive(let T, let p, let q) = n else { throw LogicError.notCongruence(first) }
             if propositional(T) { return try Truths(base: base).transitive(T, p, q, in: &t) }
+            if overObjects(T) { return try Functions(base: base).transitive(T, p, q, was: id, in: &t) }
             if T == .i { return try atI(e, try sidesAtI(id, t), [p, q], in: &t) }
             guard T == .o else { throw LogicError.notCongruence(first) }
             let ab = try sidesAtO(p, in: t)
@@ -294,7 +328,7 @@ private struct Equalities {
         }
     }
 
-    private func atI(_ e: Equality, _ sides: [NodeID], _ premises: [NodeID], in t: inout Table) throws -> NodeID {
+    func atI(_ e: Equality, _ sides: [NodeID], _ premises: [NodeID], in t: inout Table) throws -> NodeID {
         let v = try sides.indices.map { try t.intern(.isaBound(sides.count - 1 - $0, .i)) }
         let equated = { (j: Int, k: Int, t: inout Table) throws -> NodeID in try t.equation(.i, v[j], v[k]) }
         var stated: NodeID

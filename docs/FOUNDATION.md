@@ -480,6 +480,18 @@ language; every class is §3's.
 > held the λ in two forms — `L` in a class slot, the body where it was applied —
 > joined at every atom. A wrapper has one form, its body's.
 
+**AN EQUATION BETWEEN FUNCTIONS IS POINTWISE** (2026-10-17). At a function type
+whose arguments are objects, `f ≡ g` is `⋀x⃗. f x⃗ ≡ g x⃗`: both sides applied, their
+λs wrappers, no class named for the equation — so `abstract_rule` concludes its own
+premise, and `reflexive`, `symmetric` and `transitive` are `↔`'s and `=`'s under the
+binders. A λ is a class only where an object must stand: a constant's argument, a
+class variable's instance. A function of classes, `λP. Ball(A, P)`, has no class —
+its argument is no member — yet its equation is first-order, `∀K. F(K) ↔ G(K)`, `K`
+a class. `combination` is the premise at the argument, then the argument's equation
+substituted into the function: the formula recursion, and at each atom where the
+argument stands membership's congruence — at a class argument, the equation at the
+atom's arguments.
+
 **⚠ THE GRAPH IS PER CONSTANT; THE VARIABLE INTRODUCTION IS PER SITE, AND AN
 EARLIER WORDING HERE SAID "PER CONSTANT, NOT PER PROOF STEP" OF BOTH.**
 Measured: **676,001 of 797,924** `AppT` instantiate at a
@@ -1228,6 +1240,9 @@ specialisation at `kpair`.
 | `AppT` at a compound term | `appt_complex` / `appt_nested` |
 | `AppT` at a λ, a class type | `forall_elim` at the λ's class at its arguments — proved once per λ — then β: at each atom, the class's against the body's, EX and UNIQ where the argument is compound (S1); at `iⁿ ⇒ i` the guard by the class's own `function` (S5) |
 | `Thm` | `use` |
+| Pure's `reflexive`, `symmetric`, `transitive` at a function type whose arguments are objects | the value type's — `iff_*` at `o`, `eq_*` at `i` — under the pointwise binders |
+| Pure's `abstract_rule` | its premise: `⋀x. f x ≡ g x` and `f ≡ g` are one formula |
+| Pure's `combination` | the premise at the argument, then the argument's equation substituted into the function by the formula recursion, membership's congruence at its atoms |
 | `Thm` of a theorem polymorphic in a type no class restricts, at a type binding no proposition on its spine | its proof at that type, in place: the target has no type |
 | an application of a logical rule (`conjI`, `mp`, `spec`, `exE`, …) | the kernel's OWN step at its premises; never translated (S4) |
 | an application of a definition whose constant is unfolded, `AppT` at its parameters | `reflexive` at its terms: the definiens at them on both sides, no binder introduced (S1) |

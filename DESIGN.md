@@ -2532,7 +2532,9 @@ then **boxes binding a proposition, read as schemas** ("Boxes binding a proposit
 set, applied", below), **BUILT 2026-10-16**; then **a definition read at its terms** ("A definition read at its terms",
 below), **BUILT 2026-10-16**; then **`OFCLASS`, and a generic theorem in place** ("OFCLASS — a class's membership by its
 definition", below), **BUILT 2026-10-16**; then **step 3, an instance at a class type** ("Step 3 — an instance at a class
-type", below), **BUILT 2026-10-16**.
+type", below), **BUILT 2026-10-16**; then **step 4, Pure's equality between functions** ("Step 4 — Pure's equality
+between functions", below), **BUILT 2026-10-17**. From 2026-10-17 every run is the ZF session alone
+until it is fully translated (user), so each step's scope is measured there.
 
 0. **Emission** (below): no statement of the corpus has met the checker, and class existence's proofs are unmeasured.
 1. **Decision 4** (§4a): a theorem cited at a type instance. Restricted to `term`, it is read at `i` and `OFCLASS(i,
@@ -2543,15 +2545,16 @@ type", below), **BUILT 2026-10-16**.
    renamed `class_subst`.
 3. **An instance at a class type**, Lambda's: the λ's class (`CLASS ⟨λ⟩`) and β as proof. `spec` and `subst` at a λ need
    it; the function λ at `i`, the reference's largest refusal, is designed in.
-4. **Pure's equality at an object function type**: `combination` is `mfun_comb`, then β (3). The reference walked these
-   chains before it had a λ's class; here β comes first.
+4. **Pure's equality between functions**: read pointwise at every function type whose arguments are objects, the
+   function of classes included — not each function's class and `mfun_comb`, as first planned ("Step 4", decision 1).
+   The reference walked these chains before it had a λ's class; here β comes first (3).
 5. **A ZF definition cited**: pointwise, from the `@def` and EX, most often at a chain's leaf (4).
 6. **A proposition argument**, `If` and `bool_of_o`: a class of the empty tuple (FOUNDATION S4), as the reference read it.
 7. **The hidden variable**, `Pure.dummy_pattern`: the reference refused it, so its design is new.
 8. **ZF's axioms**: base derives `extension`, `Pow_iff`, `Union_iff`, `replacement` and `infinity` from NBG;
    `foundation` and `AC.AC` wait for FOUNDATION to pin Regularity and Choice, which `base/axioms` leaves out.
-9. **Later**: a declared constant; a λ or a binder over classes; a proposition quantified below a statement's top; an
-   unrestricted type variable.
+9. **Later**: a declared constant; a binder over classes, and a λ over classes anywhere but an equation (4 reads it
+   there); a proposition quantified below a statement's top; an unrestricted type variable.
 
 ### Emission — the unit as text, checked by the kernel  **[AGREED 2026-10-15 (user), the three decisions one by one; BUILT 2026-10-15, its decisions in the build for the user's review — `Sources/FolDialect/Emit.swift`, `Render.swift`, `Declaration.swift`, `Parse.swift`, `Sources/IR/Pass.swift`, `Sources/Reader/Reader.swift`, `Sources/Lowering/Logic.swift`, `Base.swift`, `Facts.swift`, `Sources/isa2fol/Lower.swift`, `scripts/check-base.sh`, `check-unit.sh`, `base/tiers/cong`; the checker's changes in fol-zfc-comb, 340e700 and the quoted segment]**
 
@@ -3805,6 +3808,180 @@ unit as the stage left it, legalization and link run only on a complete run, tim
   complete: 33 s, the export's load.
 - Fol is now the largest stage: 237 of the 369 s lowering takes.
 
+### Step 4 — Pure's equality between functions  **[AGREED 2026-10-17 (user), the two decisions one by one; BUILT 2026-10-17, its decisions in the build for the user's review — `Sources/Lowering/Functions.swift`, `Logic.swift`, `Congruence.swift`, `Instance.swift`, `docs/FOUNDATION.md`]**
+
+**The step.** Logic leaves Pure's equality between functions unbuilt: `≡` stated at a function type, and `reflexive`,
+`symmetric`, `transitive`, `combination` and `abstract_rule` there (`isaReflexive`, `isaSymmetric`, `isaTransitive`,
+`isaCombination`, `isaAbstract`), with the λ over classes they hold (`isaAbs((i ⇒ o), body: o)`). They are the
+simplifier rewriting under a binder. Measured on the ZF session (`lower data/zf_export --through logic --skip` the other
+seven, and a throwaway listing of each refusal's patterns, not kept): of the 1,318 named theorems Logic refuses, 1,276
+hold one at an object function type, `iⁿ ⇒ o` or `iⁿ ⇒ i`, and 864 one at a function of classes, `(i ⇒ o) ⇒ o` — a
+constant's partial application, `Ball(A)`.
+
+**The problem, in target text.** Rewriting under `Ball` by `q : ⋀x. φ x ≡ ψ x`:
+
+```
+Isabelle   combination (reflexive (Ball A)) (abstract_rule q)     ⊢ Ball(A, λx. φ x) ≡ Ball(A, λx. ψ x)
+read       Q = isaAbstract(i ⇒ o, q)                              ⊢ (λx. φ x) ≡ (λx. ψ x)                 at i ⇒ o
+           R = isaReflexive(λP. Ball(A, P))                       ⊢ (λP. Ball(A, P)) ≡ (λP. Ball(A, P))   at (i ⇒ o) ⇒ o
+           isaCombination((i ⇒ o) ⇒ o, R, Q)                      ⊢ Ball(A, λx. φ x) ↔ Ball(A, λx. ψ x)
+```
+
+`Q` and `R` conclude equations between functions, which have no fol-zfc reading. The plan's, each function's class and
+`mfun_comb` for `combination` ("The meta level, lowered", as first written), has none for `R`: `λP. Ball(A, P)` takes a
+class, a class is no member of a tuple, so it has no class.
+
+**1. An equation between functions is read pointwise; a λ is reified only where the target needs an object in its
+place.** **AGREED 2026-10-17 (user)**, over the classes' equality. At every function type whose arguments are objects —
+`i`, `iⁿ ⇒ i`, `iⁿ ⇒ o` — and whose value is `i` or `o`, `f ≡ g` is Isabelle's own `⋀x⃗. f x⃗ ≡ g x⃗`, β-reduced: the λs'
+binders become `∀`s, which Fol writes with their guards, and `≡` at the value is `↔` or `=`, as at `o` and at `i`.
+FOUNDATION §1 has it already — `f ≡ g` and `⋀x. f x ≡ g x` are one formula — S1 makes a λ a wrapper, and S4 reads
+`o⃗ ⇒ o` so.
+
+| equation | fol-zfc |
+|---|---|
+| `(λx. φ x) ≡ (λx. ψ x)` at `i ⇒ o` | `forall x. (set(x) -> (φ(x) <-> ψ(x)))` |
+| `(λP. Ball(A, P)) ≡ (λP. Ball(A, P))` at `(i ⇒ o) ⇒ o` | `forall K. (Ball(A, K) <-> Ball(A, K))`, `K` a class, unguarded |
+
+A λ becomes a class exactly where the target needs an object in its place: a constant's argument, its class in the
+slot (R4, S1), and a class variable's instance (step 3). Applied, it is its body: Isabelle's terms are β-reduced, and a
+proof's instance is the IR's `instantiate`. In an equation, both sides are applied.
+
+Not the classes' equality: it names a class per side of every equation only for each use to unfold it again —
+`abstract_rule` builds them from the bodies, `combination` reads them back by β at both ends — at a `CLASS_` and a
+`LAMBDA_` per λ (a λ's class existence writes about 2,900 steps, step 3's unit: 2.18M over 754), and it leaves the
+function of classes without a reading, so `≡` would have two. What it would buy — `combination`'s argument equation
+crossing one atom, `⟨a⟩ ∈ G` — needs each λ a class first; `combination` substitutes by the walk instead (2).
+
+In ZF no constant takes a function of classes as an argument, in the named theorems or in what they cite. 25 theorems
+bind a variable of such a type in their own proofs and instantiate it (`Sum.case_Inl`, `pair.splitI`,
+`ZF.iterates_type`, …, at `(i ⇒ i ⇒ i) ⇒ i ⇒ i` and `(i ⇒ o) ⇒ o`), each holding 18–53 other unbuilt pieces: step 9's.
+An upper bound on the named theorems that then pass Logic (they may still fall at a citation): 390 of the 1,318 with
+equations at `iⁿ ⇒ i|o` alone, 1,061 with the function of classes; the rest wait on `If` (step 6; 245 hold it) and on a
+binder over a function of classes (step 9).
+
+**2. `combination` is its premise at the argument, then substitution into the function by Logic's replacement walk,
+at the site.** **AGREED 2026-10-17 (user)**, over the function's class with membership's congruence at it, and over a
+congruence lemma per function. `combination p q`, from `p ⊢ f ≡ g` and `q ⊢ a ≡ b`, concludes `f a ≡ g b`, its bodies
+β-reduced:
+
+1. `f a ≡ g a`: `p` at `a`, by the instance rules — `forall_elim` at a variable, Reify's at a term, Lambda's at a λ.
+2. `g a ≡ g b`: the walk (`Replacement`), which compares `g`'s body at `a` with `g`'s body at `b`, both sides at once:
+   two identical sides are base's `iff_refl`, and the walk stops; a connective or a binder is base's `cong_*` schema
+   over its parts; an atom where `g`'s variable stands is a hole, filled by `q` carried to it. At a set argument `q` is
+   `eq(a, b)`, carried by membership's congruence, base's `cong_elem_l`/`cong_elem_r`, `cong_eq_l`/`cong_eq_r` and, for
+   a tuple's entry, `cong_snoc_v`. At a class argument `q` is `∀z⃗. φ(z⃗) ↔ ψ(z⃗)`, instantiated at the unit's arguments
+   (step 3's units: an application, and inside a class slot's definition the application its λ holds). At a compound
+   argument the walk is built at fresh variables and Reify's instance carries it to the terms, as `≡` at `i` already is
+   (EX and UNIQ).
+3. `iff_trans`, or `eq_trans` at value `i`.
+
+```
+q : A = B        combination (combination (reflexive mem) (reflexive a)) q          ⊢ a ∈ A ↔ a ∈ B
+                 C1 at A                     elem(a, A) <-> elem(a, A)
+                 cong_elem_r at a, A, B, q   elem(a, A) <-> elem(a, B)              the walk: one atom, a hole
+                 iff_trans                   elem(a, A) <-> elem(a, B)
+
+Q : ⋀x. φ ↔ ψ    combination (reflexive (Ball A)) (abstract_rule q)                ⊢ Ball(A, λx. φ x) ↔ Ball(A, λx. ψ x)
+                 R at λx. φ x                step 3's instance
+                 the walk                    ∃B: cong_exists_bare · ∧: cong_and · ∀b: cong_forall · ↔: cong_iff, b ∈ B iff_refl
+                                             · ∃y: cong_exists · ∧: cong_and, b = ⟨y⟩ iff_refl · φ(y) vs ψ(y): the hole, Q at y
+                                             · ∃C. ZF_Base.Ball(C, B) ∧ ⟨A⟩ ∈ C: iff_refl
+                 iff_trans
+```
+
+One route for a set and a class argument alike, and the walk never enters the argument's own body: at a class
+argument the hole is the whole `φ(y)`. Every fact about objects it cites is base's lemma — membership's congruence at
+the holes; base's schemas are the propositional structure between them, whose letters are propositions, which no claim
+states but through their truth sets (S4) (the user: "Prefer lemma when possible").
+
+Not the function's class with one congruence for every class — `class_subst`, `apply_at`, every function typed `Func`
+(the user, 2026-10-17): `combination` applies λs, the reader reading every function η-long (`mem` is `λx y. x ∈ y`),
+so each would be reified first — its class existence, which walks the same body at more cost — then β at both ends at
+every site; and a function of classes has no class, so a class argument would need the walk anyway: two routes.
+Not a congruence lemma per function, `∀v⃗ x x'. x ≡ x' → g x ≡ g x'`: citing it at a λ argument reifies both arguments
+and walks `g`'s body again for β, so it moves the walk without saving it.
+
+**The other pieces, as 1 and 2 decide them.** At a function type over objects — each argument `i`, `iⁿ ⇒ i` or
+`iⁿ ⇒ o`, the value `i` or `o` — Logic's rules:
+
+| piece | rule |
+|---|---|
+| `isaConst(primitive Pure.eq, F ⇒ F ⇒ o, [f, g])` | the λs' bodies under `ifolAll` binders at the arguments' types, `≡` at the value between them: `↔`, or `=` named by Reify |
+| `isaAbs` at a function of classes | a wrapper, as at objects and propositions: its body where it is applied |
+| `isaReflexive` | under the binders, `iff_refl`; at value `i`, `eq_refl` through Reify's instance, as `≡` at `i` |
+| `isaSymmetric`, `isaTransitive` | under the binders, the premises at the bound variables, then `iff_symm`, `iff_trans`; at value `i`, `eq_symm`, `eq_trans` as `≡` at `i` |
+| `isaAbstract` | its premise, which concludes the rewritten conclusion by ID |
+| `isaCombination` | 2 |
+
+Unbuilt, unchanged: a binder, a variable or an instance at a function of classes (step 9), a function with a
+proposition argument among others (step 6), `isaAbstract` at a function of propositions.
+
+**FOUNDATION first.** S1 gains, after "a λ is a wrapper": an equation between functions whose arguments are objects is
+pointwise, both sides applied and no class named for it, so `abstract_rule` concludes its premise; a function of
+classes has no class, yet its equation is first-order, `∀K. F(K) ↔ G(K)`; `combination` substitutes its argument's
+equation into the function by the formula recursion, membership's congruence at each atom where the argument stands, or
+at a class argument the equation at the atom's arguments. §3b's proof-term mapping gains Pure's five rules at a function
+type.
+
+**The contracts (D2):**
+
+| | provides | assumes |
+|---|---|---|
+| Logic | each piece above at a function type over objects, concluding the walk's rewrite of the table's conclusion, by ID; the rest unbuilt | the instance rules (`forall_elim` at a variable, Reify's at a term, Lambda's at a λ); base's `iff_*`, `cong_*`, `eq_*`, `cong_elem_*`, `cong_eq_*`, `cong_snoc_v` |
+| Fol | unchanged: the pointwise binders are isa binders at object types, written with their guards | — |
+| Base | unchanged | — |
+
+**Tests, written first**, each lowering checked to conclude by ID and kernel-checked:
+- `LogicTests`: `≡` stated at `i ⇒ o`, `i ⇒ i` and `(i ⇒ o) ⇒ o` is its pointwise formula; `reflexive` at each;
+  `symmetric` and `transitive` at `i ⇒ o`; `abstract_rule` concludes its premise; `combination` at a set argument —
+  `a ∈ A ↔ a ∈ B` from `A = B` through the curried chain of `mem`, the same at a compound argument
+  (`succ(a) ∈ B ↔ succ(b) ∈ B` from `a = b`), and at value `i` (`succ(a) = succ(b)`); at a class argument, the `Ball`
+  chain, `combination (reflexive (Ball A)) (abstract_rule q)`.
+- `PlanTests`: each piece above at a function type over objects is Logic's rule; a binder or an instance at a function
+  of classes is unbuilt; no pattern has two owners.
+- The ZF session (`--skip` the other seven): through logic, Logic's refusals and what they name; then emitted and
+  kernel-checked.
+
+**Built.** `Sources/Lowering/Functions.swift`: `overObjects`, and `Functions` — the pointwise formula; `reflexive`;
+`symmetric` and `transitive` under the binders, closed over their premises' statements and applied to them, as Truths'
+are; `abstract`, its premise checked by ID; `combination`, the premise at the argument through the instance rules, then
+`atSet` — at fresh variables, membership's congruence at the atoms, Reify's instance at the terms — or `atClass` — the
+walk over the function's body with `Y` fixed for it alone, `Substitution` filling `Y`'s units with `q` at their
+arguments, a slot converted by `slotConverted` from the template's own slot λ, the variables dropped after
+(`unshift`). Logic: the `Pointwise` pieces (equation, wrapper, combination, abstract), `equality` at a function type
+over objects, `Equalities.atI` shared. `Replacement` reads a stated equation between functions in its template
+pointwise. `slotConverted(template:)`; `chained` shared. FOUNDATION S1 and §3b. Tests: `FunctionEqualityTests`, five,
+each lowering kernel-checked but the reading's own; `PlanTests`' rows.
+
+**Decisions made in the build**, for the user's review:
+1. **A stated equation between functions inside a walked formula is read pointwise there too.** The ZF run stopped at
+   `Bin.bin.case_eqns.1` (`noCongruence`): an instance walked a cited statement holding `≡` at `i ⇒ i`, a node no walk
+   met before step 4 let such statements through Logic. `Replacement` unfolds it by the same `isaPointwise` the rule's
+   reading walks to: one reading.
+2. **At a class argument the units already carried are marked by a second variable, `Z`.** Placed at `a` all at once,
+   a unit inside another's arguments loses its path when the outer one β-reduces; renaming a unit's head from `Y` to
+   `Z` moves no path, and each step changes one unit, `Y` read at `a` and `Z` at `b`.
+3. **An instance rule is handed Isabelle's statement as `hyp(0, φ)`**: Reify's and Lambda's instance read the
+   eliminated premise for its conclusion alone, never lowering it; `φ` is `⋀x. Θ(x, x)`, the formula the premise's
+   pointwise reading walks to, and `Θ(x, y)` is `f x ≡ g y` unfolded at its value.
+4. **`atSet` is shared with a class argument's unit at a function class**: a term `Y(t⃗)` inside an atom is substituted
+   as a set argument is, its equation `q` at `t⃗`.
+
+**Measured** (the ZF session alone, `--skip` the other seven; the release build on 48 cores; the lint first):
+- **Through logic**: 2:09, peak 6.7 GB (0:56, 3.5 GB). 2,058 of the 3,616 named theorems stand (997): the 1,061 the scope
+  count bounded. Logic refuses 257 (1,318): `If` 245 (step 6) and the binders over a function of classes (step 9).
+  Logic 80.6 s (7.9 s); 5,296 lemmas requested (759); the table 23.2M nodes (4.4M).
+- **Complete, emitted and kernel-checked**: 11:04, peak 34.3 GB — read 41.6 s; expand 1.4 s, logic 75.8 s, registry
+  38.0 s, fol 341.2 s, link 21.2 s; emitted 140.8 s, 17 parts, 382 MB; 76.7M nodes. `check-unit.sh`: 49.7 s, every part
+  exit 0 and empty stderr, claims 6,057 of 6,057, schemas 100 of 100.
+- **Named theorems lowered: 14.** The 1,061 that pass Logic now fall after it: at a letter off its spine 797 — step 3's
+  gap, an instance walking under a `⋀` at `o` that the cited theorem binds after the instantiated variable, which their
+  three patterns alone say — and at a refused citation, 1,247 in all, led by `IFOL.exI` 21, `ZF_Base.Ball_def` 21,
+  `Bool.cond_DEF` 13. No owner 1,301, unchanged. The ZF session alone was not run complete before this step.
+- ⚠ **99% OF THE UNIT IS LEMMAS NOTHING CITES**: 6,013 of its 6,057 claims, in the `_uncited` parts; `λ classExists`
+  writes 4.3 of its 5.7 million steps.
+
 ### Fol — binders, guards and variables  **[BUILT 2026-09-28 as the guard; Fol's 2026-10-14; every object type and `∃` at `i` with "Reify — S1 at the site" — `Sources/Lowering/Fol.swift`]**
 
 **Every isa binder at an object type, its intro, its variable and the guard of its variable become fol-zfc's, with the
@@ -3941,7 +4118,7 @@ membership's congruence (`g3_pmem_cong1`), then β as proof — reify's.
 | `P(x⃗) : o`, a predicate constant or variable | `t ∈ P` |
 | `ZF_Base.mem`; `IFOL.eq`, and Pure `≡` at `i`, which the reader reads as it | `elem`; `eq` — the target's own, not classes |
 | Pure `≡` at `o` | `↔` — the reader reads it so |
-| `f ≡ g` at a function type | `∀t r. fn_apply(F,t,r) ↔ fn_apply(G,t,r)` (FOUNDATION §3b) |
+| `f ≡ g` at a function type whose arguments are objects | `⋀x⃗. f x⃗ ≡ g x⃗`, β-reduced: pointwise, no class named ("Step 4", decision 1; first planned as the classes' `∀t r. fn_apply(F,t,r) ↔ fn_apply(G,t,r)`) |
 | `λx⃗. b : i^n ⇒ i` / `λx⃗. φ : i^n ⇒ o` | a class `C`: `∀t r. fn_apply(C,t,r) ↔ ⟦r = b(t)⟧` (`lam_class`) / `∀t. t ∈ C ↔ ⟦φ(t)⟧` (`lam_pred`) — LOCAL, never a global claim |
 | a class argument, `c(A, λx. φ)` | outside the tuple, a parameter of `c`'s defining property (R4) |
 | `If(φ, a, b)`, an `o` argument | read where it appears: `(φ ∧ r = a) ∨ (¬φ ∧ r = b)` (FOUNDATION R6's note) |
@@ -3955,9 +4132,9 @@ membership's congruence (`g3_pmem_cong1`), then β as proof — reify's.
 | `⋀`-elim at a variable | `forall_elim`, and the guard's discharge |
 | `⋀`-elim at a compound `i`-term | `forall_elim` at the term's variable, opened where the term appears; EX and UNIQ where two forms meet |
 | `⋀`-elim at a λ | `forall_elim` at the λ's class, then β as proof |
-| Pure `combination` at a function type | `mfun_comb` — membership respects `eq` — then β as proof at both ends |
-| Pure `abstract_rule` | `∀`-intro, and a lemma relating `f ≡ g` to `⋀x. f x ≡ g x` under `mfun` — not in `metafun` yet |
-| Pure `reflexive`, `symmetric`, `transitive` at a function type | `↔` reasoning under `∀t r` |
+| Pure `combination` at a function type | "Step 4" (first planned as `mfun_comb`, then β as proof at both ends) |
+| Pure `abstract_rule` | its premise: `f ≡ g` and `⋀x. f x ≡ g x` are one formula ("Step 4", decision 1) |
+| Pure `reflexive`, `symmetric`, `transitive` at a function type | base's `iff_*` and `eq_*` under the pointwise binders ("Step 4") |
 | an inlined box instantiated at once | reduced at the proof level: the box read at its instance, no class |
 | IFOL's thirteen ND rules, `FOL.classical` | the kernel's rules: `spec` is `forall_elim`, `exE` is `exists_elim`, … |
 
