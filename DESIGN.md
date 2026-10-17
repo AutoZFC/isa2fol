@@ -3751,6 +3751,60 @@ read 74.6 s, lowered 374.2 s (77.7 s), emitted 982.9 s (205.6 s); 59,158,892 nod
   before either is known. `λ classExists` alone writes 2.2 of the 4.5 million steps.
 - `SOURCE_SURFACE.md` and `CLOSURE.md` regenerated: unchanged.
 
+### Iteration — a run through a stage, a selection of theorems; emission in parallel  **[AGREED 2026-10-16 (user); BUILT 2026-10-16 — `Sources/IR/Pass.swift`, `Sources/Reader/Reader.swift`, `Sources/FolDialect/Emit.swift`, `Sources/isa2fol/`]**
+
+**The need.** Step 3's corpus check took 24 minutes: read 75 s, lowered 374 s, emitted 983 s, checked 41 s. A feature
+under construction fails at the earliest stage that sees it — the table refuses a step, a pass's proof stops concluding
+its statement — so iteration runs the corpus only up to the stage being built, on the theorems it concerns; the full
+run, emitted and kernel-checked, is the CI of a feature believed complete (user, 2026-10-16).
+
+**1. A run through a stage.** A stage is a pass of the plan, or the registry, which proves after `provingAfter`. A run
+through a stage stops after it: the unit is its statements as that stage left them, lemmas requested and not yet
+proved among them, and the refusals so far; legalize, the letters' grammar and link are not run. Through the last pass
+the run is complete. A stage the plan does not name stops the run (`noSuchPass`). Every run reports each stage's
+seconds, link included.
+
+**2. A selection of theorems.** The reader builds a unit of any theorems of the population, and everything they cite,
+as it builds the population's: `--theorem NAME,…` selects by name, as statements are named (`ZF_Base.subst_elem`);
+`--skip SESSION,…` drops whole sessions. A name or a session the export lacks stops the run. A theorem of a skipped
+session that a selected one cites comes in as any citation does. The export's load still parses every proof file.
+
+**3. Emission in parallel, the same bytes.** A statement's text depends on the finished table and its declaration
+alone: no counter, cache or name passes between statements, and the table is read only. So statements render on
+worker threads, each with its own stack as deep as the main thread's need, and the parts are assembled in order as
+before; where a part splits depends on the bytes before it, so assembly stays sequential, and the first statement in
+order that fails is the error reported. The tree count's memo stays on the sequential pass.
+
+**The contracts (D2):**
+
+| | provides | assumes |
+|---|---|---|
+| IR (`Pipeline`) | `run(_:through:)`: the unit as the stage left it, or complete; each stage's seconds | — |
+| Reader | `unit(of:)`: the selected theorems and what they cite, as `unit()` the population's | theorems of its population |
+| FolDialect (`emit`) | `threads:`: the same bytes at any number of threads | a complete unit |
+| CLI | `lower EXPORT [--through STAGE] [--theorem NAME,…] [--skip SESSION,…] [--threads N] [--emit DIR]`; `--emit` with a complete run only | — |
+
+**Tests, written first.**
+- `PipelineTests`: a run through a pass stops there, its statements that pass's output and its refusals the ones so
+  far; through the registry, its lemmas proved; an unknown stage stops the run.
+- `UnitTests` (Reader): a unit of selected theorems holds them and what they cite, and nothing else.
+- `EmissionTests`: one unit emitted at one thread and at several, the same bytes in every file.
+
+**Built** (2026-10-16). IR: `Pipeline.run(_:through:)` returns each stage's `Stage(name, seconds)`; a stop returns the
+unit as the stage left it, legalization and link run only on a complete run, timed together as `link`. Reader:
+`unit(of:)`, `unit()` its population's. FolDialect: `emit(…, threads:)` renders every statement on worker threads with
+256 MB stacks, its results in a `Mutex` (`Synchronization`), never `@unchecked Sendable` (SwiftLint's
+`no_unchecked_sendable`); one path at any thread count. CLI: `lower`'s options, `--threads` every core by default.
+
+**Measured** (the release build on 48 cores; `lower` under `MEM=48G`, `check-unit.sh` under `MEM=32G`):
+- **A complete run, the CI**: 8:36, peak 25.5 GB — read 74.6 s; expand 5.5 s, logic 54.1 s, registry 47.5 s, fol
+  237.0 s, link 14.5 s; emitted 69.3 s (982.9 s on one thread). Every file the same bytes as the one-thread
+  emission's; the kernel proves 45 parts, claims 4,579 of 4,579, schemas 111 of 111, in 41.1 s.
+- **Through the registry**: 3:12, peak 13.6 GB. **The ZF session through logic** (`--skip` the other seven): 56 s, peak
+  3.5 GB, 997 of its 3,616 named theorems standing. **Two theorems** (`--theorem ZF_Base.subst_elem,ZF_Base.strip.2`),
+  complete: 33 s, the export's load.
+- Fol is now the largest stage: 237 of the 369 s lowering takes.
+
 ### Fol — binders, guards and variables  **[BUILT 2026-09-28 as the guard; Fol's 2026-10-14; every object type and `∃` at `i` with "Reify — S1 at the site" — `Sources/Lowering/Fol.swift`]**
 
 **Every isa binder at an object type, its intro, its variable and the guard of its variable become fol-zfc's, with the

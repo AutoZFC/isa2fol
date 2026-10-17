@@ -7,22 +7,44 @@ import Reader
 private let baseDirectory = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
     .deletingLastPathComponent().appendingPathComponent("base")
 
-func lower(_ root: String, emitTo directory: String?) {
+struct Options {
+    let emit: String?
+    let through: String?
+    let theorems: [String]?
+    let skip: [String]
+    let threads: Int
+}
+
+func lower(_ root: String, _ options: Options) {
     let start = Date()
     var unit: IR.Unit
     var named: Set<String>
+    var population: Set<String>
     var citedNamed: Set<String>
     do {
         var reader = try Reader(try Export(root: root))
-        unit = try reader.unit()
-        named = Set(try reader.population.map { try claimName(reader.name(of: $0)!) })
+        let names = try reader.population.map { try claimName(reader.name(of: $0)!) }
+        var selection = reader.population
+        if let theorems = options.theorems {
+            let byName = Dictionary(uniqueKeysWithValues: zip(names, reader.population))
+            selection = theorems.map { name in
+                guard let theorem = byName[name] else { fail("lower: no named theorem \(name)", 2) }
+                return theorem
+            }
+        }
+        for s in options.skip where !zfSessions.contains(s) { fail("lower: no session \(s)", 2) }
+        selection = selection.filter { !options.skip.contains(session(of: $0.theory)!) }
+        unit = try reader.unit(of: selection)
+        population = Set(names)
+        named = Set(try selection.map { try claimName(reader.name(of: $0)!) })
         citedNamed = Set(try reader.cited.compactMap { try reader.name(of: $0).map(claimName) })
     } catch {
         stopped(error)
     }
     let taken = unit.statements.map(\.name) + unit.refused.map(\.name)
-    let outside = taken.count(where: { !named.contains($0) && citedNamed.contains($0) })
-    let boxes = taken.count(where: { !named.contains($0) && !citedNamed.contains($0) })
+    let beyond = taken.count(where: { !named.contains($0) && population.contains($0) })
+    let outside = taken.count(where: { !population.contains($0) && citedNamed.contains($0) })
+    let boxes = taken.count(where: { !population.contains($0) && !citedNamed.contains($0) })
     let read = Date()
     let definitions = unit.definitions.count
     let lowering: Pipeline
@@ -34,19 +56,38 @@ func lower(_ root: String, emitTo directory: String?) {
     } catch {
         fail("base: \(error)", 1)
     }
+    let complete = options.through == nil || options.through == lowering.passes.last?.name
+    if options.emit != nil, !complete { fail(
+        "lower: --emit needs a complete run, not one through \(options.through!)",
+        2,
+    ) }
+    let stages: [Stage]
     do {
-        try lowering.run(&unit)
+        stages = try lowering.run(&unit, through: options.through)
     } catch {
         fail("pipeline: \(error)", 1)
     }
     let lowered = unit.statements.filter { named.contains($0.name) }
-    print("named theorems, all ZF sessions: \(named.count)")
+    if named.count == population.count {
+        print("named theorems, all ZF sessions: \(named.count)")
+    } else {
+        print("named theorems selected: \(named.count) of \(population.count), citing \(beyond) others")
+    }
     print("  with \(outside) theorems they cite outside the ZF sessions, \(boxes) boxes binding a proposition and "
         + "\(definitions) definitions they reach")
-    print(
-        "lowered to fol-zfc through \(lowering.passes.map(\.name).joined(separator: ", ")): \(lowered.count) — each proof concludes its statement, by ID"
-    )
-    print("  and \(unit.statements.count - lowered.count) of the theorems and boxes cited, and lemmas")
+    if complete {
+        print(
+            "lowered to fol-zfc through \(lowering.passes.map(\.name).joined(separator: ", ")): \(lowered.count) — each proof concludes its statement, by ID"
+        )
+        print("  and \(unit.statements.count - lowered.count) of the theorems and boxes cited, and lemmas")
+    } else {
+        let lemmas = unit.statements.filter { $0.lemma != nil }
+        print(
+            "through \(options.through!): \(lowered.count) named theorems stand, and \(unit.statements.count - lowered.count) "
+                +
+                "other statements, \(lemmas.count) of them lemmas requested, \(lemmas.count(where: { $0.proof != nil })) proved"
+        )
+    }
     print("definitions read by the pass owning their constant: \(unit.definitions.count) of \(definitions)")
     let defs = unit.statements.count(where: { $0.defines != nil })
     let refusedDefs = unit.refused.count(where: { $0.name.hasSuffix("_DEF") && !named.contains($0.name) })
@@ -90,11 +131,12 @@ func lower(_ root: String, emitTo directory: String?) {
         read.timeIntervalSince(start),
         Date().timeIntervalSince(read),
     ))
-    guard let directory else { return }
+    print("  stages: " + stages.map { "\($0.name) \(String(format: "%.1f", $0.seconds)) s" }.joined(separator: ", "))
+    guard let directory = options.emit else { return }
     let emitting = Date()
     let emission: Emission
     do {
-        emission = try emit(unit, to: URL(fileURLWithPath: directory), base: texts)
+        emission = try emit(unit, to: URL(fileURLWithPath: directory), base: texts, threads: options.threads)
     } catch {
         fail("emit: \(error)", 1)
     }

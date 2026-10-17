@@ -749,6 +749,10 @@ private struct Reached: Hashable {
 
 extension Reader {
     public mutating func unit() throws -> Unit {
+        try unit(of: population)
+    }
+
+    public mutating func unit(of selection: [Theorem]) throws -> Unit {
         var statements = [Statement]()
         var unread = [String]()
         var taken = Set<String>()
@@ -767,7 +771,7 @@ extension Reader {
                 unread.append(name)
             }
         }
-        for theorem in population { try take(theorem, try claimName(corpus.names[theorem.key]!)) }
+        for theorem in selection { try take(theorem, try claimName(corpus.names[theorem.key]!)) }
         work.reverse()
         while let id = work.popLast() {
             guard seen.insert(id).inserted else { continue }

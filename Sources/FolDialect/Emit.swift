@@ -1,5 +1,6 @@
 import Foundation
 import IR
+import Synchronization
 
 @frozen
 public enum EmitError: Error, Equatable, Sendable {
@@ -41,6 +42,7 @@ public func emit(
     to directory: URL,
     base texts: [String],
     partBytes: Int = defaultPartBytes,
+    threads: Int = 1,
 ) throws -> Emission {
     let t = unit.table
     let statements = unit.statements
@@ -59,21 +61,34 @@ public func emit(
     let theories = order + (partOf.contains(order.count) ? [uncited] : [])
     let sequence = inOrder(cites, partOf, parts: theories.count)
 
+    let written = concurrently(sequence.flatMap(\.self), threads: threads) { k in
+        let s = statements[k]
+        let d = declaration(s, letters)
+        if s.defines == nil, s.proof == nil { throw EmitError.unproved(s.name) }
+        let body = try s.proof.map { try rendered(proof: $0, of: d, in: t, letters: letters) }
+        return Rendered(
+            declaration: d,
+            head: try render(d, in: t) + "\n",
+            text: body.map { $0.text + "\n" } ?? "",
+            steps: body?.steps ?? 0,
+            dag: s.proof.map { dagSteps($0, t) } ?? 0,
+        )
+    }
     try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
     var chunks = [Chunk]()
     var chunkOf = Array(repeating: 0, count: statements.count)
     var report = [EmittedStatement]()
     var trees = [NodeID: Int]()
     var files: Files?
+    var next = written.makeIterator()
     for (p, theory) in theories.enumerated() {
         var pieces = 0
         for k in sequence[p] {
             let s = statements[k]
-            let d = declaration(s, letters)
-            if s.defines == nil && s.proof == nil { throw EmitError.unproved(s.name) }
-            let head = try render(d, in: t) + "\n"
-            let body = try s.proof.map { try rendered(proof: $0, of: d, in: t, letters: letters) }
-            let text = body.map { $0.text + "\n" } ?? ""
+            let w = try next.next()!.get()
+            let d = w.declaration
+            let head = w.head
+            let text = w.text
             let bytes = head.utf8.count + text.utf8.count
             if pieces == 0 || chunks[chunks.count - 1].bytes + bytes > partBytes {
                 pieces += 1
@@ -89,9 +104,9 @@ public func emit(
             report.append(EmittedStatement(
                 name: s.name,
                 part: chunks[c].name,
-                written: body?.steps ?? 0,
+                written: w.steps,
                 tree: s.proof.map { treeSteps($0, t, &trees) } ?? 0,
-                dag: s.proof.map { dagSteps($0, t) } ?? 0,
+                dag: w.dag,
             ))
         }
     }
@@ -126,6 +141,60 @@ public func emit(
     }
     try listing.write(to: directory.appendingPathComponent("parts"), atomically: true, encoding: .utf8)
     return Emission(parts: parts, statements: report)
+}
+
+private struct Rendered: Sendable {
+    let declaration: Declaration
+    let head: String
+    let text: String
+    let steps: Int
+    let dag: Int
+}
+
+private final class Results<T: Sendable>: Sendable {
+    init(_ count: Int) {
+        state = Mutex((next: 0, slots: [T?](repeating: nil, count: count)))
+    }
+
+    var all: [T] {
+        state.withLock { $0.slots.map { $0! } }
+    }
+
+    func take() -> Int? {
+        state.withLock { s in
+            guard s.next < s.slots.count else { return nil }
+            s.next += 1
+            return s.next - 1
+        }
+    }
+
+    func put(_ k: Int, _ value: T) {
+        state.withLock { $0.slots[k] = value }
+    }
+
+    private let state: Mutex<(next: Int, slots: [T?])>
+}
+
+/// ⚠ A WORKER'S STACK IS SET, NEVER THE PLATFORM'S DEFAULT: rendering recurses as deep as a proof, which the main
+/// thread's stack held.
+private func concurrently<T: Sendable>(
+    _ items: [Int],
+    threads: Int,
+    _ body: @escaping (Int) throws -> T,
+) -> [Result<T, any Error>] {
+    let results = Results<Result<T, any Error>>(items.count)
+    let done = DispatchSemaphore(value: 0)
+    let workers = min(max(threads, 1), items.count)
+    for _ in 0..<workers {
+        let worker = Thread {
+            while let k = results.take() { results.put(k, Result { try body(items[k]) }) }
+            done.signal()
+        }
+        worker.stackSize = 1 << 28
+        worker.start()
+    }
+    for _ in 0..<workers { done.wait() }
+    return results.all
 }
 
 private struct Chunk {

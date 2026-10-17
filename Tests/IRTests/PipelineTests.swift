@@ -325,6 +325,58 @@ func theRegistryProvesEachLemmaAfterItsPassAndTheLemmasItsProofsCite() throws {
     #expect(unit.refused.isEmpty)
 }
 
+/// Through `close` the run stops there: the statement is `close`'s output, still isa, and `elem`, which would refuse
+/// it,
+/// never runs; nothing is legalized or linked. A complete run reports every stage, link last.
+@Test
+func aRunThroughAPassStopsThereItsStatementsThatPasssOutput() throws {
+    var t = Table()
+    let s = try identity("s", try memOfA(&t), &t)
+    let unbuilt = Owning(name: "elem", owned: [memAtom: .unbuilt], rule: Elem())
+    var unit = Unit(table: t, statements: [s])
+    let stages = try Pipeline(passes: [close, unbuilt]).run(&unit, through: "close")
+    let b0 = try unit.table.intern(.folBound(0))
+    let A = try unit.table.intern(.isaConst(.primitive(.zf(.mem)), memT, args: [b0, b0]))
+    #expect(unit.statements.map(\.root) == [try unit.table.intern(.folImplies(A, A))])
+    #expect(unit.refused.isEmpty)
+    #expect(stages.map(\.name) == ["close"])
+    var whole = Unit(table: t, statements: [s])
+    #expect(try Pipeline(passes: [close, elem]).run(&whole).map(\.name) == ["close", "elem", "link"])
+}
+
+/// Through `cite` the lemma it cites is requested and unproved, the registry never asked; through the registry it is
+/// proved, and `elem`, after it, never runs.
+@Test
+func aRunThroughTheRegistryProvesItsLemmasAndStops() throws {
+    var t = Table()
+    let (r, proof) = try reflexiveMem(&t)
+    let s = try citing("L1", "S", r, &t)
+    let registry = Proving { _, _, _ in .proof(proof) }
+    let pipeline = Pipeline(passes: [cite, elem], registry: registry, provingAfter: "cite")
+    var cited = Unit(table: t, statements: [s])
+    #expect(try pipeline.run(&cited, through: "cite").map(\.name) == ["cite"])
+    #expect(registry.asked.isEmpty)
+    #expect(cited.statements.map(\.name) == ["S", "L1"])
+    #expect(cited.statements.map { $0.proof == nil } == [false, true])
+    var proved = Unit(table: t, statements: [s])
+    #expect(try pipeline.run(&proved, through: "registry").map(\.name) == ["cite", "registry"])
+    #expect(registry.asked == ["L1"])
+    #expect(proved.statements.map(\.name) == ["S", "L1"])
+    #expect(proved.statements.allSatisfy { $0.proof != nil })
+    #expect(proved.statements.first?.root == r)
+}
+
+@Test
+func aRunThroughAStageThePlanDoesNotNameStopsTheRun() throws {
+    var t = Table()
+    let s = try identity("s", try memOfA(&t), &t)
+    var unit = Unit(table: t, statements: [s])
+    #expect(throws: PipelineError.noSuchPass("fol")) { try Pipeline(passes: [close, elem]).run(&unit, through: "fol") }
+    #expect(throws: PipelineError.noSuchPass("registry")) {
+        try Pipeline(passes: [close, elem]).run(&unit, through: "registry")
+    }
+}
+
 @Test
 func aLemmaItsProverHasNotBuiltIsRefusedThereAndItsCitersFall() throws {
     var t = Table()

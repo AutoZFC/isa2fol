@@ -303,6 +303,30 @@ func aLemmaNoStatementCitesGoesInTheLastPart() throws {
     _ = try unitChecks(dir)
 }
 
+/// One unit emitted at one thread and at four, a part per statement and at the default bound: the same parts, the
+/// same report, the same bytes in every file.
+@Test
+func emissionWritesTheSameBytesAtAnyNumberOfThreads() throws {
+    var f = Pf()
+    let unit = try twoTheories(&f)
+    for partBytes in [1, defaultPartBytes] {
+        let one = try freshDirectory("threads-1")
+        let four = try freshDirectory("threads-4")
+        let a = try emit(unit, to: one, base: try baseTextsOfRepo(), partBytes: partBytes, threads: 1)
+        let b = try emit(unit, to: four, base: try baseTextsOfRepo(), partBytes: partBytes, threads: 4)
+        #expect(a.parts.map(\.name) == b.parts.map(\.name))
+        #expect(a.statements.map { [$0.name, $0.part] } == b.statements.map { [$0.name, $0.part] })
+        #expect(a.statements.map { [$0.written, $0.tree, $0.dag] } == b.statements
+            .map { [$0.written, $0.tree, $0.dag] })
+        let files = try FileManager.default.contentsOfDirectory(atPath: one.path).sorted()
+        #expect(files == (try FileManager.default.contentsOfDirectory(atPath: four.path).sorted()))
+        for name in files {
+            #expect(try Data(contentsOf: one.appendingPathComponent(name)) ==
+                Data(contentsOf: four.appendingPathComponent(name)))
+        }
+    }
+}
+
 /// A part over its bound is split, each piece citing only earlier ones, and checked in order.
 @Test
 func aPartOverItsBoundIsSplitInOrder() throws {

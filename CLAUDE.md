@@ -84,8 +84,14 @@ Swift 6.4, language mode 5. `scripts/02-install-swift.sh` installs it into
 
 ## Verification
 
+**Iterate on the stage being built; run the whole unit only as CI** (`DESIGN.md` "Iteration"). A feature fails at the
+earliest stage that sees it, so a run stops there (`--through expand|logic|registry`, 2–4 min) and on the theorems it
+concerns (`--theorem NAME,…`, `--skip SESSION,…`; the export's load, ~30 s, stays). The complete run, emitted and
+kernel-checked, is the check of a feature believed complete (~9 min):
+
 ```bash
-MEM=32G scripts/capped.sh .build/release/isa2fol lower data/zf_export --emit DIR
+MEM=48G scripts/capped.sh .build/release/isa2fol lower data/zf_export --through logic [--theorem NAME,…] [--skip SESSION,…]
+MEM=48G scripts/capped.sh .build/release/isa2fol lower data/zf_export --emit DIR [--threads N]   # CI; N: every core
 MEM=32G scripts/capped.sh scripts/check-unit.sh DIR        # each part, against base's and its parts' libraries
 MEM=16G scripts/capped.sh scripts/check-base.sh [LIBDIR]   # base alone, each tier once
 ```
@@ -238,7 +244,7 @@ determinism R1–R3 (§4.6).
    print(f'{c}/{t} = {100*c/t:.1f}%')"
    ```
 
-   ✓ **CURRENTLY 57/11525 = 0.5%, under the cap.** Keep it there: a breach is
+   ✓ **CURRENTLY 59/11686 = 0.5%, under the cap.** Keep it there: a breach is
    fixed by deleting prose, never by raising the cap.
 
    Does not apply to `base/**/*.fol.def` headers: those record provenance of

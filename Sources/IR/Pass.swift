@@ -154,11 +154,34 @@ public struct Pipeline {
     public let registry: (any Registry)?
     public let provingAfter: String
 
-    public func run(_ unit: inout Unit) throws {
+    @discardableResult
+    public func run(_ unit: inout Unit, through stage: String? = nil) throws -> [Stage] {
+        if let stage, stage == "registry" ? registry == nil : !passes.contains(where: { $0.name == stage }) {
+            throw PipelineError.noSuchPass(stage)
+        }
         var run = try Run(self, unit)
-        try run.lower()
+        guard try run.lower(through: stage) else {
+            unit = run.partial()
+            return run.stages
+        }
+        let start = ContinuousClock.now
+        try run.legalized()
         unit = try run.linked()
+        run.stages.append(Stage(name: "link", since: start))
+        return run.stages
     }
+}
+
+public struct Stage: Sendable {
+    init(name: String, since start: ContinuousClock.Instant) {
+        let elapsed = ContinuousClock.now - start
+        self.name = name
+        seconds = Double(elapsed.components.seconds) + Double(elapsed.components.attoseconds) / 1e18
+    }
+
+    public let name: String
+    public let seconds: Double
+
 }
 
 private struct Live {
@@ -224,6 +247,7 @@ private struct Run {
     var definitionsAsked = Set<Defined>()
     var definitionsRefused = Set<Defined>()
     var checked = Set<Pattern>()
+    var stages = [Stage]()
 
     func owner(of p: Pattern) -> Int? {
         passes.firstIndex { $0.owns(p) != nil }
@@ -242,8 +266,9 @@ private struct Run {
         named(held.filter { p in passes[...k].contains { $0.owns(p) != nil } }).first
     }
 
-    mutating func lower() throws {
+    mutating func lower(through stage: String?) throws -> Bool {
         for (k, pass) in passes.enumerated() {
+            let start = ContinuousClock.now
             var ready = [Live]()
             for l in live {
                 let unbuilt = l.held.filter { pass.owns($0) == .unbuilt }
@@ -310,8 +335,26 @@ private struct Run {
                 lowering.append(d)
             }
             try add(cited, after: k)
-            if k == proving { try prove() }
+            stages.append(Stage(name: pass.name, since: start))
+            if stage == pass.name, k < passes.count - 1 { return false }
+            if k == proving {
+                let proving = ContinuousClock.now
+                try prove()
+                stages.append(Stage(name: "registry", since: proving))
+                if stage == "registry" { return false }
+            }
         }
+        return true
+    }
+
+    func partial() -> Unit {
+        var partial = unit
+        partial.statements = live.map(\.statement)
+        partial.definitions = reached
+        return partial
+    }
+
+    mutating func legalized() throws {
         var legal = [Live]()
         for l in live {
             try legalize(l.statement.root, in: unit.table)

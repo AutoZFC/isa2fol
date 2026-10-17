@@ -64,7 +64,7 @@ private func vacuous(_ T: String) -> String {
 ///   IFOL.selfImp   False ⟹ False           λH. H
 ///   IFOL.vacuous   OFCLASS('a, term) ⟹ (⋀x::'a. False) ⟹ (⋀x::'a. False)   λC H. H
 ///   box 92 (IFOL)  P ⟹ P                   λH. H
-private func readUnit() throws -> IR.Unit {
+private func readUnit(_ select: (Reader) throws -> [Theorem] = { $0.population }) throws -> IR.Unit {
     let theorems: [(String, Int, String)] = [
         ("T.U", 10, proofFile(frees: [], prop: imp(falsum, falsum), proof: pcite(90, "IFOL", "IFOL.selfImp"))),
         ("T.V", 20, proofFile(frees: [("A", o)], prop: imp(aIffA, aIffA), proof: pabsp("H", aIffA, pbound(0)))),
@@ -127,7 +127,7 @@ private func readUnit() throws -> IR.Unit {
     let root = try writeExport(files)
     defer { try? FileManager.default.removeItem(atPath: root) }
     var reader = try Reader(try Export(root: root))
-    return try reader.unit()
+    return try reader.unit(of: try select(reader))
 }
 
 /// Box 92's proof, `⋀P. λH. H`, and the name it is cited by: its theory's and its content's.
@@ -154,6 +154,15 @@ func theUnitHoldsEachTheoremItsTheoremsCiteAtNoTypeArguments() throws {
     ])
     #expect(unit.refused.map(\.name) == ["T.O"])
     #expect(unit.refused.map(\.refusal) == [.unread])
+}
+
+/// Selected, `T.Y` comes with what it cites, `IFOL.vacuous`, and nothing else: `T.O`, unselected, is neither read nor
+/// refused.
+@Test
+func aUnitOfSelectedTheoremsHoldsThemAndWhatTheyCite() throws {
+    let unit = try readUnit { reader in try reader.population.filter { try claimName(reader.name(of: $0)!) == "T.Y" } }
+    #expect(unit.statements.map(\.name) == ["T.Y", "IFOL.vacuous"])
+    #expect(unit.refused.isEmpty)
 }
 
 /// `IFOL.vacuous`, restricted to `term` and cited at `i`, is a statement of the unit read at `i`: the citation's root.

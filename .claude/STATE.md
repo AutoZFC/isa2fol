@@ -1,21 +1,22 @@
 # STATE — isa2fol
-HEAD (see §0) · primitives · 2026-10-16.  RUN §0 BEFORE TRUSTING ANY LINE BELOW.
+HEAD (see §0) · primitives · 2026-10-17.  RUN §0 BEFORE TRUSTING ANY LINE BELOW.
 
 ## 0. Staleness checks
 | command | expect |
 |---|---|
 | `git branch --show-current` | `primitives` |
-| `git log -1 --format=%s` | `An instance at a class type: forall_elim at the λ's class at its arguments, then β at each occurrence of the class variable` |
+| `git log -1 --format=%s` | `Iteration: a run through a stage and a selection of theorems; emission in parallel, the same bytes` |
 | `git status --short \| wc -l` | `0` |
 | `git rev-parse --short kinds-proposal` | `21ca100f` |
-| `find Sources -name '*.swift' -exec cat {} + \| grep -cv '^\s*$'` | `11525` |
+| `find Sources -name '*.swift' -exec cat {} + \| grep -cv '^\s*$'` | `11686` |
 | `git -C ~/repos/fol-zfc-comb log -1 --format=%h` | `224d60e` (branch `libraries-and-streaming`) |
 | `grep -c '^axiom ' base/axioms.fol.def` | `17` — NBG and `elem_first_subst`; the tiers admit none |
-| `MEM=16G scripts/capped.sh swift test 2>&1 \| grep "Test run with"` | five lines, all passed: 14, 136, 97, 110, 41 tests |
+| `MEM=16G scripts/capped.sh swift test 2>&1 \| grep "Test run with"` | five lines, all passed: 14, 137, 97, 113, 42 tests |
 | `pre-commit run --all-files` | `SwiftFormat ... Passed`, `SwiftLint ... Passed` |
 | `MEM=16G scripts/capped.sh bash scripts/check-base.sh` | 14 tiers, each `exit 0  stderr 0`, Proved n of n; `metafun` 18 of 18 |
 | `swift build -c release`, then `MEM=32G scripts/capped.sh .build/release/isa2fol read data/zf_export` | `proved: 9420` of 9420; cited: 195 named, 956 boxes binding a proposition, all proved |
-| `MEM=48G scripts/capped.sh .build/release/isa2fol lower data/zf_export --emit DIR` (24 min, peak 25.5 GB), then `scripts/check-unit.sh DIR` | 73 named lowered; 45 parts; claims 4579 of 4579, schemas 111 of 111; exit 0 |
+| `MEM=48G scripts/capped.sh .build/release/isa2fol lower data/zf_export --through registry` (3:12, peak 13.6 GB) | `through registry: 2647 named theorems stand`; `stages: expand ~5 s, logic ~54 s, registry ~47 s` |
+| `MEM=48G scripts/capped.sh .build/release/isa2fol lower data/zf_export --emit DIR` (8:36, peak 25.5 GB; the CI), then `scripts/check-unit.sh DIR` | 73 named lowered; `fol ~237 s`; emitted in ~69 s; 45 parts; claims 4579 of 4579, schemas 111 of 111; exit 0 |
 If any row disagrees, THIS FILE IS STALE. Trust the code and fix this file first.
 
 ## 1. Where
@@ -24,6 +25,8 @@ If any row disagrees, THIS FILE IS STALE. Trust the code and fix this file first
 REFERENCE: consulted, never merged.
 
 ## 2. Read these first-hand
+- `DESIGN.md` "Iteration — a run through a stage, …" — the stages, the selection, parallel emission; Measured: where a
+  run's minutes go, Fol the largest.
 - `DESIGN.md` "Step 3 — an instance at a class type" — the six agreed decisions, the nine made in the build, Measured:
   where the unit's bytes go.
 - `Sources/Lowering/Lambda.swift` — the instance (`R`, `forall_elim` at the opened class), `Beta` per unit, the function
@@ -43,6 +46,9 @@ REFERENCE: consulted, never merged.
 | a λ holding a proposition is a schema in it; the class prover refuses it, and its citers fall | `aLambdaHoldingALetterIsASchemaInIt`, `aLambdaHoldingATruthSetVariableIsASchemaCitedAtItsTruth` |
 | the congruence walks a class binder by `forall_elim` at the bound class | `aClassBinderBelowTheInstantiatedVariableIsWalkedAtACompoundTerm` |
 | `subst` with its class premise stated is base's `class_subst` under it | `substWithItsClassPremiseStatedIsBasesClassSubstUnderIt` |
+| a run through a stage stops there, its statements that stage's output; an unknown stage stops the run | `aRunThroughAPassStopsThereItsStatementsThatPasssOutput`, `aRunThroughTheRegistryProvesItsLemmasAndStops`, `aRunThroughAStageThePlanDoesNotNameStopsTheRun` |
+| emission writes the same bytes at any number of threads | `emissionWritesTheSameBytesAtAnyNumberOfThreads`; the corpus unit diffed against the one-thread emission's: identical |
+| format and lint are the tools' | `pre-commit run --all-files`; the commit hook |
 | every build, test, checker and lowering run is capped | `scripts/capped.sh` |
 
 **Standing warnings — each repeated silently otherwise:**
@@ -74,7 +80,8 @@ REFERENCE: consulted, never merged.
 | 4,242 of the 4,579 claims (303 of 326 MB) are in the `_uncited` parts: 638 `LAMBDA_` (7 cited), 724 `CLASS_`, 771 EX, 823 UNIQ, 196 `FUNC_` | `grep -c '^claim LAMBDA_' DIR/_uncited*.fol.def`, … |
 | the 16 lemmas unbuilt are all `CLASS_`: a λ holding a proposition, which the class prover does not read | a throwaway listing of `unit.refused`, not kept |
 | `SOURCE_SURFACE.md` and `CLOSURE.md` unchanged by this step | `isa2fol surface data/zf_export`, `closure`; `diff` empty |
-| comments 57/11525 = 0.5% of `Sources` | `CLAUDE.md` rule 9's script |
+| a complete run's stages: read 74.6 s, expand 5.5 s, logic 54.1 s, registry 47.5 s, fol 237.0 s, link 14.5 s, emission 69.3 s on 48 threads (982.9 s on one) | `lower … --emit DIR` |
+| comments 59/11686 = 0.5% of `Sources` | `CLAUDE.md` rule 9's script |
 
 ## 5. Beliefs — NOT verified
 - All 204 letters off their spine are an instance walking under a `⋀` at `o` the cited theorem binds after the
@@ -84,8 +91,10 @@ REFERENCE: consulted, never merged.
 - 382 instances at a λ holding a letter and 24 holding a truth-set variable (a throwaway count over the read unit).
 
 ## 6. Open decisions
-- **The uncited lemmas**: 93% of the unit's bytes prove lemmas for statements that then fall. Prune at link what nothing
-  cites, or request lemmas only once a statement is known to stay — the user's to choose; neither is designed.
+- **Before step 4, from the cleanup list** (the user agreed to the iteration items, built): drop at link the lemmas nothing
+  cites (93% of the unit's bytes; a pipeline change, needs the user's OK); one rendering of a λ's body (`classBody`'s
+  `named(formula:)` against `walked`); lowering in parallel (the reference's layered table; designed first); Fol, the
+  largest stage at 237 s, profiled.
 - **The next step**, the user's to choose: step 4, Pure's equality at a function type (Logic's largest refusal now);
   letters instantiated before an instance at a class type (204 off the spine); the class prover reading a letter (S4's
   truth set, 16 `CLASS_`); `use(theorem, [i], o)` 1,627; step 5's ZF definition cited, 1,034; step 7's hidden variable,
@@ -94,4 +103,4 @@ REFERENCE: consulted, never merged.
   listed in their sections; merging the checker branch.
 
 ## 7. Next action
-Put the step's outcome and the uncited-lemma question to the user. Done when the user has chosen what comes next.
+Put the remaining cleanup items to the user — the uncited lemmas dropped at link first. Done when the user has chosen.

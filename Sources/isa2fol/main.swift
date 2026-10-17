@@ -30,7 +30,7 @@ func stopped(_ error: any Error) -> Never {
 let arguments = Array(CommandLine.arguments.dropFirst())
 let usage = """
     usage: isa2fol read EXPORT_DIR [--show OUTCOME]
-           isa2fol lower EXPORT_DIR [--emit DIR]
+           isa2fol lower EXPORT_DIR [--through STAGE] [--theorem NAME,…] [--skip SESSION,…] [--threads N] [--emit DIR]
            isa2fol surface EXPORT_DIR
            isa2fol closure EXPORT_DIR
     """
@@ -52,8 +52,25 @@ if arguments.count == 2, arguments[0] == "surface" || arguments[0] == "closure" 
     exit(0)
 }
 
-if arguments.count == 2 || (arguments.count == 4 && arguments[2] == "--emit"), arguments[0] == "lower" {
-    lower(arguments[1], emitTo: arguments.count == 4 ? arguments[3] : nil)
+if arguments.first == "lower", arguments.count >= 2, arguments.count % 2 == 0 {
+    var options = [String: String]()
+    for k in stride(from: 2, to: arguments.count, by: 2) {
+        guard
+            ["--emit", "--through", "--theorem", "--skip", "--threads"].contains(arguments[k]),
+            options.updateValue(arguments[k + 1], forKey: arguments[k]) == nil
+        else { fail(usage, 2) }
+    }
+    guard
+        let threads = Int(options["--threads"] ?? "\(ProcessInfo.processInfo.activeProcessorCount)"),
+        threads > 0
+    else { fail(usage, 2) }
+    lower(arguments[1], Options(
+        emit: options["--emit"],
+        through: options["--through"],
+        theorems: options["--theorem"].map { $0.split(separator: ",").map(String.init) },
+        skip: options["--skip"].map { $0.split(separator: ",").map(String.init) } ?? [],
+        threads: threads,
+    ))
     exit(0)
 }
 
