@@ -38,7 +38,13 @@ public struct TupleProver: Prover {
         l.request is TupleFact ? .rule : nil
     }
 
-    public func prove(_ l: Lemma, _ statement: NodeID, _: [Definition], in t: inout Table) throws -> NodeID {
+    public func prove(
+        _ l: Lemma,
+        _ statement: NodeID,
+        _: [Definition],
+        _: [String: NodeID],
+        in t: inout Table,
+    ) throws -> Proved {
         guard let f = l.request as? TupleFact else { throw TupleError.notMine(l.name) }
         let proof: NodeID =
             switch f.fact {
@@ -47,7 +53,7 @@ public struct TupleProver: Prover {
             case .injectivity: try injectivity(f.arity, &t)
             }
         guard t.conclusion(of: proof) == statement else { throw TupleError.misproved(l.name) }
-        return proof
+        return .proof(proof)
     }
 
     public func defines(_: Defined) -> Owned? {

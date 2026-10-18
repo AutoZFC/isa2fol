@@ -2564,7 +2564,8 @@ until it is fully translated (user), so each step's scope is measured there.
    and `exI` (2) waited on ("An ∃-intro carrying its body", below, **BUILT 2026-10-17**). Then lazy proving ("Lazy
    proving — a lemma proved once a statement that stands cites it", below, **AGREED 2026-10-17**).
 8. **ZF's axioms**: base derives `extension`, `Pow_iff`, `Union_iff`, `replacement` and `infinity` from NBG;
-   `foundation` and `AC.AC` wait for FOUNDATION to pin Regularity and Choice, which `base/axioms` leaves out.
+   `foundation` and `AC.AC` wait for FOUNDATION to pin Regularity and Choice, which `base/axioms` leaves out. **BUILT
+   2026-10-18** ("Step 8 — ZF's axioms, derived from NBG", below), Regularity pinned with it; `AC.AC` waits on Choice.
 9. **Later**: a declared constant; a binder over classes, and a λ over classes anywhere but an equation (4 reads it
    there); a proposition quantified below a statement's top; an unrestricted type variable.
 
@@ -4801,6 +4802,207 @@ left out, no `@def`; no owner 680, logic 325, a refused citation 2,401, now led 
 45, then `Bool.cond_DEF` 25 (step 6). `scripts/check-unit.sh`: 32 parts, each exit 0 and empty stderr, claims 2,170 of 2,170,
 schemas 110 of 110; 249.1 MB, 2,665,679 steps (194.8 MB, 2,193,622), 162 `@def`s stated (147), 162 `c_UNFOLD`
 lemmas (126).
+
+### Step 8 — ZF's axioms, derived from NBG  **[AGREED 2026-10-18 (user), the three decisions one by one; BUILT 2026-10-18, its decisions in the build for the user's review — `Sources/Lowering/Axioms.swift`, `Unfolding.swift`, `Logic.swift`, `Congruence.swift`, `Base.swift`, `Plan.swift`, `Facts.swift`, the provers, `Sources/IR/Pass.swift`, `Sources/FolDialect/Emit.swift`, `base/axioms`, `base/tiers/zf`, `docs/FOUNDATION.md`]**
+
+**The step.** `ZF_Base` states six axioms with no proof — `extension`, `Union_iff`, `Pow_iff`, `replacement`,
+`infinity`, `foundation` — and `AC` one, `AC.AC`. The export holds each as the axiom and as a named theorem of the same
+name whose proof is the axiom alone; no other proof names an axiom (a census of the export's proof files, not kept).
+Base admits only NBG (R1), so each is owed a proof, and no pass owns its citation: the theorem stops at no owner, and
+the ZF session's refused citations are led by `Union_iff` 216, `Pow_iff` 44, `extension` 41, and lemmas refused in turn,
+`Replace_iff` 140, `Inter_iff` 89, `RepFunI` 45. Reach, from each named theorem's closure (CLOSURE's census read per
+theorem, a throwaway listing, not kept): of the 3,616, 453 reach no ZF axiom; 656 reach only `extension`, `Union_iff`,
+`Pow_iff` and `replacement`; 2,227 those and `foundation`; 3,572 add `infinity`; the last 44 `AC.AC`. Bounds: other
+pieces refuse some of them. "The steps after class existence, in order", 8, left `foundation` for Regularity; the census
+puts it in 1,571 of the closures the other four free, so this step pins Regularity (2).
+
+**The problem, in target text.** `Union_iff`:
+
+```
+Isabelle   Union_iff:  A ∈ ⋃(C) ⟷ (∃B∈C. A ∈ B)                                axiomatization: no proof
+read       use(axiom ZF_Base.Union_iff, [], ⋀A C. A ∈ ⋃(C) ⟷ Bex(C, λB. A ∈ B))      no owner
+rendered   forall A. (set(A) -> forall C. (set(C) ->
+             ((exists S. (ZF_Base.Union(S) & exists t. (set(t) & ((exists e. (set(e) & (zero(e) & snoc(e, e, C, t))))
+                   & exists u. (set(u) & (pmem(t, u, S) & elem(A, u)))))))
+               -> exists Q. ((forall t. (set(t) -> (elem(t, Q) <-> exists B. (set(B)
+                     & ((exists e. (set(e) & (zero(e) & snoc(e, e, B, t)))) & elem(A, B))))))
+                 & exists K. (ZF_Base.Bex(K, Q) & exists t. (set(t)
+                     & ((exists e. (set(e) & (zero(e) & snoc(e, e, C, t)))) & elem(t, K))))))
+             & (the converse)))
+```
+
+Two vocabularies meet in it. `ZF_Base.Union` is base's: `base/tiers/zf` defines the primitive's class from NBG's own
+`Union(A, r)`, the union axiom's matrix (`base/tiers/primitives`). `ZF_Base.Bex` is the unit's: the `@def` Reify states
+from `Bex_def_raw`, which base cannot name. So base cannot state the axiom as rendered, and the unit has nothing that
+reads `⋃`'s class back into the relation it is defined from: Isabelle has no definition of `⋃` to cite — the axiom is
+its only meaning. The others are alike: `⊆` (through `Ball`), `∀x∈A`, `∃x∈A` are the unit's; `Pow`, `PrimReplace`,
+`0`, `Inf` base's. `infinity` adds `succ`, a function the unit defines through `cons`, `∪`, `Upair` and `Replace`.
+
+**1. A ZF axiom, cited, is a lemma per axiom, proved from base's statement of it: base states the axiom in NBG's words —
+a primitive by its relation, Isabelle's predicates by their definitions — and the lemma's prover reads it back into
+Isabelle's form: a predicate by its pointwise definition (`c_UNFOLD`, step 5), a primitive's application by its class
+at its tuple, through the replacement walk.** **AGREED 2026-10-18 (user)**, on the split: base's statements are its
+own proofs, by hand, as every base claim is; the translator adds only the reading back, which base cannot write — it is
+checked before the unit, so it cannot name `ZF_Base.Bex`, and `⋃`'s class exists by the class prover's lemma.
+
+```
+base       ZF_Base.Union_iff_NBG:  forall A. (set(A) -> forall C. (set(C) ->
+             ((exists u. (set(u) & (Union(C, u) & elem(A, u)))) -> exists B. (set(B) & (elem(B, C) & elem(A, B))))
+             & ((exists B. (set(B) & (elem(B, C) & elem(A, B)))) -> exists u. (set(u) & (Union(C, u) & elem(A, u))))))
+```
+
+proved in base from `Union_EX` and `Union_def`. The lemma `ZF_Base.Union_iff_AXIOM` states the axiom as rendered; its
+prover walks the axiom's statement with the rendered one and base's side by side (`Replacement`, the walk step 4's
+`combination` uses), equal wherever no piece differs, and at the two that do:
+
+| piece | rendered ↔ base's |
+|---|---|
+| `A ∈ ⋃(C)`: a primitive's application, in an atom | its class at its tuple — the conversion step 5's prover makes (`atTuple`), at base's `@def`: → `S`, `t`, `u` opened, `ZF_Base.Union_def` at `S` gives `Union(C′, u)` with `⟨C′⟩ = t`, `TUPLE_INJ_1` makes `C′` `C`; ← `S` by `ZF_Base.Union_CLASS`, `t` by `TUPLE_EX_1`, the `@def` at the tuple |
+| `Bex(C, λB. A ∈ B)`: a predicate the unit names | `ZF_Base.Bex_UNFOLD` at `C` and the λ, Lambda's β — Logic's walk of the definition at its terms — then the walk again inside its right side, until no named predicate is left |
+
+The citation is then the lemma: Logic owns `use(axiom ZF_Base.a, [], o)` and cites it, the request built from the node
+alone (I2): the axiom, its statement as Expand leaves it and as Logic walks it. A class in a primitive's slot —
+`replacement`'s `PrimReplace(A, λx y. P(x, y))` — stays as the statement names it, and base's statement names it alike.
+
+| axiom | base's statement, in its own words | from |
+|---|---|---|
+| `extension` | `eq(A, B) ↔ (∀x. x∈A → x∈B) ∧ (∀x. x∈B → x∈A)` | `extensionality` |
+| `Union_iff` | `(∃u. Union(C, u) ∧ A∈u) ↔ ∃B. B∈C ∧ A∈B` | `Union_EX`, `Union_def` |
+| `Pow_iff` | `(∃u. Pow(B, u) ∧ A∈u) ↔ ∀x. x∈A → x∈B` | `Pow_EX`, `Pow_def` |
+| `replacement` | `P` functional on `A` → `(∃Q. Q the class of λx y. P(x, y) ∧ ∃u. M(A, Q, u) ∧ b∈u) ↔ ∃x. x∈A ∧ P(x, b)`, `M` the body of `ZF_Base.PrimReplace`'s `@def`, `P(x, y)` its 2-tuple in `P` | `ZF_Base.PrimReplace_value`; `Q` by the slot λ's class, a premise (the build's decision 1) |
+| `foundation` | `(∃v. ZF_Base.zero(v) ∧ eq(A, v)) ∨ ∃x. x∈A ∧ ∀y. y∈x → ¬ y∈A` | `regularity` (2), `ZF_Base.zero_EX` |
+
+Alternatives. Base states the axiom as rendered, each primitive's class assumed (`∃S. ZF_Base.Union(S) → …`, the
+class prover's lemma discharging it): base cannot name `ZF_Base.Bex`, and it would read `⋃`'s class at its tuple by
+hand — a second copy of the conversion (⚠ "A SECOND COPY OF A PASS'S REWRITE DIVERGES SILENTLY"). A proof written per
+axiom in the translator: six readings of the same two pieces. The readings written as Isabelle proofs from base's
+statements, exported: a session of our own in the export, and base's statements owed all the same.
+
+**2. Regularity, FOUNDATION §1's axiom 18, is pinned as Mendelson states it, and base admits it.** **AGREED 2026-10-18
+(user)**, with the exercise below. `foundation` is the one ZF axiom no other NBG axiom gives. §1 names Regularity and
+Choice and states neither, and `base/axioms` leaves both out until a unit needs them — absent because no accepted fol-zfc
+text existed to copy (its header's rule), not because the mathematics is open: textbook NBG has Regularity (Mendelson's
+axiom D), and NBG with it is a conservative extension of ZF. Without it base answers to ZF without Foundation, which does
+not prove `foundation` (Rieger's permutation models). With it base is NBG less Choice, and a kernel proof from it witnesses
+a theorem of ZF (N1).
+
+```
+axiom regularity: forall A. ((exists u. (set(u) & elem(u, A))) -> exists u. (set(u) & (elem(u, A)
+                      & forall v. (set(v) -> (elem(v, u) -> (~ elem(v, A)))))))
+```
+
+NBG's axiom D, `∀X (X ≠ ∅ → ∃u (u ∈ X ∧ u ∩ X = ∅))`, word for word in base's encoding: `X` a class, unguarded, `u` and
+`v` sets, guarded (R3); `X ≠ ∅` is "`A` has a member", `u ∩ X = ∅` "no member of `u` is in `A`" — base has no function
+symbol for `∩` or `∅`. `foundation_NBG` is its instance at a set, by cases on `A` having a member. A stated base axiom is
+exercised before it is trusted, as `empty_from_infinity` exercises `infinity`:
+`claim no_self_member: forall x. (set(x) -> (~ elem(x, x)))` — Pairing gives `{x}`, Regularity a member of it disjoint
+from it, which is `x`; `x ∈ x` would put `x` in both. It shows the axiom usable and carrying what the other 17 do not;
+that it is not too strong rests on its being axiom D. Alternatives: at a set only (`set(A) ->` added) — what
+`foundation` needs, and as strong within NBG, which derives the class form from it through transitive closure, but not
+the form Mendelson states; ∈-induction — a schema, which R2 asks to be proved, from this axiom.
+
+**3. `infinity`'s `succ(y)` is read by `upair.succ_iff`, the theorem Isabelle reads it by: its lemma cites that
+theorem, and emission places a statement no earlier than what it cites.** **AGREED 2026-10-18 (user)**, on two points
+asked: `Inf`'s leastness is base's definition, not its axiom — NBG's `infinity` states that an inductive set exists, and a
+constant of fol-zfc, which has no constant symbols, is a predicate one set satisfies, so `Inf` is defined as one; and
+Isabelle's least fixed point is `nat`'s (`nat ≡ lfp(Inf, …)`), the one constant built from `Inf`, whose value is ω at
+every `Inf` the axiom allows, so the choice reaches nothing past `Inf`. Base's `Inf` is the least
+inductive set, inductive under NBG's successor, `∀w. w ∈ s ↔ w ∈ y ∨ w = y` (`base/tiers/inf`). Isabelle's `succ(y)`
+is `cons(y, y)`, `Upair(y, y) ∪ y`, `⋃(Upair(Upair(y, y), y))`, with `Upair` a `Replace` over `Pow(Pow(0))` under a
+`∃!`: its members are known only through `upair`'s `Upair_iff`, `Un_iff`, `cons_iff` and `succ_iff`. `succ_iff`'s
+closure holds `extension`, `Union_iff`, `Pow_iff`, `replacement` and `foundation` and not `infinity` (the census read per
+theorem, a throwaway listing, not kept), so reading `infinity` by it is no circle. So base's statement keeps NBG's
+successor,
+
+```
+base       ZF_Base.infinity_NBG:  (exists v. (set(v) & (ZF_Base.zero(v) & exists w. (set(w) & (ZF_Base.Inf(w) & elem(v, w))))))
+             & forall y. (set(y) -> ((exists w. (set(w) & (ZF_Base.Inf(w) & elem(y, w))))
+                 -> exists s. (set(s) & ((forall z. (set(z) -> (elem(z, s) <-> (eq(z, y) | elem(z, y)))))
+                   & exists w. (set(w) & (ZF_Base.Inf(w) & elem(s, w)))))))
+```
+
+and the lemma reads `succ(y) ∈ Inf` by `succ_iff`: → the value opened, its members those `succ_iff` gives at each `z`
+— its naming there agreeing by `ZF_Base.succ_AGREE`, `TUPLE_UNIQ_1`, `succ_FUNC`; ← the value by `succ_CLASS`,
+`TUPLE_EX_1`, `succ_TOTAL`, equal to `s` by `extensionality`. `succ_iff` is a theorem of `upair`, after `ZF_Base`; only
+`Nat` cites `infinity` (`nat_bnd_mono`), so `ZF_Base.infinity` goes in `upair`'s part. Alternatives: base defines `Inf`
+by the composite Isabelle's `succ` unfolds to, and computes it — `upair`'s four lemmas derived again, by hand, in base;
+the step without `infinity` — 1,345 closures wait on it.
+
+**FOUNDATION first.** §1, axiom 18: Regularity stated (2). S3, after the primitive constants: Isabelle's axioms of them
+are theorems — base states each in NBG's words, a primitive by its relation and a defined predicate by its definition,
+and proves it from §1; Isabelle's form is read back by the predicates' pointwise definitions and the primitives'
+classes at their tuples; `infinity`'s `succ` by `succ_iff`, a theorem of the other four. §3b's mapping gains a row:
+
+| Pure | target |
+|---|---|
+| `Axm` of ZF | base's statement of it, in NBG's words, read back into Isabelle's form (S3) |
+
+**The contracts (D2):**
+
+| | provides | assumes |
+|---|---|---|
+| Logic | `use(axiom ZF_Base.a)`, `a` one of the six: the axiom's lemma, its statement the walk's rewrite of the axiom's; `AC.AC` its, unbuilt | the registry proves the lemma or refuses it (I2) |
+| Registry (the axioms' prover) | `ZF_Base.a_AXIOM`, from base's `ZF_Base.a_NBG` | base's statement; `c_UNFOLD` (Reify's prover); the primitives' `c_CLASS`, `c_TOTAL`, `c_LIFT` (the class prover's); `TUPLE_EX`, `TUPLE_INJ`; a slot λ's `CLASS_⟨λ⟩`; for `infinity`, `upair.succ_iff` standing |
+| Base | `ZF_Base.a_NBG` for the six, proved; `regularity`, admitted | NBG |
+| Emission | a statement placed no earlier than any it cites | — |
+
+**Tests, written first.**
+- `PlanTests`: `use(axiom ZF_Base.a, [], o)` Logic's rule for the six, `AC.AC` Logic's, unbuilt; no pattern two owners.
+- `AxiomTests` (Lowering): each of the six cited by its theorem, at fixture definitions of `Ball`, `Bex`, `⊆` and
+  `succ` and a fixture `succ_iff`, lowered to the end and kernel-checked with base: the theorem concludes its statement
+  by ID, its lemma cites base's statement.
+- `EmitTests`: a theorem citing a lemma that cites a later theory's theorem is placed in that theory's part.
+- `check-base.sh`: base's six statements and `no_self_member` proved; `regularity` admitted — 18 axioms.
+- The ZF session: through logic; complete, emitted, kernel-checked.
+
+**Not in this step.** `AC.AC` (44 closures): Choice, FOUNDATION §1's axiom 19, is unpinned, and `Pi(A, B)`'s members are
+read through `func`'s `Pi_iff`, `Sigma`, `domain` and Isabelle's own pairs — a step of its own.
+
+**Built.** Logic owns `use(axiom ZF_Base.a, [], o)`: its rule (`axiomCited`) cites `AxiomFact`, `ZF_Base.a_AXIOM`, its
+statement the walk's rewrite of the axiom's, and `AC.AC` is its, unbuilt. The axioms' prover (`AxiomProver`,
+`Axioms.swift`) computes base's words of the axiom's statement as Expand left it (`AxiomReading.target`) and proves the
+walked statement equivalent to them by the replacement walk (`Replacement`), whose holes are the three readings: a
+predicate the unit names, by its `c_UNFOLD` at the terms — the request built as Reify builds it at a definition's
+citation (`unfolding`, split out of `unfolded`; `pointwiseDefinition`, the package's form, which the walk rewrites as
+the command's) — then the walk again inside its right side; a primitive's application in a membership, by its class at
+its tuple (`AtTuple`, the conversion step 5's prover makes, shared out of the unfolder); a function's application, by the
+theorem stating its members (`Members`: the theorem at the element and the arguments, the term's UNIQ, its class's
+existence and totality, `extensionality`). The words cited as base's `ZF_Base.a_NBG`, the slot λs' class existence its
+premises, `iff_elim_r` concludes the lemma. The registry hands provers the unit's named statements as the passes left them,
+and a prover answers `cites(name)` where the unit holds none (`Proved.cites`), the lemma refused citing it. Emission
+places a statement no earlier than any it cites (`floors`). Base: `regularity`, axiom 18, and `no_self_member`;
+`base/tiers/zf` gains the six `ZF_Base.a_NBG`, `cong_Union_l` and `cong_Pow_l` (with `union_moves`, `pow_moves`), and
+`tup2_uniq`, `slot_p_q`, `slot_q_p` for `replacement`'s slot class — all proved by hand. Tests: `AxiomTests` (eight: the five
+axioms read and kernel-checked, `infinity` read through a fixture `succ_iff`, structurally, and refused without one),
+`PlanTests`' rows, `PipelineTests.theRegistryHandsItsProversTheNamedStatements`,
+`aLemmaCitingAStatementTheUnitLacksIsRefusedCitingIt`, `EmissionTests.aStatementIsPlacedNoEarlierThanWhatItCites`.
+
+**Decisions made in the build**, for the user's review:
+1. **A slot λ's class is a premise of base's statement**, `∀P. ∃Q. Q the class of λx y. P(x, y)` for `replacement`'s
+   `PrimReplace(A, λx y. P(x, y))`, discharged by the λ's `CLASS_⟨λ⟩`, which the class prover proves from NBG. Base would
+   otherwise build `Q` by hand — 2-tuples decomposed, `tuples_class` and B2 — where the section said it would; the
+   premise keeps one construction of a λ's class, the class prover's.
+2. **Base's union and power relations are congruent in their set argument** (`cong_Union_l`, `cong_Pow_l`, the form
+   `cong_elem_l` has), and the replacement walk's congruence reads `Union` and `Pow` atoms by them: the class-at-tuple
+   conversion carries the tuple's entry into the `@def`'s body, `Union(A′, r)`, by the walk.
+3. **A primitive's application is read in a membership, `x ∈ p(a⃗)`, its arguments variables or slot λs**, and a
+   function's in `f(a⃗) ∈ y`: the six axioms hold no other, and any other throws `noReading`. `0` and `Inf` are read as the
+   walk names them: their classes are base's own predicates, `ZF_Base.zero(v) <-> zero(v)`.
+4. **The members theorem is instantiated at the element, then the arguments**, the reader's order of first occurrence;
+   base's statement takes its `ψ` as the theorem states it, `eq(z, y) | elem(z, y)`.
+5. **`infinity` is read, and its lemma proved, but falls in the ZF session with `upair.succ_iff`**, which cites
+   `IFOL.iffD1` and `upair.UpairI1`, refused. Its reading is checked structurally
+   (`infinityReadsSuccByTheTheoremStatingItsMembers`) and reaches the kernel when `succ_iff` stands.
+
+**Measured** (the ZF session, the release build on 48 cores, the lint first): through logic 2,617 named theorems stand
+(2,611) — the six axioms' theorems — refused at no owner 673 (680), at Logic 326, `If` and `AC.AC`. `lower --emit` 4:37:
+**215 lowered** (210), `ZF_Base.extension`, `Union_iff`, `Pow_iff`, `replacement`, `foundation` among them, with their
+lemmas (`replacement`'s 1,203 steps, the others 300–360); 7,058 lemmas left out; a refused citation 2,402, now led by
+the logic's theorems — `IFOL.iffD2` 128, `FOL.IFOL_simps.32` 111 — and `ZF_Base.Replace_iff` 108, which cites
+`IFOL_simps.32`, then `Inter_iff` 76, `RepFunI` 71, `IFOL.notI` 54. `scripts/check-unit.sh`: 32 parts, each exit 0 and
+empty stderr, claims 2,189 of 2,189, schemas 110 of 110; 249.9 MB, 2,673,950 steps; 42.4M nodes. Base: 18 axioms; the
+`axioms` tier 8 of 8, `zf` 19 of 19. The closures said `foundation` and the four would free up to 1,571 more; the
+refusals say the next layer is the logic's own theorems, the census's bound read through them.
 
 ### Fol — binders, guards and variables  **[BUILT 2026-09-28 as the guard; Fol's 2026-10-14; every object type and `∃` at `i` with "Reify — S1 at the site" — `Sources/Lowering/Fol.swift`]**
 

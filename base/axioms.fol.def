@@ -16,13 +16,12 @@
 # be the eq-form or set_cong does not go through -- so retyping is a real risk
 # that was avoided everywhere it could be.
 #
-# TWO OF THE 19 ARE ABSENT: Regularity (18) and Choice (19). FOUNDATION §1 NAMES
-# them but does not STATE them, and no probe uses them, so there is no pinned
-# form to copy. They are absent rather than guessed: inventing a statement for a
-# base axiom is exactly what "nothing is assumed" forbids, and §0 is the standing
-# evidence that a plausible-looking variant can be wrong. Pin them before any
-# unit needs them -- as `infinity` now has been, because the constant table
-# cannot bottom out without it.
+# ONE OF THE 19 IS ABSENT: Choice (19). FOUNDATION §1 names it and does not state
+# it, and no unit needs it yet. Absent rather than guessed: inventing a statement
+# for a base axiom is exactly what "nothing is assumed" forbids, and §0 is the
+# standing evidence that a plausible-looking variant can be wrong. Pin it before a
+# unit needs it -- as `infinity` and `regularity` have been, each when the unit
+# could not do without it; see their own notes.
 #
 # WHAT `empty_from_infinity` DOES AND DOES NOT SHOW. It shows `infinity` is well
 # formed and usable -- a malformed or unusable statement fails there. It does NOT
@@ -94,7 +93,16 @@ axiom replacement: forall F. ((forall u. (set(u) -> (forall v. (set(v) -> (foral
 # that a plausible variant can be wrong).
 axiom infinity: exists z. (set(z) & ((exists e. (set(e) & (elem(e,z) & (forall u. (set(u) -> (~ elem(u,e))))))) & (forall y. (set(y) -> (elem(y,z) -> (exists s. (set(s) & (elem(s,z) & (forall w. (set(w) -> (elem(w,s) <-> (elem(w,y) | eq(w,y)))))))))))))
 
-# --- IV. Regularity (18) and Choice (19): unpinned, see the header.
+# --- IV. Regularity (18). Choice (19) is unpinned, see the header.
+#
+# Regularity is NBG's axiom D as Mendelson states it, `forall X (X != 0 -> exists u
+# (u in X & u cap X = 0))`, word for word in this encoding: X a CLASS, unguarded;
+# u and v sets, guarded (R3); `X != 0` is "A has a member" and `u cap X = 0` "no
+# member of u is in A" -- the signature has no function symbol for cap or 0.
+# STATED, NOT COPIED: no accepted text held it. Pinned for Isabelle's
+# `foundation`, which nothing else here proves (ZF without Foundation has
+# permutation models with x in x); `no_self_member` below exercises it.
+axiom regularity: forall A. ((exists u. (set(u) & elem(u,A))) -> (exists u. (set(u) & (elem(u,A) & (forall v. (set(v) -> (elem(v,u) -> (~ elem(v,A)))))))))
 
 # --- Tier 1: the equality core. §8 -- every congruence step downstream
 # routes through this, and it is what replaces the banned eq_subst.
@@ -112,3 +120,9 @@ claim set_cong: forall A. forall B. (eq(A,B) -> (set(A) -> set(B)))
 # Both stay admitted, because FOUNDATION §1 lists both among the 19 and R1 is a
 # rule about what may be admitted, not a minimality claim.
 claim empty_from_infinity: exists z. (set(z) & (forall u. (set(u) -> (~ elem(u,z)))))
+
+# EXERCISES `regularity`, as `empty_from_infinity` exercises `infinity`: Pairing
+# gives {x}, Regularity a member of it disjoint from it, which is x, and x in x
+# would put x in both. It shows the axiom usable and carrying what the other 17 do
+# not; that it is not too strong rests on its being axiom D, word for word.
+claim no_self_member: forall x. (set(x) -> (~ elem(x,x)))

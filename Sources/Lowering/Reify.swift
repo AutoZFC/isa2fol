@@ -319,8 +319,9 @@ public struct ReifyProver: Prover {
         _ l: Lemma,
         _ statement: NodeID,
         _ definitions: [Definition],
+        _: [String: NodeID],
         in t: inout Table,
-    ) throws -> NodeID {
+    ) throws -> Proved {
         let proof: NodeID
         switch l.request {
         case let r as Existence: proof = try TermProofs(base: base).existence(r, in: &t)
@@ -331,7 +332,7 @@ public struct ReifyProver: Prover {
         default: throw ReifyError.noProof(l.name)
         }
         guard t.conclusion(of: proof) == statement else { throw ReifyError.misproved(l.name) }
-        return proof
+        return .proof(proof)
     }
 
     public func defines(_ c: Defined) -> Owned? {

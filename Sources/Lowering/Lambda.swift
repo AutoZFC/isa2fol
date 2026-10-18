@@ -651,11 +651,17 @@ public struct LambdaProver: Prover {
         return .rule
     }
 
-    public func prove(_ l: Lemma, _ statement: NodeID, _: [Definition], in t: inout Table) throws -> NodeID {
+    public func prove(
+        _ l: Lemma,
+        _ statement: NodeID,
+        _: [Definition],
+        _: [String: NodeID],
+        in t: inout Table,
+    ) throws -> Proved {
         guard let f = l.request as? LambdaFact, f.fact == .arguments else { throw LambdaError.notMine(l.name) }
         let proof = try LambdaProofs(base: base).arguments(f, in: &t)
         guard t.conclusion(of: proof) == statement else { throw LambdaError.misproved(l.name) }
-        return proof
+        return .proof(proof)
     }
 
     public func defines(_: Defined) -> Owned? {

@@ -9,7 +9,13 @@ public protocol Prover {
     var name: String { get }
 
     func owns(_ l: Lemma) -> Owned?
-    func prove(_ l: Lemma, _ statement: NodeID, _ definitions: [Definition], in t: inout Table) throws -> NodeID
+    func prove(
+        _ l: Lemma,
+        _ statement: NodeID,
+        _ definitions: [Definition],
+        _ theorems: [String: NodeID],
+        in t: inout Table,
+    ) throws -> Proved
     func defines(_ c: Defined) -> Owned?
     func define(_ c: Defined, _ definitions: [Definition], in t: inout Table) throws -> NodeID
 }
@@ -23,11 +29,12 @@ public struct Provers: Registry {
         _ lemma: Lemma,
         _ statement: NodeID,
         _ definitions: [Definition],
+        _ theorems: [String: NodeID],
         in t: inout Table,
     ) throws -> Proved {
         let (prover, owned) = try owner(lemma.name) { $0.owns(lemma) }
         switch owned {
-        case .rule: return .proof(try prover.prove(lemma, statement, definitions, in: &t))
+        case .rule: return try prover.prove(lemma, statement, definitions, theorems, in: &t)
         case .unbuilt: return .unbuilt
         }
     }

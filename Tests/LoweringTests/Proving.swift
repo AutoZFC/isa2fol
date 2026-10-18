@@ -22,12 +22,12 @@ func proveAll(_ requests: [(Lemma, NodeID)], _ definitions: [Definition], in t: 
     while let (l, root) = work.popLast() {
         guard seen.insert(l.name).inserted else { continue }
         let answer: Proved
-        do { answer = try provers.prove(l, root, definitions, in: &t) } catch {
+        do { answer = try provers.prove(l, root, definitions, [:], in: &t) } catch {
             Issue.record("\(l.name): \(error)")
             throw error
         }
         switch answer {
-        case .unbuilt:
+        case .unbuilt, .cites:
             unbuilt.insert(l.name)
         case .proof(let p):
             #expect(t.conclusion(of: p) == root, "\(l.name)")

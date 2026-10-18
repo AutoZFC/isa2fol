@@ -142,6 +142,7 @@ public func kind(of lemma: Lemma) -> String {
     case is RekeyFact: "rekey"
     case is Existence: "term existence"
     case is Uniqueness: "term uniqueness"
+    case let f as AxiomFact: "axiom \(f.axiom.rawValue)"
     default: "\(type(of: lemma.request))"
     }
 }

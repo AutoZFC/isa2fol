@@ -15,7 +15,10 @@ func eachTupleFactIsProvedAtEveryArity() throws {
         for fact in [TupleFact.Fact.existence, .uniqueness, .injectivity] where n > 0 || fact != .injectivity {
             let f = TupleFact(arity: n, fact: fact)
             let root = try statement(f, in: &t)
-            let proof = try prover.prove(Lemma(f), root, [], in: &t)
+            guard case .proof(let proof) = try prover.prove(Lemma(f), root, [], [:], in: &t) else {
+                Issue.record("\(f.name): not proved")
+                continue
+            }
             #expect(t.conclusion(of: proof) == root, "\(f.name)")
             #expect(try misscoped(proof, in: t).isEmpty, "\(f.name): a hypothesis is not its binder's")
             let lowered = try Fol(base: base).run([root, proof], [], in: &t)

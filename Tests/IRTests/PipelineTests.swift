@@ -59,11 +59,19 @@ private final class Proving: Registry {
     }
 
     var asked = [String]()
+    var handed = [String: NodeID]()
     let answer: (Lemma, NodeID, inout Table) throws -> Proved
     let defining: (Defined, inout Table) throws -> Stated
 
-    func prove(_ lemma: Lemma, _ statement: NodeID, _: [Definition], in t: inout Table) throws -> Proved {
+    func prove(
+        _ lemma: Lemma,
+        _ statement: NodeID,
+        _: [Definition],
+        _ theorems: [String: NodeID],
+        in t: inout Table,
+    ) throws -> Proved {
         asked.append(lemma.name)
+        handed = theorems
         return try answer(lemma, statement, &t)
     }
 
@@ -479,6 +487,37 @@ func aLemmaSetAsideAndCitedByAProofLaterIsProvedAndKept() throws {
     #expect(registry.asked == ["M", "L"])
     #expect(Set(unit.statements.map(\.name)) == ["K", "M", "L"])
     #expect(unit.dropped.isEmpty)
+}
+
+/// The registry hands its provers the unit's named statements as the passes left them: a lemma's proof may cite one,
+/// and the link holds the lemma to it.
+@Test
+func theRegistryHandsItsProversTheNamedStatements() throws {
+    var t = Table()
+    let (r, proof) = try reflexiveMem(&t)
+    let named = Statement(name: "T", root: r, proof: proof)
+    let s = try citing("L", "S", r, &t)
+    let viaT = try t.intern(.use(.theorem("T"), [], r))
+    var unit = Unit(table: t, statements: [named, s])
+    let registry = Proving { _, _, _ in .proof(viaT) }
+    try Pipeline(passes: [cite, elem], registry: registry, provingAfter: "cite").run(&unit)
+    #expect(registry.handed == ["T": r, "S": r])
+    #expect(unit.refused.isEmpty)
+    #expect(Set(unit.statements.map(\.name)) == ["T", "S", "L"])
+}
+
+/// A prover answering that its lemma's proof cites a statement the unit does not hold refuses the lemma so, and the
+/// statements citing the lemma fall with it.
+@Test
+func aLemmaCitingAStatementTheUnitLacksIsRefusedCitingIt() throws {
+    var t = Table()
+    let (r, _) = try reflexiveMem(&t)
+    let s = try citing("L", "S", r, &t)
+    var unit = Unit(table: t, statements: [s])
+    try Pipeline(passes: [cite, elem], registry: Proving { _, _, _ in .cites("ghost") }, provingAfter: "cite")
+        .run(&unit)
+    #expect(refusals(unit) == ["L": .cites("ghost"), "S": .cites("L")])
+    #expect(unit.statements.isEmpty)
 }
 
 /// `T.d ≡ λx. K(x ∈ x)`: `elem` lowers it before `reading`, which owns `T.d`, reads it; nothing lowers it after.

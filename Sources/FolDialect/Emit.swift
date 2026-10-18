@@ -295,13 +295,14 @@ private func placed(_ statements: [Statement], _ cites: [[Int]], _ theories: [St
     for (k, cs) in cites.enumerated() {
         for c in cs { citers[c].append(k) }
     }
+    let floor = try floors(statements, cites, rank)
     var partOf = Array(repeating: -1, count: statements.count)
     var pending = citers.map(\.count)
     var ready = Array((0..<statements.count).filter { pending[$0] == 0 }.reversed())
     while let k = ready.popLast() {
         let s = statements[k]
-        if isTheorem(s), let theory = s.theory, let p = rank[theory] {
-            partOf[k] = p
+        if isTheorem(s), let theory = s.theory, rank[theory] != nil {
+            partOf[k] = floor[k]
         } else {
             partOf[k] = citers[k].map { partOf[$0] }.min() ?? theories.count
         }
@@ -317,6 +318,29 @@ private func placed(_ statements: [Statement], _ cites: [[Int]], _ theories: [St
         }
     }
     return partOf
+}
+
+private func floors(_ statements: [Statement], _ cites: [[Int]], _ rank: [String: Int]) throws -> [Int] {
+    var floor = Array(repeating: -1, count: statements.count)
+    for start in statements.indices where floor[start] < 0 {
+        var stack = [(statement: start, next: 0)]
+        var open: Set = [start]
+        while let (k, i) = stack.last {
+            if i < cites[k].count {
+                stack[stack.count - 1].next += 1
+                let c = cites[k][i]
+                guard floor[c] < 0 else { continue }
+                guard open.insert(c).inserted else { throw EmitError.citationCycle(statements[c].name) }
+                stack.append((c, 0))
+                continue
+            }
+            stack.removeLast()
+            open.remove(k)
+            let own = isTheorem(statements[k]) ? statements[k].theory.flatMap { rank[$0] } ?? 0 : 0
+            floor[k] = cites[k].reduce(own) { max($0, floor[$1]) }
+        }
+    }
+    return floor
 }
 
 private func inOrder(_ cites: [[Int]], _ partOf: [Int], parts: Int) -> [[Int]] {

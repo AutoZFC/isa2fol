@@ -287,6 +287,34 @@ func aTheoremGoesInItsTheorysPartAndALemmaInItsFirstCitersPart() throws {
     #expect(report.contains("Proved (2 of 2)") && report.contains("Proved (1 of 1)"))
 }
 
+/// `A.ax` cites a lemma whose proof cites `B.t2`, a theorem of the later theory `B`: no part before B's can be checked
+/// with it, so `A.ax` and the lemma go in B's part, and `A.t1` stays in A's.
+@Test
+func aStatementIsPlacedNoEarlierThanWhatItCites() throws {
+    var f = Pf()
+    let p = try f.forallIntro(try f.eqReflAt(0))
+    let r = try #require(f.t.conclusion(of: p))
+    let t1 = Statement(name: "A.t1", root: r, proof: p, theory: "A")
+    let t2 = Statement(name: "B.t2", root: r, proof: try f.n(.use(.theorem("A.t1"), [], r)), theory: "B")
+    var lemma = Statement(lemma: Lemma(Named(name: "L")), root: r)
+    lemma.proof = try f.n(.use(.theorem("B.t2"), [], r))
+    let ax = Statement(name: "A.ax", root: r, proof: try f.n(.use(.lemma(Lemma(Named(name: "L"))), [], r)), theory: "A")
+    let dir = try freshDirectory("later")
+    let emitted = try emit(
+        IR.Unit(table: f.t, statements: [ax, lemma, t2, t1]),
+        to: dir,
+        base: try baseTextsOfRepo(),
+    )
+    #expect(emitted.parts.map(\.name) == ["A", "B"])
+    #expect(Dictionary(uniqueKeysWithValues: emitted.statements.map { ($0.name, $0.part) }) == [
+        "A.t1": "A",
+        "B.t2": "B",
+        "L": "B",
+        "A.ax": "B",
+    ])
+    _ = try unitChecks(dir)
+}
+
 /// A lemma no statement cites — its citer refused after the registry proved it — is the last part's, `_uncited`.
 @Test
 func aLemmaNoStatementCitesGoesInTheLastPart() throws {

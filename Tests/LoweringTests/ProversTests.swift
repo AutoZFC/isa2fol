@@ -19,8 +19,8 @@ private struct Answering<R: Request>: Prover {
         l.request is R ? owned : nil
     }
 
-    func prove(_: Lemma, _: NodeID, _: [Definition], in _: inout Table) throws -> NodeID {
-        proof
+    func prove(_: Lemma, _: NodeID, _: [Definition], _: [String: NodeID], in _: inout Table) throws -> Proved {
+        .proof(proof)
     }
 
     func defines(_ c: Defined) -> Owned? {
@@ -35,7 +35,7 @@ private struct Answering<R: Request>: Prover {
 private func asked(_ registry: Provers, _ l: Lemma) throws -> Proved {
     var t = Table()
     let bottom = try t.intern(.folBottom)
-    return try registry.prove(l, bottom, [], in: &t)
+    return try registry.prove(l, bottom, [], [:], in: &t)
 }
 
 @Test

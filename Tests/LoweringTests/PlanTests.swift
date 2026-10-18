@@ -222,7 +222,13 @@ func eachPatternHasTheOwnerTheDivisionGivesIt() throws {
         (.isaHidden(fn(fn(i, o), fn(o, i)), body: o), "logic", .unbuilt),
         (.isaHidden(a, body: o), nil, nil),
         (.use(.theorem, [i], o), nil, nil),
-        (.use(.axiom(.zf(.replacement)), [], o), nil, nil),
+        (.use(.axiom(.zf(.replacement)), [], o), "logic", .rule),
+        (.use(.axiom(.zf(.extension)), [], o), "logic", .rule),
+        (.use(.axiom(.zf(.unionIff)), [], o), "logic", .rule),
+        (.use(.axiom(.zf(.powIff)), [], o), "logic", .rule),
+        (.use(.axiom(.zf(.foundation)), [], o), "logic", .rule),
+        (.use(.axiom(.zf(.infinity)), [], o), "logic", .rule),
+        (.use(.axiom(.zf(.choice)), [], o), "logic", .unbuilt),
         (.use(.theoryAxiom, [], o), nil, nil),
         (.isaDefinition(.zf, .object, [], args: []), "logic", .rule),
         (.isaDefinition(.zf, .object, [], args: [i]), "logic", .rule),
@@ -499,8 +505,14 @@ private struct Unbuilt: Prover {
         l.name.hasSuffix("_CLASS") ? .unbuilt : nil
     }
 
-    func prove(_: Lemma, _ statement: NodeID, _: [Definition], in _: inout Table) throws -> NodeID {
-        statement
+    func prove(
+        _: Lemma,
+        _ statement: NodeID,
+        _: [Definition],
+        _: [String: NodeID],
+        in _: inout Table,
+    ) throws -> Proved {
+        .proof(statement)
     }
 
     func defines(_: Defined) -> Owned? {

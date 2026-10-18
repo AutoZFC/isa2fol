@@ -39,6 +39,10 @@ func congruent(
                 [current[0], current[1], current[2], next[2], current[3]],
             )
 
+        case (.base("Union"), 0): (claim, variables) = (.congUnionL, [current[0], next[0], current[1]])
+
+        case (.base("Pow"), 0): (claim, variables) = (.congPowL, [current[0], next[0], current[1]])
+
         default: throw CongruenceError.noCongruence(l)
         }
         let step = try base.claimed(claim, variables, [try equal(ls[k], rs[k], &t)], in: &t)

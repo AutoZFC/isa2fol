@@ -21,6 +21,8 @@ public enum BaseStatement: String, CaseIterable, Hashable, Sendable {
     case congEqL = "cong_eq_l"
     case congEqR = "cong_eq_r"
     case congSnocV = "cong_snoc_v"
+    case congUnionL = "cong_Union_l"
+    case congPowL = "cong_Pow_l"
     case zeroEX = "zero_EX"
     case setInhabited = "set_inhabited"
     case functionInhabited = "function_inhabited"
@@ -99,6 +101,12 @@ public enum BaseStatement: String, CaseIterable, Hashable, Sendable {
     case zfInfDef = "ZF_Base.Inf_def"
     case infDef = "Inf_def"
     case indDef = "ind_def"
+    case zfExtensionNBG = "ZF_Base.extension_NBG"
+    case zfUnionIffNBG = "ZF_Base.Union_iff_NBG"
+    case zfPowIffNBG = "ZF_Base.Pow_iff_NBG"
+    case zfReplacementNBG = "ZF_Base.replacement_NBG"
+    case zfFoundationNBG = "ZF_Base.foundation_NBG"
+    case zfInfinityNBG = "ZF_Base.infinity_NBG"
 }
 
 @frozen

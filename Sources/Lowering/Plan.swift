@@ -5,7 +5,13 @@ public func plan(_ base: Base) -> [Pass] {
 }
 
 public func provers(_ base: Base) -> Provers {
-    Provers([ReifyProver(base: base), TupleProver(base: base), ClassProver(base: base), LambdaProver(base: base)])
+    Provers([
+        ReifyProver(base: base),
+        TupleProver(base: base),
+        ClassProver(base: base),
+        LambdaProver(base: base),
+        AxiomProver(base: base),
+    ])
 }
 
 public func pipeline(_ base: Base) -> Pipeline {
@@ -20,13 +26,6 @@ func unfolds(_ f: Family, _ level: Level) -> Bool {
     switch (f, level) {
     case (.pure, _), (.ifol, _), (.fol, _), (.zf, .meta): true
     case (.zf, .object): false
-    }
-}
-
-func isLogic(_ f: Family) -> Bool {
-    switch f {
-    case .pure, .ifol, .fol: true
-    case .zf: false
     }
 }
 

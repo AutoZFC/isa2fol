@@ -16,8 +16,8 @@ public struct Logic: Pass {
 
     public func owns(_ p: Pattern) -> Owned? {
         switch piece(p) {
-        case .claimed?, .instance?, .lambda?, .equality?, .classical?, .iffReflection?, .proposition?, .function?,
-             .pointwise?: .rule
+        case .claimed?, .axiom?, .instance?, .lambda?, .equality?, .classical?, .iffReflection?, .proposition?,
+             .function?, .pointwise?: .rule
         case .unbuilt?: .unbuilt
         case nil: Reify().owns(p)
         }
@@ -41,6 +41,7 @@ func walked(formula: NodeID, in t: inout Table) throws -> NodeID {
 
 private enum Piece {
     case claimed(BaseStatement)
+    case axiom
     case instance
     case lambda
     case equality(Equality)
@@ -81,7 +82,7 @@ private enum Pointwise {
 private func piece(_ p: Pattern) -> Piece? {
     switch p {
     case .use(.axiom(let a), let types, _):
-        guard isLogic(a.family), !types.contains(where: mentionsTypeVariable) else { return nil }
+        guard !types.contains(where: mentionsTypeVariable) else { return nil }
         return rule(a)
 
     case .isaConst(.primitive(.pure(.eq)), let T, _):
@@ -164,9 +165,11 @@ private func rule(_ a: Axiom) -> Piece {
     switch a {
     case .ifol(.subst):
         .claimed(.classSubst)
+    case .zf(let z):
+        z.inNBG == nil ? .unbuilt : .axiom
     case .ifol(.refl), .ifol(.impI), .ifol(.mp), .ifol(.conjI), .ifol(.conjunct1), .ifol(.conjunct2), .ifol(.disjI1),
          .ifol(.disjI2), .ifol(.disjE), .ifol(.falseE), .ifol(.allI), .ifol(.spec), .ifol(.exI), .ifol(.exE),
-         .ifol(.eqReflection), .ifol(.iffReflection), .fol(.classical), .zf:
+         .ifol(.eqReflection), .ifol(.iffReflection), .fol(.classical):
         .unbuilt
     }
 }
@@ -214,8 +217,9 @@ private struct Formulas: Rule {
         case nil:
             return try Reify().formula(n, was: id, in: &t)
 
-        case .claimed?, .instance?, .lambda?, .equality?, .classical?, .iffReflection?, .proposition(.intro)?,
-             .proposition(.hidden)?, .function(.combination)?, .pointwise(.combination)?, .pointwise(.abstract)?:
+        case .claimed?, .axiom?, .instance?, .lambda?, .equality?, .classical?, .iffReflection?,
+             .proposition(.intro)?, .proposition(.hidden)?, .function(.combination)?, .pointwise(.combination)?,
+             .pointwise(.abstract)?:
             throw LogicError.notAFormula(id)
         }
     }
@@ -245,6 +249,9 @@ private struct Steps: Rule {
         case .claimed(let s)?:
             guard case .use(_, _, let root) = n else { throw LogicError.notTheRule(id) }
             return try claimed(s, root, was: id, in: &t)
+
+        case .axiom?:
+            return try axiomCited(n, was: id, in: &t)
 
         case .instance?:
             let p = children(n)[0]

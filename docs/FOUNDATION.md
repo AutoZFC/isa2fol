@@ -77,6 +77,15 @@ by axiom 1, with no case split.
 17. Separation `∀A B. set(B) → ∃z. set(z) ∧ ∀u.(u∈z ↔ (u∈B ∧ u∈A))`
 
 **IV** — 18. Regularity · 19. Choice
+18. Regularity `∀A. (∃u. set(u) ∧ u∈A) → ∃u. set(u) ∧ u∈A ∧ ∀v. (set(v) → (v∈u → ¬ v∈A))`
+
+Regularity is NBG's axiom D as Mendelson states it: a class with a member has a
+member disjoint from it. `A` is a class, unguarded; `X ≠ ∅` is "`A` has a member"
+and `u ∩ X = ∅` "no member of `u` is in `A`", there being no function symbol for
+`∩` or `∅`. Isabelle's `foundation` is its instance at a set. NBG with it is a
+conservative extension of ZF; without it the base answers to ZF without
+Foundation, which does not prove `foundation` (Rieger's permutation models).
+Choice is named and not stated: no statement of the base needs it yet.
 
 `set(·)` guards are written explicitly. They are mandatory on B3: unguarded, the
 complement of `∅` is the class of all objects → collapse.
@@ -705,6 +714,21 @@ constants in order, so EX/UNIQ/CONG propagate by induction. Three base cases:
   > **⚠ THIS SAID A PRIMITIVE IS *INTRODUCED*, `∃!r. C(r)` ADMITTED BECAUSE
   > `⊢ ∃x. φ(x)`.** Existence does not license uniqueness, and `base/` admitted
   > `Inf` by Skolemisation: an axiom outside the 19, against R1.
+
+  **Isabelle's axioms of the primitives are theorems.** The base states each in
+  NBG's words — a primitive by its relation, `Union(C, u)` for `u = ⋃(C)`, and a
+  predicate Isabelle defines by its definition, `∃B∈C. A∈B` as `∃B. B∈C ∧ A∈B` —
+  and proves it from §1: `extension` from Extensionality, `Union_iff`, `Pow_iff`
+  and `replacement` from the relations' own axioms, `foundation` from
+  Regularity, `infinity` from Infinity through the least inductive set. Isabelle's
+  form follows by reading those words back: a defined predicate by its pointwise
+  definition, a primitive's application by its class at its tuple — the `@def`
+  read at the tuple's entries. `infinity` holds `succ`, a function Isabelle defines
+  through `cons`, `∪`, `Upair` and `Replace`: its members are read by `succ_iff`,
+  `i ∈ succ(j) ⟷ i = j ∨ i ∈ j`, a theorem Isabelle proves from the other axioms
+  and not from `infinity`, so the least inductive set, closed under `y ∪ {y}`, is
+  closed under `succ` by Extensionality. Nothing is admitted (R1); `AC.AC` waits for
+  Choice.
 - **definite descriptions** are total and single-valued *provided* the
   `∅`-default is present; a bare Hilbert `ι` loses totality. **`The` is not one
   of these**, and an earlier version of this list said it was. Isabelle *defines*
@@ -1262,6 +1286,7 @@ specialisation at `kpair`.
 | a variable only the proof uses (`dummy_pattern`) | the witness of an `exists_elim` at the proof's top, below its letters, over its type's inhabitation |
 | `AppT` at a term, of a box's `AbsT` at a type taking a function | the box's proof at the term: no binder, as Isabelle substitutes |
 | Pure's equality rules at a type with an argument taking a function, concluding `t ≡ t` | `reflexive t`; any other conclusion there has no reading |
+| `Axm` of ZF — `extension`, `Union_iff`, `Pow_iff`, `replacement`, `foundation`, `infinity` | the base's statement of it in NBG's words, read back into Isabelle's form (S3) |
 
 **THE KERNEL'S ∃-INTRODUCTION FINDS ITS BODY; ISABELLE'S IS GIVEN IT.** From `φ` and a variable `a`, `exists_intro`
 concludes `∃y. φ′`, where `φ′` binds every occurrence of `a` in `φ`. `exI` concludes `∃y. P(y)` from `P(a)`, its `P`

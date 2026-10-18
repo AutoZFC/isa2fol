@@ -15,6 +15,7 @@ public protocol Pass {
 public enum Proved: Hashable, Sendable {
     case proof(NodeID)
     case unbuilt
+    case cites(String)
 }
 
 @frozen
@@ -24,7 +25,13 @@ public enum Stated: Hashable, Sendable {
 }
 
 public protocol Registry {
-    func prove(_ lemma: Lemma, _ statement: NodeID, _ definitions: [Definition], in t: inout Table) throws -> Proved
+    func prove(
+        _ lemma: Lemma,
+        _ statement: NodeID,
+        _ definitions: [Definition],
+        _ theorems: [String: NodeID],
+        in t: inout Table,
+    ) throws -> Proved
     func define(_ c: Defined, _ definitions: [Definition], in t: inout Table) throws -> Stated
 }
 
@@ -462,6 +469,10 @@ private struct Run {
 
     mutating func prove() throws {
         guard let registry, let r = proving else { return }
+        var theorems = [String: NodeID]()
+        for l in live where l.statement.lemma == nil && l.statement.defines == nil {
+            theorems[l.statement.name] = l.statement.root
+        }
         var next = 0
         var unbuilt = Set<Int>()
         while next < live.count {
@@ -475,9 +486,14 @@ private struct Run {
                     unbuilt.insert(next)
                     continue
                 }
-                switch try registry.prove(l, root, reached, in: &unit.table) {
+                switch try registry.prove(l, root, reached, theorems, in: &unit.table) {
                 case .unbuilt:
                     unit.refuse(l.name, .lemmaUnbuilt)
+                    unbuilt.insert(next)
+                    continue
+
+                case .cites(let name):
+                    unit.refuse(l.name, .cites(name))
                     unbuilt.insert(next)
                     continue
 

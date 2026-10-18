@@ -1,5 +1,5 @@
 # STATE — isa2fol
-HEAD "Step 9: a box's variable at a function of classes substituted where it is cited, Pure's equality there reflexive" (parent `b157c533`) · primitives · 2026-10-18.  RUN §0 BEFORE TRUSTING ANY LINE BELOW.
+HEAD "Step 8: ZF's axioms derived from NBG, read back into Isabelle's form; Regularity pinned" (parent `84f39eaa`) · primitives · 2026-10-18.  RUN §0 BEFORE TRUSTING ANY LINE BELOW.
 
 ## 0. Staleness checks
 `$ZF` is `--skip ZF-AC,ZF-Coind,ZF-Constructible,ZF-IMP,ZF-Induct,ZF-Resid,ZF-ex`: every run is the ZF session alone
@@ -8,17 +8,17 @@ until it is fully translated (user). Lint before every run: `pre-commit run --al
 | command | expect |
 |---|---|
 | `git branch --show-current` | `primitives` |
-| `git log -1 --format=%s` | `Step 9: a box's variable at a function of classes substituted where it is cited, Pure's equality there reflexive` |
+| `git log -1 --format=%s` | `Step 8: ZF's axioms derived from NBG, read back into Isabelle's form; Regularity pinned` |
 | `git status --short \| wc -l` | `0` |
 | `git rev-parse --short kinds-proposal` | `21ca100f` |
-| `find Sources -name '*.swift' -exec cat {} + \| grep -cv '^\s*$'` | `12897` |
+| `find Sources -name '*.swift' -exec cat {} + \| grep -cv '^\s*$'` | `13572` |
 | `git -C ~/repos/fol-zfc-comb log -1 --format=%h` | `224d60e` (branch `libraries-and-streaming`) |
-| `grep -c '^axiom ' base/axioms.fol.def` | `17` — NBG and `elem_first_subst`; the tiers admit none |
+| `grep -c '^axiom ' base/axioms.fol.def` | `18` — NBG with Regularity, and `elem_first_subst`; Choice unstated; the tiers admit none |
 | `pre-commit run --all-files` | `SwiftFormat ... Passed`, `SwiftLint ... Passed` |
-| `MEM=48G scripts/capped.sh swift test 2>&1 \| grep "Test run with"` | five lines, all passed: 14, 140, 119, 119, 42 tests |
-| `MEM=16G scripts/capped.sh scripts/check-base.sh` | 14 tiers, each `exit 0  stderr 0`; `logic` Schemas proved 10 of 10; `metafun` Proved 19 of 19 |
-| `swift build -c release`, then `MEM=48G scripts/capped.sh .build/release/isa2fol lower data/zf_export --through logic $ZF` (about 3 min) | `through logic: 2611 named theorems stand`; `no owner: 680`; `logic, unbuilt: 325` |
-| `MEM=32G scripts/capped.sh .build/release/isa2fol lower data/zf_export $ZF --emit DIR --threads 48` (5:00, 12.8 GB; the CI), then `MEM=32G scripts/capped.sh scripts/check-unit.sh DIR` | `lowered … 210`; `left out, no kept statement citing them: 7062 lemmas, 0 @defs`; `cites a refused statement: 2401`, led by `ZF_Base.Union_iff` 216; 32 parts, every one `exit 0  stderr 0`; claims 2170 of 2170, schemas 110 of 110 |
+| `MEM=48G scripts/capped.sh swift test 2>&1 \| grep "Test run with"` | five lines, all passed: 14, 140, 126, 121, 43 tests |
+| `MEM=16G scripts/capped.sh scripts/check-base.sh` | 14 tiers, each `exit 0  stderr 0`; `axioms` Proved 8 of 8; `logic` Schemas proved 10 of 10; `metafun` Proved 19 of 19; `zf` Proved 19 of 19 |
+| `swift build -c release`, then `MEM=48G scripts/capped.sh .build/release/isa2fol lower data/zf_export --through logic $ZF` (about 3 min) | `through logic: 2617 named theorems stand`; `no owner: 673`; `logic, unbuilt: 326` |
+| `MEM=32G scripts/capped.sh .build/release/isa2fol lower data/zf_export $ZF --emit DIR --threads 48` (4:37; the CI), then `MEM=32G scripts/capped.sh scripts/check-unit.sh DIR` | `lowered … 215`; `left out, no kept statement citing them: 7058 lemmas, 0 @defs`; `cites a refused statement: 2402`, led by `IFOL.iffD2` 128; 32 parts, every one `exit 0  stderr 0`; claims 2189 of 2189, schemas 110 of 110 |
 If any row disagrees, THIS FILE IS STALE. Trust the code and fix this file first.
 
 ## 1. Where
@@ -26,91 +26,79 @@ If any row disagrees, THIS FILE IS STALE. Trust the code and fix this file first
 `224d60e`, built only with `bazel build -c opt`. `kinds-proposal` (`21ca100f`) is the REFERENCE.
 
 ## 2. Read these first-hand
-- `DESIGN.md` "Step 9 — the definition command's local constant": the two agreed decisions (a box binding a variable
-  whose type takes a function read at its citation; Pure's equality there reflexive, in Expand), FOUNDATION §3b's
-  paragraph and rows, and **Decisions made in the build** 1–3 for the user's review.
-- `DESIGN.md` "Review after step 5 — the small fixes": what the review fixed, and **For the user's decision** —
-  `combination`'s two constructions; `isaHidden` at `o`. The η-long variable named by itself, in a slot or at an
-  instance, is DECIDED AGAINST (user, 2026-10-17): step 3's one rule stands. Reify's formula naming is BUILT: "Reify's
-  formula naming by Logic's walk", its one build decision for the user's review.
-- `DESIGN.md` "Step 5 — a ZF definition cited": the two agreed decisions, and **Decisions made in the build** 1–6 for
-  the user's review — 5 and 6 fix earlier steps' code (step 4's `reflexive`, lazy proving's set-aside).
-- `Sources/Lowering/Unfolding.swift` — `unfolded` (the rule), `UnfoldingProofs`, `readBack` (class parameters).
-- `Sources/IR/Pass.swift` `Run.pruned`, `add`, `setAside`, `linked` — a request no remaining statement cites is set
-  aside, and comes back when a proof the registry makes cites it.
-- `Sources/Lowering/Lambda.swift` `LambdaProofs.classAtArguments`, `atTuple`, `LambdaInstance.equivalence` — shared
-  with step 5's prover; `atArguments` (a free function) is the formula they prove.
-- `DESIGN.md` "The steps after class existence, in order" — steps 6 and 8 remain, and 9's other pieces; the refusals
-  order them.
+- `DESIGN.md` "Step 8 — ZF's axioms, derived from NBG": the three agreed decisions (base states each axiom in NBG's
+  words and a lemma per axiom reads it back; Regularity, Mendelson's axiom D; `infinity`'s `succ` read by `upair.succ_iff`,
+  emission placing a statement no earlier than what it cites), and **Decisions made in the build** 1–5 for review.
+- `Sources/Lowering/Axioms.swift` — `AxiomProver.prove`, `AxiomReading.target` / `hole` (the three readings),
+  `primitiveProof` (class at tuple, `AtTuple`), `functionProof` and `Members` (the members theorem, the term's UNIQ).
+- `base/tiers/zf.fol.def` — the six `ZF_Base.a_NBG` statements, `cong_Union_l`, `cong_Pow_l`, `tup2_uniq`,
+  `slot_p_q`, `slot_q_p`; `base/axioms.fol.def` — `regularity`, `no_self_member`.
+- `DESIGN.md` "Step 9 — the definition command's local constant", "Review after step 5 — the small fixes": decisions
+  still for the user's review.
+- `DESIGN.md` "The steps after class existence, in order" — 6 remains, and 9's other pieces; the refusals order them.
 
 ## 3. Invariants
 | invariant | enforced by |
 |---|---|
 | a unit is valid only when every part exits 0, stderr empty, every claim and schema Proved | `scripts/check-unit.sh`, `check-base.sh` |
-| nothing Isabelle states is admitted: base admits 17 axioms | §0's `grep`; `check-base.sh` |
+| nothing Isabelle states is admitted: base admits 18 axioms, NBG's with Regularity | §0's `grep`; `check-base.sh` |
 | each pattern has the owner the division gives it, one at most | `eachPatternHasTheOwnerTheDivisionGivesIt` |
-| a ZF definition cited concludes its `c_UNFOLD` instantiated at its terms, by ID, at every kind of constant | `DefinitionTests` (seven), `aFunctionsUnfoldingIsProvedFromItsDef` |
-| an isa ∃-intro concludes the body it is given | `anExistentialIntroConcludesTheBodyItIsGiven`, `ExIntroTests` |
-| a box binding a variable whose type takes a function is read at its citation; Pure's equality at a type with an argument taking one is `reflexive` or nothing | `aBoxBindingAVariableTakingAFunctionIsReadAtItsCitation`, `pureEqualityAtATypeTakingAFunctionIsReflexivityWhenItsSidesAreOneTerm` |
-| a lemma is proved only for a statement that stands, directly or through the proofs of lemmas so proved | `aLemmaRequestedByAStatementCitingARefusedOneIsNeverProved`, `aLemmaSetAsideAndCitedByAProofLaterIsProvedAndKept` |
+| a ZF axiom cited is its lemma, proved from base's statement in NBG's words | `AxiomTests` (eight) |
+| the registry hands provers the named statements; a prover's `cites` refuses the lemma citing it | `theRegistryHandsItsProversTheNamedStatements`, `aLemmaCitingAStatementTheUnitLacksIsRefusedCitingIt` |
+| a statement is emitted no earlier than any statement it cites | `aStatementIsPlacedNoEarlierThanWhatItCites` |
+| a ZF definition cited concludes its `c_UNFOLD` instantiated at its terms, by ID | `DefinitionTests` (seven), `aFunctionsUnfoldingIsProvedFromItsDef` |
+| a box binding a variable whose type takes a function is read at its citation | `aBoxBindingAVariableTakingAFunctionIsReadAtItsCitation` |
+| a lemma is proved only for a statement that stands, directly or through lemmas so proved | `aLemmaRequestedByAStatementCitingARefusedOneIsNeverProved`, `aLemmaSetAsideAndCitedByAProofLaterIsProvedAndKept` |
 | format and lint are the tools', before every run of the program | `pre-commit run --all-files`; the commit hook |
 | every build, test, checker and lowering run is capped | `scripts/capped.sh` |
 
 **Standing warnings — each repeated silently otherwise:**
-- ⚠ **AN INSTANCE OR A LEMMA REQUEST IS BUILT FROM `t[id]`, NEVER FROM `n`'S CHILDREN**: `n` holds the walk's naming,
-  and a named λ in an EX request is one the class prover cannot read (`unread`) — step 4's `reflexive` did it.
-- ⚠ **A TEST INTERNS EVERY NODE BEFORE ITS TABLE IS PASSED**: `lowered(l, [Statement(… try cited(…, &l) …)])` copies
-  `l` first, and the citation is missing from the unit's table (`unproved … conclusion: nil`). Bind, then call.
-- ⚠ **A BINDER AT `iⁿ ⇒ i` INSTANTIATED AT A CLASS LEAVES `function(K)` A PREMISE**: discharge it, as `LambdaInstance`
-  and `readBack` do, or the next step mismatches (`premiseMismatch`).
-- ⚠ **AN ∃-INTRO STATES ITS BODY, NEVER FINDS IT**: abstracting the witness binds every occurrence, wrong at a value.
-- ⚠ **A CITATION FOL BUILDS AFTER ITS WALK MUST PARSE TO FOL-ZFC NODES**: `ex_intro` is bare for this.
-- ⚠ **`t[try instantiate(…)]`, `t[try equation(…)]`, `t[try s.hypothesis(…)]` READ A COPY TAKEN BEFORE THE MUTATION**
-  (rule 13). Bind first.
-- ⚠ **A STEP'S REACH IS READ IN THE REFUSALS, NEVER IN THE UNIT'S SIZE**; the report's `cites a refused statement`
-  counts name each theorem's least refused citation only — follow citations down before ordering steps.
-- ⚠ **A STEP THAT LETS STATEMENTS STAND REACHES CODE NO RUN REACHED**: their lemmas are proved for the first time, and
-  earlier steps' bugs surface in the complete run (step 5 met two). Run the complete run, not only through logic.
-- ⚠ **A DEFINIENS IS NEVER CLOSED LETTERS FIRST**: its λs are its constant's positional parameters.
-- ⚠ **`pre-commit run --all-files` LINTS TRACKED FILES ONLY**: `git add` a new file first; SwiftFormat may reorder
-  declarations a change makes internal — lint before the tests and the build.
-- ⚠ **A FORMULA LOGIC REWRITES IS OWED A READING IN `Replacement`**; a truth-set variable reads `holds(E)`.
-- ⚠ **THE TABLE TRUSTS A CITATION'S ROOT**: kernel-check every new reach.
-- ⚠ **FOL TRANSFORMS EACH STATEMENT BY ITSELF**: one transform over every root passed 32 GB.
-- ⚠ **A SECOND COPY OF A PASS'S REWRITE DIVERGES SILENTLY.** Rules conclude `walked`, the walk's own rule; a λ's
-  class definition is `walked(formula:)`. ⚠ `walked(_:base:)` WALKS PROOFS TOO (Lambda's β at a compound term), and
-  `walked(formula:)` refuses every step at `notAFormula`, read from the table's sort, never the piece
-  (`theFormulaWalkRefusesAStepWhateverItsPiece`).
-- ⚠ **THE RELEASE BINARY IS NOT REBUILT BY `swift test`**: `swift build -c release` before a run.
-- ⚠ **STATE GOES IN ITS STEP'S COMMIT**, never a commit of its own.
+- ⚠ **A FORMULA BUILT AT ONE FRAME IS LIFTED BEFORE A DEEPER FRAME READS IT** (`Scope.lift`): read under more binders it
+  names other variables, and the table reports a premise mismatch far from the cause (`Members.members`).
+- ⚠ **BASE'S `_NBG` STATEMENTS ARE THE PROVER'S WORDS, CHECKED ONLY BY THE KERNEL**: the citation's root is the words the
+  prover computes; a change to the walk's rendering of an atom must be matched in `base/tiers/zf` (`AxiomTests` catch it).
+- ⚠ **AN INSTANCE OR A LEMMA REQUEST IS BUILT FROM `t[id]`, NEVER FROM `n`'S CHILDREN**: `n` holds the walk's naming.
+- ⚠ **A TEST INTERNS EVERY NODE BEFORE ITS TABLE IS PASSED**: bind, then call.
+- ⚠ **A BINDER AT `iⁿ ⇒ i` INSTANTIATED AT A CLASS LEAVES `function(K)` A PREMISE**: discharge it, or the next step mismatches.
+- ⚠ **AN ∃-INTRO STATES ITS BODY, NEVER FINDS IT**; a citation Fol builds after its walk must parse to fol-zfc nodes.
+- ⚠ **`t[try instantiate(…)]`, `t[try graphs.definitionCited(…)]` READ A COPY TAKEN BEFORE THE MUTATION** (rule 13): an index
+  out of range when the node is new. Bind first.
+- ⚠ **A STEP'S REACH IS READ IN THE REFUSALS, NEVER IN THE UNIT'S SIZE OR THE CLOSURES' BOUND**: step 8's closures bounded
+  1,571 more; the refusals moved to the logic's own theorems.
+- ⚠ **A STEP THAT LETS STATEMENTS STAND REACHES CODE NO RUN REACHED**: run the complete run, not only through logic.
+- ⚠ **A DEFINIENS IS NEVER CLOSED LETTERS FIRST**; ⚠ **`pre-commit run --all-files` LINTS TRACKED FILES ONLY** (`git add`
+  first).
+- ⚠ **THE TABLE TRUSTS A CITATION'S ROOT**: kernel-check every new reach. ⚠ **FOL TRANSFORMS EACH STATEMENT BY ITSELF.**
+- ⚠ **A SECOND COPY OF A PASS'S REWRITE DIVERGES SILENTLY**: the axioms' prover reads a definition through `unfolding`,
+  Reify's, and a class at its tuple through `AtTuple`, the unfolder's.
+- ⚠ **THE RELEASE BINARY IS NOT REBUILT BY `swift test`**; ⚠ **STATE GOES IN ITS STEP'S COMMIT.**
 
 ## 4. State
 | claim | verified by |
 |---|---|
-| ZF (3,616 named): 210 lowered; refused: no owner 680, logic 325, cites a refused statement 2,401 | §0's complete run |
-| the refused citations are led by ZF's axioms `ZF_Base.Union_iff` 216, `Pow_iff` 44, `extension` 41 (step 8), the lemmas `Replace_iff` 140, `Inter_iff` 89, `RepFunI` 45 (refused in turn), `Bool.cond_DEF` 25 (step 6) | the same report |
-| no owner is led by `use(theorem, [i], o)` 668 | §0's through-logic report |
-| Logic's 325: all `isaConst(defined zf object, o ⇒ i ⇒ i ⇒ i)` — `If` (step 6) | the same report |
-| complete run: read 48.3 s; expand 2.4, logic 169.2, registry 26.8, fol 33.4, link 2.8 s; 249.1 MB; 42.3M nodes | §0's complete run |
-| the unit holds 162 `c_UNFOLD` lemmas, 97,761 steps; 162 `@def`s stated, 69 refused; no lemma refused unbuilt | the same report, `steps by kind` |
-| comments 61/12897 = 0.5% of `Sources` | `CLAUDE.md` rule 9's script |
+| ZF (3,616 named): 215 lowered; refused: no owner 673, logic 326, cites a refused statement 2,402 | §0's complete run |
+| `ZF_Base.extension`, `Union_iff`, `Pow_iff`, `replacement`, `foundation` and their `_AXIOM` lemmas are in the unit, kernel-checked | `grep '^claim ZF_Base\.' DIR/ZF.ZF_Base.fol.def`; §0's check |
+| `ZF_Base.infinity` falls citing `ZF_Base.infinity_AXIOM`, which falls with `upair.succ_iff` (it cites `IFOL.iffD1`, `upair.UpairI1`) | `lower … $ZF --theorem upair.succ_iff,ZF_Base.infinity` |
+| the refused citations are led by `IFOL.iffD2` 128, `FOL.IFOL_simps.32` 111, `ZF_Base.Replace_iff` 108 (it cites `IFOL_simps.32`), `Inter_iff` 76, `RepFunI` 71, `IFOL.notI` 54, `IFOL.iffD1` 45, `Bool.cond_DEF` 25 | §0's complete run; `--theorem ZF_Base.Replace_iff` |
+| no owner is led by `use(theorem, [i], o)` 668; Logic's 326: `If` (325) and `AC.AC` | §0's through-logic report |
+| complete run: read 46.3 s; expand 2.2, logic 151.9, registry 24.4, fol 32.2, link 2.7 s; 249.9 MB; 42.4M nodes | §0's complete run |
+| comments 64/13572 = 0.5% of `Sources` | `CLAUDE.md` rule 9's script |
 
 ## 5. Beliefs — NOT verified
-- `use(theorem, [i], o)` is `FOL.meta_simps.1` (`(⋀x::'a. PROP V) ≡ PROP V`) at `[i]` in the statements holding it: its
-  statement is read from `FOL/theory/thms`; that the 668 hold it alone came from a throwaway dump, not kept.
+- `use(theorem, [i], o)` is `FOL.meta_simps.1` at `[i]`: from a throwaway dump, not kept.
+- `IFOL.iffD1`, `iffD2`, `notI` and `FOL.IFOL_simps.32` are refused at `not_def` / `iff_def`, "a variable of type `o ⇒ o`"
+  (CLAUDE.md): not traced this session.
 - `SOURCE_SURFACE.md` predates step 7 and `exI`'s step: its `isaFree(.hidden)` rows and `exI` citations are stale.
 
 ## 6. Open decisions
-- **The review's open items** (`DESIGN.md` "Review after step 5"): `combination`'s two constructions; `isaHidden` at
-  `o`.
-- **The next step.** By the refusals: 8, ZF's axioms (`Union_iff` 216, `Pow_iff` 44, `extension` 41 lead the refused
-  citations; `Replace_iff` 140 is a lemma — follow citations down first); 6, `If` (325 at logic; `Bool.cond_DEF` 25);
-  `use(theorem, [i], o)`, believed `FOL.meta_simps.1` at `[i]` (668 at no owner).
-- For review: step 9's three build decisions; step 5's six build decisions; "Lazy proving"'s three, "Step 7"'s eight, "An ∃-intro carrying its body"'s
-  2–4, "Letters first"'s two, "Step 4"'s four; merging the checker branch.
+- **The next step.** By the refusals: the logic's own theorems (`IFOL.iffD2` 128, `FOL.IFOL_simps.32` 111, `IFOL.notI` 54,
+  `IFOL.iffD1` 45 — trace why each falls first); 6, `If` (325 at logic; `Bool.cond_DEF` 25); `use(theorem, [i], o)`
+  (668 at no owner); `AC.AC` (Choice, Pi).
+- **For review**: step 8's five build decisions; step 9's three; step 5's six; "Lazy proving"'s three, "Step 7"'s eight,
+  "An ∃-intro carrying its body"'s 2–4, "Letters first"'s two, "Step 4"'s four; the review's open items (`combination`'s
+  two constructions, `isaHidden` at `o`); merging the checker branch.
 
 ## 7. Next action
-Get the user's decision on the review's open items and the choice of the next step; then
-write its section in `DESIGN.md` — the problem in target text, its
+Get the user's choice of the next step; then write its section in `DESIGN.md` — the problem in target text, its
 decisions, the contracts, the tests first — and agree it decision by decision before any code. Done when the user has
 agreed every decision of that section.

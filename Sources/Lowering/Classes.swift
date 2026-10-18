@@ -41,8 +41,9 @@ public struct ClassProver: Prover {
         _ l: Lemma,
         _ statement: NodeID,
         _ definitions: [Definition],
+        _: [String: NodeID],
         in t: inout Table,
-    ) throws -> NodeID {
+    ) throws -> Proved {
         let proofs = ClassProofs(base: base, definitions: definitions)
         let proof: NodeID
         switch l.request {
@@ -60,7 +61,7 @@ public struct ClassProver: Prover {
         default: throw ClassError.notMine(l.name)
         }
         guard t.conclusion(of: proof) == statement else { throw ClassError.misproved(l.name) }
-        return proof
+        return .proof(proof)
     }
 
     public func defines(_: Defined) -> Owned? {

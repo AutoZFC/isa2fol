@@ -10,15 +10,47 @@ func unfolded(_ n: Node, was id: NodeID, base: Base, in t: inout Table) throws -
     guard case .isaDefinition(_, .constant(let c), _, let stated, let args) = t[id] else {
         throw UnfoldingError.notADefinition(id)
     }
-    let statement = children(n)[0]
+    return try unfolding(c, stated: stated, statement: children(n)[0], at: args, base: base, in: &t)
+}
+
+func unfolding(
+    _ c: Defined,
+    stated: NodeID,
+    statement: NodeID,
+    at args: [NodeID],
+    base: Base,
+    in t: inout Table,
+) throws -> NodeID {
     var proof = try cited(Unfolding(constant: c, statement: statement), statement, &t)
     var at = stated
     for a in args {
-        guard case .ifolAll(let T, let body) = t[at] else { throw UnfoldingError.notADefinition(id) }
+        guard case .ifolAll(let T, let body) = t[at] else { throw UnfoldingError.notADefinition(stated) }
         proof = try Functions(base: base).instance(proof, of: at, at: a, T, in: &t)
         at = try instantiate(body, with: a, in: &t)
     }
     return proof
+}
+
+func pointwiseDefinition(_ c: Defined, _ d: Definition, in t: inout Table) throws -> NodeID {
+    let domains = d.type.domains
+    let n = domains.count
+    let arguments = try domains.indices.map { k in try etaLong(try t.intern(.isaBound(n - 1 - k, domains[k])), in: &t) }
+    let defined = try t.intern(.isaConst(.defined(c), d.type, args: arguments))
+    var stated = try t.equation(result(d.type), defined, try beta(d.definiens, arguments, in: &t))
+    for T in domains.reversed() { stated = try t.intern(.ifolAll(T, body: stated)) }
+    return stated
+}
+
+func etaLong(_ x: NodeID, in t: inout Table) throws -> NodeID {
+    guard let T = t.type(of: x) else { throw UnfoldingError.notADefinition(x) }
+    let m = T.domains.count
+    guard m > 0 else { return x }
+    var lambda = try t.intern(.isaVarApp(
+        head: try shift(x, by: m, in: &t),
+        args: try (0..<m).map { try t.intern(.isaBound(m - 1 - $0, .i)) },
+    ))
+    for _ in 0..<m { lambda = try t.intern(.isaAbs(.i, body: lambda)) }
+    return lambda
 }
 
 struct UnfoldingProofs {
@@ -81,8 +113,8 @@ private struct Unfolder {
     func function(_ matrix: NodeID, _ f: Frame, _ t: inout Table) throws -> NodeID {
         var f = f
         let (ks, hks) = try slotClasses(&f, &t)
-        let (c, hc) = try f.open(try classExists(ks, f, &t), in: &t)
-        let (tw, ht) = try f.open(try tupleExists(f, &t), in: &t)
+        let (c, hc) = try f.open(try atTuple.classExists(ks, f, &t), in: &t)
+        let (tw, ht) = try f.open(try atTuple.tupleExists(f, &t), in: &t)
         let total = ConstantFact(constant: constant, type: definition.type, fact: .totality)
         let classes = try (ks + [c]).map { try f.variable($0, in: &t) }
         let atC = try eliminated(
@@ -100,7 +132,7 @@ private struct Unfolder {
             ),
             in: &t,
         )
-        let member = try converted(c, ks, hc, tw, ht, value: r, &f, &t)
+        let member = try atTuple.converted(c, ks, hc, tw, ht, value: r, &f, &t)
         let valued = try t.intern(.folIffElimL(member, try f.hypothesis(hr, in: &t)))
         let core = try readBack(ks, hks, value: r, f, &t).map { try t.intern(.folIffElimL($0, valued)) } ?? valued
         return try f.close(
@@ -125,7 +157,7 @@ private struct Unfolder {
         let hc = try fw.have(try fw.proof(o.constraints[k], in: &t), in: &t)
         let ht = try fw.have(try fw.proof(o.constraints[k + 1], in: &t), in: &t)
         let ks = Array(o.witnesses[..<k])
-        let member = try converted(o.witnesses[k], ks, hc, o.witnesses[k + 1], ht, value: nil, &fw, &t)
+        let member = try atTuple.converted(o.witnesses[k], ks, hc, o.witnesses[k + 1], ht, value: nil, &fw, &t)
         var reached = try t.intern(.folIffElimL(member, try fw.proof(o.core, in: &t)))
         if let read = try readBack(ks, hks, value: nil, fw, &t) { reached = try t.intern(.folIffElimL(read, reached)) }
         let forward = try fw.close(reached, in: &t)
@@ -133,9 +165,9 @@ private struct Unfolder {
         var bw = f
         let hb = bw.assume(try bw.scope.lift(right, from: depth, in: &t))
         let (bks, bhks) = try slotClasses(&bw, &t)
-        let (c, hc2) = try bw.open(try classExists(bks, bw, &t), in: &t)
-        let (tw, ht2) = try bw.open(try tupleExists(bw, &t), in: &t)
-        let member2 = try converted(c, bks, hc2, tw, ht2, value: nil, &bw, &t)
+        let (c, hc2) = try bw.open(try atTuple.classExists(bks, bw, &t), in: &t)
+        let (tw, ht2) = try bw.open(try atTuple.tupleExists(bw, &t), in: &t)
+        let member2 = try atTuple.converted(c, bks, hc2, tw, ht2, value: nil, &bw, &t)
         var body = try bw.hypothesis(hb, in: &t)
         if let read = try readBack(bks, bhks, value: nil, bw, &t) { body = try t.intern(.folIffElimR(read, body)) }
         let inC = try t.intern(.folIffElimR(member2, body))
@@ -162,6 +194,10 @@ private struct Unfolder {
 
     private var slots: [Int] {
         variables.indices.filter { domains[$0] != .i }
+    }
+
+    private var atTuple: AtTuple {
+        AtTuple(base: base, graphs: graphs, constant: constant, type: definition.type, sets: sets, name: name)
     }
 
     private func slotClasses(_ f: inout Frame, _ t: inout Table) throws -> (classes: [Int], definitions: [Int]) {
@@ -194,58 +230,6 @@ private struct Unfolder {
         ))
         for _ in 0..<m { lambda = try t.intern(.isaAbs(.i, body: lambda)) }
         return lambda
-    }
-
-    private func classExists(_ ks: [Int], _ f: Frame, _ t: inout Table) throws -> NodeID {
-        let fact = ConstantFact(constant: constant, type: definition.type, fact: .classExists)
-        return try eliminated(
-            try cited(fact, try statement(fact, in: &t), &t),
-            at: try ks.map { try f.variable($0, in: &t) },
-            in: &t,
-        )
-    }
-
-    private func tupleExists(_ f: Frame, _ t: inout Table) throws -> NodeID {
-        let fact = TupleFact(arity: sets.count, fact: .existence)
-        return try eliminated(
-            try cited(fact, try statement(fact, in: &t), &t),
-            at: try sets.map { try f.variable($0, in: &t) },
-            in: &t,
-        )
-    }
-
-    private func converted(
-        _ c: Int,
-        _ ks: [Int],
-        _ hc: Int,
-        _ tw: Int,
-        _ ht: Int,
-        value r: Int?,
-        _ f: inout Frame,
-        _ t: inout Table,
-    ) throws -> NodeID {
-        let def = try graphs.graph(constant, c, ks, hc)(f.scope, &t)
-        let at = try eliminated(def, at: try ([tw] + (r.map { [$0] } ?? [])).map { try f.variable($0, in: &t) }, in: &t)
-        guard let stated = t.conclusion(of: at) else { throw TableError.expectedStep(at) }
-        var entries = try sides(at, t).right
-        for x in sets {
-            guard case .ifolEx(.i, let body) = t[entries] else { throw UnfoldingError.notAnUnfolding(name) }
-            entries = try instantiate(body, with: try f.variable(x, in: &t), in: &t)
-        }
-        guard case .folAnd(_, let body) = t[entries], case .folIff = t[stated] else {
-            throw UnfoldingError.notAnUnfolding(name)
-        }
-        let d = try f.have(at, in: &t)
-        let level = f.scope.depth
-        return try LambdaProofs(base: base).atTuple(
-            d,
-            ht,
-            sets,
-            tw,
-            { g, t in try g.scope.lift(body, from: level, in: &t) },
-            f,
-            &t,
-        )
     }
 
     private func readBack(
@@ -318,5 +302,66 @@ private struct Unfolder {
         let body = try beta(definition.definiens, args, in: &t)
         guard let r else { return body }
         return try equation(try s.variable(r, in: &t), body, in: &t)
+    }
+}
+
+struct AtTuple {
+    let base: Base
+    let graphs: GraphProofs
+    let constant: Constant
+    let type: IRType
+    let sets: [Int]
+    let name: String
+
+    func classExists(_ ks: [Int], _ f: Frame, _ t: inout Table) throws -> NodeID {
+        let fact = ConstantFact(constant: constant, type: type, fact: .classExists)
+        return try eliminated(
+            try cited(fact, try statement(fact, in: &t), &t),
+            at: try ks.map { try f.variable($0, in: &t) },
+            in: &t,
+        )
+    }
+
+    func tupleExists(_ f: Frame, _ t: inout Table) throws -> NodeID {
+        let fact = TupleFact(arity: sets.count, fact: .existence)
+        return try eliminated(
+            try cited(fact, try statement(fact, in: &t), &t),
+            at: try sets.map { try f.variable($0, in: &t) },
+            in: &t,
+        )
+    }
+
+    func converted(
+        _ c: Int,
+        _ ks: [Int],
+        _ hc: Int,
+        _ tw: Int,
+        _ ht: Int,
+        value r: Int?,
+        _ f: inout Frame,
+        _ t: inout Table,
+    ) throws -> NodeID {
+        let def = try graphs.graph(constant, c, ks, hc)(f.scope, &t)
+        let at = try eliminated(def, at: try ([tw] + (r.map { [$0] } ?? [])).map { try f.variable($0, in: &t) }, in: &t)
+        guard let stated = t.conclusion(of: at) else { throw TableError.expectedStep(at) }
+        var entries = try sides(at, t).right
+        for x in sets {
+            guard case .ifolEx(.i, let body) = t[entries] else { throw UnfoldingError.notAnUnfolding(name) }
+            entries = try instantiate(body, with: try f.variable(x, in: &t), in: &t)
+        }
+        guard case .folAnd(_, let body) = t[entries], case .folIff = t[stated] else {
+            throw UnfoldingError.notAnUnfolding(name)
+        }
+        let d = try f.have(at, in: &t)
+        let level = f.scope.depth
+        return try LambdaProofs(base: base).atTuple(
+            d,
+            ht,
+            sets,
+            tw,
+            { g, t in try g.scope.lift(body, from: level, in: &t) },
+            f,
+            &t,
+        )
     }
 }

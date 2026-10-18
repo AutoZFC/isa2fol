@@ -181,3 +181,58 @@ proof empty_from_infinity:
     _w2 = exists_intro _w
     _w3 = exists_intro _w2
     qed _w3
+
+proof no_self_member:
+    _pg = use pairing
+    _rg = use regularity
+    _rf = use eq_refl
+    _sym = use eq_symm
+    _es = use elem_second
+    fix x
+    _sx = assume set(x)
+    _p1 = forall_elim _pg, x
+    _p2 = forall_elim _p1, x
+    _p3 = implies_elim _p2, _sx
+    _p4 = implies_elim _p3, _sx
+    _ez = exists_elim _p4, z
+    _zm = and_elim_r _ez
+    _zx0 = forall_elim _zm, x
+    _zx1 = implies_elim _zx0, _sx
+    _xx = forall_elim _rf, x
+    _d = let eq(x,x)
+    _or = or_intro_l _xx, _d
+    _xz = iff_elim_r _zx1, _or
+    _hm = and_intro _sx, _xz
+    _nm = exists_intro _hm, x
+    _r1 = forall_elim _rg, z
+    _r2 = implies_elim _r1, _nm
+    _eu = exists_elim _r2, u
+    _su = and_elim_l _eu
+    _ur = and_elim_r _eu
+    _uz = and_elim_l _ur
+    _dis = and_elim_r _ur
+    _uz0 = forall_elim _zm, u
+    _uz1 = implies_elim _uz0, _su
+    _uor = iff_elim_l _uz1, _uz
+    _hxx = assume elem(x,x)
+    _heq = assume eq(u,x)
+    _sy1 = forall_elim _sym, u
+    _sy2 = forall_elim _sy1, x
+    _xu = implies_elim _sy2, _heq
+    _es1 = forall_elim _es, x
+    _es2 = forall_elim _es1, u
+    _es3 = forall_elim _es2, x
+    _es4 = implies_elim _es3, _xu
+    _xinu = implies_elim _es4, _hxx
+    _d1 = forall_elim _dis, x
+    _d2 = implies_elim _d1, _sx
+    _d3 = implies_elim _d2, _xinu
+    _bot = not_elim _d3, _xz
+    _br = implies_intro _bot
+    _bot2 = or_elim _uor, _br, _br
+    _nxx = not_intro _bot2
+    _c1 = exists_intro _nxx
+    _c2 = exists_intro _c1
+    _i = implies_intro _c2
+    _g = forall_intro _i
+    qed _g
