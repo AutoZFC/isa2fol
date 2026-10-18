@@ -36,6 +36,10 @@ public func isObject(_ T: IRType) -> Bool {
     }
 }
 
+public func takesAFunction(_ T: IRType) -> Bool {
+    T.domains.contains { if case .fn = $0 { true } else { false } }
+}
+
 public func result(_ T: IRType) -> IRType {
     guard case .fn(_, let U) = T else { return T }
     return result(U)

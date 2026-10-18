@@ -1,5 +1,5 @@
 # STATE — isa2fol
-HEAD "Review of Reify's formula naming: the formula walk refuses every step" (parent `08fc82b1`) · primitives · 2026-10-17.  RUN §0 BEFORE TRUSTING ANY LINE BELOW.
+HEAD "Step 9: a box's variable at a function of classes substituted where it is cited, Pure's equality there reflexive" (parent `b157c533`) · primitives · 2026-10-18.  RUN §0 BEFORE TRUSTING ANY LINE BELOW.
 
 ## 0. Staleness checks
 `$ZF` is `--skip ZF-AC,ZF-Coind,ZF-Constructible,ZF-IMP,ZF-Induct,ZF-Resid,ZF-ex`: every run is the ZF session alone
@@ -8,17 +8,17 @@ until it is fully translated (user). Lint before every run: `pre-commit run --al
 | command | expect |
 |---|---|
 | `git branch --show-current` | `primitives` |
-| `git log -1 --format=%s` | `Review of Reify's formula naming: the formula walk refuses every step` |
+| `git log -1 --format=%s` | `Step 9: a box's variable at a function of classes substituted where it is cited, Pure's equality there reflexive` |
 | `git status --short \| wc -l` | `0` |
 | `git rev-parse --short kinds-proposal` | `21ca100f` |
-| `find Sources -name '*.swift' -exec cat {} + \| grep -cv '^\s*$'` | `12867` |
+| `find Sources -name '*.swift' -exec cat {} + \| grep -cv '^\s*$'` | `12897` |
 | `git -C ~/repos/fol-zfc-comb log -1 --format=%h` | `224d60e` (branch `libraries-and-streaming`) |
 | `grep -c '^axiom ' base/axioms.fol.def` | `17` — NBG and `elem_first_subst`; the tiers admit none |
 | `pre-commit run --all-files` | `SwiftFormat ... Passed`, `SwiftLint ... Passed` |
-| `MEM=48G scripts/capped.sh swift test 2>&1 \| grep "Test run with"` | five lines, all passed: 14, 139, 118, 119, 42 tests |
+| `MEM=48G scripts/capped.sh swift test 2>&1 \| grep "Test run with"` | five lines, all passed: 14, 140, 119, 119, 42 tests |
 | `MEM=16G scripts/capped.sh scripts/check-base.sh` | 14 tiers, each `exit 0  stderr 0`; `logic` Schemas proved 10 of 10; `metafun` Proved 19 of 19 |
-| `swift build -c release`, then `MEM=48G scripts/capped.sh .build/release/isa2fol lower data/zf_export --through logic $ZF` (about 3 min) | `through logic: 2557 named theorems stand`; `no owner: 680`; `logic, unbuilt: 379` |
-| `MEM=32G scripts/capped.sh .build/release/isa2fol lower data/zf_export $ZF --emit DIR --threads 48` (4:13, 13.3 GB; the CI), then `MEM=32G scripts/capped.sh scripts/check-unit.sh DIR` (21 s) | `lowered … 170`; `left out, no kept statement citing them: 7013 lemmas, 14 @defs`; `cites a refused statement: 2387`, led by `ZF_Base.Ball_def` 487; 31 parts, every one `exit 0  stderr 0`; claims 1942 of 1942, schemas 104 of 104 |
+| `swift build -c release`, then `MEM=48G scripts/capped.sh .build/release/isa2fol lower data/zf_export --through logic $ZF` (about 3 min) | `through logic: 2611 named theorems stand`; `no owner: 680`; `logic, unbuilt: 325` |
+| `MEM=32G scripts/capped.sh .build/release/isa2fol lower data/zf_export $ZF --emit DIR --threads 48` (5:00, 12.8 GB; the CI), then `MEM=32G scripts/capped.sh scripts/check-unit.sh DIR` | `lowered … 210`; `left out, no kept statement citing them: 7062 lemmas, 0 @defs`; `cites a refused statement: 2401`, led by `ZF_Base.Union_iff` 216; 32 parts, every one `exit 0  stderr 0`; claims 2170 of 2170, schemas 110 of 110 |
 If any row disagrees, THIS FILE IS STALE. Trust the code and fix this file first.
 
 ## 1. Where
@@ -26,6 +26,9 @@ If any row disagrees, THIS FILE IS STALE. Trust the code and fix this file first
 `224d60e`, built only with `bazel build -c opt`. `kinds-proposal` (`21ca100f`) is the REFERENCE.
 
 ## 2. Read these first-hand
+- `DESIGN.md` "Step 9 — the definition command's local constant": the two agreed decisions (a box binding a variable
+  whose type takes a function read at its citation; Pure's equality there reflexive, in Expand), FOUNDATION §3b's
+  paragraph and rows, and **Decisions made in the build** 1–3 for the user's review.
 - `DESIGN.md` "Review after step 5 — the small fixes": what the review fixed, and **For the user's decision** —
   `combination`'s two constructions; `isaHidden` at `o`. The η-long variable named by itself, in a slot or at an
   instance, is DECIDED AGAINST (user, 2026-10-17): step 3's one rule stands. Reify's formula naming is BUILT: "Reify's
@@ -37,7 +40,8 @@ If any row disagrees, THIS FILE IS STALE. Trust the code and fix this file first
   aside, and comes back when a proof the registry makes cites it.
 - `Sources/Lowering/Lambda.swift` `LambdaProofs.classAtArguments`, `atTuple`, `LambdaInstance.equivalence` — shared
   with step 5's prover; `atArguments` (a free function) is the formula they prove.
-- `DESIGN.md` "The steps after class existence, in order" — steps 6, 8, 9 remain; the refusals order them.
+- `DESIGN.md` "The steps after class existence, in order" — steps 6 and 8 remain, and 9's other pieces; the refusals
+  order them.
 
 ## 3. Invariants
 | invariant | enforced by |
@@ -47,6 +51,7 @@ If any row disagrees, THIS FILE IS STALE. Trust the code and fix this file first
 | each pattern has the owner the division gives it, one at most | `eachPatternHasTheOwnerTheDivisionGivesIt` |
 | a ZF definition cited concludes its `c_UNFOLD` instantiated at its terms, by ID, at every kind of constant | `DefinitionTests` (seven), `aFunctionsUnfoldingIsProvedFromItsDef` |
 | an isa ∃-intro concludes the body it is given | `anExistentialIntroConcludesTheBodyItIsGiven`, `ExIntroTests` |
+| a box binding a variable whose type takes a function is read at its citation; Pure's equality at a type with an argument taking one is `reflexive` or nothing | `aBoxBindingAVariableTakingAFunctionIsReadAtItsCitation`, `pureEqualityAtATypeTakingAFunctionIsReflexivityWhenItsSidesAreOneTerm` |
 | a lemma is proved only for a statement that stands, directly or through the proofs of lemmas so proved | `aLemmaRequestedByAStatementCitingARefusedOneIsNeverProved`, `aLemmaSetAsideAndCitedByAProofLaterIsProvedAndKept` |
 | format and lint are the tools', before every run of the program | `pre-commit run --all-files`; the commit hook |
 | every build, test, checker and lowering run is capped | `scripts/capped.sh` |
@@ -82,28 +87,26 @@ If any row disagrees, THIS FILE IS STALE. Trust the code and fix this file first
 ## 4. State
 | claim | verified by |
 |---|---|
-| ZF (3,616 named): 170 lowered; refused: no owner 680, logic 379, cites a refused statement 2,387 | §0's complete run |
-| the refused citations are led by `ZF_Base.Ball_def` 487, `Bex_def` 107 (step 9's box binding a function of classes), `Bool.cond_DEF` 23 (step 6) | the same report |
+| ZF (3,616 named): 210 lowered; refused: no owner 680, logic 325, cites a refused statement 2,401 | §0's complete run |
+| the refused citations are led by ZF's axioms `ZF_Base.Union_iff` 216, `Pow_iff` 44, `extension` 41 (step 8), the lemmas `Replace_iff` 140, `Inter_iff` 89, `RepFunI` 45 (refused in turn), `Bool.cond_DEF` 25 (step 6) | the same report |
 | no owner is led by `use(theorem, [i], o)` 668 | §0's through-logic report |
-| Logic's 379: `isaConst(defined zf object, o ⇒ i ⇒ i ⇒ i)` 325 — `If` (step 6); binders over a function of classes (step 9) | the same report |
-| complete run: read 47.7 s; expand 2.3, logic 135.9, registry 22.3, fol 27.2, link 2.4 s; 194.8 MB; 36.7M nodes | §0's complete run |
-| the unit holds 126 `c_UNFOLD` lemmas, 33,761 steps; 147 `@def`s stated, 69 refused; no lemma refused unbuilt | the same report, `steps by kind` |
-| comments 61/12867 = 0.5% of `Sources` | `CLAUDE.md` rule 9's script |
+| Logic's 325: all `isaConst(defined zf object, o ⇒ i ⇒ i ⇒ i)` — `If` (step 6) | the same report |
+| complete run: read 48.3 s; expand 2.4, logic 169.2, registry 26.8, fol 33.4, link 2.8 s; 249.1 MB; 42.3M nodes | §0's complete run |
+| the unit holds 162 `c_UNFOLD` lemmas, 97,761 steps; 162 `@def`s stated, 69 refused; no lemma refused unbuilt | the same report, `steps by kind` |
+| comments 61/12897 = 0.5% of `Sources` | `CLAUDE.md` rule 9's script |
 
 ## 5. Beliefs — NOT verified
 - `use(theorem, [i], o)` is `FOL.meta_simps.1` (`(⋀x::'a. PROP V) ≡ PROP V`) at `[i]` in the statements holding it: its
   statement is read from `FOL/theory/thms`; that the 668 hold it alone came from a throwaway dump, not kept.
 - `SOURCE_SURFACE.md` predates step 7 and `exI`'s step: its `isaFree(.hidden)` rows and `exI` citations are stale.
-- The definition command's `_def` theorems of the constants taking a class all go through the box binding a function of
-  classes (`Ball_def`, `Bex_def` read; the other 36 of the 38 assumed alike).
 
 ## 6. Open decisions
 - **The review's open items** (`DESIGN.md` "Review after step 5"): `combination`'s two constructions; `isaHidden` at
   `o`.
-- **The next step.** By the refusals: 6, `If` (325 at logic; `Bool.cond_DEF` 23 among the refused citations); 9, a
-  binder over a function of classes (`Ball_def` 487, `Bex_def` 107 — the definition command's box at the constant);
+- **The next step.** By the refusals: 8, ZF's axioms (`Union_iff` 216, `Pow_iff` 44, `extension` 41 lead the refused
+  citations; `Replace_iff` 140 is a lemma — follow citations down first); 6, `If` (325 at logic; `Bool.cond_DEF` 25);
   `use(theorem, [i], o)`, believed `FOL.meta_simps.1` at `[i]` (668 at no owner).
-- For review: step 5's six build decisions; "Lazy proving"'s three, "Step 7"'s eight, "An ∃-intro carrying its body"'s
+- For review: step 9's three build decisions; step 5's six build decisions; "Lazy proving"'s three, "Step 7"'s eight, "An ∃-intro carrying its body"'s
   2–4, "Letters first"'s two, "Step 4"'s four; merging the checker branch.
 
 ## 7. Next action

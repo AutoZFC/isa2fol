@@ -1260,6 +1260,8 @@ specialisation at `kpair`.
 | `⋀P` over a proposition, `o` or `prop`, at a statement's top, `AppT` at it | a schema letter, `schema_inst` (S4) |
 | `⋀P` over a proposition anywhere else, `AppT` at it | a truth-set variable; `forall_elim` at `E(φ)`, then β (S4) |
 | a variable only the proof uses (`dummy_pattern`) | the witness of an `exists_elim` at the proof's top, below its letters, over its type's inhabitation |
+| `AppT` at a term, of a box's `AbsT` at a type taking a function | the box's proof at the term: no binder, as Isabelle substitutes |
+| Pure's equality rules at a type with an argument taking a function, concluding `t ≡ t` | `reflexive t`; any other conclusion there has no reading |
 
 **THE KERNEL'S ∃-INTRODUCTION FINDS ITS BODY; ISABELLE'S IS GIVEN IT.** From `φ` and a variable `a`, `exists_intro`
 concludes `∃y. φ′`, where `φ′` binds every occurrence of `a` in `φ`. `exI` concludes `∃y. P(y)` from `P(a)`, its `P`
@@ -1278,7 +1280,17 @@ the witness of an `exists_elim` over its type's inhabitation, at the top of its 
 conclusion, which does not mention it, stands. One witness serves every type: Empty gives `∅`, which is a set,
 single-valued (it has no pairs), a class, and a truth set (`∅ ⊆ {∅}`), so each guard — R3's, S5's, S4's — is inhabited,
 proved once in base from Empty, and nothing is admitted. A variable at a type beyond objects and propositions has no
-reading as a variable yet, and so no binder.
+reading as a variable, and so no binder.
+
+**A VARIABLE WHOSE TYPE TAKES A FUNCTION IS SUBSTITUTED WHERE ISABELLE INSTANTIATES IT.** A constant taking a class,
+`Ball :: i ⇒ (i ⇒ o) ⇒ o`, is a predicate whose class argument is a parameter, `∃C. Ball(C, P) ∧ ⟨A⟩ ∈ C`: the class
+is never a member. A variable of that type has neither: no tuple holds its class argument, and the target has no
+predicate variable to take it as a parameter. Isabelle binds one where its `definition` command fixes a stand-in for
+the constant it defines, `⋀Balla A P. Balla ≡ Ball ⟹ Balla(A, P) ≡ ∀x. x ∈ A ⟶ P(x)`, and instantiates it at the
+constant at once; a box applied to a term is its proof at the term, so there it is that proof, `Ball` where `Balla`
+stood, and no binder is written. Pure's equality between functions of such a variable — `(λg. Ball ≡ g) ≡ (λg. Ball ≡
+g)`, from rewriting under `≡` at `Ball`'s type — would bind one again; it is read only when its two sides are one
+term, as reflexivity, which needs no binder, and has no reading otherwise.
 
 **⚠ THE GUARD STEP HAS NO COUNTERPART IN THE PROOF TERM.** Isabelle gets `a : i`
 from its type system — decided, never proved — so every `forall_elim` needs a

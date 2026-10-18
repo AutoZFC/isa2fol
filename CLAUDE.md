@@ -40,9 +40,13 @@ the argument, then the argument's equation substituted into the function by the 
 letters come first** (`DESIGN.md` "Letters first"): the reader closes a theorem over its propositions before its other
 frees and permutes each citation's leading term arguments to match, so a letter is instantiated by `schema_inst` on the
 citation and no instance walks a binder over a proposition; an axiom keeps the export's order. Of the ZF session's
-3,616 named theorems (`--skip` the other seven), `lower` lowers 170 to fol-zfc: 680 stop at no
-owner, 379 at logic, and 2,387 cite a refused statement, led by `ZF_Base.Ball_def` and `Bex_def`, whose proofs bind a
-function of classes (step 9) — a `@def` holding a piece not built, or a theorem refused for one of the others. **A ZF
+3,616 named theorems (`--skip` the other seven), `lower` lowers 210 to fol-zfc: 680 stop at no
+owner, 325 at logic (`If`, step 6), and 2,401 cite a refused statement, led by ZF's axioms `ZF_Base.Union_iff`,
+`Pow_iff` and `extension` (step 8) — a `@def` holding a piece not built, or a theorem refused for one of the others.
+**The definition command's local constant at a function of classes is substituted where its box is cited** (`DESIGN.md`
+"Step 9 — the definition command's local constant"): a box binding a variable whose type takes a function is read at
+its citation, its proof at the cited terms, and Expand reads Pure's `combination`, `symmetric` and `transitive` at a type
+with an argument taking a function as `reflexive` where they conclude `t ≡ t`, the only reading they have. **A ZF
 definition cited is its constant's pointwise definition** (`DESIGN.md` "Step 5 — a ZF definition cited"): `c_UNFOLD`,
 cited and instantiated at the terms, proved by Reify's prover from the `@def` through Lambda's conversion of a class at
 its tuple, the slot classes of class parameters read back by Lambda's β. **The rules that consumed a proposition where it stood are removed**
@@ -72,11 +76,11 @@ constant's from its `@def` and a primitive's from base. **Class existence has it
 `member_class` or `graph_class`; a class binder a hypothesis of what lies under it; one lift per class-taking constant,
 uniform in the record's length, re-keyed by `REKEY`; the class prover does not read yet the classes of λs holding a
 proposition. **A lemma is proved once a statement that stands cites it** (`DESIGN.md` "Lazy proving"): the link closes
-before the registry proves, and the unit keeps only what a kept statement cites — 7,013 lemmas and 14 `@def`s of the
+before the registry proves, and the unit keeps only what a kept statement cites — 7,062 lemmas of the
 ZF session left out, never proved; a request set aside comes back when a proof the registry makes cites it. **Emission
 is built** (`DESIGN.md` "Emission"): `isa2fol lower data/zf_export --emit DIR` writes the unit as parts — a theory's
 theorems, a lemma in its first citer's part — and `scripts/check-unit.sh DIR` kernel-checks each against the libraries
-of base and of the parts it cites: all 1,942 claims and 104 schemas of the ZF session's unit Proved, 194.8 MB. `DESIGN.md` is the plan; its "The steps after class
+of base and of the parts it cites: all 2,170 claims and 110 schemas of the ZF session's unit Proved, 249.1 MB. `DESIGN.md` is the plan; its "The steps after class
 existence, in order" is the order of work, agreed again from step 2 on around FOUNDATION S4.
 
 ## Build
@@ -260,7 +264,7 @@ determinism R1–R3 (§4.6).
    print(f'{c}/{t} = {100*c/t:.1f}%')"
    ```
 
-   ✓ **CURRENTLY 61/12867 = 0.5%, under the cap.** Keep it there: a breach is
+   ✓ **CURRENTLY 61/12897 = 0.5%, under the cap.** Keep it there: a breach is
    fixed by deleting prose, never by raising the cap.
 
    Does not apply to `base/**/*.fol.def` headers: those record provenance of

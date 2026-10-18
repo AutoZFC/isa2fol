@@ -422,6 +422,7 @@ public struct Reader {
                 arguments = try citedLettersFirst(arguments, try letters(of: instance))
             }
         }
+        let substituting = bindsAFunction(p)
         for argument in arguments {
             switch argument {
             case .term(let x):
@@ -432,7 +433,11 @@ public struct Reader {
                     throw TableError.principalConnective(p)
                 }
                 let term = try f.terms.term(x, T, s.terms, in: &table)
-                p = try table.intern(.isaAllElim(p, term))
+                if substituting, case .isaAllIntro(_, let body) = table[p] {
+                    p = try instantiate(body, with: term, in: &table)
+                } else {
+                    p = try table.intern(.isaAllElim(p, term))
+                }
 
             case .proof(let q):
                 p = try table.intern(.folImpliesElim(p, try step(q, s, &f)))
@@ -440,6 +445,15 @@ public struct Reader {
         }
         f.steps[key] = p
         return p
+    }
+
+    private func bindsAFunction(_ p: NodeID) -> Bool {
+        var p = p
+        while case .isaAllIntro(let T, let body) = table[p] {
+            if takesAFunction(T), !mentionsTypeVariable(T) { return true }
+            p = body
+        }
+        return false
     }
 
     private func isTermAbstraction(_ h: ProofHead) -> Bool {

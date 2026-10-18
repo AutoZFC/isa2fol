@@ -88,6 +88,19 @@ private func at(_ p: String, _ terms: String...) -> String {
     terms.reduce(p, pappt)
 }
 
+private let ballType = fn(i, fn(fn(i, o), o))
+private let ball = const("ZF_Base.Ball")
+private let defines = eq(ballType, free("Balla"), ball)
+private let balla = trueprop(app(free("Balla"), free("A"), free("P")))
+private let atBall = trueprop(app(ball, free("a"), free("B")))
+
+/// The definition command's box at a constant taking a class, `⋀Balla A P. Balla ≡ Ball ⟹ Balla(A, P) ⟹ Balla(A, P)`.
+private let definitionBox = proofFile(
+    frees: [("Balla", ballType), ("A", i), ("P", fn(i, o))],
+    prop: imp(defines, imp(balla, balla)),
+    proof: pabsp("h", defines, pabsp("H", balla, pbound(0))),
+)
+
 /// One theorem per rule:
 ///   T.refl        P ≡ P                            reflexive % P
 ///   T.symI        a ≡ b ⟹ b ≡ a  at i              λH. symmetric % a % b %% H
@@ -99,6 +112,8 @@ private func at(_ p: String, _ terms: String...) -> String {
 ///   T.abs         (⋀x. P x ≡ Q x) ⟹ (λx. P x) ≡ (λx. Q x)   λH. abstract_rule % P % Q %% H
 ///   T.elimImp     (A ≡ (B ⟹ C)) ⟹ A ⟹ B ⟹ C       λh a b. equal_elim % A % (B ⟹ C) %% h %% a %% b: its `B` an
 /// implication
+///   box 400       ⋀Balla A P. Balla ≡ Ball ⟹ Balla(A, P) ⟹ Balla(A, P)   λh H. H, `Balla :: i ⇒ (i ⇒ o) ⇒ o`
+///   T.atBall      Ball(a, B) ⟹ Ball(a, B)          box400 % Ball % a % B %% (reflexive % Ball)
 private func pureReader() throws -> Reader {
     let rewrite = pabsp("q", eq(o, A, B), pabsp(
         "fact",
@@ -231,9 +246,18 @@ private func pureReader() throws -> Reader {
             ),
         ),
     ]
+    let citing: [(String, Int, String)] = [("T.atBall", 410, proofFile(
+        frees: [("a", i), ("B", fn(i, o))],
+        prop: imp(atBall, atBall),
+        proof: pappp(
+            at(pcite(400, "ZF.T"), ball, free("a"), free("B")),
+            at(ax("Pure.reflexive", ballType), ball),
+        ),
+    ))]
     var files = ["Pure/theory/axioms": pureAxioms]
-    files["ZF.T/theory/thms"] = thmsFile(theorems.map { ($0.0, $0.1) })
-    for (_, serial, text) in theorems { files["ZF.T/proofs/\(serial)"] = text }
+    files["ZF.T/theory/thms"] = thmsFile((theorems + citing).map { ($0.0, $0.1) })
+    for (_, serial, text) in theorems + citing { files["ZF.T/proofs/\(serial)"] = text }
+    files["ZF.T/proofs/400"] = definitionBox
     let root = try writeExport(files)
     defer { try? FileManager.default.removeItem(atPath: root) }
     return try Reader(try Export(root: root))
@@ -376,4 +400,27 @@ func aRuleTakesItsOwnPremisesWhateverItsInstance() throws {
         .o,
         try e.fix(.o, try e.fix(.o, try e.assume(h, try e.assume(A, try e.assume(B, body))))),
     )))
+}
+
+/// A box binding a variable whose type takes a function is read at its citation: `T.atBall`'s proof is box 400's at
+/// `Ball`, `a` and `B`, with no binder or instance at `Ball`'s type, and its hypothesis `Ball ≡ Ball`.
+@Test
+func aBoxBindingAVariableTakingAFunctionIsReadAtItsCitation() throws {
+    var r = try pureReader()
+    let cited = try proof(&r, "T.atBall")
+    let T = IRType.fn(.i, .fn(.fn(.i, .o), .o))
+    let held = patterns(under: [cited], in: r.table)
+    #expect(!held.contains(.isaAllIntro(T, body: .o)))
+    #expect(!held.contains(.isaAllElim(.o, T)))
+    var seen = Set<NodeID>()
+    var work = [cited]
+    var assumed = [NodeID]()
+    while let n = work.popLast() {
+        guard seen.insert(n).inserted else { continue }
+        if case .folImpliesIntro(let a, _) = r.table[n] { assumed.append(a) }
+        r.table[n].forEachChild { c, _ in work.append(c) }
+    }
+    #expect(assumed.contains { a in
+        r.table.sides(ofEquation: a).map { $0.type == T && $0.left == $0.right } ?? false
+    })
 }

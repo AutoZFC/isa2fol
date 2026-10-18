@@ -4657,6 +4657,151 @@ lowered, 7,013 lemmas and 14 `@def`s left out, no owner 680, logic 379, a refuse
 `ZF_Base.Ball_def` 487; `scripts/check-unit.sh`: 31 parts, each exit 0 and empty stderr, claims 1,942 of 1,942, schemas
 104 of 104. The emitted text is byte-identical to the previous commit's: 62 `.fol.def` and `.fol.proof` files.
 
+### Step 9 — the definition command's local constant, a variable at a function of classes  **[AGREED 2026-10-18 (user), the two decisions one by one; BUILT 2026-10-18, its decisions in the build for the user's review — `Sources/IR/IRType.swift`, `Sources/Reader/Reader.swift`, `Sources/Lowering/Expand.swift`, `Logic.swift`, `docs/FOUNDATION.md`]**
+
+**The step.** Isabelle's `definition` command proves `c_def` in a local theory where `c` is a fixed variable, and exports
+it as a box over that variable, `⋀ca x⃗. ca ≡ c ⟹ ca(x⃗) ≡ b`, which `c_def`'s own proof instantiates at `c` and
+discharges by `reflexive c`. At a constant taking a class, `ca` is at the constant's type, a function of classes —
+`Balla :: i ⇒ (i ⇒ o) ⇒ o` — and no pass reads it. Through logic on the ZF session (a throwaway listing of each
+refusal's patterns, not kept), the 54 named theorems Logic refuses without `If` hold exactly eight patterns, all at one
+such type `T`: the definition theorems of 38 constants taking a class (`ZF_Base.Ball_def`, `Bex_def`,
+`Collect_def`, `RepFun_def`, `lam_def`, `Pi_def`, `Sigma_def`, `the_def`, `Replace_def`, `Fixedpt.lfp_def`,
+`WF.wfrec_def`, …) and 16 theorems whose proofs cite such a box themselves (`pair.splitI`, `QPair.qsplitD`,
+`Ordinal.Ord_linear`, …). Of the 325 holding `If` (step 6), 15 hold these patterns besides, and 4 a congruence lemma's
+variable at `(i ⇒ o) ⇒ o` (below). The definition theorems lead the refused citations: `Ball_def` 487, `Bex_def` 107,
+`QPair.QSigma_def` 12. Every proof of the ZF session binding a variable at a function of classes at its top, 40 in all,
+is such a local constant (a census of the export's proof files, not kept, all but the 3.1 GB box inside
+`List.nth_upt`'s proof); IFOL and FOL add `Ex1`'s, `Uniq`'s, `Let`'s and
+`induct_forall`'s, and one congruence lemma, `(⋀x. Q x ≡ R x) ⟹ P(λx. Q x) ≡ P(λx. R x)`, whose `P :: ('a ⇒ 'b) ⇒ 'c`
+is one at some instances.
+
+**The problem, in target text.** `T = i ⇒ (i ⇒ o) ⇒ o`:
+
+```
+Isabelle   definition Ball :: "i ⇒ (i ⇒ o) ⇒ o"  where  "Ball(A, P) ≡ ∀x. x∈A ⟶ P(x)"
+           Ball_def_raw     Ball ≡ λA P. ∀x. x ∈ A ⟶ P(x)                              the command's axiom
+           the box          ⋀Balla A P. Balla ≡ Ball ⟹ Balla(A, P) ≡ ∀x. x ∈ A ⟶ P(x)
+             its proof      h : Balla ≡ Ball
+                            combination (combination (reflexive (≡)) h) (reflexive (λA P. …))
+                                ⊢ (Balla ≡ λA P. …) ≡ (Ball ≡ λA P. …)               ≡ at T, applied as a function
+                            equal_elim (symmetric …) (transitive (reflexive Ball) Ball_def_raw)   ⊢ Balla ≡ λA P. …
+                            combination (combination … (reflexive A)) (reflexive P)       ⊢ Balla(A, P) ≡ …
+           Ball_def         the box · Ball · A · P · (reflexive Ball)          ⊢ Ball(A, P) ≡ ∀x. x ∈ A ⟶ P(x)
+                            (through three boxes that pass A and P along)
+read       isaAllElim(isaAllElim(isaAllElim(isaAllIntro(T, isaAllIntro(i, isaAllIntro(i ⇒ o, …))), Ball), A), P)
+```
+
+| unbuilt at Logic, at `T` | where |
+|---|---|
+| `isaAllIntro(T)`, `isaAllElim(o, T)` | the box's closure at `Balla`, its instance at `Ball` |
+| `isaVarApp(head: T)` | `Balla(A, P)`; and `f`, `g` applied in `≡` at `T` read η-long, `λf g. (λA P. f(A, P)) ≡ (λA P. g(A, P))` |
+| `isaAbs(T, …)`, twice | that λ, and `λg. Balla ≡ g` |
+| `isaReflexive(T ⇒ T ⇒ o)`, `isaCombination(T ⇒ T ⇒ o)`, `isaCombination(T ⇒ o)` | `≡`'s congruence at `T` |
+
+FOUNDATION §3b: "A variable at a type beyond objects and propositions has no reading as a variable yet, and so no
+binder." `T` is over objects — its arguments are a set and a class, so its equation is pointwise (step 4) — but it is no
+object: its argument `P` is a class, which is no member, so a variable at `T` would range over classes of classes. And
+`≡` at `T`, as a function, takes such a variable: `(λg. Balla ≡ g) ≡ (λg. Ball ≡ g)` is `⋀g::T. …`.
+
+**1. A variable beyond objects is substituted where Isabelle instantiates it: the reader reads a box's `⋀` at one,
+applied to a term, as its body at the term.** **AGREED 2026-10-18 (user).** The reader reads a box closed and cites it
+by `⋀`-elimination, each of its variables a target `∀`. A variable whose type takes a function — a class — as an
+argument has no `∀`: a class is no member, so no tuple holds its argument, and fol-zfc has no predicate variable to take
+it as a constant's predicate does (`ZF_Base.Ball(C, P)`). What Isabelle does with it is substitute: a box applied to a
+term is its proof at the term. So at such a `⋀` the reader writes no binder and no elimination — in the build, at
+every term the box is cited at (the build's decision 1) — and every other box reads as now. `Balla` is `Ball` where it stood, `Balla(A, P)` is `Ball(A, P)` by the IR's β, and the hypothesis is
+`Ball ≡ Ball`, discharged by `reflexive Ball` as before. The congruence lemma's `P`, cited at a λ, is that λ, and step 4
+reads the rest.
+
+| the box at `Ball_def`'s citation | |
+|---|---|
+| now | `isaAllElim(isaAllIntro(T, … h : Balla ≡ Ball …), Ball)` |
+| substituted | `… h : Ball ≡ Ball …`, no binder at `T` |
+
+Not a schema letter, as a box binding a proposition is (S4): a letter is a formula, so only an `o`-valued function of
+classes has one — `Ball`, `Bex`, `OrdQuant.oall` — and not `Collect`, `RepFun`, `lam` or `the`, and the box's proof would
+still state `≡`'s congruence at `T` (2). Not every box read at its citation: one reading for every box, but each box's
+proof then copied per citation where one closed proof is shared now, for variables that have a reading.
+
+**2. Pure's equality beyond objects is read only when its two sides are one term: a step concluding `t ≡ t` there is
+`reflexive t`, its premises unread; any other has no reading.** **AGREED 2026-10-18 (user).** An equation at a function
+type whose argument takes a function — `≡` at `T` applied once, at `T ⇒ o` — binds a function of classes. After 1 every such step
+in these boxes concludes `t ≡ t`: with `h : Ball ≡ Ball`, `combination (reflexive (≡)) h` concludes
+`(λg. Ball ≡ g) ≡ (λg. Ball ≡ g)`, and the next `(Ball ≡ λA P. …) ≡ (Ball ≡ λA P. …)`, at `o`. Reflexivity needs no
+binder, and a premise adds nothing to a step concluding `t ≡ t`. Expand reads it, as it reads a definition it unfolds
+`reflexive` at its terms: the chain's last step becomes `reflexive` at `o`, which Logic reads `iff_refl`, and the steps
+under it, with the λ over `T` and the variables at `T` they apply, are gone before Logic.
+
+| `≡`'s congruence at `T`, after 1 | |
+|---|---|
+| read | `isaCombination(T ⇒ o, isaCombination(T ⇒ T ⇒ o, isaReflexive(λf g. f ≡ g), h), isaReflexive(λA P. …))` |
+| after Expand | `isaReflexive(Ball ≡ λA P. …)`, at `o` |
+
+Not read at its argument: `combination` supplies the argument, so `(λg. Ball ≡ g) ≡ (λg. Ball ≡ g)` read at
+`λA P. …` is first-order — faithful, and general, reading a non-reflexive equation too — but a step then translated by a
+context its consumer passes down, which the walk passes only into binders: a framework addition for a case whose every
+occurrence is reflexive. Not Logic's: the steps under the chain's last hold the λ over `T`, whose body applies variables
+at `T`; Logic owns those unbuilt, and its walk reads a step's premises before the step. Not the reader's: it reads a box
+closed, once, and its steps conclude `t ≡ t` only at a citation.
+
+**FOUNDATION first.** §3b's sentence becomes: a variable at a type beyond objects and propositions has no reading as a
+variable, and so no binder; where Isabelle instantiates one, a box binding it cited at a term, it is substituted. §3b's
+mapping gains two rows:
+
+| Pure | target |
+|---|---|
+| `AppT` at a term beyond objects, of the `⋀` a box's closure introduces | the box's proof at the term |
+| Pure's equality rules at a function whose argument is beyond objects, concluding `t ≡ t` | `reflexive t`; any other conclusion there has no reading |
+
+**The contracts (D2):**
+
+| | provides | assumes |
+|---|---|---|
+| Reader | a box whose closure binds a variable whose type takes a function, cited at terms, read as its proof at them: no binder or instance from such a closure in what it reads | — |
+| Expand | `combination`, `symmetric` and `transitive` at a type with an argument taking a function: `reflexive t` where the step concludes `t ≡ t`, and a throw where it does not | — |
+| Logic | those three no longer its; `reflexive`, a λ and a variable at such a type its, unbuilt — dropped by Expand's step that consumes them, or refused | Expand's |
+
+**Tests, written first.**
+- `PureRuleTests`: `⋀Balla A P. Balla ≡ Ball ⟹ Balla(A, P) ⟹ Balla(A, P)`, cited at `Ball`, reads with no
+  `isaAllIntro` or `isaAllElim` at `Ball`'s type, its hypothesis `Ball ≡ Ball`, concluding the citing statement by ID
+  (`aBoxBindingAVariableTakingAFunctionIsReadAtItsCitation`).
+- `ExpandTests`: `combination (combination (reflexive (≡)) h) (reflexive d)` at `(i ⇒ o) ⇒ o`, `h : c ≡ c`, expands
+  to `reflexive (c ≡ d)`; at `h : c ≡ e` it throws `noReading`
+  (`pureEqualityAtATypeTakingAFunctionIsReflexivityWhenItsSidesAreOneTerm`). `PlanTests`: the three steps owned by
+  Expand; `reflexive`, the λ, the variable and the binder there Logic's, unbuilt.
+- The ZF session: the 54 pass logic; `ZF_Base.Ball_def` lowered; complete, emitted, kernel-checked.
+
+**Not in this step.** `If` (step 6), held with these pieces by 19 named theorems; a `⋀` beyond objects that is not
+applied where it is introduced — a hypothesis binding one, a statement's own variable; an unrestricted type variable.
+
+**Built.** IR: `takesAFunction(T)`, a type with a function among its arguments — `Ball`'s takes `i ⇒ o`, `succ`'s none.
+The reader: where a citation's head is a `⋀` chain binding a variable whose type takes a function (`bindsAFunction`),
+each term argument instantiates the next `⋀` (`instantiate`) instead of eliminating it. Expand: `combination`,
+`symmetric` and `transitive` at a type with an argument taking a function (`onlyReflexive`) are its `equation` piece;
+the step rebuilt, its conclusion `t ≡ t` is `isaReflexive(t)`, any other `noReading`. Logic: the same three
+`onlyReflexive` patterns are not its.
+
+**Decisions made in the build**, for the user's review:
+1. **The whole box is read at its terms, not only the variable's `⋀`.** In the 44 definition boxes of the ZF session,
+   IFOL and FOL the stand-in is the box's first variable (a census, not kept), but in IFOL's congruence lemma `P` is
+   the third, and a `⋀` under binders already eliminated cannot be substituted by itself. Such a box is copied per
+   citation anyway, so its other variables cost nothing more substituted; every other box reads as now.
+2. **Expand owns only the steps it rewrites.** After a pass none of its patterns may stand (`survived` aborts the run),
+   and a `reflexive`, a λ or a variable at such a type is rewritten by no rule: each stays Logic's, unbuilt — gone with
+   the step that drops it, refused at Logic where none does.
+3. **A step there that does not conclude `t ≡ t` throws `noReading`, aborting the run**, as a rule does at a case it
+   owns and cannot read (step 4's `notAFunction`): a pattern cannot tell a reflexive step from another, so no
+   ownership refuses it first. The ZF session holds none.
+
+**Measured** (the ZF session, the release build on 48 cores, the lint first): through logic 2,611 named theorems stand
+(2,557 before) — the 54 — and Logic leaves 325 unbuilt, all `If` (379). `lower --emit` 5:00, 12.8 GB: 210 lowered (170),
+among them `ZF_Base.Ball_def`, `Bex_def`, `Collect_def`, `RepFun_def`, `lam_def`, `Pi_def`, `the_def`; 7,062 lemmas
+left out, no `@def`; no owner 680, logic 325, a refused citation 2,401, now led by ZF's axioms — `ZF_Base.Union_iff`
+216, `Pow_iff` 44, `extension` 41 (step 8) — and lemmas refused in turn, `Replace_iff` 140, `Inter_iff` 89, `RepFunI`
+45, then `Bool.cond_DEF` 25 (step 6). `scripts/check-unit.sh`: 32 parts, each exit 0 and empty stderr, claims 2,170 of 2,170,
+schemas 110 of 110; 249.1 MB, 2,665,679 steps (194.8 MB, 2,193,622), 162 `@def`s stated (147), 162 `c_UNFOLD`
+lemmas (126).
+
 ### Fol — binders, guards and variables  **[BUILT 2026-09-28 as the guard; Fol's 2026-10-14; every object type and `∃` at `i` with "Reify — S1 at the site" — `Sources/Lowering/Fol.swift`]**
 
 **Every isa binder at an object type, its intro, its variable and the guard of its variable become fol-zfc's, with the

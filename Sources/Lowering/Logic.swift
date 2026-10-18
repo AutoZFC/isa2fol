@@ -93,15 +93,15 @@ private func piece(_ p: Pattern) -> Piece? {
         return equality(T, .reflexive)
 
     case .isaSymmetric(let T, _):
-        return equality(T, .symmetric)
+        return onlyReflexive(T) ? nil : equality(T, .symmetric)
 
     case .isaTransitive(let T, _, _):
-        return equality(T, .transitive)
+        return onlyReflexive(T) ? nil : equality(T, .transitive)
 
     case .isaCombination(let F, _, _):
         if propositional(F) { return .function(.combination) }
         if overObjects(F) { return .pointwise(.combination) }
-        return mentionsTypeVariable(F) ? nil : .unbuilt
+        return mentionsTypeVariable(F) || onlyReflexive(F) ? nil : .unbuilt
 
     case .isaAbstract(let F, _):
         if overObjects(F) { return .pointwise(.abstract) }

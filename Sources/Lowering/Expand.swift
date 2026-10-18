@@ -3,6 +3,7 @@ import IR
 @frozen
 public enum ExpandError: Error, Equatable {
     case noDefinition(Node)
+    case noReading(Node)
 }
 
 public struct Expand: Pass {
@@ -12,7 +13,7 @@ public struct Expand: Pass {
 
     public func owns(_ p: Pattern) -> Owned? {
         switch piece(p) {
-        case .constant?, .citation?, .membership?: .rule
+        case .constant?, .citation?, .membership?, .equation?: .rule
         case nil: nil
         }
     }
@@ -27,6 +28,11 @@ private enum Piece {
     case constant
     case citation
     case membership
+    case equation
+}
+
+func onlyReflexive(_ T: IRType) -> Bool {
+    !mentionsTypeVariable(T) && T.domains.contains(where: takesAFunction)
 }
 
 private func piece(_ p: Pattern) -> Piece? {
@@ -37,8 +43,10 @@ private func piece(_ p: Pattern) -> Piece? {
         unfolds(f, level) && !types.contains(where: mentionsTypeVariable) ? .citation : nil
     case .isaOfClass(let T):
         mentionsTypeVariable(T) ? nil : .membership
+    case .isaCombination(let T, _, _), .isaSymmetric(let T, _), .isaTransitive(let T, _, _):
+        onlyReflexive(T) ? .equation : nil
     case .ifolAll, .ifolEx, .isaConst, .isaFree, .isaBound, .isaVarApp, .isaAbs, .isaAllIntro,
-         .isaAllElim, .isaReflexive, .isaSymmetric, .isaTransitive, .isaCombination, .isaAbstract, .isaClassical,
+         .isaAllElim, .isaReflexive, .isaAbstract, .isaClassical,
          .isaIffReflection, .isaPropAll, .isaPropIntro, .isaPropBound, .isaHidden, .folImplies, .folAnd,
          .folOr, .folIff, .folBottom, .folImpliesIntro, .folImpliesElim, .use,
          .hyp, .isaGuard, .isaExIntro, .isaExElim, .folNot, .folBound, .folPred, .folForall, .folExists, .folAndIntro,
@@ -118,6 +126,14 @@ private struct Unfold: Rule {
                 throw ExpandError.noDefinition(n)
             }
             return d.definiens
+
+        case .equation?:
+            let rebuilt = try t.intern(n)
+            guard
+                let c = t.conclusion(of: rebuilt), let (_, a, b) = t.sides(ofEquation: c),
+                a == b
+            else { throw ExpandError.noReading(n) }
+            return try t.intern(.isaReflexive(a))
 
         case nil:
             return nil

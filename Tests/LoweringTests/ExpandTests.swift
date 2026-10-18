@@ -225,3 +225,49 @@ func aZFDefinitionAtTheMetaLevelUnfoldsAsTheLogicsDo() throws {
     #expect(unit.statements[0].root == (try m.equal(T, split.definiens, split.definiens)))
     #expect(unit.statements[0].proof == (try m.t.intern(.isaReflexive(split.definiens))))
 }
+
+private let takesAFunction = fn(fn(i, o), o)
+
+/// `λP. c(λz. P z)`, the constant `c` at `(i ⇒ o) ⇒ o` read η-long.
+private func etaConstant(_ name: String, _ l: inout LogicTable) throws -> NodeID {
+    let atZ = try l.t.intern(.isaVarApp(head: try l.bound(1, fn(i, o)), args: [try l.bound(0, i)]))
+    return try l.lam(fn(i, o), try l.const(.declared(name), takesAFunction, try l.lam(i, atZ)))
+}
+
+/// `λP. f(λz. P z)`, the variable `f` at `(i ⇒ o) ⇒ o`, `k` binders out, read η-long.
+private func etaVariable(_ k: Int, _ l: inout LogicTable) throws -> NodeID {
+    let atZ = try l.t.intern(.isaVarApp(head: try l.bound(1, fn(i, o)), args: [try l.bound(0, i)]))
+    let applied = try l.t.intern(.isaVarApp(head: try l.bound(k + 1, takesAFunction), args: [try l.lam(i, atZ)]))
+    return try l.lam(fn(i, o), applied)
+}
+
+/// `≡`'s congruence at a type taking a function, `T = (i ⇒ o) ⇒ o`, the definition command's rewriting under `h`:
+/// `combination (combination (reflexive (λf g. f ≡ g)) h) (reflexive d)`. At `h : c ≡ c` both steps conclude `t ≡ t`,
+/// and the last, `(c ≡ d) ↔ (c ≡ d)`, is `reflexive (c ≡ d)`, the steps under it gone; at `h : c ≡ e` it has no
+/// reading.
+@Test
+func pureEqualityAtATypeTakingAFunctionIsReflexivityWhenItsSidesAreOneTerm() throws {
+    var l = LogicTable()
+    let T = takesAFunction
+    let c = try etaConstant("c", &l)
+    let d = try etaConstant("d", &l)
+    let e = try etaConstant("e", &l)
+    let equality = try l.lam(T, try l.lam(T, try l.equal(T, try etaVariable(1, &l), try etaVariable(0, &l))))
+    let congruence = try l.t.intern(.isaReflexive(equality))
+    let atD = try l.t.intern(.isaReflexive(d))
+    func rewritten(_ h: NodeID, in l: inout LogicTable) throws -> (inner: NodeID, proof: NodeID) {
+        let inner = try l.t.intern(.isaCombination(fn(T, fn(T, o)), congruence, try l.t.intern(.hyp(0, h))))
+        let outer = try l.t.intern(.isaCombination(fn(T, o), inner, atD))
+        return (inner, try l.t.intern(.folImpliesIntro(h, body: outer)))
+    }
+    let cc = try l.equal(T, c, c)
+    let cd = try l.equal(T, c, d)
+    let (_, proof) = try rewritten(cc, in: &l)
+    let statement = try l.imp(cc, try l.t.intern(.folIff(cd, cd)))
+    let unit = try expanded(l, [Statement(name: "congruence", root: statement, proof: proof)], [])
+    var m = LogicTable(t: unit.table)
+    #expect(unit.statements[0].proof == (try m.t.intern(.folImpliesIntro(cc, body: try m.t.intern(.isaReflexive(cd))))))
+    let ce = try l.equal(T, c, e)
+    let (inner, apart) = try rewritten(ce, in: &l)
+    #expect(throws: ExpandError.noReading(l.t[inner])) { _ = try Expand().run([apart], [], in: &l.t) }
+}
