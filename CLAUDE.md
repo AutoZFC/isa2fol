@@ -260,7 +260,7 @@ determinism R1–R3 (§4.6).
    print(f'{c}/{t} = {100*c/t:.1f}%')"
    ```
 
-   ✓ **CURRENTLY 61/12864 = 0.5%, under the cap.** Keep it there: a breach is
+   ✓ **CURRENTLY 61/12867 = 0.5%, under the cap.** Keep it there: a breach is
    fixed by deleting prose, never by raising the cap.
 
    Does not apply to `base/**/*.fol.def` headers: those record provenance of

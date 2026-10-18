@@ -181,6 +181,7 @@ private struct Formulas: Rule {
     }
 
     func after(_ n: Node, was id: NodeID, context _: Anywhere, in t: inout Table) throws -> NodeID? {
+        guard t.conclusion(of: id) == nil else { throw LogicError.notAFormula(id) }
         switch piece(Pattern(n, in: t)) {
         case .proposition(.binder)?:
             guard case .isaPropAll(let body) = n else { throw LogicError.notTheRule(id) }
@@ -266,7 +267,7 @@ private struct Steps: Rule {
             return try t.intern(.folIffIntro(try t.intern(.folAndElimL(h)), try t.intern(.folAndElimR(h))))
 
         case .proposition(.binder)?, .proposition(.variable)?, .function(.wrapper)?, .function(.equation)?,
-             .pointwise(.wrapper)?, .pointwise(.equation)?, .unbuilt?:
+             .pointwise(.wrapper)?, .pointwise(.equation)?:
             return try Formulas().after(n, was: id, context: Anywhere(), in: &t)
 
         case .proposition(.intro)?:
@@ -292,6 +293,9 @@ private struct Steps: Rule {
         case .pointwise(.abstract)?:
             guard case .isaAbstract(_, let p) = n else { throw LogicError.notTheRule(id) }
             return try Functions(base: base).abstract(p, was: id, in: &t)
+
+        case .unbuilt?:
+            return nil
 
         case nil:
             return try Reify().after(n, was: id, base: base, in: &t)

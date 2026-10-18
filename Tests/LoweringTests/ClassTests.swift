@@ -33,6 +33,16 @@ func aLambdasClassDefinitionIsItsBodyAsTheWalkRewritesIt() throws {
     #expect(!patterns(under: [stated], in: r.t).contains(.isaPropAll))
 }
 
+/// ⚠ THE FORMULA WALK REFUSES EVERY STEP, WHATEVER ITS PIECE: a hypothesis, an instance at `i`, a definition — no piece
+/// of Logic's — passed through it unconverted, and failed in Fol at a compound term, or not at all.
+@Test
+func theFormulaWalkRefusesAStepWhateverItsPiece() throws {
+    var r = Terms()
+    let mem = try r.n(.isaConst(.primitive(.zf(.mem)), fn(i, fn(i, o)), args: [try r.x(0), try r.x(1)]))
+    let h = try r.n(.hyp(0, mem))
+    #expect(throws: LogicError.notAFormula(h)) { _ = try walked(formula: h, in: &r.t) }
+}
+
 /// `CLASS ⟨λx. x ∈ y⟩`: `∃` by `row_ex`, the tuple's atoms read through `cls_zero`'s and `cls_snoc4`'s classes, `x ∈ y`
 /// through `B1`'s, and the class named by `member_class` at the record `⟨y⟩`.
 @Test

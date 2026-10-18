@@ -1,5 +1,5 @@
 # STATE — isa2fol
-HEAD "Reify's formula naming by Logic's walk: a λ's class definition is its body walked" (parent `6c04a247`) · primitives · 2026-10-17.  RUN §0 BEFORE TRUSTING ANY LINE BELOW.
+HEAD "Review of Reify's formula naming: the formula walk refuses every step" (parent `08fc82b1`) · primitives · 2026-10-17.  RUN §0 BEFORE TRUSTING ANY LINE BELOW.
 
 ## 0. Staleness checks
 `$ZF` is `--skip ZF-AC,ZF-Coind,ZF-Constructible,ZF-IMP,ZF-Induct,ZF-Resid,ZF-ex`: every run is the ZF session alone
@@ -8,14 +8,14 @@ until it is fully translated (user). Lint before every run: `pre-commit run --al
 | command | expect |
 |---|---|
 | `git branch --show-current` | `primitives` |
-| `git log -1 --format=%s` | `Reify's formula naming by Logic's walk: a λ's class definition is its body walked` |
+| `git log -1 --format=%s` | `Review of Reify's formula naming: the formula walk refuses every step` |
 | `git status --short \| wc -l` | `0` |
 | `git rev-parse --short kinds-proposal` | `21ca100f` |
-| `find Sources -name '*.swift' -exec cat {} + \| grep -cv '^\s*$'` | `12864` |
+| `find Sources -name '*.swift' -exec cat {} + \| grep -cv '^\s*$'` | `12867` |
 | `git -C ~/repos/fol-zfc-comb log -1 --format=%h` | `224d60e` (branch `libraries-and-streaming`) |
 | `grep -c '^axiom ' base/axioms.fol.def` | `17` — NBG and `elem_first_subst`; the tiers admit none |
 | `pre-commit run --all-files` | `SwiftFormat ... Passed`, `SwiftLint ... Passed` |
-| `MEM=48G scripts/capped.sh swift test 2>&1 \| grep "Test run with"` | five lines, all passed: 14, 139, 117, 119, 42 tests |
+| `MEM=48G scripts/capped.sh swift test 2>&1 \| grep "Test run with"` | five lines, all passed: 14, 139, 118, 119, 42 tests |
 | `MEM=16G scripts/capped.sh scripts/check-base.sh` | 14 tiers, each `exit 0  stderr 0`; `logic` Schemas proved 10 of 10; `metafun` Proved 19 of 19 |
 | `swift build -c release`, then `MEM=48G scripts/capped.sh .build/release/isa2fol lower data/zf_export --through logic $ZF` (about 3 min) | `through logic: 2557 named theorems stand`; `no owner: 680`; `logic, unbuilt: 379` |
 | `MEM=32G scripts/capped.sh .build/release/isa2fol lower data/zf_export $ZF --emit DIR --threads 48` (4:13, 13.3 GB; the CI), then `MEM=32G scripts/capped.sh scripts/check-unit.sh DIR` (21 s) | `lowered … 170`; `left out, no kept statement citing them: 7013 lemmas, 14 @defs`; `cites a refused statement: 2387`, led by `ZF_Base.Ball_def` 487; 31 parts, every one `exit 0  stderr 0`; claims 1942 of 1942, schemas 104 of 104 |
@@ -73,8 +73,9 @@ If any row disagrees, THIS FILE IS STALE. Trust the code and fix this file first
 - ⚠ **THE TABLE TRUSTS A CITATION'S ROOT**: kernel-check every new reach.
 - ⚠ **FOL TRANSFORMS EACH STATEMENT BY ITSELF**: one transform over every root passed 32 GB.
 - ⚠ **A SECOND COPY OF A PASS'S REWRITE DIVERGES SILENTLY.** Rules conclude `walked`, the walk's own rule; a λ's
-  class definition is `walked(formula:)`. ⚠ `walked(_:base:)` WALKS PROOFS TOO (Lambda's β at a compound term): made
-  formula-only, three tests stopped at `predicateArgumentNotVariable`.
+  class definition is `walked(formula:)`. ⚠ `walked(_:base:)` WALKS PROOFS TOO (Lambda's β at a compound term), and
+  `walked(formula:)` refuses every step at `notAFormula`, read from the table's sort, never the piece
+  (`theFormulaWalkRefusesAStepWhateverItsPiece`).
 - ⚠ **THE RELEASE BINARY IS NOT REBUILT BY `swift test`**: `swift build -c release` before a run.
 - ⚠ **STATE GOES IN ITS STEP'S COMMIT**, never a commit of its own.
 
@@ -87,7 +88,7 @@ If any row disagrees, THIS FILE IS STALE. Trust the code and fix this file first
 | Logic's 379: `isaConst(defined zf object, o ⇒ i ⇒ i ⇒ i)` 325 — `If` (step 6); binders over a function of classes (step 9) | the same report |
 | complete run: read 47.7 s; expand 2.3, logic 135.9, registry 22.3, fol 27.2, link 2.4 s; 194.8 MB; 36.7M nodes | §0's complete run |
 | the unit holds 126 `c_UNFOLD` lemmas, 33,761 steps; 147 `@def`s stated, 69 refused; no lemma refused unbuilt | the same report, `steps by kind` |
-| comments 61/12864 = 0.5% of `Sources` | `CLAUDE.md` rule 9's script |
+| comments 61/12867 = 0.5% of `Sources` | `CLAUDE.md` rule 9's script |
 
 ## 5. Beliefs — NOT verified
 - `use(theorem, [i], o)` is `FOL.meta_simps.1` (`(⋀x::'a. PROP V) ≡ PROP V`) at `[i]` in the statements holding it: its

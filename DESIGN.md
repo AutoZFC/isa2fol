@@ -4601,7 +4601,12 @@ what is lowered:
   shape detected; a size optimization is never a translation rule. `isaAllElim(o, i ⇒ o)` and a class slot have one
   `Pattern` whether the λ is a variable's η-expansion or not, so either rule reads the λ's body. The one principled
   route, not taken: the IR spells a variable at a function type as itself where it stands (§4.3's η-long form changed),
-  its argument's own `Pattern` then telling the cases apart, as Reify's instance at `i` reads.
+  its argument's own `Pattern` then telling the cases apart, as Reify's instance at `i` reads. That route is not §4.3
+  alone: the slot's class `K`, `∀t. t ∈ K ↔ ∃z⃗. ⟨z⃗⟩ = t ∧ ⟨z⃗⟩ ∈ Q`, holds `Q`'s tuples only, which is what makes
+  Isabelle's pointwise `P ≡ Q` an agreement of every member. With `Q` bare in the slot, an instance at a λ introduces
+  the slot's naming `∃K` at the λ's class, so `LAMBDA_` would state the λ's whole class definition, not its value at
+  arguments (step 3's decision 3 reversed); and step 4's `combination` at a class argument meets `ZF_Base.Ball(C, P)`
+  against `ZF_Base.Ball(C′, Q)`, so every constant's `_AGREE` would take Isabelle's pointwise premise.
 - **`combination` builds its substitution two ways** (`atSet` at a set argument, `atClass` at a class argument), and
   **`isaHidden` at `o` is a cut whose `truth(E)` goes unused**, where Fol's rule covers the objects.
 
@@ -4626,12 +4631,15 @@ the walk's own rule. Nothing lowered changes: on every body the class prover rea
 | Reify | a λ's class definition, its body `walked` | Logic's `walked` |
 
 **Tests, written first.** `ClassTests`: the class definition of `λx. ⋀P. P ⟶ x ∈ y`, built from the λ as stated, is the
-one built from the walked λ, its `⋀P` a truth set. The ZF session: complete, emitted, kernel-checked, the same counts.
+one built from the walked λ, its `⋀P` a truth set; the formula walk given a hypothesis throws `notAFormula`. The ZF
+session: complete, emitted, kernel-checked, the same counts.
 
 **Built.** Logic's formula rules are one rule, `Formulas`: a proposition's binder and variable, Pure's equality at a
 function of propositions and between functions pointwise, a wrapper, and Reify's naming of an atom
 (`Reify.formula`). `walked(formula:)` is that rule alone; Logic's walk, `walked(_:base:)` as before, applies it at
-every formula piece and its own rules at a proof's steps; a proof piece in a formula throws (`notAFormula`).
+every formula piece and its own rules at a proof's steps; a step in a formula throws (`notAFormula`), read from its
+sort in the table (`t.conclusion(of:)`), not its piece — a hypothesis, an instance at `i`, a definition have none of
+Logic's. `.unbuilt` stays the walk's own: it holds steps too, at types beyond objects.
 `classBody`, the equation at `i` and the pointwise equation at `i` call `walked(formula:)`; `named(formula:)` and
 `Atoms` are gone.
 
@@ -4641,7 +4649,8 @@ every formula piece and its own rules at a proof's steps; a proof piece in a for
    `named(atom:)` and every lemma statement built on them (about 60 signatures, the review's note). The two pointwise
    readings are `static` (`Truths.pointwise`, `Functions.pointwise`). ⚠ `walked(_:base:)` STAYS FOR ITS CALLERS:
    several walk a PROOF (Lambda's β at an application, `isaAllElim` of a hypothesis at a compound term, which Reify's
-   instance converts) — made formula-only, three tests stopped at `predicateArgumentNotVariable`.
+   instance converts) — made formula-only, three tests stopped at `predicateArgumentNotVariable` in Fol, the steps
+   with no piece of Logic's passed through unconverted; the formula walk now refuses every step at `notAFormula`.
 
 **Measured** (the ZF session, the release build on 48 cores, the lint first): `lower --emit` 4:12, 13.3 GB — 170
 lowered, 7,013 lemmas and 14 `@def`s left out, no owner 680, logic 379, a refused citation 2,387 led by
