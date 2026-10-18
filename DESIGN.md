@@ -2552,7 +2552,8 @@ until it is fully translated (user), so each step's scope is measured there.
 4. **Pure's equality between functions**: read pointwise at every function type whose arguments are objects, the
    function of classes included — not each function's class and `mfun_comb`, as first planned ("Step 4", decision 1).
    The reference walked these chains before it had a λ's class; here β comes first (3).
-5. **A ZF definition cited**: pointwise, from the `@def` and EX, most often at a chain's leaf (4).
+5. **A ZF definition cited**: pointwise, from the `@def` and EX, most often at a chain's leaf (4). **BUILT 2026-10-17**
+   ("Step 5 — a ZF definition cited", below): a lemma per constant, `c_UNFOLD`, instantiated at the terms.
 6. **A proposition argument**, `If` and `bool_of_o`: a class of the empty tuple (FOUNDATION S4), as the reference read it.
 7. **The hidden variable**, `Pure.dummy_pattern`: the reference refused it, so its design is new ("Step 7 — the hidden
    variable, bound at its proof's top", below), **BUILT 2026-10-17** with an ∃-intro carrying its body, which its run
@@ -3975,6 +3976,7 @@ each lowering kernel-checked but the reading's own; `PlanTests`' rows.
    pointwise reading walks to, and `Θ(x, y)` is `f x ≡ g y` unfolded at its value.
 4. **`atSet` is shared with a class argument's unit at a function class**: a term `Y(t⃗)` inside an atom is substituted
    as a set argument is, its equation `q` at `t⃗`.
+- ⚠ `reflexive` at value `i` read the walked λ until step 5 (its decision 5): an instance reads the λ as stated.
 
 **Measured** (the ZF session alone, `--skip` the other seven; the release build on 48 cores; the lint first):
 - **Through logic**: 2:09, peak 6.7 GB (0:56, 3.5 GB). 2,058 of the 3,616 named theorems stand (997): the 1,061 the scope
@@ -4362,7 +4364,8 @@ point, before `prove()`:
   Logic decide it (`owns`);
 - the link's closure runs: a statement citing a refused one is refused, transitively; a lemma citation counts as
   standing, since no lemma is decided yet;
-- a lemma request that no remaining statement cites is dropped, unproved, and reported.
+- a lemma request that no remaining statement cites is dropped, unproved, and reported — ⚠ set aside instead since
+  step 5 (its decision 6): a proof the registry makes later may cite it, and then it is proved.
 
 `prove()` proves the rest, and what their proofs request, as now. At the link, after Fol, the closure runs again — a
 lemma refused unbuilt refuses its citers — and a lemma no kept statement cites, transitively, leaves the unit: its
@@ -4414,6 +4417,157 @@ lemma request no remaining statement cites dropped. `linked()` keeps what the ke
 - **Left out, no kept statement citing them: 7,104 lemmas, 157 `@def`s.** The registry proves 22 lemmas — 8 λ classes,
   8 λs' arguments, a λ's function, three tuple facts, a term's EX and UNIQ — and none is refused unbuilt (204 before:
   each was requested by a statement that falls). The complete run's cap is `MEM=32G`.
+
+### Step 5 — a ZF definition cited  **[AGREED 2026-10-17 (user), the two decisions one by one; BUILT 2026-10-17, its decisions in the build for the user's review — `Sources/Lowering/Unfolding.swift`, `Reify.swift`, `Facts.swift`, `Lambda.swift`, `Graph.swift`, `Functions.swift`, `Logic.swift`, `Sources/IR/Pass.swift`, `docs/FOUNDATION.md`]**
+
+**The step.** A ZF constant at the object level is named, never unfolded (FOUNDATION S1, "A constant is named only at
+the object level"): its class is its `@def`'s predicate. Its definition axiom, cited, is `isaDefinition(zf, object, [],
+args: T⃗)` ("A definition read at its terms"), and no pass owns it: the definition command's `c ≡ λx⃗. b`
+(`ZF_Base.succ_def_raw`) at no terms, or a package's `⋀x⃗. c(x⃗) ≡ b` (`List.list.Cons_def`) at some or all of its
+parameters. Through logic on the ZF session it stands in 270 of the 950 named theorems no pass owns (a throwaway run
+making it Logic's unbuilt, not kept). 210 hold nothing else Logic leaves unbuilt: the definition theorems — `succ_def`,
+`Pair_def`, `QPair_def`, `eqpoll_def`, … — and inductive packages' `intros`, `induct`, `dom_subset`. 60 hold `If` too
+(22, step 6) or a binder over a function of classes (38, step 9): the definition theorems of the constants taking a
+class, among them `ZF_Base.Ball_def` and `Bex_def`, which lead the refused citations (363, 62). Isabelle derives
+`c_def` from `c_def_raw` through a box instantiated at `c`, `⋀Balla A P. Balla ≡ Ball ⟹ Balla(A, P) ≡ …`, and
+`Balla :: i ⇒ (i ⇒ o) ⇒ o` is a function of classes. This step does not free them.
+
+**The problem, in target text.** Expand proves a definition it unfolds `reflexive` at its terms: the constant is gone,
+both sides are the definiens. A named constant stays, so its definition says something of its class: one side is the
+class applied, the other the definiens.
+
+```
+Isabelle   succ_def_raw:  succ ≡ λi. cons(i, i)                                  the definition command's axiom
+           transitive (reflexive succ) succ_def_raw     ⊢ succ ≡ λi. cons(i, i)       in succ_def's proof
+read       isaDefinition(succ_def_raw, of: succ, [], succ ≡ λi. cons(i, i), args: [])      no owner
+pointwise  ∀i. succ(i) = cons(i, i)                                              ≡ at i ⇒ i, as step 4 reads it
+wanted     forall i. (set(i) -> exists S. (ZF_Base.succ(S) & exists t. (set(t) & (⟨i⟩ = t
+               & exists r. (set(r) & (pmem(t, r, S) & ⟦r = cons(i, i)⟧))))))
+@def       ZF_Base.succ(S) <-> forall t. (set(t) -> forall r. (set(r) -> (pmem(t, r, S)
+               <-> exists j. (set(j) & (⟨j⟩ = t & ⟦r = cons(j, j)⟧)))))
+```
+
+`S` exists by `succ`'s class (`ZF_Base.succ_CLASS`), `t` by `TUPLE_EX_1`, `r` by `succ`'s totality
+(`ZF_Base.succ_TOTAL`); the `@def` at `S`, `t`, `r` gives `j` with `⟨j⟩ = t` and `⟦r = cons(j, j)⟧`; `j = i` by
+`TUPLE_INJ_1`, and the replacement walk carries the body from `j` to `i`. Each piece is proved today; nothing composes
+them, and the composition is the same at every citation of `succ_def_raw`.
+
+**1. A named constant's definition, cited, is its pointwise definition: a lemma per constant, instantiated at the
+terms.** **AGREED 2026-10-17 (user).** It derives the citation's form from the `@def`'s: an iff saying which pairs or
+tuples the class holds, to the equation at every argument — `=` at a function or a set, `↔` at a predicate. `c_UNFOLD`
+states the definition at every parameter of `c`, `≡` at `c`'s value read as Logic reads it — `↔`
+for a predicate, `=` named for a function or a set:
+
+```
+ZF_Base.succ_UNFOLD       forall i. (set(i) -> ⟦succ(i) = cons(i, i)⟧)                      a function
+Ordinal.Transset_UNFOLD   forall i. (set(i) -> (⟦Transset(i)⟧ <-> ⟦∀x∈i. x ⊆ i⟧))           a predicate
+Bool.bool_UNFOLD          ⟦bool = {0, 1}⟧                                                  a set
+```
+
+| piece | rule (Logic's; Reify's code, as the constant's naming is) |
+|---|---|
+| `isaDefinition(zf, object, [], args: T⃗)`, no type variable | `c_UNFOLD` cited, then instantiated at each term by the instance rules — `forall_elim` at a variable, Reify's at a compound term, Lambda's at a λ — concluding the walk's rewrite of the node's conclusion, by ID |
+
+The request is built from the node alone (I2): its constant, and its statement as the walk rewrites it — the
+definition axiom closed, every parameter bound, `≡` at a function type pointwise (step 4) — so the definition
+command's form and a package's give one statement. The rule never asks whether Reify names the constant: one it
+cannot name, `If` with its proposition slot, stops the citer at its own piece, which the definition's statement holds.
+The suffix is the reference's, which no name in the export uses.
+
+Alternatives. The read-back in place at each citation: the same proof again at every citer of one definition, where I2
+has consumers cite and the registry provide. Unfolding the constant at the citation, `reflexive` as Expand does: the
+statement keeps the constant, named by its `@def`, so `b ≡ b` concludes another formula. "A definition read at its
+terms" decided no lemma for a definition (user) — for one Expand unfolds, whose citation is `reflexive` at base's
+helpers; a named constant's definition is a fact about its class, from its `@def`, which is what a lemma is for.
+
+**2. Reify's prover proves `c_UNFOLD` from the `@def`, by the conversion Lambda's prover makes for a λ's class.**
+**AGREED 2026-10-17 (user).** The `@def` is `c(C, P⃗) ↔ classDefinition(λx⃗. b, C)`: `C` is the class of the λ `λx⃗. b` — the form a λ's class has in
+`CLASS_⟨λ⟩`, built by the same function. `c_UNFOLD` is that class at its arguments, inside `c`'s naming: what
+`LAMBDA_⟨λ⟩` states of a λ's class (step 3). Lambda's prover already converts the one into the other at a tuple
+(`atTuple`): → the definition's `∃x⃗. ⟨x⃗⟩ = t ∧ ⟦b(x⃗)⟧` opened, `TUPLE_INJ` and the replacement walk carry `x⃗` to
+`y⃗`; ← the definition at the tuple's own entries. The conversion is shared, and `c`'s facts give the class and its
+value around it:
+
+| `c` | around the conversion |
+|---|---|
+| a predicate | → `C` and `t` opened from the naming of `c(y⃗)`; ← `C` by `c_CLASS`, `t` by `TUPLE_EX` |
+| a function | `C` by `c_CLASS`, `t` by `TUPLE_EX`, `r` by `c_TOTAL`; the conversion at `pmem(t, r, C)` |
+| a set | `v` by `c_EX`, and the `@def` at `v` is `⟦v = b⟧`: no tuple, no conversion |
+| a class parameter `P` | its slot holds `λz⃗. P(z⃗)`, named by its class `K`: `K`'s definition converted the same way, then Lambda's β (step 3) reads `b`'s applications of `K` as `P`'s; ← `K` by `CLASS_⟨λz⃗. P(z⃗)⟩` |
+
+Alternatives: a proof written for constants beside Lambda's — two copies of one reading (⚠ "A SECOND COPY OF A PASS'S
+REWRITE DIVERGES SILENTLY"); EX of `c(y⃗)`, which opens `C`, `t` and `r` in one citation — its proof cites the same
+three, it binds a value more, and a predicate has none.
+
+**FOUNDATION first.** §3b's proof-term mapping gains a row: an application of a definition whose constant is named,
+`AppT` at its parameters | its pointwise definition, proved once per constant from the `@def`, then `forall_elim` at
+the terms (an instance rule at a compound term or a λ). S1, after "A constant is named only at the object level": a
+named constant's definition is a theorem about its class, derived from its `@def` by the tuple's injectivity, the
+class's totality and, at a class argument, the slot class's definition; nothing is admitted (R1).
+
+**The contracts (D2):**
+
+| | provides | assumes |
+|---|---|---|
+| Logic (Reify) | `isaDefinition` of a named constant at its terms: `c_UNFOLD` instantiated at them, concluding the walk's rewrite of its conclusion, by ID | the instance rules; `c_UNFOLD` proved by its prover or refused there (I2) |
+| Registry (Reify's prover) | `c_UNFOLD`, from `c`'s `@def` | `c`'s `@def`; `c_CLASS` (the class prover's), `c_TOTAL`, `c_EX`; `TUPLE_EX`, `TUPLE_INJ`; a slot λ's `CLASS_⟨λ⟩` |
+| Expand | unchanged: a definition it unfolds, `reflexive` | — |
+
+**Tests, written first.**
+- `PlanTests`: `isaDefinition(zf, object, [], args: …)` Logic's rule, at a type variable no owner; Expand's rows
+  unchanged; no pattern has two owners.
+- `DefinitionTests` (Lowering), each lowered, concluding its statement by ID, kernel-checked with its `@def` and
+  lemmas: a function's `T.s ≡ λx. Pow(x)` at no terms, under `transitive (reflexive T.s)`; a package's
+  `⋀x. T.s(x) ≡ Pow(x)` at a variable and at `Pow(0)`; a predicate's; a set constant's; one taking a class,
+  `T.ball ≡ λA P. ∀x. x ∈ A ⟶ P(x)`.
+- `ProverTests`: `c_UNFOLD` of each kind, proved to the end, through Fol, kernel-checked.
+- The ZF session: through logic, then complete, emitted and kernel-checked.
+
+**Built.** Reify owns `isaDefinition(zf, object, [], args: …)` at no type variable; its rule (`unfolded`) cites
+`Unfolding(constant:statement:)`, `c_UNFOLD`, and instantiates it at the node's terms by `Functions.instance`, the
+dispatch step 4's `combination` uses. Reify's prover proves it (`UnfoldingProofs`): the lemma's variables fixed at its
+binders, `c`'s facts open the class, the tuple and the value, and Lambda's conversion (`LambdaProofs.atTuple`, shared)
+reads the `@def`'s class at the tuple. At a class parameter `readBack` turns the slot classes back into the parameters
+one at a time, by Lambda's β (`LambdaInstance.equivalence`, shared), each slot class at its arguments by
+`LambdaProofs.atArguments`, which now takes a λ at any depth. Tests: `DefinitionTests` (seven, two class parameters
+among them), `ProverTests.aFunctionsUnfoldingIsProvedFromItsDef`, `PlanTests`' rows.
+
+**Decisions made in the build**, for the user's review:
+1. **The request carries its statement**, the walk's rewrite of the definition axiom's own, which the node's walked
+   child already is. A constant has one definition axiom, so a name has one statement; two would stop the run
+   (`duplicateName`).
+2. **A slot's λ is rebuilt as its parameter read η-long**, `λz⃗. P(z⃗)`, for its class's existence and its β: the naming
+   named that λ in the statement, so its class definition is the statement's, by ID.
+3. **`atTuple` reads a class at the empty tuple** — a constant whose every argument is a class: no entry to open, the
+   definition's conjunction taken apart. A λ always has an argument, so Lambda never needed it.
+4. **A function guard is discharged where a class parameter is instantiated**, by its at-arguments fact's first
+   conjunct, as `LambdaInstance` discharges its own: a binder at `iⁿ ⇒ i` instantiated at a class leaves `function(K)`
+   a premise.
+5. ⚠ **STEP 4'S `reflexive` AT A FUNCTION READ THE WALKED λ**: `Equalities.rewrite` handed it `n`'s child, so at value
+   `i` the instance at the term named the inner λs from the walk's naming, and an EX request held a named λ the class
+   prover cannot read (`ComprehensionError.unread`). No statement holding it had stood before this step. It takes the λ
+   as stated, `t[id]`, and walks the body at `o` alone. Test: `reflexiveAtAFunctionInstantiatesTheTermAsStated`,
+   `unread` before.
+6. ⚠ **LAZY PROVING FORGOT A REQUEST IT SET ASIDE**: `pruned()` dropped a lemma requested for a statement that then fell,
+   and when a lemma the registry proved later cited it — `ZF.iterates_TOTAL`, an `EX_` — `add` found it already
+   requested and never brought it back; the link stopped (`citesNothing`). A request no remaining statement cites is
+   now set aside: cited by a proof the registry makes, it returns and is proved; still aside at the link, it is dropped
+   and reported. Test: `aLemmaSetAsideAndCitedByAProofLaterIsProvedAndKept`, `citesNothing` before.
+
+**Measured** (the ZF session alone, `--skip` the other seven; the release build on 48 cores; the lint first):
+- **Through logic**: 2:55, 11.9 GB — read 43.7 s; expand 2.1 s, logic 126.3 s; 31.5M nodes. 2,557 named theorems
+  stand (2,347): the 210 the throwaway run bounded. Refused at no owner 680 (950), at logic 379 (319): the 60 holding
+  `If` or a function of classes besides.
+- **Complete, emitted and kernel-checked**: 4:13, 13.3 GB — read 47.7 s; expand 2.3 s, logic 135.9 s, registry 22.3 s,
+  fol 27.2 s, link 2.4 s; emitted 12.4 s, 31 parts, 194.8 MB (906 KB); 36.7M nodes. `check-unit.sh`: 21.1 s, every
+  part exit 0 and empty stderr, claims 1,942 of 1,942, schemas 104 of 104; 147 `@def`s.
+- **Named theorems lowered: 170** (14): the definition theorems — `ZF_Base.succ_def`, `Pair_def`, `cons_def`,
+  `Ordinal.Transset_def`, `Perm.comp_def`, `Nat.nat_def`, … — and what rests on them, `Ordinal.ltI`, `Limit_is_Ord`,
+  `List.list.mutual_induct`. With them 2,023 statements: the theorems and boxes cited, and the lemmas, 126 of them
+  `c_UNFOLD`, 33,761 steps written.
+- **Refused**: no owner 680, logic 379, a refused citation 2,387 (2,333), led by `ZF_Base.Ball_def` 487 and `Bex_def`
+  107 (step 9's box), `Bool.cond_DEF` 23 (step 6), `List.list.induct` 22. `@def`s stated 147, refused 69; no lemma
+  refused unbuilt; left out 7,013 lemmas and 14 `@def`s.
 
 ### Fol — binders, guards and variables  **[BUILT 2026-09-28 as the guard; Fol's 2026-10-14; every object type and `∃` at `i` with "Reify — S1 at the site" — `Sources/Lowering/Fol.swift`]**
 

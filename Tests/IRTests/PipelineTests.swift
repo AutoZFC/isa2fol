@@ -454,6 +454,33 @@ func aLemmaWhoseCitersFallAfterItIsProvedLeavesTheUnit() throws {
     #expect(unit.dropped == ["L1"])
 }
 
+/// `S` cites the refused `C` and requests `L`, set aside unasked; `K` requests `M`, whose proof cites `L`: `L` is asked
+/// then, proved, and kept with `M`.
+@Test
+func aLemmaSetAsideAndCitedByAProofLaterIsProvedAndKept() throws {
+    var t = Table()
+    let (r, proof) = try reflexiveMem(&t)
+    let memA = try memOfA(&t)
+    let aside = try t.intern(.folImpliesIntro(memA, body: try t.intern(.hyp(0, memA))))
+    let c = Statement(name: "C", root: r, proof: try t.intern(.folAndElimL(try t.intern(.folAndIntro(proof, aside)))))
+    let s = Statement(
+        name: "S",
+        root: try t.intern(.folAnd(r, r)),
+        proof: try t.intern(.folAndIntro(
+            try t.intern(.use(.theorem("C"), [], r)),
+            try t.intern(.use(.theoryAxiom("L"), [], r)),
+        )),
+    )
+    let k = try citing("M", "K", r, &t)
+    let viaL = try t.intern(.use(.lemma(lemma("L")), [], r))
+    var unit = Unit(table: t, statements: [c, s, k])
+    let registry = Proving { l, _, _ in .proof(l.name == "M" ? viaL : proof) }
+    try Pipeline(passes: [cite, elem], registry: registry, provingAfter: "cite").run(&unit)
+    #expect(registry.asked == ["M", "L"])
+    #expect(Set(unit.statements.map(\.name)) == ["K", "M", "L"])
+    #expect(unit.dropped.isEmpty)
+}
+
 /// `T.d ≡ λx. K(x ∈ x)`: `elem` lowers it before `reading`, which owns `T.d`, reads it; nothing lowers it after.
 @Test
 func aPassReadsTheDefinitionsOfTheConstantsItOwnsAsTheyStandAtItsInput() throws {

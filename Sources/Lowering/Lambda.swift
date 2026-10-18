@@ -96,7 +96,7 @@ struct LambdaInstance {
         return try t.intern(.folImpliesElim(try t.intern(.folExistsElim(opened, body: assumed)), p))
     }
 
-    private func equivalence(
+    func equivalence(
         _ T: IRType,
         _ psi: NodeID,
         _ psiNamed: NodeID,
@@ -344,40 +344,86 @@ struct LambdaProofs {
             in: &t,
         )
         let (k, h) = try fr.open(atV, in: &t)
-        let (n, value) = try shape(f.lambda, in: t)
-        guard value == .i else {
-            return try fr.close(
-                try t.intern(.folExistsIntro(try predicate(f, n, k, h, fr, &t), try fr.variable(k, in: &t))),
-                in: &t,
-            )
-        }
-        let functionF = LambdaFact(
-            lambda: f.lambda,
-            types: f.types,
-            fact: .function,
-            name: "FUNC_" + fingerprint(f.lambda, t),
-        )
         let atK = try f.types.indices.map { try fr.variable($0, in: &t) }
         let guardOf = { (x: NodeID, _: IRType, t: inout Table) throws -> NodeID in
             guard let j = atK.firstIndex(of: x), let g = guards[j] else { throw LambdaError.notMine(f.name) }
             return try fr.hypothesis(g, in: &t)
         }
+        let at = try atArguments(f.lambda, from: f.types.count, k, h, fr, guardOf: guardOf, in: &t)
+        return try fr.close(try t.intern(.folExistsIntro(at, try fr.variable(k, in: &t))), in: &t)
+    }
+
+    func atArguments(
+        _ lambda: NodeID,
+        from depth: Int,
+        _ k: Int,
+        _ h: Int,
+        _ fr: Frame,
+        guardOf: (NodeID, IRType, inout Table) throws -> NodeID,
+        in t: inout Table,
+    ) throws -> NodeID {
+        let (n, value) = try shape(lambda, in: t)
+        guard value == .i else { return try predicate(lambda, depth, n, k, h, fr, &t) }
+        let (functionF, c) = try lambdaFact(try fr.scope.lift(lambda, from: depth, in: &t), .function, in: &t)
         let atVF = try instantiated(
             try cited(functionF, try statement(functionF, base: base, in: &t), &t),
-            at: atK,
-            f.types,
+            at: c.variables,
+            c.types,
             guards: true,
             guardOf: guardOf,
             in: &t,
         )
         let K = try fr.variable(k, in: &t)
         let function = try eliminated(atVF, at: [K], premises: [try fr.hypothesis(h, in: &t)], in: &t)
-        let both = try t.intern(.folAndIntro(function, try self.function(f, n, k, h, fr, &t)))
-        return try fr.close(try t.intern(.folExistsIntro(both, K)), in: &t)
+        return try t.intern(.folAndIntro(function, try self.function(lambda, depth, n, k, h, fr, &t)))
+    }
+
+    func atTuple(
+        _ d: Int,
+        _ tupled: Int,
+        _ ts: [Int],
+        _ tw: Int,
+        _ body: (Frame, inout Table) throws -> NodeID,
+        _ f: Frame,
+        _ t: inout Table,
+    ) throws -> NodeID {
+        let definition = try f.hypothesis(d, in: &t)
+        guard case .folIff(let member, _)? = t.conclusion(of: definition).map({ t[$0] }) else {
+            throw LambdaError.notMine("a class's definition")
+        }
+        let n = ts.count
+        var fw = Frame(f.scope)
+        let hm = fw.assume(member)
+        let opened = try t.intern(.folIffElimL(try fw.hypothesis(d, in: &t), try fw.hypothesis(hm, in: &t)))
+        guard n > 0 else {
+            let forward = try fw.close(try t.intern(.folAndElimR(opened)), in: &t)
+            return try t.intern(.folIffIntro(forward, try back(d, tupled, ts, body, f, &t)))
+        }
+        let (xs, conj) = try fw.open(opened, count: n, in: &t)
+        let inj = TupleFact(arity: n, fact: .injectivity)
+        let equal = try eliminated(
+            try cited(inj, try statement(inj, in: &t), &t),
+            at: try (xs + ts + [tw]).map { try fw.variable($0, in: &t) },
+            premises: [try fw.proof(.left(conj), in: &t), try fw.hypothesis(tupled, in: &t)],
+            in: &t,
+        )
+        let e = try fw.have(equal, in: &t)
+        let moved = try transported(
+            try fw.proof(.right(conj), in: &t),
+            to: try body(fw, &t),
+            xs,
+            ts,
+            equalities: e,
+            fw,
+            &t,
+        )
+        let forward = try fw.close(moved, in: &t)
+        return try t.intern(.folIffIntro(forward, try back(d, tupled, ts, body, f, &t)))
     }
 
     private func predicate(
-        _ f: LambdaFact,
+        _ lambda: NodeID,
+        _ depth: Int,
         _ n: Int,
         _ k: Int,
         _ h: Int,
@@ -389,7 +435,7 @@ struct LambdaProofs {
         let body = { (f2: Frame, t: inout Table) throws -> NodeID in
             try walked(
                 try beta(
-                    try f2.scope.lift(f.lambda, from: f.types.count, in: &t),
+                    try f2.scope.lift(lambda, from: depth, in: &t),
                     try ts.map { try f2.variable($0, in: &t) },
                     in: &t,
                 ),
@@ -459,7 +505,8 @@ struct LambdaProofs {
     }
 
     private func function(
-        _ f: LambdaFact,
+        _ lambda: NodeID,
+        _ depth: Int,
         _ n: Int,
         _ k: Int,
         _ h: Int,
@@ -476,7 +523,7 @@ struct LambdaProofs {
         ))
         let valued = { (r: Int, f2: Frame, t: inout Table) throws -> NodeID in
             let b = try beta(
-                try f2.scope.lift(f.lambda, from: f.types.count, in: &t),
+                try f2.scope.lift(lambda, from: depth, in: &t),
                 try ts.map { try f2.variable($0, in: &t) },
                 in: &t,
             )
@@ -495,7 +542,7 @@ struct LambdaProofs {
             try each.close(try atTuple(d, tupled, ts, tw, { f2, t in try valued(r, f2, &t) }, each, &t), in: &t),
             in: &t,
         )
-        let lam = try sub.scope.lift(f.lambda, from: f.types.count, in: &t)
+        let lam = try sub.scope.lift(lambda, from: depth, in: &t)
         let b = try beta(lam, try ts.map { try sub.variable($0, in: &t) }, in: &t)
         let c = try closed(b, in: &t)
         let ex = try existence(of: b, in: &t)
@@ -539,50 +586,19 @@ struct LambdaProofs {
         guard
             case .folIff(let a, let m)? = t.conclusion(of: pmem).map({ t[$0] }),
             case .folIff(_, let c2)? = t.conclusion(of: atR).map({ t[$0] })
-        else { throw LambdaError.notMine(f.name) }
+        else { throw LambdaError.notALambda(lambda) }
         let chained = try base.applied(.iffTrans, [a, m, c2], [pmem, atR], in: &t)
         return try sub.close(try last.close(chained, in: &t), in: &t)
     }
 
-    private func atTuple(
+    private func back(
         _ d: Int,
         _ tupled: Int,
         _ ts: [Int],
-        _ tw: Int,
         _ body: (Frame, inout Table) throws -> NodeID,
         _ f: Frame,
         _ t: inout Table,
     ) throws -> NodeID {
-        let definition = try f.hypothesis(d, in: &t)
-        guard case .folIff(let member, _)? = t.conclusion(of: definition).map({ t[$0] }) else {
-            throw LambdaError.notMine("a class's definition")
-        }
-        let n = ts.count
-        var fw = Frame(f.scope)
-        let hm = fw.assume(member)
-        let (xs, conj) = try fw.open(
-            try t.intern(.folIffElimL(try fw.hypothesis(d, in: &t), try fw.hypothesis(hm, in: &t))),
-            count: n,
-            in: &t,
-        )
-        let inj = TupleFact(arity: n, fact: .injectivity)
-        let equal = try eliminated(
-            try cited(inj, try statement(inj, in: &t), &t),
-            at: try (xs + ts + [tw]).map { try fw.variable($0, in: &t) },
-            premises: [try fw.proof(.left(conj), in: &t), try fw.hypothesis(tupled, in: &t)],
-            in: &t,
-        )
-        let e = try fw.have(equal, in: &t)
-        let moved = try transported(
-            try fw.proof(.right(conj), in: &t),
-            to: try body(fw, &t),
-            xs,
-            ts,
-            equalities: e,
-            fw,
-            &t,
-        )
-        let forward = try fw.close(moved, in: &t)
         var bw = Frame(f.scope)
         let hb = bw.assume(try body(bw, &t))
         let defined = try bw.hypothesis(d, in: &t)
@@ -592,8 +608,7 @@ struct LambdaProofs {
             from: try t.intern(.folAndIntro(try bw.hypothesis(tupled, in: &t), try bw.hypothesis(hb, in: &t))),
             in: &t,
         )
-        let backward = try bw.close(try t.intern(.folIffElimR(defined, witness)), in: &t)
-        return try t.intern(.folIffIntro(forward, backward))
+        return try bw.close(try t.intern(.folIffElimR(defined, witness)), in: &t)
     }
 
     private func transported(

@@ -62,6 +62,36 @@ func exAndUniqOfAConstantAtAVariableAreProvedToTheEnd() throws {
     try kernelChecks(proved, definitions: [(s, try atDefinition(s, [d], in: &r.t))], in: &r.t)
 }
 
+/// `T.s ≡ λx. Pow(x)`: its unfolding, `∀x. T.s(x) = Pow(x)` named, from its `@def` by `T.s`'s class and totality and
+/// the
+/// tuple's existence and injectivity — proved to the end and kernel-checked.
+@Test
+func aFunctionsUnfoldingIsProvedFromItsDef() throws {
+    var r = Terms()
+    let s = Defined(.zf, "T.s", .object)
+    let d = Definition(
+        defines: .constant(s),
+        type: fn(i, i),
+        axiomTypes: [],
+        parameters: 0,
+        definiens: try r.lam(i, try r.pow(try r.x(0))),
+    )
+    let eta = try r.lam(i, try r.n(.isaConst(.defined(s), fn(i, i), args: [try r.x(0)])))
+    let base = try LoweringTests.base(in: &r.t)
+    let stated = try walked(try r.t.equation(fn(i, i), eta, d.definiens), base: base, in: &r.t)
+    let request = Unfolding(constant: s, statement: stated)
+    let (proved, unbuilt) = try proveAll([(Lemma(request), stated)], [d], in: &r.t)
+    #expect(unbuilt.isEmpty)
+    #expect(Set(proved.map(\.name)).isSuperset(of: [
+        "T.s_UNFOLD",
+        "T.s_CLASS",
+        "T.s_TOTAL",
+        "TUPLE_EX_1",
+        "TUPLE_INJ_1",
+    ]))
+    try kernelChecks(proved, definitions: [(s, try atDefinition(s, [d], in: &r.t))], in: &r.t)
+}
+
 /// `T.e ≡ Pow(0)`, a set constant: its UNIQ by UNIQ of its body, its EX by EX of its body.
 @Test
 func aDefinedSetConstantsFactsComeFromItsBody() throws {

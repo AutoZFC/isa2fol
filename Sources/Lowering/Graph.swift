@@ -35,7 +35,7 @@ struct GraphProofs {
         }
     }
 
-    private func definitionCited(_ c: Constant, _ t: inout Table) throws -> NodeID {
+    func definitionCited(_ c: Constant, _ t: inout Table) throws -> NodeID {
         switch c {
         case .primitive(.zf(.pow)): return try base.cite(.zfPowDef, in: &t)
         case .primitive(.zf(.union)): return try base.cite(.zfUnionDef, in: &t)
@@ -47,10 +47,21 @@ struct GraphProofs {
         }
     }
 
-    private func definition(_ d: Defined) throws -> Definition {
+    func definition(_ d: Defined) throws -> Definition {
         guard let found = definitions.first(where: { $0.defines == .constant(d) })
         else { throw GraphError.noDefinition(d.name) }
         return found
+    }
+
+    func graph(_ c: Constant, _ C: Int, _ ps: [Int], _ hc: Int) -> (Scope, inout Table) throws -> NodeID {
+        { s, t in
+            let def = try eliminated(
+                try definitionCited(c, &t),
+                at: try ([C] + ps).map { try s.variable($0, in: &t) },
+                in: &t,
+            )
+            return try t.intern(.folIffElimL(def, try s.hypothesis(hc, in: &t)))
+        }
     }
 
     private func member(_ c: Constant, _ T: IRType, classes ps: [Int]) throws -> Member {
@@ -76,17 +87,6 @@ struct GraphProofs {
         case .primitive(.zf(.mem)), .primitive(.zf(.zero)), .primitive(.zf(.inf)), .primitive(.pure), .primitive(.ifol),
              .declared:
             throw GraphError.noDefinition(c.name)
-        }
-    }
-
-    private func graph(_ c: Constant, _ C: Int, _ ps: [Int], _ hc: Int) -> (Scope, inout Table) throws -> NodeID {
-        { s, t in
-            let def = try eliminated(
-                try definitionCited(c, &t),
-                at: try ([C] + ps).map { try s.variable($0, in: &t) },
-                in: &t,
-            )
-            return try t.intern(.folIffElimL(def, try s.hypothesis(hc, in: &t)))
         }
     }
 

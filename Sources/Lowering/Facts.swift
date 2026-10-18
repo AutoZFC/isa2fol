@@ -83,6 +83,15 @@ struct ConstantFact: Request {
     }
 }
 
+struct Unfolding: Request {
+    let constant: Defined
+    let statement: NodeID
+
+    var name: String {
+        constant.name + "_UNFOLD"
+    }
+}
+
 struct LambdaFact: Request {
     enum Fact: Hashable, Sendable {
         case classExists
@@ -127,6 +136,7 @@ struct TupleFact: Request {
 public func kind(of lemma: Lemma) -> String {
     switch lemma.request {
     case let f as ConstantFact: "constant \(f.fact)"
+    case is Unfolding: "constant unfolding"
     case let f as LambdaFact: "λ \(f.fact)"
     case let f as TupleFact: "tuple \(f.fact)"
     case is RekeyFact: "rekey"

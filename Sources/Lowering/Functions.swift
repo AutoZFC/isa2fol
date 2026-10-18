@@ -34,7 +34,7 @@ struct Functions {
         let inner: NodeID =
             switch U {
             case .fn: try reflexive(U, body, in: &t)
-            case .o: try base.instance(.iffRefl, [body], in: &t)
+            case .o: try base.instance(.iffRefl, [try walked(body, base: base, in: &t)], in: &t)
             case .i: try Equalities(base: base).atI(.reflexive, [body], [], in: &t)
             case .variable: throw FunctionsError.notAFunction(f)
             }
@@ -136,6 +136,18 @@ struct Functions {
         return try t.intern(.ifolAll(T, body: try isaPointwise(V, fa, fb, in: &t)))
     }
 
+    func instance(
+        _ p: NodeID,
+        of statement: NodeID,
+        at a: NodeID,
+        _ T: IRType,
+        in t: inout Table,
+    ) throws -> NodeID {
+        let elim = try t.intern(.isaAllElim(try t.intern(.hyp(0, statement)), a))
+        if T == .i { return try Reify().instance(p, was: elim, base: base, in: &t) }
+        return try LambdaInstance(base: base).proof(p, was: elim, in: &t)
+    }
+
     private func atClass(
         _ T: IRType,
         _ context: (NodeID, Int, inout Table) throws -> NodeID,
@@ -166,18 +178,6 @@ struct Functions {
         let walk = try Replacement(base: base, hole: hole.atom).proof(template, l, r, in: s, &t)
         let lowered = try unshift(try unshift(walk, in: &t), in: &t)
         return try t.intern(.folImpliesElim(try t.intern(.folImpliesIntro(stated, body: lowered)), q))
-    }
-
-    private func instance(
-        _ p: NodeID,
-        of statement: NodeID,
-        at a: NodeID,
-        _ T: IRType,
-        in t: inout Table,
-    ) throws -> NodeID {
-        let elim = try t.intern(.isaAllElim(try t.intern(.hyp(0, statement)), a))
-        if T == .i { return try Reify().instance(p, was: elim, base: base, in: &t) }
-        return try LambdaInstance(base: base).proof(p, was: elim, in: &t)
     }
 
     private func concluding(_ proof: NodeID, _ id: NodeID, in t: inout Table) throws -> NodeID {

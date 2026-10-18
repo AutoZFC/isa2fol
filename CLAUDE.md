@@ -40,9 +40,12 @@ the argument, then the argument's equation substituted into the function by the 
 letters come first** (`DESIGN.md` "Letters first"): the reader closes a theorem over its propositions before its other
 frees and permutes each citation's leading term arguments to match, so a letter is instantiated by `schema_inst` on the
 citation and no instance walks a binder over a proposition; an axiom keeps the export's order. Of the ZF session's
-3,616 named theorems (`--skip` the other seven), `lower` lowers 14 to fol-zfc: 950 stop at no
-owner, 319 at logic, and 2,333 cite a refused statement, led by `ZF_Base.Ball_def` (step 5) — a `@def` holding a piece not built, or a theorem refused for
-one of the others. **The rules that consumed a proposition where it stood are removed**
+3,616 named theorems (`--skip` the other seven), `lower` lowers 170 to fol-zfc: 680 stop at no
+owner, 379 at logic, and 2,387 cite a refused statement, led by `ZF_Base.Ball_def` and `Bex_def`, whose proofs bind a
+function of classes (step 9) — a `@def` holding a piece not built, or a theorem refused for one of the others. **A ZF
+definition cited is its constant's pointwise definition** (`DESIGN.md` "Step 5 — a ZF definition cited"): `c_UNFOLD`,
+cited and instantiated at the terms, proved by Reify's prover from the `@def` through Lambda's conversion of a class at
+its tuple, the slot classes of class parameters read back by Lambda's β. **The rules that consumed a proposition where it stood are removed**
 (`DESIGN.md` "Removed — the rules that consumed a proposition where it stood"): FOUNDATION S4 makes a proposition an
 object as its truth set. **A proposition bound below a statement's top and a function of propositions have its rules**
 (`DESIGN.md` "Functions of propositions and the bound `⋀P`"): the reader reads Pure's `⋀` over a proposition apart from a
@@ -69,11 +72,11 @@ constant's from its `@def` and a primitive's from base. **Class existence has it
 `member_class` or `graph_class`; a class binder a hypothesis of what lies under it; one lift per class-taking constant,
 uniform in the record's length, re-keyed by `REKEY`; the class prover does not read yet the classes of λs holding a
 proposition. **A lemma is proved once a statement that stands cites it** (`DESIGN.md` "Lazy proving"): the link closes
-before the registry proves, and the unit keeps only what a kept statement cites — 7,104 lemmas and 157 `@def`s of the
-ZF session left out, never proved. **Emission
+before the registry proves, and the unit keeps only what a kept statement cites — 7,013 lemmas and 14 `@def`s of the
+ZF session left out, never proved; a request set aside comes back when a proof the registry makes cites it. **Emission
 is built** (`DESIGN.md` "Emission"): `isa2fol lower data/zf_export --emit DIR` writes the unit as parts — a theory's
 theorems, a lemma in its first citer's part — and `scripts/check-unit.sh DIR` kernel-checks each against the libraries
-of base and of the parts it cites: all 52 claims and 104 schemas of the ZF session's unit Proved, 906 KB. `DESIGN.md` is the plan; its "The steps after class
+of base and of the parts it cites: all 1,942 claims and 104 schemas of the ZF session's unit Proved, 194.8 MB. `DESIGN.md` is the plan; its "The steps after class
 existence, in order" is the order of work, agreed again from step 2 on around FOUNDATION S4.
 
 ## Build
@@ -257,7 +260,7 @@ determinism R1–R3 (§4.6).
    print(f'{c}/{t} = {100*c/t:.1f}%')"
    ```
 
-   ✓ **CURRENTLY 63/12500 = 0.5%, under the cap.** Keep it there: a breach is
+   ✓ **CURRENTLY 63/12845 = 0.5%, under the cap.** Keep it there: a breach is
    fixed by deleting prose, never by raising the cap.
 
    Does not apply to `base/**/*.fol.def` headers: those record provenance of
@@ -304,7 +307,7 @@ Sources/
   IR/            Node · Table · transform · index engine · passes · legalize
   FolDialect/    Declaration · render (formulas and proofs) · parse (base's schemas) — the text boundary over IR
   Reader/        the export → isa nodes: Export (loading) · IsaType · Constants · Terms (η-long, closed) · Statements · Proofs (decoder) · Reader (proofs) · Census
-  Lowering/      the plan, never seen by the framework: the passes Expand · Logic · Fol, Reify a component in Logic's walk, and the registry — Expand's rules, Logic's for a proposition's letter, Pure's `⋀` over a proposition and functions of propositions (Truth, S4's truth set), `subst` and Pure's equality at `o` and at `i`, Reify's naming, `@def`s and instance at a compound term, Fol's at every object type, and class existence (Comprehension, the class prover) built
+  Lowering/      the plan, never seen by the framework: the passes Expand · Logic · Fol, Reify a component in Logic's walk, and the registry — Expand's rules, Logic's for a proposition's letter, Pure's `⋀` over a proposition and functions of propositions (Truth, S4's truth set), `subst` and Pure's equality at `o` and at `i`, Reify's naming, `@def`s and instance at a compound term, a ZF definition cited (Unfolding, `c_UNFOLD`), Fol's at every object type, and class existence (Comprehension, the class prover) built
   isa2fol/       CLI
 Tests/           YXMLTests · FolDialectTests · IRTests · ReaderTests · LoweringTests
 base/            the NBG foundation: axioms.fol.def + 13 tiers, kernel-checked

@@ -541,6 +541,15 @@ the evidence; within ZF a type variable is always of the empty sort, since ZF
 writes `i` for its objects. The logic's constants (Pure, IFOL, FOL) are unfolded
 by family whatever their type.
 
+**A named constant's definition is a theorem about its class.** Its `@def` states
+the class: `C` is the class of `λx⃗. b`, the form a λ's class has. Isabelle's
+definition, cited, is that class at its arguments, `c(x⃗) ≡ b(x⃗)` — `=` at a
+function or a set, `↔` at a predicate — derived once per constant from the `@def`
+by the tuple's injectivity, the class's existence and totality (S2) and, at a
+class argument, the slot class's definition; nothing is admitted (R1). Unfolded,
+a definition is `b ≡ b`; a named constant stays, and `reflexive` concludes another
+formula.
+
 > **⚠ "UNFOLD WHAT TAKES A PREDICATE" IS NOT THIS BORDER, AND IT IS EXPONENTIAL.**
 > A constant taking a class passes it on to others that take it again —
 > ZF-Constructible's relativized `is_X(M, …)` pass `M` several times per level,
@@ -1247,6 +1256,7 @@ specialisation at `kpair`.
 | an application of a logical rule (`conjI`, `mp`, `spec`, `exE`, …) | the kernel's OWN step at its premises; never translated (S4) |
 | `exI` at `P` and `a` | base's `ex_intro` at `P`, then `forall_elim` at `a`: an ∃-introduction given its body |
 | an application of a definition whose constant is unfolded, `AppT` at its parameters | `reflexive` at its terms: the definiens at them on both sides, no binder introduced (S1) |
+| an application of a definition whose constant is named, `AppT` at its parameters | its pointwise definition, proved once per constant from the `@def`, then `forall_elim` at the terms — at a compound term or a λ, as `AppT` there (S1) |
 | `⋀P` over a proposition, `o` or `prop`, at a statement's top, `AppT` at it | a schema letter, `schema_inst` (S4) |
 | `⋀P` over a proposition anywhere else, `AppT` at it | a truth-set variable; `forall_elim` at `E(φ)`, then β (S4) |
 | a variable only the proof uses (`dummy_pattern`) | the witness of an `exists_elim` at the proof's top, below its letters, over its type's inhabitation |

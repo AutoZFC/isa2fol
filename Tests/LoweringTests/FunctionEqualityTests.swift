@@ -290,3 +290,24 @@ func combinationAtAClassArgumentSubstitutesIntoTheFunctionOfClasses() throws {
     #expect(unit.refused.isEmpty, "\(unit.refused)")
     try kernelChecks(unit)
 }
+
+/// `reflexive (λA. PrimReplace(A, λx y. y ∈ Pow(x)))` at `i ⇒ i`: the instance at the term reads it as Isabelle states
+/// it, so its EX names the inner λ's class from the λ itself, never from the walk's naming of its body.
+@Test
+func reflexiveAtAFunctionInstantiatesTheTermAsStated() throws {
+    var l = LogicTable()
+    let y = try l.bound(0, i)
+    let x = try l.bound(1, i)
+    let relation = try l.lam(i, try l.lam(i, try l.mem(y, try pow(x, &l))))
+    let replaced = try l.lam(i, try l.const(
+        .primitive(.zf(.primReplace)),
+        fn(i, fn(fn(i, fn(i, o)), i)),
+        try l.bound(0, i),
+        relation,
+    ))
+    let root = try l.equal(fn(i, i), replaced, replaced)
+    let proof = try l.t.intern(.isaReflexive(replaced))
+    let unit = try lowered(l, [Statement(name: "T.replaced", root: root, proof: proof, theory: "Test")])
+    #expect(unit.refused.isEmpty, "\(unit.refused)")
+    try kernelChecks(unit)
+}

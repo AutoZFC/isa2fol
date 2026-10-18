@@ -52,6 +52,7 @@ func reifysPiecesAreTheLogicPasss() throws {
         .isaConst(.defined(.zf, .object), fn(i, i), args: [i]),
         .isaVarApp(head: fn(i, o), args: [i]),
         .isaAbs(i, body: o),
+        .isaDefinition(.zf, .object, [], args: []),
     ]
     let logics: [Pattern] = [
         .isaCombination(oo, o, o),
@@ -215,7 +216,10 @@ func eachPatternHasTheOwnerTheDivisionGivesIt() throws {
         (.use(.theorem, [i], o), nil, nil),
         (.use(.axiom(.zf(.replacement)), [], o), nil, nil),
         (.use(.theoryAxiom, [], o), nil, nil),
-        (.isaDefinition(.zf, .object, [], args: [i]), nil, nil),
+        (.isaDefinition(.zf, .object, [], args: []), "logic", .rule),
+        (.isaDefinition(.zf, .object, [], args: [i]), "logic", .rule),
+        (.isaDefinition(.zf, .object, [], args: [fn(i, o), i]), "logic", .rule),
+        (.isaDefinition(.zf, .object, [a], args: []), nil, nil),
         (.isaDefinition(.pure, .meta, [a], args: [a]), nil, nil),
     ]
     for (p, owner, owned) in expected {

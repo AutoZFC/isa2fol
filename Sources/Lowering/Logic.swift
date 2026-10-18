@@ -312,7 +312,10 @@ struct Equalities {
         case .reflexive:
             guard case .isaReflexive(let f) = n, let T = t.type(of: f) else { throw LogicError.notCongruence(first) }
             if propositional(T) { return try Truths(base: base).reflexive(T, f, in: &t) }
-            if overObjects(T) { return try Functions(base: base).reflexive(T, f, in: &t) }
+            if overObjects(T) {
+                guard case .isaReflexive(let stated) = t[id] else { throw LogicError.notCongruence(first) }
+                return try Functions(base: base).reflexive(T, stated, in: &t)
+            }
             if T == .i { return try atI(e, try sidesAtI(id, t), [], in: &t) }
             guard T == .o else { throw LogicError.notCongruence(first) }
             return try base.instance(.iffRefl, [f], in: &t)

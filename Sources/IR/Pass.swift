@@ -245,6 +245,8 @@ private struct Run {
     let proving: Int?
     var unit: Unit
     var live = [Live]()
+    var aside = [Lemma: Live]()
+    var asideOrder = [Lemma]()
     var lowering = [Lowering]()
     var reached = [Definition]()
     var names = Set<String>()
@@ -253,6 +255,10 @@ private struct Run {
     var definitionsRefused = Set<Defined>()
     var checked = Set<Pattern>()
     var stages = [Stage]()
+
+    var setAside: [String] {
+        asideOrder.compactMap { aside[$0]?.statement.name }
+    }
 
     func owner(of p: Pattern) -> Int? {
         passes.firstIndex { $0.owns(p) != nil }
@@ -357,6 +363,7 @@ private struct Run {
         var partial = unit
         partial.statements = live.map(\.statement)
         partial.definitions = reached
+        for name in setAside { partial.drop(name) }
         return partial
     }
 
@@ -388,8 +395,14 @@ private struct Run {
     }
 
     mutating func add(_ cited: [(Lemma, NodeID)], after k: Int) throws {
-        for (l, root) in cited where lemmas.insert(l).inserted {
+        for (l, root) in cited {
+            let back = aside.removeValue(forKey: l)
+            guard back != nil || lemmas.insert(l).inserted else { continue }
             guard let r = proving, k <= r else { throw PipelineError.citedAfterRegistry(l.name) }
+            if let back {
+                live.append(back)
+                continue
+            }
             guard names.insert(l.name).inserted else { throw PipelineError.duplicateName(l.name) }
             let held = try check(patterns(under: [root], in: unit.table))
             if let p = misstated(held, through: r) { throw PipelineError.misstatedLemma(name: l.name, pattern: p) }
@@ -514,16 +527,18 @@ private struct Run {
         for k in live.indices where kept[k] && live[k].statement.lemma == nil { cited.formUnion(edges[k]) }
         var needed = [Live]()
         for k in live.indices where kept[k] {
-            if live[k].statement.lemma == nil || cited.contains(k) {
-                needed.append(live[k])
+            if let l = live[k].statement.lemma, !cited.contains(k) {
+                aside[l] = live[k]
+                asideOrder.append(l)
             } else {
-                unit.drop(live[k].statement.name)
+                needed.append(live[k])
             }
         }
         live = needed
     }
 
     mutating func linked() throws -> Unit {
+        for name in setAside { unit.drop(name) }
         let (cites, edges) = try graph { _ in true }
         try acyclic(edges)
         let kept = closed(cites)

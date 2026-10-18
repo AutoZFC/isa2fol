@@ -31,9 +31,12 @@ public struct Reify {
         case .isaAbs(let T, body: let U):
             return isObject(.fn(T, U)) ? .rule : nil
 
+        case .isaDefinition(let f, let level, let types, _):
+            return unfolds(f, level) || types.contains(where: mentionsTypeVariable) ? nil : .rule
+
         case .isaAllElim, .ifolAll, .ifolEx, .isaFree, .isaBound, .isaOfClass, .isaAllIntro, .isaReflexive,
              .isaSymmetric,
-             .isaTransitive, .isaCombination, .isaAbstract, .isaClassical, .isaIffReflection, .isaDefinition,
+             .isaTransitive, .isaCombination, .isaAbstract, .isaClassical, .isaIffReflection,
              .isaPropAll, .isaPropIntro, .isaPropBound, .isaHidden, .folImplies, .folAnd, .folOr, .folIff, .folBottom,
              .folImpliesIntro, .folImpliesElim, .use, .hyp, .isaGuard, .isaExIntro, .isaExElim, .folNot, .folBound,
              .folPred, .folForall, .folExists, .folAndIntro, .folAndElimL, .folAndElimR, .folOrIntroL, .folOrIntroR,
@@ -47,6 +50,7 @@ public struct Reify {
     func after(_ n: Node, was id: NodeID, base: Base, in t: inout Table) throws -> NodeID? {
         if names(Pattern(t[id], in: t)) { return try named(atom: n, in: &t) }
         if case .isaAllElim = t[id] { return try instance(children(n)[0], was: id, base: base, in: &t) }
+        if case .isaDefinition = t[id] { return try unfolded(n, was: id, base: base, in: &t) }
         if case .isaExIntro(_, let a, _) = t[id], owns(Pattern(t[a], in: t)) == .rule {
             return try TermInstance(base: base).witnessed(children(n)[0], body: children(n)[2], was: id, in: &t)
         }
@@ -302,7 +306,7 @@ public struct ReifyProver: Prover {
 
     public func owns(_ l: Lemma) -> Owned? {
         switch l.request {
-        case is Existence, is Uniqueness: .rule
+        case is Existence, is Uniqueness, is Unfolding: .rule
 
         case let f as ConstantFact:
             switch f.fact {
@@ -330,6 +334,7 @@ public struct ReifyProver: Prover {
         switch l.request {
         case let r as Existence: proof = try TermProofs(base: base).existence(r, in: &t)
         case let r as Uniqueness: proof = try TermProofs(base: base).uniqueness(r, in: &t)
+        case let r as Unfolding: proof = try UnfoldingProofs(base: base, definitions: definitions).prove(r, in: &t)
         case let f as ConstantFact: proof = try GraphProofs(base: base, definitions: definitions).prove(f, in: &t)
         case let f as LambdaFact: proof = try GraphProofs(base: base, definitions: definitions).prove(f, in: &t)
         default: throw ReifyError.noProof(l.name)
