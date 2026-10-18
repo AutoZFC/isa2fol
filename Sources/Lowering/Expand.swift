@@ -32,7 +32,7 @@ private enum Piece {
 }
 
 func onlyReflexive(_ T: IRType) -> Bool {
-    !mentionsTypeVariable(T) && T.domains.contains(where: takesAFunction)
+    !mentionsTypeVariable(T) && T.domains.contains(where: takesAFunctionOrProposition)
 }
 
 private func piece(_ p: Pattern) -> Piece? {

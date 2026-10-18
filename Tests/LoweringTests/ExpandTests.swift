@@ -241,18 +241,30 @@ private func etaVariable(_ k: Int, _ l: inout LogicTable) throws -> NodeID {
     return try l.lam(fn(i, o), applied)
 }
 
-/// `≡`'s congruence at a type taking a function, `T = (i ⇒ o) ⇒ o`, the definition command's rewriting under `h`:
+/// `λP. c(P)`, the constant `c` at `o ⇒ o` read η-long.
+private func connective(_ name: String, _ l: inout LogicTable) throws -> NodeID {
+    try l.lam(o, try l.const(.declared(name), fn(o, o), try l.bound(0, o)))
+}
+
+/// `λP. f(P)`, the variable `f` at `o ⇒ o`, `k` binders out, read η-long.
+private func connectiveVariable(_ k: Int, _ l: inout LogicTable) throws -> NodeID {
+    try l.lam(o, try l.t.intern(.isaVarApp(head: try l.bound(k + 1, fn(o, o)), args: [try l.bound(0, o)])))
+}
+
+/// `≡`'s congruence at `T`, the definition command's rewriting under `h`:
 /// `combination (combination (reflexive (λf g. f ≡ g)) h) (reflexive d)`. At `h : c ≡ c` both steps conclude `t ≡ t`,
 /// and the last, `(c ≡ d) ↔ (c ≡ d)`, is `reflexive (c ≡ d)`, the steps under it gone; at `h : c ≡ e` it has no
 /// reading.
-@Test
-func pureEqualityAtATypeTakingAFunctionIsReflexivityWhenItsSidesAreOneTerm() throws {
+private func congruenceIsReflexivityOnly(
+    _ T: IRType,
+    constant: (String, inout LogicTable) throws -> NodeID,
+    variable: (Int, inout LogicTable) throws -> NodeID,
+) throws {
     var l = LogicTable()
-    let T = takesAFunction
-    let c = try etaConstant("c", &l)
-    let d = try etaConstant("d", &l)
-    let e = try etaConstant("e", &l)
-    let equality = try l.lam(T, try l.lam(T, try l.equal(T, try etaVariable(1, &l), try etaVariable(0, &l))))
+    let c = try constant("c", &l)
+    let d = try constant("d", &l)
+    let e = try constant("e", &l)
+    let equality = try l.lam(T, try l.lam(T, try l.equal(T, try variable(1, &l), try variable(0, &l))))
     let congruence = try l.t.intern(.isaReflexive(equality))
     let atD = try l.t.intern(.isaReflexive(d))
     func rewritten(_ h: NodeID, in l: inout LogicTable) throws -> (inner: NodeID, proof: NodeID) {
@@ -270,4 +282,16 @@ func pureEqualityAtATypeTakingAFunctionIsReflexivityWhenItsSidesAreOneTerm() thr
     let ce = try l.equal(T, c, e)
     let (inner, apart) = try rewritten(ce, in: &l)
     #expect(throws: ExpandError.noReading(l.t[inner])) { _ = try Expand().run([apart], [], in: &l.t) }
+}
+
+/// At a type taking a function, `T = (i ⇒ o) ⇒ o`.
+@Test
+func pureEqualityAtATypeTakingAFunctionIsReflexivityWhenItsSidesAreOneTerm() throws {
+    try congruenceIsReflexivityOnly(takesAFunction, constant: etaConstant, variable: etaVariable)
+}
+
+/// At a type taking a proposition, `T = o ⇒ o`: the definition command's rewriting at a connective.
+@Test
+func pureEqualityAtATypeTakingAPropositionIsReflexivityWhenItsSidesAreOneTerm() throws {
+    try congruenceIsReflexivityOnly(fn(o, o), constant: connective, variable: connectiveVariable)
 }

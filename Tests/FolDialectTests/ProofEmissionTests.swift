@@ -218,6 +218,14 @@ func theRealCheckerProvesWhatEmissionWrites() throws {
         try f.intro(aAndB, try f.n(.folAndIntro(try f.n(.folAndElimR(hAB)), try f.n(.folAndElimL(hAB))))),
     ))
 
+    // `B -> B` is derived inside `A -> false`'s block after `B` is, so the checker, keying a fact by its formula, keeps
+    // `B`'s scopes for it and drops it with the block: the use after the block derives it again.
+    let notA = try f.imp(A, bottom)
+    let fromNotA = try f.imp(notA, B)
+    let bb = try f.intro(B, try f.hyp(0, B))
+    let inside = try f.n(.folAndIntro(try f.n(.folImpliesElim(try f.hyp(1, fromNotA), try f.hyp(0, notA))), bb))
+    proofs.append(("p_block", try f.intro(fromNotA, try f.n(.folAndIntro(try f.intro(notA, inside), bb)))))
+
     let elem10 = try f.p("elem", try f.b(1), try f.b(0))
     let membersAreSets = try f.n(.folForall(body: try f.n(.folForall(body: try f.imp(
         elem10,

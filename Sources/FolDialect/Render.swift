@@ -93,9 +93,9 @@ private struct Writer {
         return s
     }
 
-    /// ⚠ A NODE IS NOT A FACT, AND A STEP OUTLIVES ITS BLOCK: the key is the node and the names its loose indices
-    /// resolve to. The checker keeps a step derived until a scope it depends on closes (`cleanup_scope`), so a closing
-    /// scope drops only the steps naming its variable or its assumption; the rest stay citable outside it.
+    /// ⚠ A NODE IS NOT A FACT, AND A STEP DOES NOT OUTLIVE ITS BLOCK: the key is the node and the names its loose
+    /// indices resolve to. The checker keys a derived fact by its formula and keeps the scopes of the derivation it met
+    /// first (`derive_with_deps`), so a step re-derived inside a block can die with a scope it never names.
     mutating func step(_ id: NodeID, spine: Bool = false) throws -> String {
         let key = Written(
             id: id,
@@ -126,11 +126,7 @@ private struct Writer {
         if let hyp { hyps.append(hyp) }
         written.append([:])
         defer {
-            for (key, name) in written.removeLast() {
-                if let term, key.terms.contains(term) { continue }
-                if let hyp, key.hyps.contains(hyp) { continue }
-                written[written.count - 1][key] = name
-            }
+            written.removeLast()
             if term != nil { terms.removeLast() }
             if hyp != nil { hyps.removeLast() }
         }

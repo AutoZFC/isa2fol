@@ -101,6 +101,19 @@ private let definitionBox = proofFile(
     proof: pabsp("h", defines, pabsp("H", balla, pbound(0))),
 )
 
+private let notType = fn(o, o)
+private let not = const("IFOL.Not")
+private let definesNot = eq(notType, free("Nota"), not)
+private let nota = trueprop(app(free("Nota"), free("P")))
+private let atNot = trueprop(app(not, free("Q")))
+
+/// The definition command's box at a connective, `⋀Nota P. Nota ≡ Not ⟹ Nota(P) ⟹ Nota(P)`: it binds a proposition.
+private let connectiveBox = proofFile(
+    frees: [("Nota", notType), ("P", o)],
+    prop: imp(definesNot, imp(nota, nota)),
+    proof: pabsp("h", definesNot, pabsp("H", nota, pbound(0))),
+)
+
 /// One theorem per rule:
 ///   T.refl        P ≡ P                            reflexive % P
 ///   T.symI        a ≡ b ⟹ b ≡ a  at i              λH. symmetric % a % b %% H
@@ -114,6 +127,8 @@ private let definitionBox = proofFile(
 /// implication
 ///   box 400       ⋀Balla A P. Balla ≡ Ball ⟹ Balla(A, P) ⟹ Balla(A, P)   λh H. H, `Balla :: i ⇒ (i ⇒ o) ⇒ o`
 ///   T.atBall      Ball(a, B) ⟹ Ball(a, B)          box400 % Ball % a % B %% (reflexive % Ball)
+///   box 500       ⋀Nota P. Nota ≡ Not ⟹ Nota(P) ⟹ Nota(P)   λh H. H, `Nota :: o ⇒ o`, `P :: o`
+///   T.atNot       ¬Q ⟹ ¬Q                          box500 % Not % Q %% (reflexive % Not)
 private func pureReader() throws -> Reader {
     let rewrite = pabsp("q", eq(o, A, B), pabsp(
         "fact",
@@ -246,18 +261,26 @@ private func pureReader() throws -> Reader {
             ),
         ),
     ]
-    let citing: [(String, Int, String)] = [("T.atBall", 410, proofFile(
-        frees: [("a", i), ("B", fn(i, o))],
-        prop: imp(atBall, atBall),
-        proof: pappp(
-            at(pcite(400, "ZF.T"), ball, free("a"), free("B")),
-            at(ax("Pure.reflexive", ballType), ball),
-        ),
-    ))]
+    let citing: [(String, Int, String)] = [
+        ("T.atBall", 410, proofFile(
+            frees: [("a", i), ("B", fn(i, o))],
+            prop: imp(atBall, atBall),
+            proof: pappp(
+                at(pcite(400, "ZF.T"), ball, free("a"), free("B")),
+                at(ax("Pure.reflexive", ballType), ball),
+            ),
+        )),
+        ("T.atNot", 510, proofFile(
+            frees: [("Q", o)],
+            prop: imp(atNot, atNot),
+            proof: pappp(at(pcite(500, "ZF.T"), not, free("Q")), at(ax("Pure.reflexive", notType), not)),
+        )),
+    ]
     var files = ["Pure/theory/axioms": pureAxioms]
     files["ZF.T/theory/thms"] = thmsFile((theorems + citing).map { ($0.0, $0.1) })
     for (_, serial, text) in theorems + citing { files["ZF.T/proofs/\(serial)"] = text }
     files["ZF.T/proofs/400"] = definitionBox
+    files["ZF.T/proofs/500"] = connectiveBox
     let root = try writeExport(files)
     defer { try? FileManager.default.removeItem(atPath: root) }
     return try Reader(try Export(root: root))
@@ -402,16 +425,16 @@ func aRuleTakesItsOwnPremisesWhateverItsInstance() throws {
     )))
 }
 
-/// A box binding a variable whose type takes a function is read at its citation: `T.atBall`'s proof is box 400's at
-/// `Ball`, `a` and `B`, with no binder or instance at `Ball`'s type, and its hypothesis `Ball ≡ Ball`.
-@Test
-func aBoxBindingAVariableTakingAFunctionIsReadAtItsCitation() throws {
+/// `name`'s proof is its box's at the terms it cites the box at: no binder or instance at `T`, no box cited by its
+/// name,
+/// and the box's hypothesis an equation at `T` whose two sides are one term.
+private func readsItsBoxAtItsCitation(_ name: String, _ T: IRType) throws {
     var r = try pureReader()
-    let cited = try proof(&r, "T.atBall")
-    let T = IRType.fn(.i, .fn(.fn(.i, .o), .o))
+    let cited = try proof(&r, name)
     let held = patterns(under: [cited], in: r.table)
     #expect(!held.contains(.isaAllIntro(T, body: .o)))
     #expect(!held.contains(.isaAllElim(.o, T)))
+    #expect(r.cited.isEmpty)
     var seen = Set<NodeID>()
     var work = [cited]
     var assumed = [NodeID]()
@@ -423,4 +446,19 @@ func aBoxBindingAVariableTakingAFunctionIsReadAtItsCitation() throws {
     #expect(assumed.contains { a in
         r.table.sides(ofEquation: a).map { $0.type == T && $0.left == $0.right } ?? false
     })
+}
+
+/// A box binding a variable whose type takes a function is read at its citation: `T.atBall`'s proof is box 400's at
+/// `Ball`, `a` and `B`, its hypothesis `Ball ≡ Ball`.
+@Test
+func aBoxBindingAVariableTakingAFunctionIsReadAtItsCitation() throws {
+    try readsItsBoxAtItsCitation("T.atBall", .fn(.i, .fn(.fn(.i, .o), .o)))
+}
+
+/// So is one binding a variable whose type takes a proposition, though it binds a proposition too and would otherwise
+/// be
+/// a schema: `T.atNot`'s proof is box 500's at `Not` and `Q`, its hypothesis `Not ≡ Not`.
+@Test
+func aBoxBindingAVariableTakingAPropositionIsReadAtItsCitation() throws {
+    try readsItsBoxAtItsCitation("T.atNot", .fn(.o, .o))
 }

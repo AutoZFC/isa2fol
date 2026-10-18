@@ -40,19 +40,21 @@ the argument, then the argument's equation substituted into the function by the 
 letters come first** (`DESIGN.md` "Letters first"): the reader closes a theorem over its propositions before its other
 frees and permutes each citation's leading term arguments to match, so a letter is instantiated by `schema_inst` on the
 citation and no instance walks a binder over a proposition; an axiom keeps the export's order. Of the ZF session's
-3,616 named theorems (`--skip` the other seven), `lower` lowers 215 to fol-zfc: 673 stop at no
-owner, 326 at logic (`If`, step 6; `AC.AC`, Choice), and 2,402 cite a refused statement, led by the logic's own
-theorems `IFOL.iffD2` and `FOL.IFOL_simps.32`, and `ZF_Base.Replace_iff` in turn — a `@def` holding a piece not built,
-or a theorem refused for one of the others. **ZF's axioms are theorems of base read back into Isabelle's form**
+3,616 named theorems (`--skip` the other seven), `lower` lowers 278 to fol-zfc: 673 stop at no
+owner, 326 at logic (`If`, step 6; `AC.AC`, Choice), and 2,339 cite a refused statement, led by a box of `ZF_Base` that
+falls with `FOL.int_all_simps.3`, then `ZF_Base.Replace_iff` with `FOL.IFOL_simps.32`, each at a variable only the
+proof uses beyond objects — a `@def` holding a piece not built, or a theorem refused for one of the others. **ZF's axioms are theorems of base read back into Isabelle's form**
 (`DESIGN.md` "Step 8 — ZF's axioms, derived from NBG"): base states each in NBG's words — a primitive by its relation,
 a predicate Isabelle defines by its definition — and proves it, Regularity pinned for `foundation`; a lemma per axiom,
 `ZF_Base.a_AXIOM`, reads the words back, a named predicate by its `c_UNFOLD`, a primitive's application by its class at
 its tuple, `infinity`'s `succ` by `upair.succ_iff`; the registry hands provers the unit's named statements, and emission
-places a statement no earlier than what it cites. `infinity` waits on `succ_iff`, which falls with `IFOL.iffD1`.
-**The definition command's local constant at a function of classes is substituted where its box is cited** (`DESIGN.md`
-"Step 9 — the definition command's local constant"): a box binding a variable whose type takes a function is read at
-its citation, its proof at the cited terms, and Expand reads Pure's `combination`, `symmetric` and `transitive` at a type
-with an argument taking a function as `reflexive` where they conclude `t ≡ t`, the only reading they have. **A ZF
+places a statement no earlier than what it cites. `infinity` waits on `succ_iff`, which falls with `upair.UpairI2`
+through `Replace_iff`. **The definition command's local constant at a function of classes or of propositions is
+substituted where its box is cited** (`DESIGN.md` "Step 9 — the definition command's local constant", "Step 9,
+widened"): a box binding a variable whose type takes a function or a proposition is read at its citation, its proof at
+the cited terms, and never a schema though it binds a proposition; Expand reads Pure's `combination`, `symmetric` and
+`transitive` at a type with an argument taking a function or a proposition as `reflexive` where they conclude `t ≡ t`,
+the only reading they have. **A ZF
 definition cited is its constant's pointwise definition** (`DESIGN.md` "Step 5 — a ZF definition cited"): `c_UNFOLD`,
 cited and instantiated at the terms, proved by Reify's prover from the `@def` through Lambda's conversion of a class at
 its tuple, the slot classes of class parameters read back by Lambda's β. **The rules that consumed a proposition where it stood are removed**
@@ -66,7 +68,8 @@ body"): `isaExIntro(p, x, body: P)`, the reader's `exI` and every closing loweri
 its proof's top** (`DESIGN.md` "Step 7"): `isaHidden(T, body)`, `exists_elim` over its type's inhabitation, base's
 `set_inhabited`, `function_inhabited`, `truth_inhabited`. **A box binding a proposition is a schema of the unit**
 (`DESIGN.md` "Boxes binding a proposition, read as schemas"): an unnamed theorem a proof cites, named
-`<theory>.BOX_<fingerprint of its proof>` — never its serial — and cited by `schema_inst`; any other box is inlined.
+`<theory>.BOX_<fingerprint of its proof>` — never its serial — and cited by `schema_inst`, unless it binds a variable
+step 9 substitutes; any other box is inlined.
 **A definition is read at its terms** (`DESIGN.md` "A definition read at its terms"): an application of a definition
 axiom is one node, `isaDefinition`, which Expand proves `reflexive` there — no schema, no binder. **`OFCLASS` is its
 class's definition** (`DESIGN.md` "OFCLASS — a class's membership by its definition"): a definition defines what its left
@@ -74,19 +77,20 @@ side is, a constant or a class's membership (`Definiendum`), and Expand states `
 `arity_term_i` proves it by `term_class.intro` in place at `i`. Reify's instance at a compound term concludes the walk's
 own rewrite of the instance (`walked`), truth sets rendered. The logic's facts reach
 the kernel through theirs (`IFOL.conjunct1`, `TrueI`, `refl`, `spec`, `subst`, `FOL.ccontr`, `Pure.protectD`,
-`conjunctionI`, …), and with them 51 `mutual_induct`s; the rest stop at a variable of type `o ⇒ o` (`not_def`,
-`iff_def`). **EX and UNIQ have their prover** (`DESIGN.md` "EX and UNIQ — their
+`conjunctionI`, `not_def`, `iff_def`, `notI`, `iffD1`, `iffD2`, …), and with them 51 `mutual_induct`s;
+`FOL.IFOL_simps.32` and `int_all_simps.3` stop at a variable only the proof uses, at `o ⇒ i` and `(i ⇒ o) ⇒ o ⇒ i`. **EX and UNIQ have their prover** (`DESIGN.md` "EX and UNIQ — their
 prover"): a term's naming walked binder by binder, one fact per piece, per constant, per closed λ and per arity, a
 constant's from its `@def` and a primitive's from base. **Class existence has its prover** (`DESIGN.md` "Class existence
 — its prover", FOUNDATION §3, R5, R4): a formula's class of records built from base's rows and read back exact, named by
 `member_class` or `graph_class`; a class binder a hypothesis of what lies under it; one lift per class-taking constant,
 uniform in the record's length, re-keyed by `REKEY`; the class prover does not read yet the classes of λs holding a
 proposition. **A lemma is proved once a statement that stands cites it** (`DESIGN.md` "Lazy proving"): the link closes
-before the registry proves, and the unit keeps only what a kept statement cites — 7,058 lemmas of the
+before the registry proves, and the unit keeps only what a kept statement cites — 7,018 lemmas of the
 ZF session left out, never proved; a request set aside comes back when a proof the registry makes cites it. **Emission
 is built** (`DESIGN.md` "Emission"): `isa2fol lower data/zf_export --emit DIR` writes the unit as parts — a theory's
 theorems, a lemma in its first citer's part — and `scripts/check-unit.sh DIR` kernel-checks each against the libraries
-of base and of the parts it cites: all 2,189 claims and 110 schemas of the ZF session's unit Proved, 249.9 MB. `DESIGN.md` is the plan; its "The steps after class
+of base and of the parts it cites: all 2,330 claims and 350 schemas of the ZF session's unit Proved, 264.2 MB; a step
+is cited only inside the block that wrote it, the checker keying a fact by its formula. `DESIGN.md` is the plan; its "The steps after class
 existence, in order" is the order of work, agreed again from step 2 on around FOUNDATION S4.
 
 ## Build
@@ -270,7 +274,7 @@ determinism R1–R3 (§4.6).
    print(f'{c}/{t} = {100*c/t:.1f}%')"
    ```
 
-   ✓ **CURRENTLY 64/13572 = 0.5%, under the cap.** Keep it there: a breach is
+   ✓ **CURRENTLY 64/13570 = 0.5%, under the cap.** Keep it there: a breach is
    fixed by deleting prose, never by raising the cap.
 
    Does not apply to `base/**/*.fol.def` headers: those record provenance of

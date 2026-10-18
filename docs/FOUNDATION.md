@@ -828,13 +828,17 @@ above, and R2 holds because a proof over uninterpreted letters is parametric by
 construction. The `⋀P::o` of IFOL's primitive rules (`disjE`, `exE`) stay the
 kernel's own ND rules. A variable of a type built over `o` — a function of
 propositions, `o ⇒ o` — takes no letter: no letter takes a proposition as its
-argument. Bound, at a statement's top or below it, it is a class of tuples of truth
+argument. It has a proposition's two kinds. Instantiated by substitution — a box
+applied to a term, as the `definition` command's stand-in for a connective is at
+once — it is substituted, the box's proof at the term (§3b). Bound and never
+instantiated — a variable only the proof uses — it is a class of tuples of truth
 sets (S4's first paragraphs), a class variable as at arity ≥ 1.
 
 > **⚠ THIS SAID "THE CORPUS BINDS NONE AT A STATEMENT'S TOP".** It held of the named
 > theorems. An unnamed theorem a proof cites is a statement too when it binds a
 > proposition, and seven of those bind a function of propositions besides — each
-> deriving a defined connective's applied definition, the constant a variable.
+> deriving a defined connective's applied definition, the constant a variable. Each
+> is applied to its constant at once and read there (§3b); none is a statement.
 
 > **⚠ THIS SECTION SAID "AT ARITY 0 THERE IS NO SUCH RENDERING AND NONE IS
 > WANTED", AND THAT "A SCHEMA FORCES A PROOF PER INSTANTIATION".** The second is
@@ -1284,8 +1288,8 @@ specialisation at `kpair`.
 | `⋀P` over a proposition, `o` or `prop`, at a statement's top, `AppT` at it | a schema letter, `schema_inst` (S4) |
 | `⋀P` over a proposition anywhere else, `AppT` at it | a truth-set variable; `forall_elim` at `E(φ)`, then β (S4) |
 | a variable only the proof uses (`dummy_pattern`) | the witness of an `exists_elim` at the proof's top, below its letters, over its type's inhabitation |
-| `AppT` at a term, of a box's `AbsT` at a type taking a function | the box's proof at the term: no binder, as Isabelle substitutes |
-| Pure's equality rules at a type with an argument taking a function, concluding `t ≡ t` | `reflexive t`; any other conclusion there has no reading |
+| `AppT` at a term, of a box's `AbsT` at a type taking a function or a proposition | the box's proof at the term: no binder and no schema, as Isabelle substitutes |
+| Pure's equality rules at a type with an argument taking a function or a proposition, concluding `t ≡ t` | `reflexive t`; any other conclusion there has no reading |
 | `Axm` of ZF — `extension`, `Union_iff`, `Pow_iff`, `replacement`, `foundation`, `infinity` | the base's statement of it in NBG's words, read back into Isabelle's form (S3) |
 
 **THE KERNEL'S ∃-INTRODUCTION FINDS ITS BODY; ISABELLE'S IS GIVEN IT.** From `φ` and a variable `a`, `exists_intro`
@@ -1316,6 +1320,12 @@ constant at once; a box applied to a term is its proof at the term, so there it 
 stood, and no binder is written. Pure's equality between functions of such a variable — `(λg. Ball ≡ g) ≡ (λg. Ball ≡
 g)`, from rewriting under `≡` at `Ball`'s type — would bind one again; it is read only when its two sides are one
 term, as reflexivity, which needs no binder, and has no reading otherwise.
+
+**SO IS ONE WHOSE TYPE TAKES A PROPOSITION.** A function of propositions has a reading as a variable, a class of tuples
+of truth sets (S4); where Isabelle instantiates it by substitution the target substitutes, as it does a proposition. The
+stand-in `⋀Nota P. Nota ≡ Not ⟹ Nota(P) ≡ (P ⟶ False)`, applied to `Not` at once, is that box's proof at `Not`, which
+unfolds to `⟶` and `False`; the box binds its proposition `P` there too and is read at its terms, never as a schema.
+Pure's equality between functions of such a variable is read as above, only when its two sides are one term.
 
 **⚠ THE GUARD STEP HAS NO COUNTERPART IN THE PROOF TERM.** Isabelle gets `a : i`
 from its type system — decided, never proved — so every `forall_elim` needs a

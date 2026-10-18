@@ -376,7 +376,9 @@ public struct Reader {
             let stated = try statement(Instance(source: .theorem(key), types: read))
             if spineLetters(stated, in: table) > 0 {
                 let proof = try prove(key, at: read).proof
-                c = "\(key.theory.split(separator: ".").last!).BOX_\(fingerprint(proof, table))"
+                if !isReadAtItsTerms(proof) {
+                    c = "\(key.theory.split(separator: ".").last!).BOX_\(fingerprint(proof, table))"
+                }
             }
         }
         claims[key] = c
@@ -422,7 +424,7 @@ public struct Reader {
                 arguments = try citedLettersFirst(arguments, try letters(of: instance))
             }
         }
-        let substituting = bindsAFunction(p)
+        let substituting = isReadAtItsTerms(p)
         for argument in arguments {
             switch argument {
             case .term(let x):
@@ -447,10 +449,10 @@ public struct Reader {
         return p
     }
 
-    private func bindsAFunction(_ p: NodeID) -> Bool {
+    private func isReadAtItsTerms(_ p: NodeID) -> Bool {
         var p = p
         while case .isaAllIntro(let T, let body) = table[p] {
-            if takesAFunction(T), !mentionsTypeVariable(T) { return true }
+            if takesAFunctionOrProposition(T), !mentionsTypeVariable(T) { return true }
             p = body
         }
         return false

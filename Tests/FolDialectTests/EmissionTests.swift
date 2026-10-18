@@ -91,7 +91,7 @@ func aSubproofUsedTwiceInOneScopeIsWrittenOnce() throws {
         """)
 }
 
-/// `p` depends on its scope's `f0`, so under two sibling `fix`es it is written twice; the closed `use` once.
+/// `p` under two sibling `fix`es is written twice, the closed `use` with it: a step does not outlive its block.
 @Test
 func aSubproofInTwoSiblingScopesIsWrittenTwice() throws {
     var f = Pf()
@@ -104,11 +104,12 @@ func aSubproofInTwoSiblingScopesIsWrittenTwice() throws {
             _1 = forall_elim _0, f0
             _2 = forall_intro _1
             fix f0
-            _3 = forall_elim _0, f0
-            _4 = and_intro _3, _3
-            _5 = forall_intro _4
-            _6 = and_intro _2, _5
-            qed _6
+            _3 = use eq_refl
+            _4 = forall_elim _3, f0
+            _5 = and_intro _4, _4
+            _6 = forall_intro _5
+            _7 = and_intro _2, _6
+            qed _7
 
         """)
 }
@@ -120,10 +121,11 @@ private func independent(_ f: inout Pf) throws -> NodeID {
     return try f.and(try f.intro(a, q), try f.intro(b, q))
 }
 
-/// A step that depends on no assumption or variable of a closing scope stays derived after it: `q`, written under
-/// `assume A`, is cited under `assume B` — the `↔` of a congruence proved once, not once per direction.
+/// A step written under a closing block is derived again after it, though it uses none of the block's assumptions:
+/// `q`, written under `assume A`, is written again under `assume B`. The checker keys a fact by its formula and keeps
+/// the scopes of the derivation it met first; `p_block` in `theRealCheckerProvesWhatEmissionWrites` fails if cited.
 @Test
-func aStepIndependentOfAClosingScopeIsCitedAfterIt() throws {
+func aStepWrittenInAClosedBlockIsDerivedAgain() throws {
     var f = Pf()
     let proof = try independent(&f)
     #expect(try render(proof: proof, of: claim("independent", proof, f.t), in: f.t) == """
@@ -135,9 +137,13 @@ func aStepIndependentOfAClosingScopeIsCitedAfterIt() throws {
             _3 = forall_intro _2
             _4 = implies_intro _3
             _5 = assume B
-            _6 = implies_intro _3
-            _7 = and_intro _4, _6
-            qed _7
+            fix f0
+            _6 = use eq_refl
+            _7 = forall_elim _6, f0
+            _8 = forall_intro _7
+            _9 = implies_intro _8
+            _10 = and_intro _4, _9
+            qed _10
 
         """)
 }

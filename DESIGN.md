@@ -2679,6 +2679,9 @@ in parallel; lowering by part, for the table's own ceiling (13.0 GB at 15.6M nod
 2. **A step stays citable until a scope it depends on closes** — decision 2's scope made the checker's: a closing scope
    drops only the steps naming its variable or its assumption (`cleanup_scope`, `src/proof/nd/stack.cpp`; a step's
    name is the proof's). Per block, `WF.wfrec_on_AGREE` wrote 6.0M steps for its 453 distinct.
+   **⚠ CORRECTED 2026-10-18** ("Step 9, widened", decision 3 in the build): the checker keys a fact by its formula and
+   keeps the scopes of the derivation it met first, so a step re-derived in a block can die with a scope it never names.
+   A block's steps are forgotten when it closes, at 3.3% more steps; the 6.0M did not return.
 3. **The replacement walk proves a binder's equivalence once and carries it by the binder's schema** (`Logic.swift`,
    `quantified`): `cong_forall`, `cong_exists`, `cong_exists_bare`, and `cong_forall_bare`, added to `base/tiers/cong`.
    It proved both directions, each under its own witness, from one node the checker derived twice per binder:
@@ -5003,6 +5006,177 @@ the logic's theorems — `IFOL.iffD2` 128, `FOL.IFOL_simps.32` 111 — and `ZF_B
 empty stderr, claims 2,189 of 2,189, schemas 110 of 110; 249.9 MB, 2,673,950 steps; 42.4M nodes. Base: 18 axioms; the
 `axioms` tier 8 of 8, `zf` 19 of 19. The closures said `foundation` and the four would free up to 1,571 more; the
 refusals say the next layer is the logic's own theorems, the census's bound read through them.
+
+### Step 9, widened — the definition command's local constant at a function of propositions  **[AGREED 2026-10-18 (user): the reading over five others, then the two decisions one by one; BUILT 2026-10-18, its decisions in the build for the user's review — `Sources/IR/IRType.swift`, `Sources/Reader/Reader.swift`, `Sources/Lowering/Expand.swift`, `Sources/FolDialect/Render.swift`, `docs/FOUNDATION.md`]**
+
+**The step.** Step 9 reads the `definition` command's stand-in for a constant taking a class at the constant. The
+stand-in for a constant taking a proposition is still bound: `Nota :: o ⇒ o` in `IFOL.not_def`'s box, `iffa :: o ⇒ o ⇒
+o` in `iff_def`'s, those of FOL's `induct_conj` and `induct_implies` (`o ⇒ o ⇒ o`), of `ZF_Base.If` (`o ⇒ i ⇒ i ⇒ i`) and
+of `Bool.bool_of_o` (`o ⇒ i`). Each box binds the constant's parameters too, a proposition among them, so the reader
+names it a schema of the unit ("Boxes binding a proposition, read as schemas"), `IFOL.BOX_0e9a8810dddee5ec` and
+`IFOL.BOX_a7030ab3cca16c71` among them, whose top binds the stand-in; no pass reads a variable at these types. The
+logic's ND rules fall with the two: `IFOL.notI` is `unfolding not_def by (erule impI)`, `iffD1` and `iffD2` `unfolding
+iff_def` then `conjunct1` or `conjunct2` and `mp`. Among the complete run's refused citations, `iffD2` 128, `notI` 54,
+`iffD1` 45; in a throwaway trace of each refused ZF theorem's first refused statement, not kept, `iff_def`'s box is the
+first of 309 and `not_def`'s of 128. The census holds the binder, the instance, the λ and `≡`'s congruence at each of
+these types in exactly as many closures as reach its box — 7,819 at `o ⇒ o`, 7,841 at `o ⇒ o ⇒ o`, 5,018 at `o ⇒ i ⇒
+i ⇒ i`, 882 at `o ⇒ i` (`SOURCE_SURFACE.md`) — and an application at `o ⇒ i` in 7,418, most of them a variable only
+the proof uses (step 6). ZF-Constructible's `is_bool_of_o :: (i ⇒ o) ⇒ o ⇒ i ⇒ o` has its stand-in, at a type taking a
+function, in a box binding a proposition: a schema, which step 9's reading misses (92; believed, not traced).
+
+**The reading, decided** (user, 2026-10-18, over five others: the logic's derived rules read as steps by name; a class
+of truth-set tuples, S4 as written; the truth table as letters; reflexivity read off a step's conclusion; the stand-in
+unfolded by its hypothesis inside the box): the stand-in is substituted, this step; a variable only the proof uses at
+`o ⇒ i`, never instantiated, is a class over truth sets, with `If` and `bool_of_o` themselves (step 6).
+
+**The problem, in target text.**
+
+```
+Isabelle   definition Not :: "o ⇒ o"  where  not_def: "¬ P ≡ P ⟶ False"
+           Not_def_raw     Not ≡ λP. P ⟶ False                                           the command's axiom
+           the box         ⋀Nota P. Nota ≡ Not ⟹ Nota(P) ≡ (P ⟶ False)
+             its proof     step 9's, at o ⇒ o: h : Nota ≡ Not; ≡'s congruence at o ⇒ o under h; combination at P
+           not_def         the box · Not · P · (reflexive Not)
+read       the box binds P: a schema, IFOL.BOX_0e9a8810dddee5ec, Not unfolded by Expand
+             schema [A0(0)]: ⋀Nota. Nota ≡ (λP. P ⟶ False) ⟹ (Nota(A0) ↔ (A0 ⟶ False))
+           not_def         ⟹-elim (isaAllElim (schema_inst BOX {A0: P}) (λP. P ⟶ False)) (reflexive (λP. P ⟶ False))
+```
+
+| unbuilt at Logic, at `o ⇒ o` | where |
+|---|---|
+| `ifolAll(o ⇒ o)`, `isaAllIntro(o ⇒ o)` | the schema's binder over `Nota`, its proof's intro |
+| `isaAllElim(o, o ⇒ o)` | `not_def`'s instance at `Not` |
+| `isaVarApp(head: o ⇒ o)` | `Nota(P)`; `f`, `g` applied in `≡` at `o ⇒ o`, read η-long |
+| `isaAbs(o ⇒ o, …)`, twice | `λf g. f ≡ g` and `λg. Nota ≡ g` |
+| `isaReflexive` and `isaCombination` at `(o ⇒ o) ⇒ (o ⇒ o) ⇒ o`, `isaCombination((o ⇒ o) ⇒ o)` | `≡`'s congruence at `o ⇒ o` |
+
+FOUNDATION S4 reads `Nota`, bound at a statement's top, as a class of tuples of truth sets. Built, that reading proves,
+of a variable that is only ever `Not`, through three pieces nothing else needs — Truths reading a variable function, not
+only a λ; Lambda's instance at a λ over propositions; step 4 at a function whose argument is a function of propositions,
+for the box's congruence of `≡` at `o ⇒ o` — what substitution proves by reflexivity.
+
+**1. A box binding a variable whose type takes a proposition is read at its citation, as one binding a variable whose
+type takes a function is: its proof at the terms, whole — a proposition it binds included, so it is no schema.**
+**AGREED 2026-10-18 (user).** FOUNDATION S4 reads a proposition variable by how Isabelle uses it: one Isabelle instantiates by
+substitution is a letter, substituted by one `schema_inst`; one bound inside a proof is a truth set, about twenty steps an
+instance. A function of propositions has the same two kinds. The stand-in is the first: Isabelle applies its box to the
+constant at once, and a box applied to a term is its proof at the term, step 9's reading. A variable only the proof uses
+is the second: never instantiated, it is a class over truth sets (step 6). No letter takes a proposition as its argument
+(S4), so substitution here is the box's proof copied at its citation, not a schema instantiated; a definition box is
+cited where its definition is proved. The reader names no box whose spine binds such a variable, whatever else it binds,
+and reads it at each citation by step 9's `instantiate`, its letter's term with the others: `Nota` is `Not` where it
+stood, `Nota(P)` is `Not(P)` by the IR's β, Expand unfolds `Not`, and the hypothesis `Not ≡ Not` is discharged by
+`reflexive Not` as before.
+
+| the box at `not_def`'s citation | |
+|---|---|
+| now | `isaAllElim(schema_inst(use(IFOL.BOX_0e9a…), {A0: P}), λP. P ⟶ False)`: a schema binding `Nota` at its top |
+| read at its terms | its proof at `Not` and `P`: `h : Not ≡ Not`, no binder at `o ⇒ o`, no schema |
+
+The same reading reaches `is_bool_of_o`'s box, which its proposition makes a schema today: a box is read at its citation
+by what its spine binds, and a schema there would bind a variable with no reading. Not the schema kept, the stand-in
+substituted inside it: the schema is the `∀` over `Nota`, and without its binder there is none. Not step 9's test alone
+widened: the reader cites a schema by its name, and only an inlined box is substituted.
+
+**2. Pure's equality at a type with an argument taking a proposition is read only when its two sides are one term:
+`combination`, `symmetric` and `transitive` concluding `t ≡ t` there are `reflexive t`, their premises unread; any
+other has no reading.** **AGREED 2026-10-18 (user).** Step 9's 2 at a wider type. After 1, `≡`'s congruence at `o ⇒ o` in these boxes
+concludes `t ≡ t`: with `h : Not ≡ Not`, `combination (reflexive (≡)) h` concludes `(λg. Not ≡ g) ≡ (λg. Not ≡ g)` at
+`(o ⇒ o) ⇒ o`, and the next `(Not ≡ λP. …) ≡ (Not ≡ λP. …)` at `o`. Expand reads the last `reflexive`, Logic `iff_refl`,
+and the λ over `o ⇒ o`, with the variables it applies, goes with the premises. Not Truths': its pointwise binders are
+truth sets, and `(o ⇒ o) ⇒ o` ranges over functions of propositions.
+
+| `≡`'s congruence at `o ⇒ o`, after 1 | |
+|---|---|
+| read | `isaCombination((o⇒o) ⇒ o, isaCombination((o⇒o) ⇒ (o⇒o) ⇒ o, isaReflexive(λf g. f ≡ g), h), isaReflexive(λP. P ⟶ False))` |
+| after Expand | `isaReflexive((λP. P ⟶ False) ≡ (λP. P ⟶ False))`, at `o` |
+
+**What stands after it.** `not_def` reads `(P ⟶ False) ↔ (P ⟶ False)`, each step one Logic has: `h`, at `o ⇒ o`, Truths'
+pointwise formula; `Not_def_raw` `reflexive` at its terms; the chain `reflexive`; `transitive` and the last `combination`
+at `o ⇒ o` Truths'. So do `iff_def` and FOL's two at `o ⇒ o ⇒ o`, and the ND rules through them. `if_def` and
+`bool_of_o_def` lose their stand-ins and stop at `If ≡ If` and `bool_of_o ≡ bool_of_o`: Pure's equality at a function
+taking a proposition, Logic's unbuilt, step 6.
+
+**FOUNDATION first.**
+- S4, "At arity 0 a schematic `P :: o` is a SCHEMA LETTER": "Bound, at a statement's top or below it, it is a class of
+  tuples of truth sets (S4's first paragraphs), a class variable as at arity ≥ 1" becomes "It has a proposition's two
+  kinds. Instantiated by substitution — a box applied to a term, as the `definition` command's stand-in for a connective
+  is at once — it is substituted, the box's proof at the term (§3b). Bound and never instantiated — a variable only the
+  proof uses — it is a class of tuples of truth sets (S4's first paragraphs), a class variable as at arity ≥ 1." Its
+  note on the seven boxes gains: "Each is applied to its constant at once and read there (§3b); none is a statement."
+- §3b gains, after "A VARIABLE WHOSE TYPE TAKES A FUNCTION IS SUBSTITUTED WHERE ISABELLE INSTANTIATES IT": "**SO IS ONE
+  WHOSE TYPE TAKES A PROPOSITION.** A function of propositions has a reading as a variable, a class of tuples of truth
+  sets (S4); where Isabelle instantiates it by substitution the target substitutes, as it does a proposition. The
+  stand-in `⋀Nota P. Nota ≡ Not ⟹ Nota(P) ≡ (P ⟶ False)`, applied to `Not` at once, is that box's proof at `Not`, which
+  unfolds to `⟶` and `False`; the box binds its proposition `P` there too and is read at its terms, never as a schema.
+  Pure's equality between functions of such a variable is read as above, only when its two sides are one term."
+- §3b's mapping: its two rows at a type taking a function read "a function or a proposition", the first's target "no
+  binder and no schema".
+
+**The contracts (D2):**
+
+| | provides | assumes |
+|---|---|---|
+| Reader | a box whose spine binds a variable whose type takes a function or a proposition, cited at terms, read as its proof at them and never named: no binder, instance or schema from it | — |
+| Expand | `combination`, `symmetric` and `transitive` at a type with an argument taking a function or a proposition: `reflexive t` where the step concludes `t ≡ t`, a throw where it does not | — |
+| Logic | those three no longer its at such types; `reflexive`, a λ and a variable there its, unbuilt | Expand's |
+
+"Boxes binding a proposition, read as schemas", point 1, gains its exception: a box whose spine binds such a variable is
+read at its citation.
+
+**Tests, written first.**
+- `PureRuleTests`: a box binding `P :: o` and a variable at `o ⇒ o`, cited at a constant and a proposition, reads with
+  no `isaAllIntro` or `isaAllElim` at `o ⇒ o` and no citation of a box's name, its hypothesis `c ≡ c`
+  (`aBoxBindingAVariableTakingAPropositionIsReadAtItsCitation`).
+- `ExpandTests`: `combination (combination (reflexive (≡)) h) (reflexive d)` at `(o ⇒ o) ⇒ o`, `h : c ≡ c`, expands to
+  `reflexive (c ≡ d)`; at `h : c ≡ e` it throws `noReading`
+  (`pureEqualityAtATypeTakingAPropositionIsReflexivityWhenItsSidesAreOneTerm`). `PlanTests`: the three steps there
+  Expand's; `reflexive`, the λ, the variable and the binder there Logic's, unbuilt.
+- The ZF session: `IFOL.not_def`, `iff_def`, `notI`, `iffD1`, `iffD2`, `FOL.induct_conj_def`, `induct_implies_def`
+  lowered; `ZF_Base.if_def` and `Bool.bool_of_o_def` refused at Logic for `If` and `bool_of_o`, not their stand-ins;
+  complete, emitted, kernel-checked.
+
+**Not in this step.** A variable only the proof uses at `o ⇒ i`, and `If` and `bool_of_o` themselves (step 6); the one
+at `(i ⇒ o) ⇒ o ⇒ i` in FOL's two boxes, a type taking a class, with no reading as a variable even through truth sets;
+a statement's own variable or a hypothesis at a type taking a proposition; an unrestricted type variable.
+
+**Built.** IR: `takesAFunction` becomes `takesAFunctionOrProposition(T)`, a type with a function or `o` among its
+arguments. The reader: `isReadAtItsTerms` (step 9's `bindsAFunction`, at the wider type) decides both what `claim`
+names — a box binding a proposition is named only when it is not read at its terms — and where a citation instantiates
+its box's `⋀`s. Expand: `onlyReflexive(T)` holds when an argument of `T` takes a function or a proposition, and Logic's
+three `onlyReflexive` patterns follow it. Emission: the writer forgets a block's steps when it closes (decision 3).
+
+**Decisions made in the build**, for the user's review:
+1. **One test names a box and substitutes it.** `claim` asks the box's proof what the citation asks it, so no box is both
+   a schema and read at its terms; the box's proof is read once either way, `prove` being memoised per instance.
+2. **Step 9's tests take the type.** `congruenceIsReflexivityOnly` builds `≡`'s congruence at any `T`, and
+   `readsItsBoxAtItsCitation` checks any citing theorem; step 9's two tests and this step's two call them, at
+   `(i ⇒ o) ⇒ o` and `o ⇒ o`, and at `T.atBall` and `T.atNot`.
+3. **A step does not outlive its block: emission forgets a block's steps when it closes** (`Render.swift`, the
+   writer's `binding`), correcting Emission's build decision 2, which kept every step citable that names none of the
+   closing block's variable or assumption. The checker keys a derived fact by its formula and keeps the scopes of the
+   derivation it met first (`derive_with_deps`, `src/proof/nd/stack.cpp`). In `FOL.BOX_61d54d9a8ac15aff`, which this
+   step lets stand, `B` is derived under `assume (A -> false)`; `assume B`, `implies_intro` then derives `B -> B`
+   carrying that scope, and the use after the block cited a fact the checker had dropped with it — `implies_elim:
+   antecedent not derived`, and the FOL part with three schemas resting on it failed, every part after it unchecked.
+   Forgetting the block's steps is exact and costs 3.3% (2,792,042 steps written, 260.5 MB, to 2,883,958, 264.2 MB);
+   mirroring the checker's formula-keyed scopes would win that back, a second copy of the checker's bookkeeping.
+   `theRealCheckerProvesWhatEmissionWrites` gains `p_block`, the shape that failed, which the kernel refuses under the
+   old rule; `aStepIndependentOfAClosingScopeIsCitedAfterIt`, which asserted that rule, is
+   `aStepWrittenInAClosedBlockIsDerivedAgain`, and `aSubproofInTwoSiblingScopesIsWrittenTwice` writes the `use` twice.
+
+**Measured** (the ZF session, the release build on 48 cores, the lint first): through logic 2,617 named theorems stand,
+unchanged — the boxes and the definition theorems lie outside the ZF session, so the gain is at the link — and Logic
+leaves 326 unbuilt, `If` and `AC.AC`, `ZF_Base.if_def` now stopping at `If ≡ If`. `lower --emit` 4:43, 12.8 GB:
+**278 lowered** (215), `IFOL.not_def`, `iff_def`, `notI`, `iffD1`, `iffD2` among the statements in the unit, and
+`FOL.cases_simp`, which the first emission failed; FOL's `induct_conj_def` and `induct_implies_def` are cited by no
+statement of the ZF session. 7,018 lemmas left out (7,058); 8 lemmas refused unbuilt, each a `CLASS_<fp>` the class
+prover does not build — `CLASS_02a8d0fe3431aadb` behind `ZF_Base.bexE`. A refused citation 2,339 (2,402), now led by `ZF_Base.BOX_fe88880df9563825` 173,
+which falls through `FOL.int_all_simps.3` with `FOL.BOX_1cd4667e985779e8`, a variable only the proof uses at
+`(i ⇒ o) ⇒ o ⇒ i`, a type taking a class; then `ZF_Base.Replace_iff` 132 and `FOL.IFOL_simps.32` 111, with the one at
+`o ⇒ i` (step 6), `Inter_iff` 76, `RepFunI` 71. `upair.succ_iff` falls with `UpairI2`, through `Replace_iff`, and
+`infinity` with it. `scripts/check-unit.sh`: 33 parts, each exit 0 and empty stderr, claims 2,330 of 2,330, schemas 350
+of 350; 264.2 MB, 2,883,958 steps written (3,129,500 as trees).
 
 ### Fol — binders, guards and variables  **[BUILT 2026-09-28 as the guard; Fol's 2026-10-14; every object type and `∃` at `i` with "Reify — S1 at the site" — `Sources/Lowering/Fol.swift`]**
 
