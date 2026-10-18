@@ -4,6 +4,7 @@ import IR
 public enum LogicError: Error, Equatable, Sendable {
     case notCongruence(NodeID)
     case notTheRule(NodeID)
+    case notAFormula(NodeID)
 }
 
 public struct Logic: Pass {
@@ -30,8 +31,12 @@ public struct Logic: Pass {
 
 }
 
-func walked(_ formula: NodeID, base: Base, in t: inout Table) throws -> NodeID {
-    try transform(formula, Steps(base: base), in: &t)
+func walked(_ x: NodeID, base: Base, in t: inout Table) throws -> NodeID {
+    try transform(x, Steps(base: base), in: &t)
+}
+
+func walked(formula: NodeID, in t: inout Table) throws -> NodeID {
+    try transform(formula, Formulas(), in: &t)
 }
 
 private enum Piece {
@@ -166,6 +171,55 @@ private func rule(_ a: Axiom) -> Piece {
     }
 }
 
+private struct Formulas: Rule {
+    var start: Anywhere {
+        Anywhere()
+    }
+
+    func enter(_ c: Anywhere, _: Node, _: Binds, in _: Table) -> Anywhere {
+        c
+    }
+
+    func after(_ n: Node, was id: NodeID, context _: Anywhere, in t: inout Table) throws -> NodeID? {
+        switch piece(Pattern(n, in: t)) {
+        case .proposition(.binder)?:
+            guard case .isaPropAll(let body) = n else { throw LogicError.notTheRule(id) }
+            return try t.intern(.folForall(body: try t.intern(.folImplies(
+                try truth(try t.intern(.folBound(0)), in: &t),
+                body,
+            ))))
+
+        case .proposition(.variable)?:
+            guard case .isaPropBound(let k) = n else { throw LogicError.notTheRule(id) }
+            return try holds(try t.intern(.folBound(k)), in: &t)
+
+        case .function(.equation)?:
+            guard
+                case .isaConst(_, .fn(let F, _), let args) = n,
+                args.count == 2
+            else { throw LogicError.notTheRule(id) }
+            return try Truths.pointwise(F, args[0], args[1], in: &t)
+
+        case .pointwise(.equation)?:
+            guard
+                case .isaConst(_, .fn(let F, _), let args) = n,
+                args.count == 2
+            else { throw LogicError.notTheRule(id) }
+            return try Functions.pointwise(F, args[0], args[1], in: &t)
+
+        case .function(.wrapper)?, .pointwise(.wrapper)?, .unbuilt?:
+            return nil
+
+        case nil:
+            return try Reify().formula(n, was: id, in: &t)
+
+        case .claimed?, .instance?, .lambda?, .equality?, .classical?, .iffReflection?, .proposition(.intro)?,
+             .proposition(.hidden)?, .function(.combination)?, .pointwise(.combination)?, .pointwise(.abstract)?:
+            throw LogicError.notAFormula(id)
+        }
+    }
+}
+
 private struct Steps: Rule {
     init(base: Base) {
         self.base = base
@@ -211,12 +265,9 @@ private struct Steps: Rule {
             guard case .isaIffReflection(_, _, let h) = n else { throw LogicError.notTheRule(id) }
             return try t.intern(.folIffIntro(try t.intern(.folAndElimL(h)), try t.intern(.folAndElimR(h))))
 
-        case .proposition(.binder)?:
-            guard case .isaPropAll(let body) = n else { throw LogicError.notTheRule(id) }
-            return try t.intern(.folForall(body: try t.intern(.folImplies(
-                try truth(try t.intern(.folBound(0)), in: &t),
-                body,
-            ))))
+        case .proposition(.binder)?, .proposition(.variable)?, .function(.wrapper)?, .function(.equation)?,
+             .pointwise(.wrapper)?, .pointwise(.equation)?, .unbuilt?:
+            return try Formulas().after(n, was: id, context: Anywhere(), in: &t)
 
         case .proposition(.intro)?:
             guard
@@ -226,37 +277,13 @@ private struct Steps: Rule {
             let premise = try truth(try t.intern(.folBound(0)), in: &t)
             return try t.intern(.folForallIntro(body: try base.applied(.weaken, [phi, premise], [body], in: &t)))
 
-        case .proposition(.variable)?:
-            guard case .isaPropBound(let k) = n else { throw LogicError.notTheRule(id) }
-            return try holds(try t.intern(.folBound(k)), in: &t)
-
         case .proposition(.hidden)?:
             guard case .isaHidden(.o, let body) = n else { throw LogicError.notTheRule(id) }
             return try hiddenProposition(body, base, in: &t)
 
-        case .function(.wrapper)?:
-            return nil
-
-        case .function(.equation)?:
-            guard
-                case .isaConst(_, .fn(let F, _), let args) = n,
-                args.count == 2
-            else { throw LogicError.notTheRule(id) }
-            return try truths.pointwise(F, args[0], args[1], in: &t)
-
         case .function(.combination)?:
             guard case .isaCombination(let F, let p, let q) = n else { throw LogicError.notTheRule(id) }
             return try truths.combination(F, p, q, in: &t)
-
-        case .pointwise(.wrapper)?:
-            return nil
-
-        case .pointwise(.equation)?:
-            guard
-                case .isaConst(_, .fn(let F, _), let args) = n,
-                args.count == 2
-            else { throw LogicError.notTheRule(id) }
-            return try Functions(base: base).pointwise(F, args[0], args[1], in: &t)
 
         case .pointwise(.combination)?:
             guard case .isaCombination(let F, let p, let q) = n else { throw LogicError.notTheRule(id) }
@@ -265,9 +292,6 @@ private struct Steps: Rule {
         case .pointwise(.abstract)?:
             guard case .isaAbstract(_, let p) = n else { throw LogicError.notTheRule(id) }
             return try Functions(base: base).abstract(p, was: id, in: &t)
-
-        case .unbuilt?:
-            return nil
 
         case nil:
             return try Reify().after(n, was: id, base: base, in: &t)
@@ -352,7 +376,7 @@ struct Equalities {
 
         case .symmetric:
             let xy = try equated(0, 1, &t)
-            let xyNamed = try named(formula: xy, in: &t)
+            let xyNamed = try walked(formula: xy, in: &t)
             stated = try t.intern(.folImpliesIntro(
                 xy,
                 body: try t.intern(.isaSymmetric(.i, try t.intern(.hyp(0, xy)))),
@@ -365,8 +389,8 @@ struct Equalities {
         case .transitive:
             let xy = try equated(0, 1, &t)
             let yz = try equated(1, 2, &t)
-            let xyNamed = try named(formula: xy, in: &t)
-            let yzNamed = try named(formula: yz, in: &t)
+            let xyNamed = try walked(formula: xy, in: &t)
+            let yzNamed = try walked(formula: yz, in: &t)
             let both = try t.intern(.isaTransitive(.i, try t.intern(.hyp(1, xy)), try t.intern(.hyp(0, yz))))
             stated = try t.intern(.folImpliesIntro(xy, body: try t.intern(.folImpliesIntro(yz, body: both))))
             let chained = try base.claimed(

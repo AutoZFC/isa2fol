@@ -31,7 +31,7 @@ func truth(_ x: NodeID, in t: inout Table) throws -> NodeID {
 struct Truths {
     let base: Base
 
-    func pointwise(_ F: IRType, _ f: NodeID, _ g: NodeID, in t: inout Table) throws -> NodeID {
+    static func pointwise(_ F: IRType, _ f: NodeID, _ g: NodeID, in t: inout Table) throws -> NodeID {
         guard case .fn(.o, let U) = F else { return try t.equation(F, f, g) }
         let inner = try pointwise(U, try atFresh(f, in: &t), try atFresh(g, in: &t), in: &t)
         return try t.intern(.folForall(body: try t.intern(.folImplies(
@@ -42,7 +42,7 @@ struct Truths {
 
     func reflexive(_ F: IRType, _ f: NodeID, in t: inout Table) throws -> NodeID {
         guard case .fn(.o, let U) = F else { return try base.instance(.iffRefl, [f], in: &t) }
-        let inner = try reflexive(U, try atFresh(f, in: &t), in: &t)
+        let inner = try reflexive(U, try Self.atFresh(f, in: &t), in: &t)
         let premise = try truth(try t.intern(.folBound(0)), in: &t)
         return try t.intern(.folForallIntro(body: try t.intern(.folImpliesIntro(premise, body: inner))))
     }
@@ -114,7 +114,7 @@ struct Truths {
         return try t.intern(.folImpliesElim(proved, p))
     }
 
-    private func atFresh(_ f: NodeID, in t: inout Table) throws -> NodeID {
+    private static func atFresh(_ f: NodeID, in t: inout Table) throws -> NodeID {
         let lifted = try shift(f, by: 1, in: &t)
         guard case .isaAbs(.o, let body) = t[lifted] else { throw TruthError.notAFunction(f) }
         return try instantiate(body, with: try holds(try t.intern(.folBound(0)), in: &t), in: &t)

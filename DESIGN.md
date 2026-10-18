@@ -4591,12 +4591,62 @@ what is lowered:
 **For the user's decision:**
 - **Reify's formula naming (`Atoms`) is a partial copy of Logic's walk**, reading a truth-set variable as Logic's rule
   does. One walk means threading `base` through Reify's naming: `Naming`, `classDefinition`, `classBody`, `atDefinition`.
+  **AGREED 2026-10-17 (user)**: "Reify's formula naming by Logic's walk", below.
 - **An η-long variable in a class slot**, `λz⃗. P(z⃗)`, is named by a fresh class `K`, and step 5's prover converts `K`
   back to `P` (`readBack`, `slotClasses`, `slot`, which rebuilds the reader's η-long form). Named by `P` itself, the
   `@def` at `P` reads the definiens directly, the conversion goes, and so do the `CLASS_` and `LAMBDA_` lemmas of
   every η-long variable. Faithful: a constant's definition reads a class argument only through tuple membership.
+  **DECIDED AGAINST 2026-10-17 (user), with its instance half**, an instance at `λz⃗. Q(z⃗)` as `forall_elim` at `Q`
+  (126 of the ZF session unit's 350 `LAMBDA_` citations): step 3's review stands — one rule for `isaAllElim(o, T)`, no
+  shape detected; a size optimization is never a translation rule. `isaAllElim(o, i ⇒ o)` and a class slot have one
+  `Pattern` whether the λ is a variable's η-expansion or not, so either rule reads the λ's body. The one principled
+  route, not taken: the IR spells a variable at a function type as itself where it stands (§4.3's η-long form changed),
+  its argument's own `Pattern` then telling the cases apart, as Reify's instance at `i` reads.
 - **`combination` builds its substitution two ways** (`atSet` at a set argument, `atClass` at a class argument), and
   **`isaHidden` at `o` is a cut whose `truth(E)` goes unused**, where Fol's rule covers the objects.
+
+### Reify's formula naming by Logic's walk  **[AGREED 2026-10-17 (user); BUILT 2026-10-17, its decision in the build for the user's review — `Sources/Lowering/Logic.swift`, `Reify.swift`, `Truth.swift`, `Functions.swift`, and `walked`'s callers]**
+
+**The step.** A λ's class definition — a slot's class, `CLASS_⟨λ⟩`, a constant's `@def` — states the λ's body as a
+formula, and `classBody` rewrote it by `named(formula:)`: `Atoms`, which names the atoms and reads a truth-set variable
+`holds(E)`, a copy of Logic's rule for it (step 7's build decision 7, a `premiseMismatch` between a class named from a
+template and the walked one). Logic's walk rewrites a formula by more rules than that copy holds — a proposition's
+binder a truth set, Pure's equality at a function pointwise — so a class built from a λ as stated, as every request is,
+would read such a body otherwise than the walked λ, silently (⚠ "A SECOND COPY OF A PASS'S REWRITE DIVERGES SILENTLY",
+which "OFCLASS", 6 met in Reify's instance).
+
+**The rule.** `named(formula:)` and `Atoms` go; `classBody` and Logic's equation at `i` rewrite a formula by `walked`,
+the walk's own rule. Nothing lowered changes: on every body the class prover reads today the two agree.
+
+**The contracts (D2):**
+
+| | provides | assumes |
+|---|---|---|
+| Logic | `walked`: a formula rewritten by its rules, the same rules its walk applies inside a proof | — |
+| Reify | a λ's class definition, its body `walked` | Logic's `walked` |
+
+**Tests, written first.** `ClassTests`: the class definition of `λx. ⋀P. P ⟶ x ∈ y`, built from the λ as stated, is the
+one built from the walked λ, its `⋀P` a truth set. The ZF session: complete, emitted, kernel-checked, the same counts.
+
+**Built.** Logic's formula rules are one rule, `Formulas`: a proposition's binder and variable, Pure's equality at a
+function of propositions and between functions pointwise, a wrapper, and Reify's naming of an atom
+(`Reify.formula`). `walked(formula:)` is that rule alone; Logic's walk, `walked(_:base:)` as before, applies it at
+every formula piece and its own rules at a proof's steps; a proof piece in a formula throws (`notAFormula`).
+`classBody`, the equation at `i` and the pointwise equation at `i` call `walked(formula:)`; `named(formula:)` and
+`Atoms` are gone.
+
+**Decision made in the build**, for the user's review:
+1. **A formula's walk takes no `base`; the walk of a proof does.** No formula rule reads base's schemas — only the
+   proof rules do — so Reify's naming calls `walked(formula:)` without `base` threaded through `Naming`,
+   `named(atom:)` and every lemma statement built on them (about 60 signatures, the review's note). The two pointwise
+   readings are `static` (`Truths.pointwise`, `Functions.pointwise`). ⚠ `walked(_:base:)` STAYS FOR ITS CALLERS:
+   several walk a PROOF (Lambda's β at an application, `isaAllElim` of a hypothesis at a compound term, which Reify's
+   instance converts) — made formula-only, three tests stopped at `predicateArgumentNotVariable`.
+
+**Measured** (the ZF session, the release build on 48 cores, the lint first): `lower --emit` 4:12, 13.3 GB — 170
+lowered, 7,013 lemmas and 14 `@def`s left out, no owner 680, logic 379, a refused citation 2,387 led by
+`ZF_Base.Ball_def` 487; `scripts/check-unit.sh`: 31 parts, each exit 0 and empty stderr, claims 1,942 of 1,942, schemas
+104 of 104. The emitted text is byte-identical to the previous commit's: 62 `.fol.def` and `.fol.proof` files.
 
 ### Fol — binders, guards and variables  **[BUILT 2026-09-28 as the guard; Fol's 2026-10-14; every object type and `∃` at `i` with "Reify — S1 at the site" — `Sources/Lowering/Fol.swift`]**
 

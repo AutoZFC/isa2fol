@@ -15,9 +15,9 @@ func overObjects(_ T: IRType) -> Bool {
 struct Functions {
     let base: Base
 
-    func pointwise(_ F: IRType, _ f: NodeID, _ g: NodeID, in t: inout Table) throws -> NodeID {
+    static func pointwise(_ F: IRType, _ f: NodeID, _ g: NodeID, in t: inout Table) throws -> NodeID {
         try pointwise(F, f, g, in: &t) { V, a, b, t in
-            V == .i ? try walked(try t.equation(.i, a, b), base: base, in: &t) : try t.equation(V, a, b)
+            V == .i ? try walked(formula: try t.equation(.i, a, b), in: &t) : try t.equation(V, a, b)
         }
     }
 
@@ -121,7 +121,7 @@ struct Functions {
     }
 
     func isaPointwise(_ U: IRType, _ a: NodeID, _ b: NodeID, in t: inout Table) throws -> NodeID {
-        try pointwise(U, a, b, in: &t) { V, a, b, t in try t.equation(V, a, b) }
+        try Self.pointwise(U, a, b, in: &t) { V, a, b, t in try t.equation(V, a, b) }
     }
 
     func instance(
@@ -136,7 +136,7 @@ struct Functions {
         return try LambdaInstance(base: base).proof(p, was: elim, in: &t)
     }
 
-    private func pointwise(
+    private static func pointwise(
         _ U: IRType,
         _ a: NodeID,
         _ b: NodeID,

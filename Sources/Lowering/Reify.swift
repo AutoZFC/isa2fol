@@ -47,8 +47,12 @@ public struct Reify {
         }
     }
 
+    func formula(_ n: Node, was id: NodeID, in t: inout Table) throws -> NodeID? {
+        names(Pattern(t[id], in: t)) ? try named(atom: n, in: &t) : nil
+    }
+
     func after(_ n: Node, was id: NodeID, base: Base, in t: inout Table) throws -> NodeID? {
-        if names(Pattern(t[id], in: t)) { return try named(atom: n, in: &t) }
+        if let atom = try formula(n, was: id, in: &t) { return atom }
         if case .isaAllElim = t[id] { return try instance(children(n)[0], was: id, base: base, in: &t) }
         if case .isaDefinition = t[id] { return try unfolded(n, was: id, base: base, in: &t) }
         if case .isaExIntro(_, let a, _) = t[id], owns(Pattern(t[a], in: t)) == .rule {
@@ -67,19 +71,6 @@ public struct Reify {
         owns(p) == .rule && value(p) == .o
     }
 
-}
-
-func named(formula: NodeID, in t: inout Table) throws -> NodeID {
-    try transform(formula, Atoms(), in: &t)
-}
-
-/// ⚠ A TRUTH-SET VARIABLE READS `holds(E)` HERE, AS LOGIC'S WALK READS IT: left as it stands, a λ's class named from a
-/// template differs from the walked one, silently, until a step's premise mismatches.
-private struct Atoms: Rule {
-    func after(_ n: Node, was id: NodeID, context _: Depth, in t: inout Table) throws -> NodeID? {
-        if case .isaPropBound(let k) = n { return try holds(try t.intern(.folBound(k)), in: &t) }
-        return Reify().names(Pattern(t[id], in: t)) ? try named(atom: n, in: &t) : nil
-    }
 }
 
 private func namesConstant(_ T: IRType) -> Bool {
@@ -286,7 +277,7 @@ func classBody(_ lambda: NodeID, raw: Bool, in t: inout Table) throws -> (outsid
     }
     let member: NodeID
     if U == .o {
-        member = raw ? body : try named(formula: body, in: &t)
+        member = raw ? body : try walked(formula: body, in: &t)
     } else {
         let valued = try equation(try t.intern(.isaBound(n, .i)), body, in: &t)
         member = raw ? valued : try named(atom: t[valued], in: &t)

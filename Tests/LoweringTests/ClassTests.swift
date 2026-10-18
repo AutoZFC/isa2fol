@@ -18,6 +18,21 @@ private func classOf(lambda: NodeID, in t: inout Table) throws -> [(Lemma, NodeI
     return [(Lemma(f), try statement(f, base: try base(in: &t), in: &t))]
 }
 
+/// ⚠ A λ'S CLASS DEFINITION IS ITS BODY AS LOGIC'S WALK REWRITES IT: `λx. ⋀P. P ⟶ x ∈ y`, built from the λ as stated,
+/// reads `⋀P` a truth set, as the walked λ does. A second rewrite of the body diverged from the walk silently.
+@Test
+func aLambdasClassDefinitionIsItsBodyAsTheWalkRewritesIt() throws {
+    var r = Terms()
+    let mem = try r.n(.isaConst(.primitive(.zf(.mem)), fn(i, fn(i, o)), args: [try r.x(1), try r.x(3)]))
+    let lambda = try r.lam(i, try r.n(.isaPropAll(body: try r.n(.folImplies(try r.n(.isaPropBound(0)), mem)))))
+    let K = try r.n(.folBound(0))
+    let stated = try classDefinition(lambda, K: K, in: &r.t)
+    let walkedLambda = try walked(lambda, base: try base(in: &r.t), in: &r.t)
+    let fromWalked = try classDefinition(walkedLambda, K: K, in: &r.t)
+    #expect(stated == fromWalked)
+    #expect(!patterns(under: [stated], in: r.t).contains(.isaPropAll))
+}
+
 /// `CLASS ⟨λx. x ∈ y⟩`: `∃` by `row_ex`, the tuple's atoms read through `cls_zero`'s and `cls_snoc4`'s classes, `x ∈ y`
 /// through `B1`'s, and the class named by `member_class` at the record `⟨y⟩`.
 @Test
