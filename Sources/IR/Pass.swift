@@ -137,9 +137,14 @@ public struct Unit: Sendable {
     public var statements: [Statement]
     public var definitions: [Definition]
     public private(set) var refused: [Refused]
+    public private(set) var dropped = [String]()
 
     mutating func refuse(_ name: String, _ refusal: PipelineRefusal) {
         refused.append(Refused(name: name, refusal: refusal))
+    }
+
+    mutating func drop(_ name: String) {
+        dropped.append(name)
     }
 }
 
@@ -339,6 +344,7 @@ private struct Run {
             if stage == pass.name, k < passes.count - 1 { return false }
             if k == proving {
                 let proving = ContinuousClock.now
+                try pruned()
                 try prove()
                 stages.append(Stage(name: "registry", since: proving))
                 if stage == "registry" { return false }
@@ -484,7 +490,57 @@ private struct Run {
         live = live.indices.filter { !unbuilt.contains($0) }.map { live[$0] }
     }
 
+    mutating func pruned() throws {
+        guard let registry, let r = proving else { return }
+        var next = 0
+        while next < live.count {
+            if live[next].statement.lemma == nil {
+                try define(constantsNamed(under: live[next].statement.walked, unit.table), with: registry, through: r)
+            }
+            next += 1
+        }
+        var ready = [Live]()
+        for l in live {
+            if l.statement.lemma == nil, let refusal = blocked(l.held, through: passes.count - 1) {
+                unit.refuse(l.statement.name, refusal)
+            } else {
+                ready.append(l)
+            }
+        }
+        live = ready
+        let (cites, edges) = try graph { $0.lemma == nil }
+        let kept = closed(cites)
+        var cited = Set<Int>()
+        for k in live.indices where kept[k] && live[k].statement.lemma == nil { cited.formUnion(edges[k]) }
+        var needed = [Live]()
+        for k in live.indices where kept[k] {
+            if live[k].statement.lemma == nil || cited.contains(k) {
+                needed.append(live[k])
+            } else {
+                unit.drop(live[k].statement.name)
+            }
+        }
+        live = needed
+    }
+
     mutating func linked() throws -> Unit {
+        let (cites, edges) = try graph { _ in true }
+        try acyclic(edges)
+        let kept = closed(cites)
+        var needed = Set(live.indices.filter {
+            kept[$0] && live[$0].statement.lemma == nil && live[$0].statement.defines == nil
+        })
+        var stack = Array(needed)
+        while let k = stack.popLast() {
+            for j in edges[k] where kept[j] && needed.insert(j).inserted { stack.append(j) }
+        }
+        for k in live.indices where kept[k] && !needed.contains(k) { unit.drop(live[k].statement.name) }
+        unit.statements = live.indices.filter(needed.contains).map { live[$0].statement }
+        unit.definitions = reached
+        return unit
+    }
+
+    func graph(_ decided: (Statement) -> Bool) throws -> (cites: [[String]], edges: [[Int]]) {
         var index = [Cited: Int]()
         var definitions = [Defined: Int]()
         for (k, l) in live.enumerated() {
@@ -496,6 +552,11 @@ private struct Run {
         for l in live {
             var found = [String]()
             var to = [Int]()
+            guard decided(l.statement) else {
+                cites.append(found)
+                edges.append(to)
+                continue
+            }
             for (c, root) in l.statement.proof.map({ citations(under: $0, unit.table) }) ?? [] {
                 found.append(c.name)
                 if case .definition(let d) = c, let j = definitions[d] {
@@ -519,8 +580,11 @@ private struct Run {
             cites.append(found)
             edges.append(to)
         }
-        try acyclic(edges)
-        var gone = refused
+        return (cites, edges)
+    }
+
+    mutating func closed(_ cites: [[String]]) -> [Bool] {
+        var gone = Set(unit.refused.map(\.name))
         var kept = Array(repeating: true, count: live.count)
         var changed = true
         while changed {
@@ -533,9 +597,7 @@ private struct Run {
                 changed = true
             }
         }
-        unit.statements = live.indices.filter { kept[$0] }.map { live[$0].statement }
-        unit.definitions = reached
-        return unit
+        return kept
     }
 
     func acyclic(_ edges: [[Int]]) throws {

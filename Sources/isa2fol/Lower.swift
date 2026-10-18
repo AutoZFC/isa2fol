@@ -95,6 +95,10 @@ func lower(_ root: String, _ options: Options) {
     print(
         "constants' @defs stated: \(defs), refused: \(refusedDefs); lemmas requested and refused, unbuilt: \(refusedLemmas)"
     )
+    let droppedDefs = unit.dropped.count(where: { $0.hasSuffix("_DEF") })
+    print(
+        "left out, no kept statement citing them: \(unit.dropped.count - droppedDefs) lemmas, \(droppedDefs) @defs"
+    )
     print("refused, named: \(unit.refused.count(where: { named.contains($0.name) }))")
     var statements = [String: Int]()
     var held = [String: [String: Int]]()

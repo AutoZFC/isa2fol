@@ -40,7 +40,7 @@ the argument, then the argument's equation substituted into the function by the 
 letters come first** (`DESIGN.md` "Letters first"): the reader closes a theorem over its propositions before its other
 frees and permutes each citation's leading term arguments to match, so a letter is instantiated by `schema_inst` on the
 citation and no instance walks a binder over a proposition; an axiom keeps the export's order. Of the ZF session's
-3,616 named theorems (`--skip` the other seven), `lower` lowers 14 to fol-zfc and states 157 `@def`s: 950 stop at no
+3,616 named theorems (`--skip` the other seven), `lower` lowers 14 to fol-zfc: 950 stop at no
 owner, 319 at logic, and 2,333 cite a refused statement, led by `ZF_Base.Ball_def` (step 5) — a `@def` holding a piece not built, or a theorem refused for
 one of the others. **The rules that consumed a proposition where it stood are removed**
 (`DESIGN.md` "Removed — the rules that consumed a proposition where it stood"): FOUNDATION S4 makes a proposition an
@@ -67,13 +67,13 @@ prover"): a term's naming walked binder by binder, one fact per piece, per const
 constant's from its `@def` and a primitive's from base. **Class existence has its prover** (`DESIGN.md` "Class existence
 — its prover", FOUNDATION §3, R5, R4): a formula's class of records built from base's rows and read back exact, named by
 `member_class` or `graph_class`; a class binder a hypothesis of what lies under it; one lift per class-taking constant,
-uniform in the record's length, re-keyed by `REKEY`. Every lemma the ZF session requests is proved but 204, among
-them the classes of λs holding a proposition, which the class prover does not read yet; ⚠ **99% OF THE EMITTED UNIT IS
-LEMMAS NOTHING CITES** (8,658 of the ZF session's 8,710 claims, 817 MB): requested for statements that then fall, and proved
-before that is known. **Emission
+uniform in the record's length, re-keyed by `REKEY`; the class prover does not read yet the classes of λs holding a
+proposition. **A lemma is proved once a statement that stands cites it** (`DESIGN.md` "Lazy proving"): the link closes
+before the registry proves, and the unit keeps only what a kept statement cites — 7,104 lemmas and 157 `@def`s of the
+ZF session left out, never proved. **Emission
 is built** (`DESIGN.md` "Emission"): `isa2fol lower data/zf_export --emit DIR` writes the unit as parts — a theory's
 theorems, a lemma in its first citer's part — and `scripts/check-unit.sh DIR` kernel-checks each against the libraries
-of base and of the parts it cites: all 8,710 claims and 104 schemas of the ZF session's unit Proved. `DESIGN.md` is the plan; its "The steps after class
+of base and of the parts it cites: all 52 claims and 104 schemas of the ZF session's unit Proved, 906 KB. `DESIGN.md` is the plan; its "The steps after class
 existence, in order" is the order of work, agreed again from step 2 on around FOUNDATION S4.
 
 ## Build
@@ -104,7 +104,7 @@ ZF-Resid,ZF-ex`. **Lint before every run** (user, 2026-10-17): `pre-commit run -
 
 ```bash
 MEM=48G scripts/capped.sh .build/release/isa2fol lower data/zf_export --through logic $ZF [--theorem NAME,…]
-MEM=64G scripts/capped.sh .build/release/isa2fol lower data/zf_export $ZF --emit DIR [--threads N]   # CI; N: every core
+MEM=32G scripts/capped.sh .build/release/isa2fol lower data/zf_export $ZF --emit DIR [--threads N]   # CI; N: every core
 MEM=32G scripts/capped.sh scripts/check-unit.sh DIR        # each part, against base's and its parts' libraries
 MEM=16G scripts/capped.sh scripts/check-base.sh [LIBDIR]   # base alone, each tier once
 ```
@@ -257,7 +257,7 @@ determinism R1–R3 (§4.6).
    print(f'{c}/{t} = {100*c/t:.1f}%')"
    ```
 
-   ✓ **CURRENTLY 63/12438 = 0.5%, under the cap.** Keep it there: a breach is
+   ✓ **CURRENTLY 63/12500 = 0.5%, under the cap.** Keep it there: a breach is
    fixed by deleting prose, never by raising the cap.
 
    Does not apply to `base/**/*.fol.def` headers: those record provenance of

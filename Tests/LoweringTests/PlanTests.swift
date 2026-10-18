@@ -501,8 +501,8 @@ private struct Unbuilt: Prover {
 }
 
 /// The same, a registry answering class existence unbuilt: `Pow`'s class is refused at the registry, EX citing it
-/// falls,
-/// and the statement with it; what it does not cite stays.
+/// falls, and the statement with it; the theorem it cites stays, and the lemmas only it cited leave the unit (DESIGN
+/// "Lazy proving").
 @Test
 func aStatementFallsWithAnUnbuiltLemmaItsProofCites() throws {
     var t = Table()
@@ -517,16 +517,15 @@ func aStatementFallsWithAnUnbuiltLemmaItsProofCites() throws {
     #expect(refused["ZF_Base.Pow_CLASS"] == .lemmaUnbuilt)
     #expect(refused[ex] == .cites("ZF_Base.Pow_CLASS"))
     #expect(refused["thm"] == .cites(ex))
-    let kept = Set(unit.statements.map(\.name))
-    #expect(kept.isSuperset(of: [
-        "lem",
+    #expect(unit.statements.map(\.name) == ["lem"])
+    #expect(Set(unit.dropped).isSuperset(of: [
         "ZF_Base.Pow_AGREE",
         "ZF_Base.Pow_FUNC",
         "ZF_Base.Pow_TOTAL",
         "TUPLE_UNIQ_1",
         "TUPLE_INJ_1",
     ]))
-    #expect(kept.contains { $0.hasPrefix("UNIQ_") })
+    #expect(unit.dropped.contains { $0.hasPrefix("UNIQ_") })
 }
 
 /// An elimination at a free variable: no pass owns it, so the statement stops before the first.

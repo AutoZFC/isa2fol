@@ -2556,7 +2556,8 @@ until it is fully translated (user), so each step's scope is measured there.
 6. **A proposition argument**, `If` and `bool_of_o`: a class of the empty tuple (FOUNDATION S4), as the reference read it.
 7. **The hidden variable**, `Pure.dummy_pattern`: the reference refused it, so its design is new ("Step 7 — the hidden
    variable, bound at its proof's top", below), **BUILT 2026-10-17** with an ∃-intro carrying its body, which its run
-   and `exI` (2) waited on ("An ∃-intro carrying its body", below, **BUILT 2026-10-17**).
+   and `exI` (2) waited on ("An ∃-intro carrying its body", below, **BUILT 2026-10-17**). Then lazy proving ("Lazy
+   proving — a lemma proved once a statement that stands cites it", below, **AGREED 2026-10-17**).
 8. **ZF's axioms**: base derives `extension`, `Pow_iff`, `Union_iff`, `replacement` and `infinity` from NBG;
    `foundation` and `AC.AC` wait for FOUNDATION to pin Regularity and Choice, which `base/axioms` leaves out.
 9. **Later**: a declared constant; a binder over classes, and a λ over classes anywhere but an equation (4 reads it
@@ -4339,6 +4340,80 @@ Reify: at a compound term, `TermInstance.witnessed`, sharing the instance's core
   fall. Per statement the ∃-intro through `ex_intro` costs little: a constant's class 2,901 steps (2,912), a term's EX
   147 (130), a constant's totality 47 (42).
 - ⚠ **THE COMPLETE RUN IS AT ITS CAP'S EDGE**: 55.5 GB sampled under `MEM=56G`; the recipe is raised to `MEM=64G`.
+
+### Lazy proving — a lemma proved once a statement that stands cites it  **[AGREED 2026-10-17 (user: "Do lazy prove"); BUILT 2026-10-17, its decisions in the build for the user's review — `Sources/IR/Pass.swift`, `Sources/isa2fol/Lower.swift`]**
+
+**The step.** 99% of the unit is lemmas nothing cites: 8,658 of the ZF session's 8,710 claims, 801.6 of its 802.4 MB of
+proofs ("An ∃-intro carrying its body", Measured). The registry proves every lemma Logic's walk requests, and Fol lowers
+each, before the link finds that their requesters fall: 2,333 named theorems cite a refused statement. Of the complete
+run's 20:33 the registry takes 81 s and Fol 717 s, and its memory sits at the cap. What a kept statement cites: 52
+claims, 0.9 MB of proofs, about 22 of them lemmas.
+
+**The problem, in the pipeline's order** (`Sources/IR/Pass.swift`, `Run`). Each pass runs over the live statements;
+after Logic (`provingAfter`), `prove()` proves every requested lemma, and what its proof requests in turn; Fol lowers
+every live statement, lemmas included; then `legalized()`, and `linked()` refuses a statement citing a refused one,
+transitively. A lemma is requested by the statement whose walk names it, and whether that statement stands is known
+only at the link — after the lemma is proved and lowered. The provers are not the cost; the order is.
+
+**1. The link closes before the registry proves, and the unit keeps only what a kept statement cites.** At the proving
+point, before `prove()`:
+- the `@def`s the live statements name are stated, as `prove()` states them now;
+- a statement holding a pattern Fol owns unbuilt is refused there, as Fol's turn would refuse it — its patterns after
+  Logic decide it (`owns`);
+- the link's closure runs: a statement citing a refused one is refused, transitively; a lemma citation counts as
+  standing, since no lemma is decided yet;
+- a lemma request that no remaining statement cites is dropped, unproved, and reported.
+
+`prove()` proves the rest, and what their proofs request, as now. At the link, after Fol, the closure runs again — a
+lemma refused unbuilt refuses its citers — and a lemma no kept statement cites, transitively, leaves the unit: its
+citers fell after it was proved.
+
+| a lemma | now | lazy |
+|---|---|---|
+| requested by a statement citing a refused theorem | proved, lowered, emitted in `_uncited` | not proved; reported |
+| requested by a statement citing a lemma the registry refuses | proved, lowered, emitted in `_uncited` | proved — the refusal comes last — not emitted |
+| cited by a kept statement | proved, lowered, emitted in its citer's part | the same |
+
+The complete run then exercises the provers only on what kept statements cite; their tests keep their own coverage.
+Alternative: drop uncited lemmas at the link alone — the unit shrinks, but the registry and Fol still prove and lower
+every request, and the time and the memory stay.
+
+**The contracts (D2):**
+
+| | provides | assumes |
+|---|---|---|
+| Pipeline | no lemma in the unit that no kept statement cites; a request whose requesters fell reported, unproved | a pass refuses a statement at its own pieces by its patterns (`owns`), decidable before it runs |
+| Registry | unchanged: proves what it is handed | — |
+
+**Tests, written first.**
+- `PipelineTests`, with a registry recording what it is asked: a lemma requested by a statement citing a refused theorem
+  is never asked and is reported; one requested by a statement citing a lemma the registry refuses is asked and is not
+  in the unit; one a kept statement cites is in it.
+- The ZF session, complete, emitted and kernel-checked: the same 14 named theorems lowered; the unit's claims what they
+  cite.
+
+**Built.** `Run.pruned()`, at the proving point before `prove()`: the `@def`s of every statement that is not a lemma
+stated, Fol's unbuilt refusal by `blocked`, the link's closure (`graph`, `closed`, shared with `linked()`), and each
+lemma request no remaining statement cites dropped. `linked()` keeps what the kept theorems and boxes reach;
+`Unit.dropped` names what left; the report prints it.
+
+**Decisions made in the build**, for the user's review:
+1. **The `@def`s are stated before the closure**, for every statement that is not a lemma: a statement naming a constant
+   whose `@def` is refused falls there, and the lemma it requests, naming the constant too, is never asked —
+   `aLemmaNamingARefusedDefinitionIsRefusedUnasked` now sees the statement fall at the `@def`, its lemma dropped.
+2. **A `@def` no kept statement cites leaves the unit with the lemmas**: it is cited as a lemma is, by a statement
+   naming its constant. What is kept is what the link's kept theorems and boxes reach.
+3. **`PlanTests`' statement falling with an unbuilt lemma** now expects the lemmas only it cited out of the unit, the
+   theorem it cites in it.
+
+**Measured** (the ZF session alone, `--skip` the other seven; the release build on 48 cores; the lint first):
+- **Complete, emitted and kernel-checked**: 3:17 (20:33), 10.8 GB sampled (55.5) — read 46.1 s; expand 2.2 s, logic
+  128.8 s, registry 16.6 s (81.4), fol 0.1 s (716.8), link 0.1 s (50.0); emitted 0.1 s, 11 parts, 906 KB (817 MB);
+  30.4M nodes (117.2M). `check-unit.sh`: 0.26 s, every part exit 0 and empty stderr, claims 52 of 52, schemas 104 of 104.
+- **Named theorems lowered: 14, refusals unchanged**: no owner 950, logic 319, a refused citation 2,333.
+- **Left out, no kept statement citing them: 7,104 lemmas, 157 `@def`s.** The registry proves 22 lemmas — 8 λ classes,
+  8 λs' arguments, a λ's function, three tuple facts, a term's EX and UNIQ — and none is refused unbuilt (204 before:
+  each was requested by a statement that falls). The complete run's cap is `MEM=32G`.
 
 ### Fol — binders, guards and variables  **[BUILT 2026-09-28 as the guard; Fol's 2026-10-14; every object type and `∃` at `i` with "Reify — S1 at the site" — `Sources/Lowering/Fol.swift`]**
 

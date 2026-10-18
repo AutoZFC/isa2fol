@@ -388,6 +388,72 @@ func aLemmaItsProverHasNotBuiltIsRefusedThereAndItsCitersFall() throws {
     #expect(refusals(unit) == ["L": .lemmaUnbuilt, "S": .cites("L")])
 }
 
+/// `S` cites `C`, which no pass owns a piece of, and requests `L`: the link closes before the registry proves, so `L`
+/// is never asked and leaves the unit, reported (DESIGN "Lazy proving").
+@Test
+func aLemmaRequestedByAStatementCitingARefusedOneIsNeverProved() throws {
+    var t = Table()
+    let (r, proof) = try reflexiveMem(&t)
+    let memA = try memOfA(&t)
+    let aside = try t.intern(.folImpliesIntro(memA, body: try t.intern(.hyp(0, memA))))
+    let c = Statement(name: "C", root: r, proof: try t.intern(.folAndElimL(try t.intern(.folAndIntro(proof, aside)))))
+    let s = Statement(
+        name: "S",
+        root: try t.intern(.folAnd(r, r)),
+        proof: try t.intern(.folAndIntro(
+            try t.intern(.use(.theorem("C"), [], r)),
+            try t.intern(.use(.theoryAxiom("L"), [], r)),
+        )),
+    )
+    var unit = Unit(table: t, statements: [c, s])
+    let registry = Proving { _, _, _ in .proof(proof) }
+    try Pipeline(passes: [cite, elem], registry: registry, provingAfter: "cite").run(&unit)
+    #expect(registry.asked.isEmpty)
+    #expect(unit.statements.isEmpty)
+    #expect(refusals(unit) == ["C": .noOwner([free]), "S": .cites("C")])
+    #expect(unit.dropped == ["L"])
+}
+
+/// `S` holds a piece `elem`, after the registry, has not built: it is refused before the registry proves, and `L`,
+/// which
+/// it alone requests, is never asked.
+@Test
+func aLemmaRequestedByAStatementALaterPassRefusesIsNeverProved() throws {
+    var t = Table()
+    let (r, proof) = try reflexiveMem(&t)
+    let s = try citing("L", "S", r, &t)
+    var unit = Unit(table: t, statements: [s])
+    let registry = Proving { _, _, _ in .proof(proof) }
+    let unbuilt = Owning(name: "elem", owned: [memAtom: .unbuilt], rule: Elem())
+    try Pipeline(passes: [cite, unbuilt], registry: registry, provingAfter: "cite").run(&unit)
+    #expect(registry.asked.isEmpty)
+    #expect(refusals(unit) == ["S": .unbuilt(pass: "elem", [memAtom])])
+    #expect(unit.dropped == ["L"])
+}
+
+/// `S` requests `L1` and `L2`; the registry proves `L1` and refuses `L2`, so `S` falls after `L1` is proved, and `L1`,
+/// which no kept statement cites, leaves the unit.
+@Test
+func aLemmaWhoseCitersFallAfterItIsProvedLeavesTheUnit() throws {
+    var t = Table()
+    let (r, proof) = try reflexiveMem(&t)
+    let s = Statement(
+        name: "S",
+        root: try t.intern(.folAnd(r, r)),
+        proof: try t.intern(.folAndIntro(
+            try t.intern(.use(.theoryAxiom("L1"), [], r)),
+            try t.intern(.use(.theoryAxiom("L2"), [], r)),
+        )),
+    )
+    var unit = Unit(table: t, statements: [s])
+    let registry = Proving { l, _, _ in l.name == "L2" ? .unbuilt : .proof(proof) }
+    try Pipeline(passes: [cite, elem], registry: registry, provingAfter: "cite").run(&unit)
+    #expect(Set(registry.asked) == ["L1", "L2"])
+    #expect(unit.statements.isEmpty)
+    #expect(refusals(unit) == ["L2": .lemmaUnbuilt, "S": .cites("L2")])
+    #expect(unit.dropped == ["L1"])
+}
+
 /// `T.d ≡ λx. K(x ∈ x)`: `elem` lowers it before `reading`, which owns `T.d`, reads it; nothing lowers it after.
 @Test
 func aPassReadsTheDefinitionsOfTheConstantsItOwnsAsTheyStandAtItsInput() throws {
@@ -701,8 +767,8 @@ func aDefinitionIsCitedByItsStatementAsALemmaIs() throws {
     }
 }
 
-/// A lemma naming a constant whose `@def` is refused falls with it, and its prover is never asked: it would state facts
-/// about a body no rule names.
+/// A statement naming a constant whose `@def` is refused falls before the registry proves, and the lemma it requests,
+/// naming the constant too, is never asked: it would state facts about a body no rule names.
 @Test
 func aLemmaNamingARefusedDefinitionIsRefusedUnasked() throws {
     var t = Table()
@@ -715,5 +781,6 @@ func aLemmaNamingARefusedDefinitionIsRefusedUnasked() throws {
     }
     try Pipeline(passes: [cite], registry: registry, provingAfter: "cite").run(&unit)
     #expect(registry.asked == ["T.d_DEF"])
-    #expect(refusals(unit) == ["T.d_DEF": .lemmaUnbuilt, "L": .cites("T.d_DEF"), "S": .cites("L")])
+    #expect(refusals(unit) == ["T.d_DEF": .lemmaUnbuilt, "S": .cites("T.d_DEF")])
+    #expect(unit.dropped == ["L"])
 }
