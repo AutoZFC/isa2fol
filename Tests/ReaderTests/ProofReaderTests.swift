@@ -310,6 +310,11 @@ private func miniReader() throws -> Reader {
                 free("Q"),
             ),
         )),
+        ("T.leavesLetter", 320, proofFile(
+            frees: [("A", i)],
+            prop: all("R", o, imp(all("x", i, mem(bound(0), free("A"))), imp(trueprop(bound(0)), trueprop(bound(0))))),
+            proof: pappt(pcite(300, "ZF.T", "T.late"), lam("y", i, app(const("ZF_Base.mem"), bound(0), free("A")))),
+        )),
         ("T.polyPartial", 230, proofFile(
             tfrees: ["'a", "'b"],
             frees: [("Q", o)],
@@ -502,6 +507,15 @@ func aCitationInstantiatesItsLettersFirst() throws {
         r.table[n].forEachChild { c, _ in work.append(c) }
     }
     #expect(atTheCitation == [.o])
+}
+
+/// `T.late` cited at its `P` alone, its letter `R` left: closed letters first, `T.late` has no order that citation
+/// reads
+/// in.
+@Test
+func aCitationLeavingALetterBehindAnInstantiatedFreeIsRefused() throws {
+    var r = try miniReader()
+    #expect(try r.read(try theorem(r, "T.leavesLetter")) == .refused(.letterLeft))
 }
 
 @Test

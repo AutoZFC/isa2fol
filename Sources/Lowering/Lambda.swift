@@ -349,11 +349,11 @@ struct LambdaProofs {
             guard let j = atK.firstIndex(of: x), let g = guards[j] else { throw LambdaError.notMine(f.name) }
             return try fr.hypothesis(g, in: &t)
         }
-        let at = try atArguments(f.lambda, from: f.types.count, k, h, fr, guardOf: guardOf, in: &t)
+        let at = try classAtArguments(f.lambda, from: f.types.count, k, h, fr, guardOf: guardOf, in: &t)
         return try fr.close(try t.intern(.folExistsIntro(at, try fr.variable(k, in: &t))), in: &t)
     }
 
-    func atArguments(
+    func classAtArguments(
         _ lambda: NodeID,
         from depth: Int,
         _ k: Int,

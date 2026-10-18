@@ -56,7 +56,7 @@ func lower(_ root: String, _ options: Options) {
     } catch {
         fail("base: \(error)", 1)
     }
-    let complete = options.through == nil || options.through == lowering.passes.last?.name
+    let complete = lowering.completes(through: options.through)
     if options.emit != nil, !complete { fail(
         "lower: --emit needs a complete run, not one through \(options.through!)",
         2,

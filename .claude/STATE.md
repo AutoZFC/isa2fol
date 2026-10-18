@@ -1,5 +1,5 @@
 # STATE — isa2fol
-HEAD "Step 5: a ZF definition cited…" (parent `eaf6981c`) · primitives · 2026-10-17.  RUN §0 BEFORE TRUSTING ANY LINE BELOW.
+HEAD "Review after step 5: the small fixes" (parent `185e9875`) · primitives · 2026-10-17.  RUN §0 BEFORE TRUSTING ANY LINE BELOW.
 
 ## 0. Staleness checks
 `$ZF` is `--skip ZF-AC,ZF-Coind,ZF-Constructible,ZF-IMP,ZF-Induct,ZF-Resid,ZF-ex`: every run is the ZF session alone
@@ -8,16 +8,16 @@ until it is fully translated (user). Lint before every run: `pre-commit run --al
 | command | expect |
 |---|---|
 | `git branch --show-current` | `primitives` |
-| `git log -1 --format=%s` | `Step 5: a ZF definition cited is its constant's pointwise definition, c_UNFOLD` |
+| `git log -1 --format=%s` | `Review after step 5: the small fixes` |
 | `git status --short \| wc -l` | `0` |
 | `git rev-parse --short kinds-proposal` | `21ca100f` |
-| `find Sources -name '*.swift' -exec cat {} + \| grep -cv '^\s*$'` | `12845` |
+| `find Sources -name '*.swift' -exec cat {} + \| grep -cv '^\s*$'` | `12852` |
 | `git -C ~/repos/fol-zfc-comb log -1 --format=%h` | `224d60e` (branch `libraries-and-streaming`) |
 | `grep -c '^axiom ' base/axioms.fol.def` | `17` — NBG and `elem_first_subst`; the tiers admit none |
 | `pre-commit run --all-files` | `SwiftFormat ... Passed`, `SwiftLint ... Passed` |
-| `MEM=48G scripts/capped.sh swift test 2>&1 \| grep "Test run with"` | five lines, all passed: 14, 138, 116, 119, 42 tests |
+| `MEM=48G scripts/capped.sh swift test 2>&1 \| grep "Test run with"` | five lines, all passed: 14, 139, 116, 119, 42 tests |
 | `MEM=16G scripts/capped.sh scripts/check-base.sh` | 14 tiers, each `exit 0  stderr 0`; `logic` Schemas proved 10 of 10; `metafun` Proved 19 of 19 |
-| `swift build -c release`, then `MEM=48G scripts/capped.sh .build/release/isa2fol lower data/zf_export --through logic $ZF` (2:55) | `through logic: 2557 named theorems stand`; `no owner: 680`; `logic, unbuilt: 379` |
+| `swift build -c release`, then `MEM=48G scripts/capped.sh .build/release/isa2fol lower data/zf_export --through logic $ZF` (about 3 min) | `through logic: 2557 named theorems stand`; `no owner: 680`; `logic, unbuilt: 379` |
 | `MEM=32G scripts/capped.sh .build/release/isa2fol lower data/zf_export $ZF --emit DIR --threads 48` (4:13, 13.3 GB; the CI), then `MEM=32G scripts/capped.sh scripts/check-unit.sh DIR` (21 s) | `lowered … 170`; `left out, no kept statement citing them: 7013 lemmas, 14 @defs`; `cites a refused statement: 2387`, led by `ZF_Base.Ball_def` 487; 31 parts, every one `exit 0  stderr 0`; claims 1942 of 1942, schemas 104 of 104 |
 If any row disagrees, THIS FILE IS STALE. Trust the code and fix this file first.
 
@@ -26,12 +26,16 @@ If any row disagrees, THIS FILE IS STALE. Trust the code and fix this file first
 `224d60e`, built only with `bazel build -c opt`. `kinds-proposal` (`21ca100f`) is the REFERENCE.
 
 ## 2. Read these first-hand
+- `DESIGN.md` "Review after step 5 — the small fixes": what the review fixed, and **For the user's decision** — Reify's
+  formula naming a partial copy of Logic's walk; an η-long variable in a class slot named by a fresh class (the design
+  signal); `combination`'s two constructions; `isaHidden` at `o`.
 - `DESIGN.md` "Step 5 — a ZF definition cited": the two agreed decisions, and **Decisions made in the build** 1–6 for
   the user's review — 5 and 6 fix earlier steps' code (step 4's `reflexive`, lazy proving's set-aside).
 - `Sources/Lowering/Unfolding.swift` — `unfolded` (the rule), `UnfoldingProofs`, `readBack` (class parameters).
 - `Sources/IR/Pass.swift` `Run.pruned`, `add`, `setAside`, `linked` — a request no remaining statement cites is set
   aside, and comes back when a proof the registry makes cites it.
-- `Sources/Lowering/Lambda.swift` `LambdaProofs.atArguments`, `atTuple`, `LambdaInstance.equivalence` — shared now.
+- `Sources/Lowering/Lambda.swift` `LambdaProofs.classAtArguments`, `atTuple`, `LambdaInstance.equivalence` — shared
+  with step 5's prover; `atArguments` (a free function) is the formula they prove.
 - `DESIGN.md` "The steps after class existence, in order" — steps 6, 8, 9 remain; the refusals order them.
 
 ## 3. Invariants
@@ -80,7 +84,7 @@ If any row disagrees, THIS FILE IS STALE. Trust the code and fix this file first
 | Logic's 379: `isaConst(defined zf object, o ⇒ i ⇒ i ⇒ i)` 325 — `If` (step 6); binders over a function of classes (step 9) | the same report |
 | complete run: read 47.7 s; expand 2.3, logic 135.9, registry 22.3, fol 27.2, link 2.4 s; 194.8 MB; 36.7M nodes | §0's complete run |
 | the unit holds 126 `c_UNFOLD` lemmas, 33,761 steps; 147 `@def`s stated, 69 refused; no lemma refused unbuilt | the same report, `steps by kind` |
-| comments 63/12845 = 0.5% of `Sources` | `CLAUDE.md` rule 9's script |
+| comments 63/12852 = 0.5% of `Sources` | `CLAUDE.md` rule 9's script |
 
 ## 5. Beliefs — NOT verified
 - `use(theorem, [i], o)` is `FOL.meta_simps.1` (`(⋀x::'a. PROP V) ≡ PROP V`) at `[i]` in the statements holding it: its
@@ -90,6 +94,9 @@ If any row disagrees, THIS FILE IS STALE. Trust the code and fix this file first
   classes (`Ball_def`, `Bex_def` read; the other 36 of the 38 assumed alike).
 
 ## 6. Open decisions
+- **The review's open items** (`DESIGN.md` "Review after step 5"): the η-long variable in a class slot named by itself
+  (the design signal — it removes step 5's `readBack` and the `CLASS_`/`LAMBDA_` of every η-long variable); Reify's
+  formula naming by Logic's own walk; `combination`'s two constructions; `isaHidden` at `o`.
 - **The next step.** By the refusals: 6, `If` (325 at logic; `Bool.cond_DEF` 23 among the refused citations); 9, a
   binder over a function of classes (`Ball_def` 487, `Bex_def` 107 — the definition command's box at the constant);
   `use(theorem, [i], o)`, believed `FOL.meta_simps.1` at `[i]` (668 at no owner).
@@ -97,6 +104,7 @@ If any row disagrees, THIS FILE IS STALE. Trust the code and fix this file first
   2–4, "Letters first"'s two, "Step 4"'s four; merging the checker branch.
 
 ## 7. Next action
-Get the user's choice of the next step; then write its section in `DESIGN.md` — the problem in target text, its
+Get the user's decision on the review's open items, the design signal first, and the choice of the next step; then
+write its section in `DESIGN.md` — the problem in target text, its
 decisions, the contracts, the tests first — and agree it decision by decision before any code. Done when the user has
 agreed every decision of that section.

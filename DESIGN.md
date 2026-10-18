@@ -130,7 +130,9 @@ cap) is revisited only for a corpus larger than ZF.
 | | decided |
 |---|---|
 | **types** | The reader decodes `ztyp` into ITS OWN type, which has `'a` and `prop`. A `ZConst` carries only its type ARGUMENTS (`ZConst1 (a, b) => ([a], list ztyp [b])`, `zterm.ML`'s encoder), so `isaConst`'s instantiated type is the declared scheme from `theory/consts` (`IFOL.eq :: ['a, 'a] ⇒ o`) with those arguments substituted. A file is read AT AN INSTANCE of its `tfrees` header: a named theorem at its own variables — AS STATED, `'a` is `IRType.variable` — an unnamed box at the types its citation gives (§4.3a 3). A type variable the header does not declare is malformed; so is a sorted one — `unconstrainT` made every sort an `OFCLASS` premise. `IRType` has no `prop`: **`prop` converts to `o` in EVERY type** — the coercion is the identity (§4.3). ⚠ Refusing `prop` anywhere split one construct in two — 6 vs 194 theorems for variables, then 192 for constants. `dummy` — `standard_hidden_types` writing every type variable only a proof uses — is ONE type variable, `IRType.variable("dummy")`: the export no longer tells them apart. ⚠ Reading it as `i` chose a type in the reader, which is translation's (§4.3a 3) |
-| **frees** | **Read CLOSED.** A statement is `∀x⃗. φ` over the `frees` header — Isabelle's closure (`forall_intr_variables_term`, and `prop_of_atom` for a cited axiom or theorem, `proofterm.ML`), the first free outermost — and its proof is `⋀`-intro over the same `x⃗`. A free `ZVar` reads as the bound variable of its closure binder: the frees are the outermost binders of the file's `Scope`. So a cited statement is the SAME node as the citer's `use`, and the citation's `ZAppt`s instantiate it — checked by ID across every proof. ⚠ Closing in a later pass was the plan; it rewrites the whole proof DAG once per binder depth, where reading closed costs nothing |
+| **frees** | **Read CLOSED.** A statement is `∀x⃗. φ` over the `frees` header — Isabelle's closure (`forall_intr_variables_term`, and `prop_of_atom` for a cited axiom or theorem, `proofterm.ML`), the first free outermost; a theorem's propositions first, then its other frees in the header's order,
+the citation's `ZAppt`s permuted alike ("Letters first"), an axiom's and a definiens' in the header's order — and its
+proof is `⋀`-intro over the same `x⃗`. A free `ZVar` reads as the bound variable of its closure binder: the frees are the outermost binders of the file's `Scope`. So a cited statement is the SAME node as the citer's `use`, and the citation's `ZAppt`s instantiate it — checked by ID across every proof. ⚠ Closing in a later pass was the plan; it rewrites the whole proof DAG once per binder depth, where reading closed costs nothing |
 | **outcomes** | The READER owns them, never IR: `proved(statement, proof)` · `refused(reason)`. ONLY the reader's own refusal enum is caught and recorded; a `TableError`, `MalformedExport` or `YXMLError` is a bug or a corrupt file and stops the run, located at the innermost file — catching it would count our bugs as refusals |
 
 ### What the reader rejects
@@ -138,7 +140,9 @@ cap) is revisited only for a corpus larger than ZF.
 Only a malformed export (`MalformedExport`): a shape Isabelle's encoder does not write, a ZBound
 with no enclosing binder, an ill-typed position, a frees header that is not the proposition's
 frees. Every construct today's reader still REFUSES is listed in §4.3a with the reading that
-replaces its refusal.
+replaces its refusal, and one its own order makes: a citation leaving a letter of the cited theorem uninstantiated
+while it instantiates a later free (`letterLeft`) — closed letters first, the theorem has no order that citation reads
+in. The export holds none.
 
 ## 3. FolDialect — the text boundary over the table  **[render BUILT, a schema instance since "EX and UNIQ — their prover"; parse BUILT for base's statements]**
 
@@ -4568,6 +4572,31 @@ among them), `ProverTests.aFunctionsUnfoldingIsProvedFromItsDef`, `PlanTests`' r
 - **Refused**: no owner 680, logic 379, a refused citation 2,387 (2,333), led by `ZF_Base.Ball_def` 487 and `Bex_def`
   107 (step 9's box), `Bool.cond_DEF` 23 (step 6), `List.list.induct` 22. `@def`s stated 147, refused 69; no lemma
   refused unbuilt; left out 7,013 lemmas and 14 `@def`s.
+
+### Review after step 5 — the small fixes  **[DONE 2026-10-17 (user: "Do the small fix first"); the rest for the user's decision]**
+
+The commits since the last squash (`409c9cbf`), read against D1–D3, I1–I3 and rules 1–13. Fixed, with no change in
+what is lowered:
+- **Rule 9.** `reductio`'s ⚠ stands above its own function again (step 7 had put `hiddenProposition` between them);
+  `Package.swift`'s "a single-threaded graph rewriter", untrue since emission runs on threads, is gone.
+- **Rule 4.** `≡` at a function type is read by one recursion: Logic's rule is `isaPointwise`'s, its equation at `i`
+  named. Letters first is one function, `lettersFirst`, for a theorem's frees and for a citation's arguments. A source's
+  order of frees is stated in its own arm of the switch. Whether a run through a stage is complete is the pipeline's
+  answer alone (`completes(through:)`), which its own run uses.
+- **Names.** The method proving a λ's class at its arguments is `classAtArguments`; `atArguments` is the formula. It
+  stays in `LambdaProofs`: a constant's `@def` states its class as the class of the λ `λx⃗. b`, so the conversion is a
+  λ's class read at its arguments.
+- **§2, rule 6.** `letterLeft` is listed in §2 with its reason and tested; §2's frees row reads letters first.
+
+**For the user's decision:**
+- **Reify's formula naming (`Atoms`) is a partial copy of Logic's walk**, reading a truth-set variable as Logic's rule
+  does. One walk means threading `base` through Reify's naming: `Naming`, `classDefinition`, `classBody`, `atDefinition`.
+- **An η-long variable in a class slot**, `λz⃗. P(z⃗)`, is named by a fresh class `K`, and step 5's prover converts `K`
+  back to `P` (`readBack`, `slotClasses`, `slot`, which rebuilds the reader's η-long form). Named by `P` itself, the
+  `@def` at `P` reads the definiens directly, the conversion goes, and so do the `CLASS_` and `LAMBDA_` lemmas of
+  every η-long variable. Faithful: a constant's definition reads a class argument only through tuple membership.
+- **`combination` builds its substitution two ways** (`atSet` at a set argument, `atClass` at a class argument), and
+  **`isaHidden` at `o` is a cut whose `truth(E)` goes unused**, where Fol's rule covers the objects.
 
 ### Fol — binders, guards and variables  **[BUILT 2026-09-28 as the guard; Fol's 2026-10-14; every object type and `∃` at `i` with "Reify — S1 at the site" — `Sources/Lowering/Fol.swift`]**
 

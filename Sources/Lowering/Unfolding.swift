@@ -256,7 +256,7 @@ private struct Unfolder {
         _ t: inout Table,
     ) throws -> NodeID? {
         let arguments = try slots.indices.map { n in
-            try LambdaProofs(base: base).atArguments(
+            try LambdaProofs(base: base).classAtArguments(
                 try slot(slots[n], f, &t),
                 from: f.scope.depth,
                 ks[n],

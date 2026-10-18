@@ -419,7 +419,7 @@ public struct Reader {
                     source: .theorem(TheoremKey(theory: c.theory, serial: c.serial)),
                     types: try c.types.map(f.terms.irType),
                 )
-                arguments = try lettersFirst(arguments, try letters(of: instance))
+                arguments = try citedLettersFirst(arguments, try letters(of: instance))
             }
         }
         for argument in arguments {
@@ -452,7 +452,7 @@ public struct Reader {
         return try stating(instance).letters
     }
 
-    private func lettersFirst(
+    private func citedLettersFirst(
         _ arguments: ArraySlice<ProofArgument>,
         _ letters: [Bool],
     ) throws -> ArraySlice<ProofArgument> {
@@ -463,9 +463,7 @@ public struct Reader {
             given.append(a)
         }
         guard !letters[given.count...].contains(true) else { throw ReaderRefusal.letterLeft }
-        let first = given.indices.filter { letters[$0] }.map { given[$0] }
-        let rest = given.indices.filter { !letters[$0] }.map { given[$0] }
-        return ArraySlice(first + rest + arguments.dropFirst(given.count))
+        return ArraySlice(lettersFirst(given, Array(letters[..<given.count])) + arguments.dropFirst(given.count))
     }
 
     private mutating func head(
@@ -784,17 +782,19 @@ public struct Reader {
     private mutating func stating(_ instance: Instance) throws -> (root: NodeID, letters: [Bool]) {
         let path: String
         let e: Envelope
+        let order: FreeOrder
         switch instance.source {
         case .theorem(let key):
             path = key.path
             e = try located(path) { try decode.proofFile(try corpus.file(key)).0 }
+            order = .lettersFirst
 
         case .axiom(let name):
             guard let entry = corpus.axioms[name] else { throw MalformedExport.undeclaredAxiom(name) }
             path = entry.file
             e = try located(path) { try decode.axiom(entry.body) }
+            order = .stated
         }
-        let order: FreeOrder = if case .theorem = instance.source { .lettersFirst } else { .stated }
         let (p, letters) = try located(path) {
             var terms = try Terms(
                 decode: decode,

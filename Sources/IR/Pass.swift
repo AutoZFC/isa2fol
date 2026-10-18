@@ -159,13 +159,17 @@ public struct Pipeline {
     public let registry: (any Registry)?
     public let provingAfter: String
 
+    public func completes(through stage: String?) -> Bool {
+        stage == nil || stage == passes.last?.name
+    }
+
     @discardableResult
     public func run(_ unit: inout Unit, through stage: String? = nil) throws -> [Stage] {
         if let stage, stage == "registry" ? registry == nil : !passes.contains(where: { $0.name == stage }) {
             throw PipelineError.noSuchPass(stage)
         }
         var run = try Run(self, unit)
-        guard try run.lower(through: stage) else {
+        guard try run.lower(through: completes(through: stage) ? nil : stage) else {
             unit = run.partial()
             return run.stages
         }
@@ -347,7 +351,7 @@ private struct Run {
             }
             try add(cited, after: k)
             stages.append(Stage(name: pass.name, since: start))
-            if stage == pass.name, k < passes.count - 1 { return false }
+            if stage == pass.name { return false }
             if k == proving {
                 let proving = ContinuousClock.now
                 try pruned()

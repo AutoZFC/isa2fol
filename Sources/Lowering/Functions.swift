@@ -16,17 +16,9 @@ struct Functions {
     let base: Base
 
     func pointwise(_ F: IRType, _ f: NodeID, _ g: NodeID, in t: inout Table) throws -> NodeID {
-        guard case .fn(let T, let U) = F, case .isaAbs(T, let a) = t[f], case .isaAbs(T, let b) = t[g] else {
-            throw FunctionsError.notAFunction(f)
+        try pointwise(F, f, g, in: &t) { V, a, b, t in
+            V == .i ? try walked(try t.equation(.i, a, b), base: base, in: &t) : try t.equation(V, a, b)
         }
-        let body: NodeID =
-            switch U {
-            case .fn: try pointwise(U, a, b, in: &t)
-            case .o: try t.intern(.folIff(a, b))
-            case .i: try walked(try t.equation(.i, a, b), base: base, in: &t)
-            case .variable: throw FunctionsError.notAFunction(f)
-            }
-        return try t.intern(.ifolAll(T, body: body))
     }
 
     func reflexive(_ F: IRType, _ f: NodeID, in t: inout Table) throws -> NodeID {
@@ -129,11 +121,7 @@ struct Functions {
     }
 
     func isaPointwise(_ U: IRType, _ a: NodeID, _ b: NodeID, in t: inout Table) throws -> NodeID {
-        guard case .fn(let T, let V) = U else { return try t.equation(U, a, b) }
-        let x = try t.intern(.isaBound(0, T))
-        let fa = try beta(try shift(a, by: 1, in: &t), [x], in: &t)
-        let fb = try beta(try shift(b, by: 1, in: &t), [x], in: &t)
-        return try t.intern(.ifolAll(T, body: try isaPointwise(V, fa, fb, in: &t)))
+        try pointwise(U, a, b, in: &t) { V, a, b, t in try t.equation(V, a, b) }
     }
 
     func instance(
@@ -146,6 +134,20 @@ struct Functions {
         let elim = try t.intern(.isaAllElim(try t.intern(.hyp(0, statement)), a))
         if T == .i { return try Reify().instance(p, was: elim, base: base, in: &t) }
         return try LambdaInstance(base: base).proof(p, was: elim, in: &t)
+    }
+
+    private func pointwise(
+        _ U: IRType,
+        _ a: NodeID,
+        _ b: NodeID,
+        in t: inout Table,
+        at value: (IRType, NodeID, NodeID, inout Table) throws -> NodeID,
+    ) throws -> NodeID {
+        guard case .fn(let T, let V) = U else { return try value(U, a, b, &t) }
+        let x = try t.intern(.isaBound(0, T))
+        let fa = try beta(try shift(a, by: 1, in: &t), [x], in: &t)
+        let fb = try beta(try shift(b, by: 1, in: &t), [x], in: &t)
+        return try t.intern(.ifolAll(T, body: try pointwise(V, fa, fb, in: &t, at: value)))
     }
 
     private func atClass(

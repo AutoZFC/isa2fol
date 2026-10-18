@@ -103,6 +103,10 @@ enum FreeOrder {
     case stated
 }
 
+func lettersFirst<T>(_ xs: [T], _ letters: [Bool]) -> [T] {
+    xs.indices.filter { letters[$0] }.map { xs[$0] } + xs.indices.filter { !letters[$0] }.map { xs[$0] }
+}
+
 struct Terms {
     init(
         decode: Decode,
@@ -125,13 +129,13 @@ struct Terms {
         guard types.updateValue(.variable("dummy"), forKey: "dummy") == nil
         else { throw MalformedExport.tfreesHeader(e.tfrees) }
         let typed = try e.frees.map { ($0.0, try $0.1.irType().substituting(types)) }
+        letters = typed.map { $0.1 == .o }
         let closed =
             switch order {
-            case .lettersFirst: typed.filter { $0.1 == .o } + typed.filter { $0.1 != .o }
+            case .lettersFirst: lettersFirst(typed, letters)
             case .stated: typed
             }
         self.types = types
-        letters = typed.map { $0.1 == .o }
         freeTypes = closed.map(\.1)
         frees = Dictionary(uniqueKeysWithValues: closed.enumerated().map { (
             $0.element.0,

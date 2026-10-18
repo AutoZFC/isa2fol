@@ -394,8 +394,6 @@ struct Equalities {
     }
 }
 
-/// ⚠ BUILT CLOSED OVER `h`'S STATEMENT AND APPLIED TO `h`: built around `h` itself, a proof holding hypotheses would be
-/// read under the reductio's own.
 /// ⚠ AN `exists_elim` WRAPPED STRAIGHT AROUND `body` SHIFTS ITS HYPOTHESES, AND THE TABLE CHECKS NONE AGAINST ITS
 /// BINDER: generalized first, `body` keeps them where they are.
 private func hiddenProposition(_ body: NodeID, _ base: Base, in t: inout Table) throws -> NodeID {
@@ -411,6 +409,8 @@ private func hiddenProposition(_ body: NodeID, _ base: Base, in t: inout Table) 
     return try t.intern(.folImpliesElim(try t.intern(.folImpliesIntro(stated, body: opened)), general))
 }
 
+/// ⚠ BUILT CLOSED OVER `h`'S STATEMENT AND APPLIED TO `h`: built around `h` itself, a proof holding hypotheses would be
+/// read under the reductio's own.
 private func reductio(_ a: NodeID, _ h: NodeID, in t: inout Table) throws -> NodeID {
     guard let premise = t.conclusion(of: h) else { throw LogicError.notTheRule(h) }
     let notA = try t.intern(.folNot(a))
