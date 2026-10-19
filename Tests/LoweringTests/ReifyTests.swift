@@ -292,9 +292,9 @@ private func instance(
     return (lowered[1], cited)
 }
 
-/// `lem : ⋀x. x ∈ x` at `succ(0)`: Isabelle's `succ(0) ∈ succ(0)` named, each occurrence converted in turn, citing EX
-/// and
-/// UNIQ of `succ(0)`.
+/// `lem : ⋀x. x ∈ x` at `succ(0)`: Isabelle's `succ(0) ∈ succ(0)` named, the atom closed with `succ(0)`'s pieces from
+/// its
+/// EX at both occurrences — no UNIQ, the atom being positive (DESIGN "Proof size", 1–2).
 @Test
 func anInstanceAtACompoundTermConcludesIsabellesFormulaNamed() throws {
     var r = try R()
@@ -308,14 +308,15 @@ func anInstanceAtACompoundTermConcludesIsabellesFormulaNamed() throws {
             try r.succOf(1, 0, core),
         )),
     )))
-    #expect(cited.count == 2 && cited.contains(ex))
+    #expect(cited == [ex])
 }
 
-/// At an applied function variable, EX and UNIQ are closed over it: their guard `function(f)` is discharged by `f`'s.
+/// At an applied function variable in a negative position, EX and UNIQ are closed over it: UNIQ's guard `function(f)`
+/// is discharged by `f`'s.
 @Test
 func anInstanceAtAnAppliedFunctionVariableDischargesItsGuard() throws {
     var r = try R()
-    let phi = try r.mem(try r.x(0), try r.x(0))
+    let phi = try r.n(.folImplies(try r.mem(try r.x(0), try r.x(0)), try r.n(.folBottom)))
     let applied = try r.n(.isaVarApp(head: try r.n(.isaBound(0, fn(i, i))), args: [try r.zero()]))
     let (_, cited) = try instance(&r, phi, at: applied, under: [fn(i, i)])
     #expect(cited.count == 2)

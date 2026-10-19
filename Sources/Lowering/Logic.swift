@@ -350,56 +350,50 @@ struct Equalities {
     }
 
     func atI(_ e: Equality, _ sides: [NodeID], _ premises: [NodeID], in t: inout Table) throws -> NodeID {
-        let v = try sides.indices.map { try t.intern(.isaBound(sides.count - 1 - $0, .i)) }
-        let equated = { (j: Int, k: Int, t: inout Table) throws -> NodeID in try t.equation(.i, v[j], v[k]) }
-        var stated: NodeID
-        var proved: NodeID
+        var f = Frame()
         switch e {
         case .reflexive:
-            stated = try t.intern(.isaReflexive(v[0]))
-            proved = try base.claimed(.eqRefl, [v[0]], [], in: &t)
+            let x = sides[0]
+            guard Reify().owns(Pattern(t[x], in: t)) == .rule else { return try base.claimed(.eqRefl, [x], [], in: &t) }
+            let side = EquationSide(term: x, opened: try openedExistence(x, base: base, in: &f, &t))
+            let core = try base.claimed(.eqRefl, [try side.value(f.scope, &t)], [], in: &t)
+            return try f.close(try closedEquation(side, side, core, in: f, &t), in: &t)
 
         case .symmetric:
-            let xy = try equated(0, 1, &t)
-            let xyNamed = try walked(formula: xy, in: &t)
-            stated = try t.intern(.folImpliesIntro(
-                xy,
-                body: try t.intern(.isaSymmetric(.i, try t.intern(.hyp(0, xy)))),
-            ))
-            proved = try t.intern(.folImpliesIntro(
-                xyNamed,
-                body: try base.claimed(.eqSymm, [v[0], v[1]], [try t.intern(.hyp(0, xyNamed))], in: &t),
-            ))
+            let h = f.assume(try conclusion(premises[0], t))
+            let (l, r, core) = try openedEquation(sides[0], sides[1], h, in: &f, &t)
+            let values = [try l.value(f.scope, &t), try r.value(f.scope, &t)]
+            let flipped = try base.claimed(.eqSymm, values, [try f.proof(core, in: &t)], in: &t)
+            let closed = try f.close(try closedEquation(r, l, flipped, in: f, &t), in: &t)
+            return try t.intern(.folImpliesElim(closed, premises[0]))
 
         case .transitive:
-            let xy = try equated(0, 1, &t)
-            let yz = try equated(1, 2, &t)
-            let xyNamed = try walked(formula: xy, in: &t)
-            let yzNamed = try walked(formula: yz, in: &t)
-            let both = try t.intern(.isaTransitive(.i, try t.intern(.hyp(1, xy)), try t.intern(.hyp(0, yz))))
-            stated = try t.intern(.folImpliesIntro(xy, body: try t.intern(.folImpliesIntro(yz, body: both))))
+            let hp = f.assume(try conclusion(premises[0], t))
+            let hq = f.assume(try conclusion(premises[1], t))
+            let (l, m, cp) = try openedEquation(sides[0], sides[1], hp, in: &f, &t)
+            let (m2, r, cq) = try openedEquation(sides[1], sides[2], hq, in: &f, &t)
+            let vl = try l.value(f.scope, &t)
+            let vm = try m.value(f.scope, &t)
+            let vm2 = try m2.value(f.scope, &t)
+            var first = try f.proof(cp, in: &t)
+            if let o = m.opened, let o2 = m2.opened {
+                let same = try uniquenessApplied(o, o2, base: base, in: f.scope, &t)
+                first = try base.claimed(.eqTrans, [vl, vm, vm2], [first, same], in: &t)
+            }
             let chained = try base.claimed(
                 .eqTrans,
-                v,
-                [try t.intern(.hyp(1, xyNamed)), try t.intern(.hyp(0, yzNamed))],
+                [vl, vm2, try r.value(f.scope, &t)],
+                [first, try f.proof(cq, in: &t)],
                 in: &t,
             )
-            proved = try t.intern(.folImpliesIntro(
-                xyNamed,
-                body: try t.intern(.folImpliesIntro(yzNamed, body: chained)),
-            ))
+            let closed = try f.close(try closedEquation(l, r, chained, in: f, &t), in: &t)
+            return try t.intern(.folImpliesElim(try t.intern(.folImpliesElim(closed, premises[0])), premises[1]))
         }
-        for _ in sides {
-            stated = try t.intern(.isaAllIntro(.i, body: stated))
-            proved = try t.intern(.isaAllIntro(.i, body: proved))
-        }
-        for x in sides {
-            let elim = try t.intern(.isaAllElim(stated, x))
-            proved = try Reify().instance(proved, was: elim, base: base, in: &t)
-            stated = elim
-        }
-        for p in premises { proved = try t.intern(.folImpliesElim(proved, p)) }
-        return proved
+    }
+
+    private func conclusion(_ p: NodeID, _ t: Table) throws -> NodeID {
+        guard let c = t.conclusion(of: p) else { throw TableError.expectedStep(p) }
+        return c
     }
 }
 

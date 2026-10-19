@@ -353,3 +353,118 @@ proof cong_forall_bare:
     _bi = iff_intro _f, _g
     _out = implies_intro _bi
     qed _out
+
+proof mono_not:
+    _h = assume (A2 -> A)
+    _na = assume ~ A
+    _a2 = assume A2
+    _a = implies_elim _h, _a2
+    _b = not_elim _na, _a
+    _n = not_intro _b
+    _i1 = implies_intro _n
+    _i2 = implies_intro _i1
+    qed _i2
+
+proof mono_and:
+    _ha = assume (A -> A2)
+    _hb = assume (B -> B2)
+    _ab = assume (A & B)
+    _a = and_elim_l _ab
+    _b = and_elim_r _ab
+    _a2 = implies_elim _ha, _a
+    _b2 = implies_elim _hb, _b
+    _c = and_intro _a2, _b2
+    _i1 = implies_intro _c
+    _i2 = implies_intro _i1
+    _i3 = implies_intro _i2
+    qed _i3
+
+proof mono_or:
+    _ha = assume (A -> A2)
+    _hb = assume (B -> B2)
+    _p = assume (A | B)
+    _ca = assume A
+    _da = implies_elim _ha, _ca
+    _dB2 = let B2
+    _oa = or_intro_l _da, _dB2
+    _la = implies_intro _oa
+    _cb = assume B
+    _db = implies_elim _hb, _cb
+    _dA2 = let A2
+    _ob = or_intro_r _dA2, _db
+    _lb = implies_intro _ob
+    _res = or_elim _p, _la, _lb
+    _i1 = implies_intro _res
+    _i2 = implies_intro _i1
+    _i3 = implies_intro _i2
+    qed _i3
+
+proof mono_imp:
+    _ha = assume (A2 -> A)
+    _hb = assume (B -> B2)
+    _p = assume (A -> B)
+    _a2 = assume A2
+    _a = implies_elim _ha, _a2
+    _b = implies_elim _p, _a
+    _b2 = implies_elim _hb, _b
+    _i0 = implies_intro _b2
+    _i1 = implies_intro _i0
+    _i2 = implies_intro _i1
+    _i3 = implies_intro _i2
+    qed _i3
+
+proof mono_exists:
+    _h = assume (forall z. (set(z) -> (P(z) -> Q(z))))
+    _p = assume (exists z. (set(z) & P(z)))
+    _e = exists_elim _p, z0
+    _sz = and_elim_l _e
+    _pz = and_elim_r _e
+    _a1 = forall_elim _h, z0
+    _a2 = implies_elim _a1, _sz
+    _qz = implies_elim _a2, _pz
+    _cj = and_intro _sz, _qz
+    _ex = exists_intro _cj, z0
+    _cl = exists_intro _ex
+    _i1 = implies_intro _cl
+    _i2 = implies_intro _i1
+    qed _i2
+
+proof mono_forall:
+    _h = assume (forall z. (set(z) -> (P(z) -> Q(z))))
+    _p = assume (forall z. (set(z) -> P(z)))
+    fix u
+    _su = assume set(u)
+    _a1 = forall_elim _p, u
+    _a2 = implies_elim _a1, _su
+    _b1 = forall_elim _h, u
+    _b2 = implies_elim _b1, _su
+    _qu = implies_elim _b2, _a2
+    _i0 = implies_intro _qu
+    _all = forall_intro _i0
+    _i1 = implies_intro _all
+    _i2 = implies_intro _i1
+    qed _i2
+
+proof mono_exists_bare:
+    _h = assume (forall z. (P(z) -> Q(z)))
+    _p = assume (exists z. P(z))
+    _e = exists_elim _p, z0
+    _a1 = forall_elim _h, z0
+    _qz = implies_elim _a1, _e
+    _ex = exists_intro _qz, z0
+    _cl = exists_intro _ex
+    _i1 = implies_intro _cl
+    _i2 = implies_intro _i1
+    qed _i2
+
+proof mono_forall_bare:
+    _h = assume (forall z. (P(z) -> Q(z)))
+    _p = assume (forall z. P(z))
+    fix z0
+    _a = forall_elim _p, z0
+    _a1 = forall_elim _h, z0
+    _qz = implies_elim _a1, _a
+    _all = forall_intro _qz
+    _i1 = implies_intro _all
+    _i2 = implies_intro _i1
+    qed _i2

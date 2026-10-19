@@ -34,6 +34,17 @@ schema cong_forall [P(1), Q(1)]: ((forall z. (set(z) -> (P(z) <-> Q(z)))) -> ((f
 schema cong_exists_bare [P(1), Q(1)]: ((forall z. (P(z) <-> Q(z))) -> ((exists z. P(z)) <-> (exists z. Q(z))))
 schema cong_forall_bare [P(1), Q(1)]: ((forall z. (P(z) <-> Q(z))) -> ((forall z. P(z)) <-> (forall z. Q(z))))
 
+# MONOTONICITY: the same constructors carrying one direction, for a walk that needs only the implication its position
+# takes (DESIGN "Proof size", 2) -- the antecedent of `->` and the operand of `~` reversed.
+schema mono_not [A(0), A2(0)]: ((A2 -> A) -> ((~ A) -> (~ A2)))
+schema mono_and [A(0), A2(0), B(0), B2(0)]: ((A -> A2) -> ((B -> B2) -> ((A & B) -> (A2 & B2))))
+schema mono_or  [A(0), A2(0), B(0), B2(0)]: ((A -> A2) -> ((B -> B2) -> ((A | B) -> (A2 | B2))))
+schema mono_imp [A(0), A2(0), B(0), B2(0)]: ((A2 -> A) -> ((B -> B2) -> ((A -> B) -> (A2 -> B2))))
+schema mono_exists [P(1), Q(1)]: ((forall z. (set(z) -> (P(z) -> Q(z)))) -> ((exists z. (set(z) & P(z))) -> (exists z. (set(z) & Q(z)))))
+schema mono_forall [P(1), Q(1)]: ((forall z. (set(z) -> (P(z) -> Q(z)))) -> ((forall z. (set(z) -> P(z))) -> (forall z. (set(z) -> Q(z)))))
+schema mono_exists_bare [P(1), Q(1)]: ((forall z. (P(z) -> Q(z))) -> ((exists z. P(z)) -> (exists z. Q(z))))
+schema mono_forall_bare [P(1), Q(1)]: ((forall z. (P(z) -> Q(z))) -> ((forall z. P(z)) -> (forall z. Q(z))))
+
 claim cong_elem_l: forall a. forall b. forall t. (eq(a,b) -> (elem(a,t) <-> elem(b,t)))
 claim cong_elem_r: forall s. forall a. forall b. (eq(a,b) -> (elem(s,a) <-> elem(s,b)))
 claim cong_eq_l: forall a. forall b. forall t. (eq(a,b) -> (eq(a,t) <-> eq(b,t)))

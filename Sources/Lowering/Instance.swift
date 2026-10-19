@@ -15,74 +15,47 @@ struct TermInstance {
             case .ifolAll(.i, let phi)? = t.conclusion(of: original).map({ t[$0] }),
             let instance = t.conclusion(of: id)
         else { throw InstanceError.notAnInstance(id) }
-        return try atWitness(p, a, phi, try walked(instance, base: base, in: &t), in: &t) { assumed, y, _, walk, t in
-            let atY = try t.intern(.isaAllElim(assumed, y))
-            guard let named = t.conclusion(of: atY) else { throw InstanceError.notAnInstance(id) }
-            return try t.intern(.folIffElimL(try walk(named, &t), atY))
+        let wanted = try walked(instance, base: base, in: &t)
+        return try atValue(p, a, phi, in: &t) { assumed, value, template, transfer, s, t in
+            let atValue = try t.intern(.isaAllElim(assumed, value))
+            guard let named = t.conclusion(of: atValue) else { throw InstanceError.notAnInstance(id) }
+            let target = try s.lift(wanted, in: &t)
+            let implied = try transfer.implication(template, from: named, to: target, forward: true, in: s, &t)
+            return try t.intern(.folImpliesElim(implied, atValue))
         }
     }
 
     func witnessed(_ p: NodeID, body: NodeID, was id: NodeID, in t: inout Table) throws -> NodeID {
-        guard case .isaExIntro(_, let a, let phi) = t[id], let premise = t.conclusion(of: p)
-        else { throw InstanceError.notAnInstance(id) }
-        return try atWitness(p, a, phi, premise, in: &t) { assumed, y, s, walk, t in
+        guard case .isaExIntro(_, let a, let phi) = t[id] else { throw InstanceError.notAnInstance(id) }
+        return try atValue(p, a, phi, in: &t) { assumed, value, template, transfer, s, t in
             let some = try s.lift(try t.intern(.ifolEx(.i, body: body)), in: &t)
-            guard case .ifolEx(.i, let lifted) = t[some] else { throw InstanceError.notAnInstance(id) }
-            let atY = try t.intern(.folIffElimR(try walk(try instantiate(lifted, with: y, in: &t), &t), assumed))
-            return try t.intern(.isaExIntro(atY, y, body: lifted))
+            guard case .ifolEx(.i, let lifted) = t[some], let premise = t.conclusion(of: assumed) else {
+                throw InstanceError.notAnInstance(id)
+            }
+            let atValue = try instantiate(lifted, with: value, in: &t)
+            let implied = try transfer.implication(template, from: premise, to: atValue, forward: false, in: s, &t)
+            return try t.intern(.isaExIntro(try t.intern(.folImpliesElim(implied, assumed)), value, body: lifted))
         }
     }
 
-    private func atWitness(
+    /// ⚠ THE PREMISE IS CUT, NEVER MOVED UNDER THE TERM'S OPENED NAMING: built outside it, its hypotheses would shift.
+    private func atValue(
         _ p: NodeID,
         _ a: NodeID,
         _ phi: NodeID,
-        _ wanted: NodeID,
         in t: inout Table,
-        _ finish: (NodeID, NodeID, Scope, (NodeID, inout Table) throws -> NodeID, inout Table) throws -> NodeID,
+        _ finish: (NodeID, NodeID, NodeID, Transfer, Scope, inout Table) throws -> NodeID,
     ) throws -> NodeID {
-        guard let rewritten = t.conclusion(of: p) else { throw TableError.expectedStep(p) }
-        let c = try closed(a, in: &t)
-        let exR = try existence(of: a, in: &t)
-        let uniqR = try uniqueness(of: a, in: &t)
-        let ex = try t.intern(.use(.lemma(Lemma(exR)), [], try statement(exR, in: &t)))
-        let uniq = try t.intern(.use(.lemma(Lemma(uniqR)), [], try statement(uniqR, in: &t)))
-        var s = Scope()
-        let exists = try instantiated(
-            ex,
-            at: try c.variables.map { try walked(try s.lift($0, in: &t), base: base, in: &t) },
-            c.types,
-            guards: false,
-            guardOf: isaGuard,
-            in: &t,
-        )
-        guard case .ifolEx(.i, let valued)? = t.conclusion(of: exists).map({ t[$0] })
-        else { throw InstanceError.notAnInstance(p) }
-        let y = s.fix(.i)
-        let h = s.assume(valued)
-        let premise = try s.lift(rewritten, in: &t)
-        let assumed = s.assume(premise)
-        var naming = Naming(designated: [1])
-        let equated = try equation(try s.variable(y, in: &t), try s.lift(a, in: &t), in: &t)
-        _ = try naming.atom(t[equated], in: &t)
-        guard case .bound(let value)? = naming.site?.value else { throw InstanceError.notAnInstance(p) }
-        let conversion = Conversion(
-            base: base,
-            term: a,
-            closed: c,
-            uniq: uniq,
-            witness: y,
-            named: h,
-            binders: naming.chain.binders,
-            value: value,
-        )
-        let target = try s.lift(wanted, in: &t)
-        let walk = { (named: NodeID, t: inout Table) throws -> NodeID in
-            try Replacement(base: base, hole: conversion.atom).proof(phi, named, target, in: s, &t)
-        }
-        let finished = try finish(try s.hypothesis(assumed, in: &t), try s.variable(y, in: &t), s, walk, &t)
-        let body = try t.intern(.folImpliesIntro(premise, body: finished))
-        return try t.intern(.folImpliesElim(try t.intern(.isaExElim(.i, exists, body: body)), p))
+        var f = Frame()
+        let cut = try f.have(p, in: &t)
+        let opened = try openedExistence(a, base: base, in: &f, &t)
+        let value = try f.variable(opened.value, in: &t)
+        let lifted = try f.scope.lift(try t.intern(.ifolAll(.i, body: phi)), in: &t)
+        guard case .ifolAll(.i, let body) = t[lifted] else { throw InstanceError.notAnInstance(a) }
+        let template = try instantiate(body, with: value, in: &t)
+        let transfer = Transfer(base: base, terms: [opened])
+        let finished = try finish(try f.hypothesis(cut, in: &t), value, template, transfer, f.scope, &t)
+        return try f.close(finished, in: &t)
     }
 }
 
@@ -158,128 +131,6 @@ func replacing(_ n: NodeID, at path: ArraySlice<Int>, with x: NodeID, in t: inou
 
     default:
         throw ReifyError.notATerm(n)
-    }
-}
-
-private struct Conversion {
-    let base: Base
-    let term: NodeID
-    let closed: Closed
-    let uniq: NodeID
-    let witness: Int
-    let named: Int
-    let binders: [Binder]
-    let value: Int
-
-    func atom(_ phi: NodeID, _: NodeID, _: NodeID, _ s: Scope, _ t: inout Table) throws -> NodeID? {
-        guard Reify().names(Pattern(t[phi], in: t)) else { return nil }
-        return try converted(
-            phi,
-            s.depth - 1 - witness,
-            try s.lift(term, in: &t),
-            base: base,
-            in: &t,
-        ) { source, target, u, t in
-            switch u.kind {
-            case .slot: return try slotConverted(source, target, u.path, base: base, in: s, &t, hole: atom)
-            case .term: return try step(source, target, u.path, in: s, &t)
-            case .applied: throw InstanceError.notAnInstance(source)
-            }
-        }
-    }
-
-    private func step(
-        _ source: NodeID,
-        _ target: NodeID,
-        _ path: [Int],
-        in s: Scope,
-        _ t: inout Table,
-    ) throws -> NodeID {
-        let sides = try Sides(source, target, path, &t)
-        guard
-            let site = sides.targetSite,
-            case .bound(let occurrence) = site.value
-        else { throw InstanceError.notAnInstance(target) }
-        let lower = site.binders.lowerBound
-        let upper = site.binders.upperBound
-        let depth = s.depth
-        return try sides.proof(in: s, &t, there: { s, from, t in
-            try opening(from, sides.Y, in: s, &t) { s, oy, t in
-                try opening(.hypothesis(named), binders, in: s, &t) { s, oh, t in
-                    let witnesses = oy.witnesses[..<lower] + oh.witnesses + oy.witnesses[lower...]
-                    let facts = oy.constraints[..<lower] + oh.constraints + oy.constraints[lower...]
-                    return try reclosed(
-                        target,
-                        try witnesses.map { try s.variable($0, in: &t) },
-                        try facts.map { try s.proof($0, in: &t) },
-                        try s.proof(oy.core, in: &t),
-                        from: depth,
-                        in: s,
-                        &t,
-                    ) { p, wanted, s, t in
-                        try leibniz(p, wanted, { s, t in try s.proof(oh.core, in: &t) }, base, in: s, &t)
-                    }
-                }
-            }
-        }, back: { s, from, t in
-            try opening(from, sides.T, in: s, &t) { s, ot, t in
-                try opening(.hypothesis(named), binders, in: s, &t) { s, oh, t in
-                    let witnesses = ot.witnesses[..<lower] + ot.witnesses[upper...]
-                    let facts = ot.constraints[..<lower] + ot.constraints[upper...]
-                    let equal = { (s: Scope, t: inout Table) in
-                        try returning(
-                            oh,
-                            Array(ot.witnesses[lower..<upper]),
-                            Array(ot.constraints[lower..<upper]),
-                            ot.witnesses[occurrence],
-                            in: s,
-                            &t,
-                        )
-                    }
-                    return try reclosed(
-                        source,
-                        try witnesses.map { try s.variable($0, in: &t) },
-                        try facts.map { try s.proof($0, in: &t) },
-                        try s.proof(ot.core, in: &t),
-                        from: depth,
-                        in: s,
-                        &t,
-                    ) { p, wanted, s, t in
-                        try leibniz(p, wanted, equal, base, in: s, &t)
-                    }
-                }
-            }
-        })
-    }
-
-    private func returning(
-        _ oh: Opened,
-        _ witnesses: [Int],
-        _ facts: [Fact],
-        _ value2: Int,
-        in s: Scope,
-        _ t: inout Table,
-    ) throws -> NodeID {
-        var p = try instantiated(
-            uniq,
-            at: try closed.variables.map { try walked(try s.lift($0, in: &t), base: base, in: &t) },
-            closed.types,
-            guards: true,
-            guardOf: isaGuard,
-            in: &t,
-        )
-        let named = oh.witnesses.indices.map { (oh.witnesses[$0], oh.constraints[$0], binders[$0]) }
-        let occurrence = witnesses.indices.map { (witnesses[$0], facts[$0], binders[$0]) }
-        for (w, f, b) in named + occurrence {
-            let v = try s.variable(w, in: &t)
-            p = try t.intern(b == .set ? .isaAllElim(p, v) : .folForallElim(p, v))
-            p = try t.intern(.folImpliesElim(p, try s.proof(f, in: &t)))
-        }
-        let y = try s.variable(witness, in: &t)
-        let r = try s.variable(oh.witnesses[value], in: &t)
-        let r2 = try s.variable(value2, in: &t)
-        let yr2 = try base.claimed(.eqTrans, [y, r, r2], [try s.proof(oh.core, in: &t), p], in: &t)
-        return try base.claimed(.eqSymm, [y, r2], [yr2], in: &t)
     }
 }
 

@@ -2559,6 +2559,8 @@ until it is fully translated (user), so each step's scope is measured there.
 5. **A ZF definition cited**: pointwise, from the `@def` and EX, most often at a chain's leaf (4). **BUILT 2026-10-17**
    ("Step 5 — a ZF definition cited", below): a lemma per constant, `c_UNFOLD`, instantiated at the terms.
 6. **A proposition argument**, `If` and `bool_of_o`: a class of the empty tuple (FOUNDATION S4), as the reference read it.
+   Its complete run waits on the proof's size ("Proof size", "Linear proof size — in a proof, a term is its value",
+   below).
 7. **The hidden variable**, `Pure.dummy_pattern`: the reference refused it, so its design is new ("Step 7 — the hidden
    variable, bound at its proof's top", below), **BUILT 2026-10-17** with an ∃-intro carrying its body, which its run
    and `exI` (2) waited on ("An ∃-intro carrying its body", below, **BUILT 2026-10-17**). Then lazy proving ("Lazy
@@ -5539,6 +5541,118 @@ equality on the premises' values.
 
 **Not in this step.** An instance at a λ (`LambdaInstance`, 2,134 calls and 5.7M above) and `combination` at a class
 argument keep their per-occurrence β; measured after 1–3, they are the next candidates.
+
+**Built.** Base, the `cong` tier: `mono_not`, `mono_and`, `mono_or`, `mono_imp`, `mono_exists`, `mono_forall` and their bare
+forms, kernel-checked. Lowering: `Transfer` (`Sources/Lowering/Transfer.swift`), a term's naming opened in a frame — the
+polarity walk over Isabelle's formula, each atom converted once by closing or opening, slots by the equivalence walk;
+EX ⟨t⟩ opened, an equation's two sides opened and closed, UNIQ between two opened namings. `TermInstance` instantiates at
+the value's own piece and transfers forward for an instance, backward for an `∃`-intro; the per-occurrence `Conversion` is
+gone. `Equalities.atI` and `Functions.combination` at an object argument prove on values. Reify's naming records the binder
+range of every occurrence it is given (`occurrences`, `sites`).
+
+**Decisions made in the build**, for the user's review:
+1. **One home for an opened naming**: `Transfer` holds the walk, the atom's two conversions, an equation's sides opened
+   and closed, and UNIQ between two namings; the instance and the equality on values call it.
+2. **A step proved on several premises assumes their statements and is applied to them**: cut into one frame, the second
+   premise sits under the first's assumption, its hypothesis index one off — the kernel refused `transitive`'s first build
+   (`implies_elim: antecedent doesn't match`); the instance's single cut is first, so stays.
+3. **A slot converts by the equivalence walk, slot by slot, before the atom's term occurrences convert at once**: its
+   definition is a biconditional, as decision 1 has it.
+4. **Two tests of the old conversion became the new one's**: `anInstanceAtACompoundTermConcludesIsabellesFormulaNamed` now
+   expects EX alone; `anInstanceAtAnAppliedFunctionVariableDischargesItsGuard` puts its atom in a negative position, where
+   UNIQ and its guard still stand.
+
+### Linear proof size — in a proof, a term is its value  **[AGREED 2026-10-18 (user), the three decisions one by one]**
+
+**The step.** What we emit, measured per statement against Isabelle's size — the DAG of its statement and proof, with the
+definitions it first reaches — by a trace over the ZF session's complete unit after "Proof size" (throwaway, not kept;
+the unit 409 MB for 36,633 Isabelle nodes). A proof of logic alone writes 12 to 50 bytes per Isabelle node, linearly; one
+holding a compound term or a definition 1,000 to 340,000: `IntDiv.divAlg_def`, 85 nodes with the definitions it reaches,
+writes 29 MB, 7.0 MB of it in 3,062 `assume`s of up to 29 KB. No single exponent fits — a power law over every statement
+gives 3 (R² 0.63), averaging the two. Of the bytes, 32% open and close namings (53% in the theorems' own proofs), 36% are
+walks — instances of `cong_*`, `mono_*`, `iff_*` restating the formula at each binder they cross — and 28% steps that
+write no formula; the lemmas hold 55%. The bound (user, 2026-10-18): linear in Isabelle's size, `n^1.5` at worst; a term or
+a definition costing more per node than logic does is not acceptable.
+
+**The root cause.** S1 at the site names a term at every atom where it stands. A step that moves a term — an instance, an
+equation, a definition's unfolding — therefore rewrites each atom holding it, opening and closing its naming binder by
+binder, and every binder writes what lies under it: `exists_elim` assumes its body, an `∃`-intro states it, a `cong_*`
+instance restates both sides. Isabelle's kernel substitutes and writes nothing, so one of its nodes costs here the size of
+the formulas it touches.
+
+**The problem, in target text** ("Proof size", 1 and 3, as built):
+
+```
+Isabelle   lem · succ(0)                                       ⊢ succ(0) ∈ succ(0)
+now        EX ⟨succ(0)⟩ opened: z, C, τ, r;  lem at r: elem(r, r);  ⟦succ(0) ∈ succ(0)⟧ closed at z C τ r, twice —
+           eight ∃-intros, each stating what lies under it: the conclusion as the next step takes it, which opens it
+           again to move succ(0)
+Isabelle   transitive (s ≡ t) (t ≡ u)                          ⊢ s ≡ u, at i
+now        ⟦s = t⟧ and ⟦t = u⟧ opened, t's two namings related by UNIQ ⟨t⟩, eq_trans twice, ⟦s = u⟧ closed
+```
+
+**1. In a proof, a term is its value.** **AGREED 2026-10-18 (user).** A term whose variables the proof has fixed — a
+constant applied, a tuple, a constant's or a λ's class — is fixed once, as a variable, its value: where the last of those
+variables is fixed, at the proof's top for a closed term, after the `fix` of a `⋀` for one holding its variable; by
+`exists_elim` over its piece's fact at its arguments' values (`c_TOTAL`, `TUPLE_EX_n`, `c_CLASS`, `CLASS ⟨λ⟩`, `c_EX`, a
+primitive's from base, "EX and UNIQ — their prover", 1), the piece assumed. Every formula the proof passes between its
+steps — a step's conclusion, a hypothesis, a letter's instance — holds the value where Isabelle holds the term; S1's naming
+stands only for a term holding a variable that formula binds itself. An `AppT` at a compound term is then `forall_elim` at
+the value, Pure's equality at objects is `eq` between values, a hypothesis and a letter's instance are written over values;
+a lemma's proof is a proof, so the registry's provers hold values too.
+
+```
+after      succ(0)'s value fixed once in the proof: z, C, τ, r, with zero(z), succ(C), ⟨z⟩ = τ, pmem(τ, r, C) assumed
+           lem at r:  elem(r, r) — the conclusion as every later step takes it; a later step moving succ(0) moves r
+           eq(v_s, v_t), eq(v_t, v_u) — the premises as the proof holds them;  eq_trans at them:  eq(v_s, v_u)
+```
+
+S1's naming stays one variable per occurrence (⚠ "Reify — S1 at the site", 1) and a value is one per distinct term, so a
+formula's instance can differ from the proof's own form of it: `⋀y. f(y) ∈ f(x)` at `x` holds `f(x)` named at its atom
+beside its value, where the proof holds `f(x) ∈ f(x)` as `elem(v, v)`. Decision 2 is where the two meet. Not the naming at
+every step, as now. Not the naming bound at the statement's top (FOUNDATION S1's ⚠): a statement keeps S1 at the site, and
+only a proof's own formulas hold values.
+
+**2. Where a formula meets the proof's values: its lemma, proved once per formula.** **AGREED 2026-10-18 (user).** A cited
+statement at its variables, a λ's or a letter's body at its arguments, a `⋀` instantiated — and, the other way, a `⋀`
+concluded and the statement itself: the terms the formula holds over that variable cross between S1's naming and their
+values through a lemma proved once per formula, closed over its free variables as a λ's class is, and cited at each site
+by `forall_elim` at the values and `implies_elim` at their pieces, the proof's hypotheses. The lemma's own proof walks the
+formula once.
+
+```
+Isabelle   lem · 0                                        ⊢ succ(0) ∈ A;  the proof holds 0's value z, succ(0)'s r
+lemma      ∀x C τ r. succ(C) → ⟨x⟩ = τ → pmem(τ, r, C) → (⟦succ(x) ∈ A⟧ → elem(r, A))            proved once
+site       lem at z;  the lemma at z, C, τ, r, at their pieces and at lem's instance:  elem(r, A) — nothing written
+```
+
+`⋀y. f(y) ∈ f(x)` at `x` meets the proof's `elem(v, v)` the same way, the lemma's value for `f(y)` instantiated at `v`.
+Not a walk at each site, as now: each site opens the naming binder by binder and relates its value to the proof's by
+UNIQ. Not each statement with its terms bound at its top (FOUNDATION S1's ⚠): a λ's and a letter's body would still meet
+the values at every site.
+
+**3. S1's naming universal.** **AGREED 2026-10-18 (user).** `φ(f(x))` as `∀v. F(x, v) → φ(v)` at the atom, Tuple's
+formula and a class's naming alike, the guard an antecedent `set(v) →`: the same statement, `f(x)` having exactly one
+value (EX and UNIQ). A binder used at the proof's value is `forall_elim` and `implies_elim` at its piece, nothing written;
+a binder proved from the value is `fix`, its piece assumed and `implies_intro`, UNIQ relating the two at the one atom — so
+decision 2's lemmas are linear in their formulas.
+
+```
+now        exists b3. (ZF_Base.Union(b3) & (exists b4. (set(b4) & ((exists b5. (set(b5) & (zero(b5) & snoc(b5, b5, b1,
+             b4)))) & (exists b5. (set(b5) & (pmem(b4, b5, b3) & elem(b2, b5))))))))
+after      forall b3. (ZF_Base.Union(b3) -> (forall b4. (set(b4) -> ((forall b5. (set(b5) -> (zero(b5) -> snoc(b5, b5,
+             b1, b4)))) -> (forall b5. (set(b5) -> (pmem(b4, b5, b3) -> elem(b2, b5))))))))
+```
+
+Not the `∃`-chain, as now: a naming of k binders writes about k²/2 pieces each way — `exists_elim` assumes each binder's
+body, an `∃`-intro states it — where the universal writes k.
+
+**FOUNDATION first**, once the decisions stand: S1 gains decision 1 and, with 3, its naming's universal form; §3b's rows for
+an `AppT` at a compound term and for Pure's equality at objects become `forall_elim` and `eq_*` at values, the terms an
+instance closes meeting their values by decision 2's lemma.
+
+**Not in this step.** Pure's equality at `o`, the `iff_*` walks: a proposition's truth set as its value (S4) is a step of
+its own. The contracts and the tests are written once the decisions stand.
 
 ### Fol — binders, guards and variables  **[BUILT 2026-09-28 as the guard; Fol's 2026-10-14; every object type and `∃` at `i` with "Reify — S1 at the site" — `Sources/Lowering/Fol.swift`]**
 

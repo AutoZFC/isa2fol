@@ -118,14 +118,17 @@ enum NamedPiece: Hashable {
 /// ⚠ ONE VARIABLE PER OCCURRENCE, NEVER PER DISTINCT TERM: shared per term, the instance of a translation differs from
 /// the translation of the instance.
 struct Naming {
-    init(_ chain: Chain = Chain(), designated: [Int]? = nil) {
+    init(_ chain: Chain = Chain(), designated: [Int]? = nil, occurrences: Set<[Int]> = []) {
         self.chain = chain
         self.designated = designated
+        self.occurrences = occurrences
     }
 
     var chain: Chain
     let designated: [Int]?
+    let occurrences: Set<[Int]>
     private(set) var site: (binders: Range<Int>, value: Ref)?
+    private(set) var sites = [[Int]: (binders: Range<Int>, value: Ref)]()
     private(set) var pieces = [NamedPiece]()
 
     mutating func atom(_ n: Node, in t: inout Table) throws -> NodeID {
@@ -169,6 +172,7 @@ struct Naming {
         let start = chain.binders.count
         let r = try value(x, path, &t)
         if path == designated { site = (start..<chain.binders.count, r) }
+        if occurrences.contains(path) { sites[path] = (start..<chain.binders.count, r) }
         return r
     }
 

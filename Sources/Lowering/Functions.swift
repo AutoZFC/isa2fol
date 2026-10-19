@@ -79,6 +79,7 @@ struct Functions {
         let (f, g) = try sides(p0, t)
         if T == .o { return try concluding(try atProposition(U, f, g, p, q, in: &t), id, in: &t) }
         let (a, b) = try sides(q0, t)
+        if T == .i { return try concluding(try atObject(U, f, g, a, b, p, q, in: &t), id, in: &t) }
         let context = { (x: NodeID, y: NodeID, d: Int, t: inout Table) throws -> NodeID in
             try Self.isaPointwise(
                 U,
@@ -157,6 +158,59 @@ struct Functions {
 
     private static func argument(_ T: IRType, _ k: Int, in t: inout Table) throws -> NodeID {
         try t.intern(T == .o ? .isaPropBound(k) : .isaBound(k, T))
+    }
+
+    private func atObject(
+        _ U: IRType,
+        _ f: NodeID,
+        _ g: NodeID,
+        _ a: NodeID,
+        _ b: NodeID,
+        _ p: NodeID,
+        _ q: NodeID,
+        in t: inout Table,
+    ) throws -> NodeID {
+        var fr = Frame()
+        let hp = fr.assume(try conclusion(p, t))
+        let hq = fr.assume(try conclusion(q, t))
+        let (left, right, core) = try openedEquation(a, b, hq, in: &fr, &t)
+        let va = try left.value(fr.scope, &t)
+        let vb = try right.value(fr.scope, &t)
+        let fl = try fr.scope.lift(f, in: &t)
+        let gl = try fr.scope.lift(g, in: &t)
+        let context = { (x: NodeID, y: NodeID, d: Int, t: inout Table) throws -> NodeID in
+            try Self.isaPointwise(
+                U,
+                try beta(try shift(fl, by: d, in: &t), [x], in: &t),
+                try beta(try shift(gl, by: d, in: &t), [y], in: &t),
+                in: &t,
+            )
+        }
+        let atA = try t.intern(.isaAllElim(try fr.hypothesis(hp, in: &t), va))
+        let substituted = try atSet(
+            { y, d, t in try context(try shift(va, by: d, in: &t), y, d, &t) },
+            va,
+            vb,
+            try fr.proof(core, in: &t),
+            in: &t,
+        )
+        let atB = try t.intern(.folIffElimL(substituted, atA))
+        guard let from = t.conclusion(of: atB) else { throw TableError.expectedStep(atB) }
+        let target = try walked(
+            formula: try context(try fr.scope.lift(a, in: &t), try fr.scope.lift(b, in: &t), 0, &t),
+            in: &t,
+        )
+        let terms = [left.opened, right.opened].compactMap(\.self)
+        let implied = try Transfer(base: base, terms: terms).implication(
+            try context(va, vb, 0, &t),
+            from: from,
+            to: target,
+            forward: true,
+            in: fr.scope,
+            &t,
+        )
+        let closed = try fr.close(try t.intern(.folImpliesElim(implied, atB)), in: &t)
+        return try t.intern(.folImpliesElim(try t.intern(.folImpliesElim(closed, p)), q))
     }
 
     private func atProposition(

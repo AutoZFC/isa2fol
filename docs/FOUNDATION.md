@@ -1285,10 +1285,11 @@ specialisation at `kpair`.
 |---|---|
 | `AbsP` / `AppP` | `implies_intro` / `implies_elim` — one for one |
 | `AbsT` / `AppT` at a VARIABLE | `forall_intro` / `forall_elim`, **plus the R3 guard step** |
-| `AppT` at a compound term | `appt_complex` / `appt_nested` |
+| `AppT` at a compound term | the instance at the term's value — its EX's own value piece — then each atom holding it converted once: closed with the term's pieces at every occurrence where the atom is positive, opened by the term's UNIQ where negative, both under `↔` |
 | `AppT` at a λ, a class type | `forall_elim` at the λ's class at its arguments — proved once per λ — then β: at each atom, the class's against the body's, EX and UNIQ where the argument is compound (S1); at `iⁿ ⇒ i` the guard by the class's own `function` (S5) |
 | `Thm` | `use` |
 | Pure's `reflexive`, `symmetric`, `transitive` at a function type whose arguments are objects or propositions | the value type's — `iff_*` at `o`, `eq_*` at `i` — under the pointwise binders, a truth-set binder at a proposition |
+| Pure's `reflexive`, `symmetric`, `transitive` at `i`, and `combination` at an object argument | on the premises' values: their namings opened, the values chained by base's `eq_*` — a term named in both premises by its UNIQ — and the conclusion's naming closed with the premises' own pieces; no law instantiated at a compound term |
 | Pure's `abstract_rule` | its premise: `⋀x. f x ≡ g x` and `f ≡ g` are one formula |
 | Pure's `combination` | the premise at the argument, then the argument's equation substituted into the function by the formula recursion, membership's congruence at its atoms; at a proposition, the premise's truth instance, then β |
 | `Thm` of a theorem polymorphic in a type no class restricts, at a type binding no proposition on its spine | its proof at that type, in place: the target has no type |
