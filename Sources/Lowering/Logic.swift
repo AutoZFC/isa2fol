@@ -17,7 +17,7 @@ public struct Logic: Pass {
     public func owns(_ p: Pattern) -> Owned? {
         switch piece(p) {
         case .claimed?, .axiom?, .instance?, .lambda?, .equality?, .classical?, .iffReflection?, .proposition?,
-             .function?, .pointwise?: .rule
+             .pointwise?: .rule
         case .unbuilt?: .unbuilt
         case nil: Reify().owns(p)
         }
@@ -48,7 +48,6 @@ private enum Piece {
     case classical
     case iffReflection
     case proposition(Proposition)
-    case function(Function)
     case pointwise(Pointwise)
     case unbuilt
 }
@@ -66,12 +65,6 @@ private enum Proposition {
     case hidden
 }
 
-private enum Function {
-    case wrapper
-    case equation
-    case combination
-}
-
 private enum Pointwise {
     case wrapper
     case equation
@@ -86,8 +79,7 @@ private func piece(_ p: Pattern) -> Piece? {
         return rule(a)
 
     case .isaConst(.primitive(.pure(.eq)), let T, _):
-        if case .fn(let F, _) = T, propositional(F) { return .function(.equation) }
-        if case .fn(let F, _) = T, overObjects(F) { return .pointwise(.equation) }
+        if case .fn(let F, _) = T, overArguments(F) { return .pointwise(.equation) }
         return mentionsTypeVariable(T) ? nil : .unbuilt
 
     case .isaReflexive(let T):
@@ -100,8 +92,7 @@ private func piece(_ p: Pattern) -> Piece? {
         return onlyReflexive(T) ? nil : equality(T, .transitive)
 
     case .isaCombination(let F, _, _):
-        if propositional(F) { return .function(.combination) }
-        if overObjects(F) { return .pointwise(.combination) }
+        if overArguments(F) { return .pointwise(.combination) }
         return mentionsTypeVariable(F) || onlyReflexive(F) ? nil : .unbuilt
 
     case .isaAbstract(let F, _):
@@ -115,8 +106,7 @@ private func piece(_ p: Pattern) -> Piece? {
         return .iffReflection
 
     case .isaAbs(let T, body: let U):
-        if propositional(.fn(T, U)) { return .function(.wrapper) }
-        if !isObject(.fn(T, U)), overObjects(.fn(T, U)) { return .pointwise(.wrapper) }
+        if !isObject(.fn(T, U)), overArguments(.fn(T, U)) { return .pointwise(.wrapper) }
         return beyondObjects(.fn(T, U)) ? .unbuilt : nil
 
     case .isaAllElim(_, let T):
@@ -138,7 +128,7 @@ private func piece(_ p: Pattern) -> Piece? {
 
     case .isaHidden(let T, _):
         if T == .o { return .proposition(.hidden) }
-        return beyondObjects(T) ? .unbuilt : nil
+        return isObject(objectType(T)) || mentionsTypeVariable(T) ? nil : .unbuilt
 
     case .isaConst, .isaFree, .isaBound, .isaVarApp, .isaOfClass, .isaDefinition, .folImplies, .folImpliesIntro,
          .folImpliesElim, .folAnd, .folOr, .folIff, .folBottom, .use, .hyp, .isaGuard, .isaExIntro, .isaExElim, .folNot,
@@ -154,7 +144,7 @@ private func piece(_ p: Pattern) -> Piece? {
 
 private func equality(_ T: IRType, _ e: Equality) -> Piece? {
     if mentionsTypeVariable(T) { return nil }
-    return T == .o || T == .i || propositional(T) || overObjects(T) ? .equality(e) : .unbuilt
+    return T == .o || T == .i || overArguments(T) ? .equality(e) : .unbuilt
 }
 
 private func beyondObjects(_ T: IRType) -> Bool {
@@ -197,13 +187,6 @@ private struct Formulas: Rule {
             guard case .isaPropBound(let k) = n else { throw LogicError.notTheRule(id) }
             return try holds(try t.intern(.folBound(k)), in: &t)
 
-        case .function(.equation)?:
-            guard
-                case .isaConst(_, .fn(let F, _), let args) = n,
-                args.count == 2
-            else { throw LogicError.notTheRule(id) }
-            return try Truths.pointwise(F, args[0], args[1], in: &t)
-
         case .pointwise(.equation)?:
             guard
                 case .isaConst(_, .fn(let F, _), let args) = n,
@@ -211,15 +194,14 @@ private struct Formulas: Rule {
             else { throw LogicError.notTheRule(id) }
             return try Functions.pointwise(F, args[0], args[1], in: &t)
 
-        case .function(.wrapper)?, .pointwise(.wrapper)?, .unbuilt?:
+        case .pointwise(.wrapper)?, .unbuilt?:
             return nil
 
         case nil:
             return try Reify().formula(n, was: id, in: &t)
 
         case .claimed?, .axiom?, .instance?, .lambda?, .equality?, .classical?, .iffReflection?,
-             .proposition(.intro)?, .proposition(.hidden)?, .function(.combination)?, .pointwise(.combination)?,
-             .pointwise(.abstract)?:
+             .proposition(.intro)?, .proposition(.hidden)?, .pointwise(.combination)?, .pointwise(.abstract)?:
             throw LogicError.notAFormula(id)
         }
     }
@@ -273,8 +255,7 @@ private struct Steps: Rule {
             guard case .isaIffReflection(_, _, let h) = n else { throw LogicError.notTheRule(id) }
             return try t.intern(.folIffIntro(try t.intern(.folAndElimL(h)), try t.intern(.folAndElimR(h))))
 
-        case .proposition(.binder)?, .proposition(.variable)?, .function(.wrapper)?, .function(.equation)?,
-             .pointwise(.wrapper)?, .pointwise(.equation)?:
+        case .proposition(.binder)?, .proposition(.variable)?, .pointwise(.wrapper)?, .pointwise(.equation)?:
             return try Formulas().after(n, was: id, context: Anywhere(), in: &t)
 
         case .proposition(.intro)?:
@@ -288,10 +269,6 @@ private struct Steps: Rule {
         case .proposition(.hidden)?:
             guard case .isaHidden(.o, let body) = n else { throw LogicError.notTheRule(id) }
             return try hiddenProposition(body, base, in: &t)
-
-        case .function(.combination)?:
-            guard case .isaCombination(let F, let p, let q) = n else { throw LogicError.notTheRule(id) }
-            return try truths.combination(F, p, q, in: &t)
 
         case .pointwise(.combination)?:
             guard case .isaCombination(let F, let p, let q) = n else { throw LogicError.notTheRule(id) }
@@ -346,8 +323,7 @@ struct Equalities {
         switch e {
         case .reflexive:
             guard case .isaReflexive(let f) = n, let T = t.type(of: f) else { throw LogicError.notCongruence(first) }
-            if propositional(T) { return try Truths(base: base).reflexive(T, f, in: &t) }
-            if overObjects(T) {
+            if overArguments(T) {
                 guard case .isaReflexive(let stated) = t[id] else { throw LogicError.notCongruence(first) }
                 return try Functions(base: base).reflexive(T, stated, in: &t)
             }
@@ -357,16 +333,14 @@ struct Equalities {
 
         case .symmetric:
             guard case .isaSymmetric(let T, let p) = n else { throw LogicError.notCongruence(first) }
-            if propositional(T) { return try Truths(base: base).symmetric(T, p, in: &t) }
-            if overObjects(T) { return try Functions(base: base).symmetric(T, p, was: id, in: &t) }
+            if overArguments(T) { return try Functions(base: base).symmetric(T, p, was: id, in: &t) }
             if T == .i { return try atI(e, try sidesAtI(id, t), [p], in: &t) }
             guard T == .o else { throw LogicError.notCongruence(first) }
             return try base.applied(.iffSymm, try sidesAtO(p, in: t), [p], in: &t)
 
         case .transitive:
             guard case .isaTransitive(let T, let p, let q) = n else { throw LogicError.notCongruence(first) }
-            if propositional(T) { return try Truths(base: base).transitive(T, p, q, in: &t) }
-            if overObjects(T) { return try Functions(base: base).transitive(T, p, q, was: id, in: &t) }
+            if overArguments(T) { return try Functions(base: base).transitive(T, p, q, was: id, in: &t) }
             if T == .i { return try atI(e, try sidesAtI(id, t), [p, q], in: &t) }
             guard T == .o else { throw LogicError.notCongruence(first) }
             let ab = try sidesAtO(p, in: t)

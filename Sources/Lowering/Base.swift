@@ -6,6 +6,11 @@ public enum BaseStatement: String, CaseIterable, Hashable, Sendable {
     case iffSymm = "iff_symm"
     case iffTrans = "iff_trans"
     case truthEX = "truth_EX"
+    case truthSetEX = "truth_set_EX"
+    case truthUNIQ = "truth_UNIQ"
+    case truthOfSet = "truth_of_set"
+    case holdsDef = "holds_def"
+    case congHolds = "cong_holds"
     case weaken
     case congNot = "cong_not"
     case congAnd = "cong_and"

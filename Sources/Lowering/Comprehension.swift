@@ -141,7 +141,12 @@ private enum Key: Hashable {
     case lifted(Constant, IRType, Int, [Int])
 }
 
-private let relations: [String: BaseStatement] = ["Pow": .powDef, "Union": .unionDef]
+private let relations: [String: BaseStatement] = [
+    "Pow": .powDef,
+    "Union": .unionDef,
+    "holds": .holdsDef,
+    "truth": .truthOfSet,
+]
 
 struct Comprehension {
     init(base: Base, top: Frame, in t: inout Table) throws {
@@ -327,6 +332,20 @@ struct Comprehension {
             let S = try setConstantClass(c, &t)
             let constraint = Built.atom(try readRow([k], S.cls, &t), [k], .property(S.hyp))
             let remaining = try chain(after, rest, ids, roles + [.entry(k)], k + 1, &t)
+            return try exists(try connective(.and, [constraint, remaining], &t), k, &t)
+
+        case .truthSet(let proposition):
+            guard
+                case .ifolEx(.i, let body) = t[phi],
+                case .folAnd(let c, let after) = t[body],
+                case .folAnd(let truthAtom, let held) = t[c],
+                case .folIff(let holdsAtom, _) = t[held]
+            else { throw ComprehensionError.unread(phi) }
+            let inner = roles + [.entry(k)]
+            let read = try build(try shift(proposition, by: position + 1, in: &t), inner, k + 1, &t)
+            let holding = try connective(.iff, [try build(holdsAtom, inner, k + 1, &t), read], &t)
+            let constraint = try connective(.and, [try build(truthAtom, inner, k + 1, &t), holding], &t)
+            let remaining = try chain(after, rest, ids, inner, k + 1, &t)
             return try exists(try connective(.and, [constraint, remaining], &t), k, &t)
 
         case .tuple, .value, .applied:

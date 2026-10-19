@@ -108,7 +108,7 @@ struct ClassProofs {
 
     func constant(_ f: ConstantFact, _ t: inout Table) throws -> NodeID {
         var top = Frame()
-        let classes = f.type.domains.filter { $0 != .i }
+        let classes = f.type.domains.filter { !isEntry($0) }
         let ps = classes.map { top.fix($0) }
         let depth = top.scope.depth
         let src = try source(f.constant, f.type, &t)
@@ -130,7 +130,7 @@ struct ClassProofs {
     }
 
     func lift(_ f: ConstantFact, _ t: inout Table) throws -> NodeID {
-        let classes = f.type.domains.filter { $0 != .i }
+        let classes = f.type.domains.filter { !isEntry($0) }
         let outside = isFunctionClass(f.type) ? 2 : 1
         let k = 3 + outside
         let src = try source(f.constant, f.type, &t)
@@ -603,7 +603,7 @@ struct ClassProofs {
     private func source(_ c: Constant, _ T: IRType, _ t: inout Table) throws
         -> (definition: NodeID, outside: Int, raw: NodeID, named: NodeID)
     {
-        let classes = T.domains.filter { $0 != .i }
+        let classes = T.domains.filter { !isEntry($0) }
         let k = classes.count
         switch c {
         case .defined(let d):

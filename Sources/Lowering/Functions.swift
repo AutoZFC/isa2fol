@@ -12,17 +12,30 @@ func overObjects(_ T: IRType) -> Bool {
     return B == .i || B == .o || overObjects(B)
 }
 
+func overArguments(_ T: IRType) -> Bool {
+    guard case .fn(let A, let B) = T, isObject(A) || A == .o else { return false }
+    return B == .i || B == .o || overArguments(B)
+}
+
 struct Functions {
     let base: Base
 
     static func pointwise(_ F: IRType, _ f: NodeID, _ g: NodeID, in t: inout Table) throws -> NodeID {
-        try pointwise(F, f, g, in: &t) { V, a, b, t in
-            V == .i ? try walked(formula: try t.equation(.i, a, b), in: &t) : try t.equation(V, a, b)
-        }
+        try walked(formula: try isaPointwise(F, f, g, in: &t), in: &t)
+    }
+
+    static func isaPointwise(_ U: IRType, _ a: NodeID, _ b: NodeID, in t: inout Table) throws -> NodeID {
+        guard case .fn(let T, let V) = U else { return try t.equation(U, a, b) }
+        let x = try argument(T, 0, in: &t)
+        let fa = try beta(try shift(a, by: 1, in: &t), [x], in: &t)
+        let fb = try beta(try shift(b, by: 1, in: &t), [x], in: &t)
+        let inner = try isaPointwise(V, fa, fb, in: &t)
+        return try t.intern(T == .o ? .isaPropAll(body: inner) : .ifolAll(T, body: inner))
     }
 
     func reflexive(_ F: IRType, _ f: NodeID, in t: inout Table) throws -> NodeID {
-        guard case .fn(let T, let U) = F, case .isaAbs(T, let body) = t[f] else { throw FunctionsError.notAFunction(f) }
+        guard case .fn(let T, let U) = F, case .isaAbs(T, _) = t[f] else { throw FunctionsError.notAFunction(f) }
+        let body = try beta(try shift(f, by: 1, in: &t), [try Self.argument(T, 0, in: &t)], in: &t)
         let inner: NodeID =
             switch U {
             case .fn: try reflexive(U, body, in: &t)
@@ -30,15 +43,17 @@ struct Functions {
             case .i: try Equalities(base: base).atI(.reflexive, [body], [], in: &t)
             case .variable: throw FunctionsError.notAFunction(f)
             }
-        return try t.intern(.isaAllIntro(T, body: inner))
+        guard T == .o else { return try t.intern(.isaAllIntro(T, body: inner)) }
+        let premise = try truth(try t.intern(.folBound(0)), in: &t)
+        return try t.intern(.folForallIntro(body: try t.intern(.folImpliesIntro(premise, body: inner))))
     }
 
     func symmetric(_ F: IRType, _ p: NodeID, was id: NodeID, in t: inout Table) throws -> NodeID {
         guard case .isaSymmetric(_, let p0) = t[id] else { throw FunctionsError.notMine(id) }
         let (f, g) = try sides(p0, t)
-        return try underBinders(F, [p], in: &t) { s, hs, xs, t in
-            let fg = try eliminated(hs[0], xs, F, in: &t)
-            return try atValue(.symmetric, result(F), try applied([f, g], xs, s, &t), [fg], in: &t)
+        return try underBinders(F, [p], in: &t) { s, hs, b, t in
+            let fg = try b.eliminated(hs[0], in: &t)
+            return try atValue(.symmetric, result(F), try b.applied([f, g], s, &t), [fg], in: &t)
         }
     }
 
@@ -46,10 +61,10 @@ struct Functions {
         guard case .isaTransitive(_, let p0, let q0) = t[id] else { throw FunctionsError.notMine(id) }
         let (f, g) = try sides(p0, t)
         let (_, h) = try sides(q0, t)
-        return try underBinders(F, [p, q], in: &t) { s, hs, xs, t in
-            let fg = try eliminated(hs[0], xs, F, in: &t)
-            let gh = try eliminated(hs[1], xs, F, in: &t)
-            return try atValue(.transitive, result(F), try applied([f, g, h], xs, s, &t), [fg, gh], in: &t)
+        return try underBinders(F, [p, q], in: &t) { s, hs, b, t in
+            let fg = try b.eliminated(hs[0], in: &t)
+            let gh = try b.eliminated(hs[1], in: &t)
+            return try atValue(.transitive, result(F), try b.applied([f, g, h], s, &t), [fg, gh], in: &t)
         }
     }
 
@@ -62,9 +77,10 @@ struct Functions {
             throw FunctionsError.notMine(id)
         }
         let (f, g) = try sides(p0, t)
+        if T == .o { return try concluding(try atProposition(U, f, g, p, q, in: &t), id, in: &t) }
         let (a, b) = try sides(q0, t)
         let context = { (x: NodeID, y: NodeID, d: Int, t: inout Table) throws -> NodeID in
-            try isaPointwise(
+            try Self.isaPointwise(
                 U,
                 try beta(try shift(f, by: d, in: &t), [x], in: &t),
                 try beta(try shift(g, by: d, in: &t), [y], in: &t),
@@ -120,10 +136,6 @@ struct Functions {
         return try t.intern(.folImpliesElim(second, equation))
     }
 
-    func isaPointwise(_ U: IRType, _ a: NodeID, _ b: NodeID, in t: inout Table) throws -> NodeID {
-        try Self.pointwise(U, a, b, in: &t) { V, a, b, t in try t.equation(V, a, b) }
-    }
-
     func instance(
         _ p: NodeID,
         of statement: NodeID,
@@ -131,23 +143,47 @@ struct Functions {
         _ T: IRType,
         in t: inout Table,
     ) throws -> NodeID {
+        if T == .o {
+            let read = try walked(formula: a, in: &t)
+            guard case .ifolAll(.o, _)? = t.conclusion(of: p).map({ t[$0] }) else {
+                return try Truths(base: base).instance(p, at: read, in: &t)
+            }
+            return try t.intern(.folSchemaInst(p, read))
+        }
         let elim = try t.intern(.isaAllElim(try t.intern(.hyp(0, statement)), a))
         if T == .i { return try Reify().instance(p, was: elim, base: base, in: &t) }
         return try LambdaInstance(base: base).proof(p, was: elim, in: &t)
     }
 
-    private static func pointwise(
+    private static func argument(_ T: IRType, _ k: Int, in t: inout Table) throws -> NodeID {
+        try t.intern(T == .o ? .isaPropBound(k) : .isaBound(k, T))
+    }
+
+    private func atProposition(
         _ U: IRType,
-        _ a: NodeID,
-        _ b: NodeID,
+        _ f: NodeID,
+        _ g: NodeID,
+        _ p: NodeID,
+        _ q: NodeID,
         in t: inout Table,
-        at value: (IRType, NodeID, NodeID, inout Table) throws -> NodeID,
     ) throws -> NodeID {
-        guard case .fn(let T, let V) = U else { return try value(U, a, b, &t) }
-        let x = try t.intern(.isaBound(0, T))
-        let fa = try beta(try shift(a, by: 1, in: &t), [x], in: &t)
-        let fb = try beta(try shift(b, by: 1, in: &t), [x], in: &t)
-        return try t.intern(.ifolAll(T, body: try pointwise(V, fa, fb, in: &t, at: value)))
+        let stated = try conclusion(q, t)
+        guard case .folIff(let a, let b) = t[stated] else { throw FunctionsError.notAFunction(q) }
+        let atA = try Truths(base: base).instance(p, at: a, in: &t)
+        let fa = try beta(f, [a], in: &t)
+        let context = { (y: NodeID, t: inout Table) throws -> NodeID in
+            try walked(formula: try Self.isaPointwise(U, fa, try beta(g, [y], in: &t), in: &t), in: &t)
+        }
+        let l = try context(a, &t)
+        let r = try context(b, &t)
+        var s = Scope()
+        let h = s.assume(stated)
+        let walk = try Replacement(base: base) { _, x, y, inner, t in
+            guard x == (try inner.lift(a, in: &t)), y == (try inner.lift(b, in: &t)) else { return nil }
+            return try inner.hypothesis(h, in: &t)
+        }.proof(l, l, r, in: s, &t)
+        let substituted = try t.intern(.folImpliesElim(try t.intern(.folImpliesIntro(stated, body: walk)), q))
+        return try t.intern(.folIffElimL(substituted, atA))
     }
 
     private func atClass(
@@ -175,7 +211,7 @@ struct Functions {
             target: try s.lift(b, in: &t),
             depth: s.depth,
             assumption: h,
-            statement: try s.lift(try isaPointwise(T, a, b, in: &t), in: &t),
+            statement: try s.lift(try Self.isaPointwise(T, a, b, in: &t), in: &t),
         )
         let walk = try Replacement(base: base, hole: hole.atom).proof(template, l, r, in: s, &t)
         let lowered = try unshift(try unshift(walk, in: &t), in: &t)
@@ -192,34 +228,37 @@ struct Functions {
         _ F: IRType,
         _ premises: [NodeID],
         in t: inout Table,
-        _ body: (Scope, [NodeID], [NodeID], inout Table) throws -> NodeID,
+        _ body: (Scope, [NodeID], Binders, inout Table) throws -> NodeID,
     ) throws -> NodeID {
         var s = Scope()
         let stated = try premises.map { try conclusion($0, t) }
         let levels = stated.map { s.assume($0) }
-        let fixed = F.domains.map { s.fix($0) }
+        var fixed = [Int]()
+        var assumed = [Int?]()
+        for T in F.domains {
+            let v = s.fix(T == .o ? nil : T)
+            fixed.append(v)
+            assumed.append(T == .o ? s.assume(try truth(try s.variable(v, in: &t), in: &t)) : nil)
+        }
         let hs = try levels.map { try s.hypothesis($0, in: &t) }
-        let xs = try fixed.map { try s.variable($0, in: &t) }
-        var proof = try body(s, hs, xs, &t)
-        for T in F.domains.reversed() { proof = try t.intern(.isaAllIntro(T, body: proof)) }
+        let binders = Binders(
+            domains: F.domains,
+            variables: try fixed.map { try s.variable($0, in: &t) },
+            arguments: try zip(F.domains, fixed).map { T, v in try Self.argument(T, s.depth - 1 - v, in: &t) },
+            truths: try assumed.map { level in try level.map { try s.hypothesis($0, in: &t) } },
+        )
+        var proof = try body(s, hs, binders, &t)
+        for T in F.domains.reversed() {
+            guard T == .o else {
+                proof = try t.intern(.isaAllIntro(T, body: proof))
+                continue
+            }
+            let premise = try truth(try t.intern(.folBound(0)), in: &t)
+            proof = try t.intern(.folForallIntro(body: try t.intern(.folImpliesIntro(premise, body: proof))))
+        }
         for c in stated.reversed() { proof = try t.intern(.folImpliesIntro(c, body: proof)) }
         for p in premises { proof = try t.intern(.folImpliesElim(proof, p)) }
         return proof
-    }
-
-    private func eliminated(_ p: NodeID, _ xs: [NodeID], _ F: IRType, in t: inout Table) throws -> NodeID {
-        var step = p
-        for (x, T) in zip(xs, F.domains) {
-            step = try t.intern(.folForallElim(step, x))
-            if let g = try guarded(x, T, in: &t) {
-                step = try t.intern(.folImpliesElim(step, try t.intern(.isaGuard(x, g))))
-            }
-        }
-        return step
-    }
-
-    private func applied(_ fs: [NodeID], _ xs: [NodeID], _ s: Scope, _ t: inout Table) throws -> [NodeID] {
-        try fs.map { try beta(try s.lift($0, in: &t), xs, in: &t) }
     }
 
     private func atValue(
@@ -256,6 +295,30 @@ struct Functions {
     }
 }
 
+private struct Binders {
+    let domains: [IRType]
+    let variables: [NodeID]
+    let arguments: [NodeID]
+    let truths: [NodeID?]
+
+    func eliminated(_ p: NodeID, in t: inout Table) throws -> NodeID {
+        var step = p
+        for k in domains.indices {
+            step = try t.intern(.folForallElim(step, variables[k]))
+            if let h = truths[k] {
+                step = try t.intern(.folImpliesElim(step, h))
+            } else if let g = try guarded(variables[k], domains[k], in: &t) {
+                step = try t.intern(.folImpliesElim(step, try t.intern(.isaGuard(variables[k], g))))
+            }
+        }
+        return step
+    }
+
+    func applied(_ fs: [NodeID], _ s: Scope, _ t: inout Table) throws -> [NodeID] {
+        try fs.map { try beta(try s.lift($0, in: &t), arguments, in: &t) }
+    }
+}
+
 private struct Substitution {
     let functions: Functions
     let type: IRType
@@ -282,7 +345,7 @@ private struct Substitution {
                 guard case .isaVarApp(_, let args) = t[unit] else { throw FunctionsError.notAFunction(unit) }
                 renamed = try t.intern(.isaVarApp(head: z, args: args))
 
-            case .lambda:
+            case .slot:
                 renamed = try instantiate(try abstractIndex(unit, x, in: &t), with: z, in: &t)
 
             case .term:
@@ -294,7 +357,7 @@ private struct Substitution {
                 switch u.kind {
                 case .applied: try applied(current, unit, u.path, s, &t)
 
-                case .lambda: try slotConverted(
+                case .slot: try slotConverted(
                         current,
                         next,
                         u.path,

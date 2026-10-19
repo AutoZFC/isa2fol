@@ -43,6 +43,8 @@ func congruent(
 
         case (.base("Pow"), 0): (claim, variables) = (.congPowL, [current[0], next[0], current[1]])
 
+        case (.base("holds"), 0): (claim, variables) = (.congHolds, [current[0], next[0]])
+
         default: throw CongruenceError.noCongruence(l)
         }
         let step = try base.claimed(claim, variables, [try equal(ls[k], rs[k], &t)], in: &t)
@@ -69,9 +71,9 @@ struct Replacement {
         if let p = try hole(phi, l, r, s, &t) { return p }
         if
             case .isaConst(.primitive(.pure(.eq)), .fn(let F, _), let args) = t[phi], args.count == 2,
-            overObjects(F)
+            overArguments(F)
         {
-            return try proof(try Functions(base: base).isaPointwise(F, args[0], args[1], in: &t), l, r, in: s, &t)
+            return try proof(try Functions.isaPointwise(F, args[0], args[1], in: &t), l, r, in: s, &t)
         }
         switch t[phi] {
         case .folNot(let a):

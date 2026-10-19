@@ -89,7 +89,7 @@ struct TermInstance {
 struct Unit {
     enum Kind {
         case term
-        case lambda
+        case slot
         case applied
     }
 
@@ -104,15 +104,15 @@ func units(_ n: NodeID, _ x: Int, _ path: [Int], in t: Table) -> [Unit] {
         return k == x ? [Unit(path: path, kind: .term)] : []
 
     case .isaConst(_, _, let args):
-        return args.indices.flatMap { units(args[$0], x, path + [$0], in: t) }
+        return args.indices.flatMap { arguments(args[$0], x, path + [$0], in: t) }
 
     case .isaVarApp(let head, let args):
-        let inner = args.indices.flatMap { units(args[$0], x, path + [$0], in: t) }
+        let inner = args.indices.flatMap { arguments(args[$0], x, path + [$0], in: t) }
         guard case .isaBound(x, _) = t[head] else { return inner }
         return inner + [Unit(path: path, kind: .applied)]
 
     case .isaAbs:
-        return freeVariables(n, in: t).contains { $0.index == x } ? [Unit(path: path, kind: .lambda)] : []
+        return freeVariables(n, in: t).contains { $0.index == x } ? [Unit(path: path, kind: .slot)] : []
 
     case .ifolAll, .ifolEx, .isaFree, .isaOfClass, .isaAllIntro, .isaAllElim, .isaReflexive, .isaSymmetric,
          .isaTransitive,
@@ -125,6 +125,11 @@ func units(_ n: NodeID, _ x: Int, _ path: [Int], in t: Table) -> [Unit] {
          .folBottomElim, .folClassicalAbsurd, .folSchemaInst, .folLetterAll, .folLetter, .folLetterAbs:
         return []
     }
+}
+
+private func arguments(_ n: NodeID, _ x: Int, _ path: [Int], in t: Table) -> [Unit] {
+    guard t.type(of: n) == .o else { return units(n, x, path, in: t) }
+    return freeVariables(n, in: t).contains { $0.index == x } ? [Unit(path: path, kind: .slot)] : []
 }
 
 func argument(at path: [Int], in n: NodeID, _ t: Table) throws -> NodeID {
@@ -176,7 +181,7 @@ private struct Conversion {
             in: &t,
         ) { source, target, u, t in
             switch u.kind {
-            case .lambda: return try slotConverted(source, target, u.path, base: base, in: s, &t, hole: atom)
+            case .slot: return try slotConverted(source, target, u.path, base: base, in: s, &t, hole: atom)
             case .term: return try step(source, target, u.path, in: s, &t)
             case .applied: throw InstanceError.notAnInstance(source)
             }
@@ -364,12 +369,7 @@ func slotConverted(
     let K = site.binders.lowerBound
     let depth = s.depth
     let definition = { (l: NodeID, r: NodeID, k: Int, s: Scope, t: inout Table) throws -> NodeID in
-        let phi = try classDefinition(
-            try s.lift(lambda, from: depth, in: &t),
-            K: try s.variable(k, in: &t),
-            raw: true,
-            in: &t,
-        )
+        let phi = try reading(try s.lift(lambda, from: depth, in: &t), at: try s.variable(k, in: &t), in: &t)
         return try Replacement(base: base, hole: hole).proof(phi, l, r, in: s, &t)
     }
     let reopened = { (
@@ -403,6 +403,11 @@ func slotConverted(
             }
         }
     })
+}
+
+private func reading(_ argument: NodeID, at k: NodeID, in t: inout Table) throws -> NodeID {
+    guard t.type(of: argument) == .o else { return try classDefinition(argument, K: k, raw: true, in: &t) }
+    return try t.intern(.folAnd(try truth(k, in: &t), try t.intern(.folIff(try holds(k, in: &t), argument))))
 }
 
 func reclosed(

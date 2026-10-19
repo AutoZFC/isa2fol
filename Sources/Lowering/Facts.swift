@@ -228,7 +228,7 @@ func statement(_ r: Uniqueness, in t: inout Table) throws -> NodeID {
 }
 
 private func classParameters(_ T: IRType, under inner: Int, in t: inout Table) throws -> [NodeID] {
-    let classes = T.domains.filter { $0 != .i }
+    let classes = T.domains.filter { !isEntry($0) }
     return try classes.indices.map { try t.intern(.isaBound(inner + classes.count - 1 - $0, classes[$0])) }
 }
 
@@ -249,8 +249,16 @@ func isFunctionClass(_ T: IRType) -> Bool {
     result(T) == .i
 }
 
+func isEntry(_ T: IRType) -> Bool {
+    T == .i || T == .o
+}
+
+func atEntry(_ T: IRType, _ x: NodeID, in t: inout Table) throws -> NodeID {
+    T == .o ? try holds(x, in: &t) : x
+}
+
 func statement(_ f: ConstantFact, in t: inout Table) throws -> NodeID {
-    let classes = f.type.domains.filter { $0 != .i }
+    let classes = f.type.domains.filter { !isEntry($0) }
     let k = classes.count
     let m = f.type.domains.count - k
     let named = { (C: NodeID, ps: [NodeID], t: inout Table) throws -> NodeID in
@@ -453,7 +461,7 @@ func approximation(
 }
 
 private func lift(_ f: ConstantFact, in t: inout Table) throws -> NodeID {
-    let classes = f.type.domains.filter { $0 != .i }
+    let classes = f.type.domains.filter { !isEntry($0) }
     var s = Scope()
     let p = s.fix(.i)
     let p1 = s.fix(.i)

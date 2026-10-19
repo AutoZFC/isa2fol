@@ -134,7 +134,7 @@ private struct Beta {
         let (_, value) = try shape(lam, in: t)
         return try converted(phi, s.depth - 1 - variable, lam, base: base, in: &t) { source, target, u, t in
             switch u.kind {
-            case .lambda: return try slotConverted(source, target, u.path, base: base, in: s, &t, hole: atom)
+            case .slot: return try slotConverted(source, target, u.path, base: base, in: s, &t, hole: atom)
             case .applied: return value == .o ? try predicate(source, s, &t) : try function(source, u.path, lam, s, &t)
             case .term: throw LambdaError.noBeta(source)
             }

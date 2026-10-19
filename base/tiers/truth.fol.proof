@@ -126,3 +126,182 @@ proof truth_inhabited:
     _ex = exists_intro _te, e
     _cl = exists_intro _ex
     qed _cl
+
+proof truth_set_EX:
+    _tx = schema_inst truth_EX { A: A }
+    _td = use truth_def
+    _eo = exists_elim _tx, e
+    _te = and_elim_l _eo
+    _td1 = forall_elim _td, e
+    _sb = iff_elim_l _td1, _te
+    _se = and_elim_l _sb
+    _body = and_intro _se, _eo
+    _ex = exists_intro _body, e
+    _cl = exists_intro _ex
+    qed _cl
+
+proof truth_of_set:
+    _td = use truth_def
+    fix E
+    _se = assume set(E)
+    _td1 = forall_elim _td, E
+    _t = assume truth(E)
+    _sb = iff_elim_l _td1, _t
+    _all = and_elim_r _sb
+    _fw = implies_intro _all
+    _a = assume forall u. (set(u) -> (elem(u,E) -> zero(u)))
+    _sb2 = and_intro _se, _a
+    _t2 = iff_elim_r _td1, _sb2
+    _bw = implies_intro _t2
+    _iff = iff_intro _fw, _bw
+    _i = implies_intro _iff
+    _f = forall_intro _i
+    qed _f
+
+proof truth_UNIQ:
+    _ext = use extensionality
+    _td = use truth_def
+    _hd = use holds_def
+    _zu = use zero_UNIQ
+    _ce = use cong_elem_l
+    fix E
+    _sE = assume set(E)
+    fix E2
+    _sE2 = assume set(E2)
+    _c1 = assume (truth(E) & (holds(E) <-> A))
+    _c2 = assume (truth(E2) & (holds(E2) <-> A))
+    _t1 = and_elim_l _c1
+    _h1 = and_elim_r _c1
+    _t2 = and_elim_l _c2
+    _h2 = and_elim_r _c2
+    _td1 = forall_elim _td, E
+    _td2 = forall_elim _td, E2
+    _sb1 = iff_elim_l _td1, _t1
+    _sb2 = iff_elim_l _td2, _t2
+    _z1 = and_elim_r _sb1
+    _z2 = and_elim_r _sb2
+    _hd1 = forall_elim _hd, E
+    _hd2 = forall_elim _hd, E2
+    fix u
+    _su = assume set(u)
+    _ue = assume elem(u,E)
+    _zu1 = forall_elim _z1, u
+    _zu2 = implies_elim _zu1, _su
+    _zuu = implies_elim _zu2, _ue
+    _zz = and_intro _zuu, _ue
+    _szz = and_intro _su, _zz
+    _hx = exists_intro _szz, u
+    _hE = iff_elim_r _hd1, _hx
+    _a = iff_elim_l _h1, _hE
+    _hE2 = iff_elim_r _h2, _a
+    _hx2 = iff_elim_l _hd2, _hE2
+    _wo = exists_elim _hx2, w
+    _sw = and_elim_l _wo
+    _zwew = and_elim_r _wo
+    _zw = and_elim_l _zwew
+    _ew = and_elim_r _zwew
+    _q1 = forall_elim _zu, w
+    _q2 = implies_elim _q1, _sw
+    _q3 = forall_elim _q2, u
+    _q4 = implies_elim _q3, _su
+    _q5 = implies_elim _q4, _zw
+    _wu = implies_elim _q5, _zuu
+    _k1 = forall_elim _ce, w
+    _k2 = forall_elim _k1, u
+    _k3 = forall_elim _k2, E2
+    _k4 = implies_elim _k3, _wu
+    _ue2 = iff_elim_l _k4, _ew
+    _ue2c = exists_intro _ue2
+    _fw = implies_intro _ue2c
+    _ub = assume elem(u,E2)
+    _yu1 = forall_elim _z2, u
+    _yu2 = implies_elim _yu1, _su
+    _yuu = implies_elim _yu2, _ub
+    _yy = and_intro _yuu, _ub
+    _syy = and_intro _su, _yy
+    _hy = exists_intro _syy, u
+    _hB2 = iff_elim_r _hd2, _hy
+    _b = iff_elim_l _h2, _hB2
+    _hB = iff_elim_r _h1, _b
+    _hy2 = iff_elim_l _hd1, _hB
+    _vo = exists_elim _hy2, v
+    _sv = and_elim_l _vo
+    _zvev = and_elim_r _vo
+    _zv = and_elim_l _zvev
+    _ev = and_elim_r _zvev
+    _r1 = forall_elim _zu, v
+    _r2 = implies_elim _r1, _sv
+    _r3 = forall_elim _r2, u
+    _r4 = implies_elim _r3, _su
+    _r5 = implies_elim _r4, _zv
+    _vu = implies_elim _r5, _yuu
+    _m1 = forall_elim _ce, v
+    _m2 = forall_elim _m1, u
+    _m3 = forall_elim _m2, E
+    _m4 = implies_elim _m3, _vu
+    _ue1 = iff_elim_l _m4, _ev
+    _ue1c = exists_intro _ue1
+    _bw = implies_intro _ue1c
+    _iffu = iff_intro _fw, _bw
+    _iu = implies_intro _iffu
+    _fu = forall_intro _iu
+    _x1 = forall_elim _ext, E
+    _x2 = forall_elim _x1, E2
+    _eq = iff_elim_r _x2, _fu
+    _i1 = implies_intro _eq
+    _i2 = implies_intro _i1
+    _i3 = implies_intro _i2
+    _f1 = forall_intro _i3
+    _i4 = implies_intro _f1
+    _f2 = forall_intro _i4
+    qed _f2
+
+proof cong_holds:
+    _hd = use holds_def
+    _ce = use cong_elem_r
+    fix E
+    fix E2
+    _eq = assume eq(E,E2)
+    _hd1 = forall_elim _hd, E
+    _hd2 = forall_elim _hd, E2
+    _h1 = assume holds(E)
+    _x1 = iff_elim_l _hd1, _h1
+    _wo = exists_elim _x1, z
+    _sz = and_elim_l _wo
+    _zr = and_elim_r _wo
+    _zz = and_elim_l _zr
+    _ez = and_elim_r _zr
+    _c1 = forall_elim _ce, z
+    _c2 = forall_elim _c1, E
+    _c3 = forall_elim _c2, E2
+    _c4 = implies_elim _c3, _eq
+    _ez2 = iff_elim_l _c4, _ez
+    _zz2 = and_intro _zz, _ez2
+    _szz = and_intro _sz, _zz2
+    _x2 = exists_intro _szz, z
+    _x2c = exists_intro _x2
+    _h2 = iff_elim_r _hd2, _x2c
+    _fw = implies_intro _h2
+    _g1 = assume holds(E2)
+    _y1 = iff_elim_l _hd2, _g1
+    _vo = exists_elim _y1, v
+    _sv = and_elim_l _vo
+    _vr = and_elim_r _vo
+    _zv = and_elim_l _vr
+    _ev = and_elim_r _vr
+    _d1 = forall_elim _ce, v
+    _d2 = forall_elim _d1, E
+    _d3 = forall_elim _d2, E2
+    _d4 = implies_elim _d3, _eq
+    _ev1 = iff_elim_r _d4, _ev
+    _zv2 = and_intro _zv, _ev1
+    _szv = and_intro _sv, _zv2
+    _y2 = exists_intro _szv, v
+    _y2c = exists_intro _y2
+    _g2 = iff_elim_r _hd1, _y2c
+    _bw = implies_intro _g2
+    _iff = iff_intro _fw, _bw
+    _i = implies_intro _iff
+    _f1 = forall_intro _i
+    _f2 = forall_intro _f1
+    qed _f2

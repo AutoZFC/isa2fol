@@ -370,6 +370,12 @@ this one survives it.
 > *A refusal attributed to mathematics stops enquiry; that is why this one cost
 > two constants of ceiling for a session.*
 
+> **⚠ AND `If` TAKES NO GRAPH PER USE SITE** (2026-10-18). S4 reads a proposition argument
+> as its truth set, a set entry of the argument tuple: `If` is one class of tuples
+> `⟨E, a, b⟩`, its value `THE z. (∅ ∈ E ∧ z = a) ∨ (¬ ∅ ∈ E ∧ z = b)`, and a use names the
+> truth set of its proposition where it stands. A class argument would leave a variable at
+> `o ⇒ i` taking a class, which has no reading.
+
 > **⚠ `split` IS NO LONGER ONE OF THE TWO** (2026-10-11). Its value is a meta-function
 > because its declared value type is a type variable: it is a meta-level definition,
 > unfolded (S1, "named only at the object level"), and refuses nothing. The ceiling
@@ -780,12 +786,17 @@ writes both as formulas, `Trueprop` the crossing, so both kinds hold at either t
 
 **Its consequences, each a rendering where S4 had none.**
 - A proposition as a constant's argument (`If(φ, a, b)`) or a constant's value
-  (`AC1 :: o`) is its truth set, a set entry of the argument tuple (R7).
+  (`AC1 :: o`) is its truth set, a set entry of the argument tuple (R7): named where it
+  stands, `E ⊆ {∅}` and `∅ ∈ E ↔ φ`, unique by extensionality, and the constant's class
+  reads its parameter `∅ ∈ E`. A variable taking a proposition — one only a proof uses at
+  `o ⇒ i` — is a class variable over such tuples, single-valued as at `i ⇒ i`.
 - A function of propositions, `o ⇒ …`, is a class of tuples of truth sets; an equation
   between two, `f ≡ g` at `o ⇒ o`, renders `∀E. E ⊆ {∅} → (f*(E) ↔ g*(E))`. Applied to
   truth sets, a function of propositions is its body with each argument read `∅ ∈ Eᵢ`,
   `(λP⃗. φ)*(E⃗) = φ[∅ ∈ E⃗]`: a λ is a wrapper (S1), and no class is named for an equation.
-  At `o⃗ ⇒ o` the equation is pointwise in every argument, `∀E⃗. E⃗ ⊆ {∅} → (f*(E⃗) ↔ g*(E⃗))`.
+  At a type whose arguments are propositions and objects the equation is pointwise in every
+  argument, a truth-set binder at a proposition and an object binder at an object: at `o⃗ ⇒ o`,
+  `∀E⃗. E⃗ ⊆ {∅} → (f*(E⃗) ↔ g*(E⃗))`; at `o ⇒ i ⇒ i ⇒ i`, `∀E. E ⊆ {∅} → ∀a b. f*(E, a, b) = g*(E, a, b)`.
   `combination` instantiates it at its argument's truth set, then β: `f*(E(a)) ↔ f(a)`,
   `∅ ∈ E(a)` replaced by `a` under `f`'s connectives — the replacement an instance's
   twenty steps already count.
@@ -1277,9 +1288,9 @@ specialisation at `kpair`.
 | `AppT` at a compound term | `appt_complex` / `appt_nested` |
 | `AppT` at a λ, a class type | `forall_elim` at the λ's class at its arguments — proved once per λ — then β: at each atom, the class's against the body's, EX and UNIQ where the argument is compound (S1); at `iⁿ ⇒ i` the guard by the class's own `function` (S5) |
 | `Thm` | `use` |
-| Pure's `reflexive`, `symmetric`, `transitive` at a function type whose arguments are objects | the value type's — `iff_*` at `o`, `eq_*` at `i` — under the pointwise binders |
+| Pure's `reflexive`, `symmetric`, `transitive` at a function type whose arguments are objects or propositions | the value type's — `iff_*` at `o`, `eq_*` at `i` — under the pointwise binders, a truth-set binder at a proposition |
 | Pure's `abstract_rule` | its premise: `⋀x. f x ≡ g x` and `f ≡ g` are one formula |
-| Pure's `combination` | the premise at the argument, then the argument's equation substituted into the function by the formula recursion, membership's congruence at its atoms |
+| Pure's `combination` | the premise at the argument, then the argument's equation substituted into the function by the formula recursion, membership's congruence at its atoms; at a proposition, the premise's truth instance, then β |
 | `Thm` of a theorem polymorphic in a type no class restricts, at a type binding no proposition on its spine | its proof at that type, in place: the target has no type |
 | `Thm` of a theorem polymorphic in a type no class restricts, at a type binding a proposition on its spine | its instance there, a schema of the unit named by its proof's content; `schema_inst` at the citation |
 | an application of a logical rule (`conjI`, `mp`, `spec`, `exE`, …) | the kernel's OWN step at its premises; never translated (S4) |

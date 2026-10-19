@@ -167,6 +167,10 @@ struct TermProofs {
                 at: [try at.lift(fn, &t), try at.node(tau, &t)],
                 in: &t,
             )
+
+        case .truthSet(let proposition):
+            let read = try walked(formula: proposition, in: &t)
+            return try base.instance(.truthSetEX, [try at.lift(read, &t)], in: &t)
         }
     }
 
@@ -234,7 +238,7 @@ struct TermProofs {
                 case .bound(let kt) = tau
             else { throw unexpected }
             let f = ConstantFact(constant: c, type: T, fact: .function)
-            let classGuards = try zip(classes, T.domains.filter { $0 != .i }).compactMap { k, D -> NodeID? in
+            let classGuards = try zip(classes, T.domains.filter { !isEntry($0) }).compactMap { k, D -> NodeID? in
                 isFunctionClass(D) ? try lambdaFunction(k, at, hypotheses, pieces, guardOf, &t) : nil
             }
             let function = try eliminated(
@@ -273,6 +277,12 @@ struct TermProofs {
                 in: &t,
             )
             return try eliminated(atTau, at: [w, w2], premises: [try hyp(j, &t), try hyp(j + m, &t)], in: &t)
+
+        case .truthSet(let proposition):
+            guard case .truthSet(proposition) = p2 else { throw unexpected }
+            let read = try walked(formula: proposition, in: &t)
+            let unique = try base.instance(.truthUNIQ, [try at.lift(read, &t)], in: &t)
+            return try eliminated(unique, at: [w, w2], premises: [try hyp(j, &t), try hyp(j + m, &t)], in: &t)
         }
     }
 

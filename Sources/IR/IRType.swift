@@ -45,10 +45,15 @@ public func result(_ T: IRType) -> IRType {
     return result(U)
 }
 
+public func objectType(_ T: IRType) -> IRType {
+    guard case .fn(let A, let B) = T else { return T }
+    return .fn(A == .o ? .i : A, objectType(B))
+}
+
 public func guardPredicate(_ T: IRType) -> Predicate? {
     switch T {
     case .i: .base("set")
-    case .fn: isObject(T) && result(T) == .i ? .base("function") : nil
+    case .fn: isObject(objectType(T)) && result(T) == .i ? .base("function") : nil
     case .o, .variable: nil
     }
 }

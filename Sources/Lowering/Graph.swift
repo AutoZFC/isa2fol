@@ -77,10 +77,12 @@ struct GraphProofs {
             return .term { s, xs, t in
                 var sets = xs[...]
                 var classes = ps[...]
-                let args = try T.domains.map { D -> NodeID in D == .i ? sets.removeFirst() : try s.variable(
-                    classes.removeFirst(),
-                    in: &t,
-                ) }
+                let args = try T.domains.map { D -> NodeID in
+                    isEntry(D) ? try atEntry(D, sets.removeFirst(), in: &t) : try s.variable(
+                        classes.removeFirst(),
+                        in: &t,
+                    )
+                }
                 return try beta(definiens, args, in: &t)
             }
 
@@ -95,7 +97,7 @@ struct GraphProofs {
     }
 
     private func totality(_ f: ConstantFact, _ t: inout Table) throws -> NodeID {
-        let classes = f.type.domains.filter { $0 != .i }
+        let classes = f.type.domains.filter { !isEntry($0) }
         let m = f.type.domains.count - classes.count
         var fr = Frame()
         let ps = classes.map { fr.fix($0) }
@@ -194,7 +196,7 @@ struct GraphProofs {
     }
 
     private func function(_ f: ConstantFact, _ t: inout Table) throws -> NodeID {
-        let classes = f.type.domains.filter { $0 != .i }
+        let classes = f.type.domains.filter { !isEntry($0) }
         let m = f.type.domains.count - classes.count
         var fr = Frame()
         let ps = classes.map { fr.fix($0) }
@@ -532,7 +534,7 @@ struct GraphProofs {
     }
 
     private func agreement(_ f: ConstantFact, _ t: inout Table) throws -> NodeID {
-        let classes = f.type.domains.filter { $0 != .i }
+        let classes = f.type.domains.filter { !isEntry($0) }
         var fr = Frame()
         let ps = classes.map { fr.fix($0) }
         let ps2 = classes.map { fr.fix($0) }

@@ -62,10 +62,21 @@ struct UnfoldingProofs {
         let d = try graphs.definition(r.constant)
         let domains = d.type.domains
         var s = Scope()
-        let variables = domains.map { s.fix($0) }
+        var variables = [Int]()
         var matrix = r.statement
-        for _ in domains {
+        for T in domains {
+            if T == .o {
+                guard case .folForall(let guarded) = t[matrix], case .folImplies(_, let body) = t[guarded] else {
+                    throw UnfoldingError.notAnUnfolding(r.name)
+                }
+                let v = s.fix(nil)
+                variables.append(v)
+                _ = s.assume(try truth(try s.variable(v, in: &t), in: &t))
+                matrix = body
+                continue
+            }
             guard case .ifolAll(_, let body) = t[matrix] else { throw UnfoldingError.notAnUnfolding(r.name) }
+            variables.append(s.fix(T))
             matrix = body
         }
         let unfolder = Unfolder(
@@ -85,7 +96,14 @@ struct UnfoldingProofs {
             } else {
                 try unfolder.function(matrix, Frame(s), &t)
             }
-        for T in domains.reversed() { proof = try t.intern(.isaAllIntro(T, body: proof)) }
+        for T in domains.reversed() {
+            guard T == .o else {
+                proof = try t.intern(.isaAllIntro(T, body: proof))
+                continue
+            }
+            let premise = try truth(try t.intern(.folBound(0)), in: &t)
+            proof = try t.intern(.folForallIntro(body: try t.intern(.folImpliesIntro(premise, body: proof))))
+        }
         return proof
     }
 }
@@ -112,9 +130,11 @@ private struct Unfolder {
 
     func function(_ matrix: NodeID, _ f: Frame, _ t: inout Table) throws -> NodeID {
         var f = f
+        let (es, hes) = try truthSets(&f, &t)
         let (ks, hks) = try slotClasses(&f, &t)
-        let (c, hc) = try f.open(try atTuple.classExists(ks, f, &t), in: &t)
-        let (tw, ht) = try f.open(try atTuple.tupleExists(f, &t), in: &t)
+        let at = atTuple(es)
+        let (c, hc) = try f.open(try at.classExists(ks, f, &t), in: &t)
+        let (tw, ht) = try f.open(try at.tupleExists(f, &t), in: &t)
         let total = ConstantFact(constant: constant, type: definition.type, fact: .totality)
         let classes = try (ks + [c]).map { try f.variable($0, in: &t) }
         let atC = try eliminated(
@@ -126,20 +146,21 @@ private struct Unfolder {
         let (r, hr) = try f.open(
             try eliminated(
                 atC,
-                at: try (sets + [tw]).map { try f.variable($0, in: &t) },
+                at: try (at.sets + [tw]).map { try f.variable($0, in: &t) },
                 premises: [try f.hypothesis(ht, in: &t)],
                 in: &t,
             ),
             in: &t,
         )
-        let member = try atTuple.converted(c, ks, hc, tw, ht, value: r, &f, &t)
+        let member = try at.converted(c, ks, hc, tw, ht, value: r, &f, &t)
         let valued = try t.intern(.folIffElimL(member, try f.hypothesis(hr, in: &t)))
-        let core = try readBack(ks, hks, value: r, f, &t).map { try t.intern(.folIffElimL($0, valued)) } ?? valued
+        var core = try readBack(ks, hks, es, value: r, f, &t).map { try t.intern(.folIffElimL($0, valued)) } ?? valued
+        if let read = try truthsRead(es, hes, value: r, f, &t) { core = try t.intern(.folIffElimL(read, core)) }
         return try f.close(
             try closing(
                 try f.scope.lift(matrix, from: depth, in: &t),
-                try (ks + [c, tw, r]).map { try f.variable($0, in: &t) },
-                try (hks + [hc, ht, hr]).map { try f.hypothesis($0, in: &t) },
+                try (es + ks + [c, tw, r]).map { try f.variable($0, in: &t) },
+                try (hes + hks + [hc, ht, hr]).map { try f.hypothesis($0, in: &t) },
                 core,
                 in: &t,
             ),
@@ -149,33 +170,53 @@ private struct Unfolder {
 
     func predicate(_ matrix: NodeID, _ f: Frame, _ t: inout Table) throws -> NodeID {
         guard case .folIff(let left, let right) = t[matrix] else { throw UnfoldingError.notAnUnfolding(name) }
+        let p = propositions.count
+        let k = slots.count
         var fw = f
         let ha = fw.assume(try fw.scope.lift(left, from: depth, in: &t))
-        let o = try fw.open(chain: .hypothesis(ha), slots.map { _ in .cls } + [.cls, .set], in: &t)
-        let k = slots.count
-        let hks = try o.constraints[..<k].map { try fw.have(try fw.proof($0, in: &t), in: &t) }
-        let hc = try fw.have(try fw.proof(o.constraints[k], in: &t), in: &t)
-        let ht = try fw.have(try fw.proof(o.constraints[k + 1], in: &t), in: &t)
-        let ks = Array(o.witnesses[..<k])
-        let member = try atTuple.converted(o.witnesses[k], ks, hc, o.witnesses[k + 1], ht, value: nil, &fw, &t)
+        let binders = propositions.map { _ in Binder.set } + slots.map { _ in .cls } + [.cls, .set]
+        let o = try fw.open(chain: .hypothesis(ha), binders, in: &t)
+        let hes = try o.constraints[..<p].map { try fw.have(try fw.proof($0, in: &t), in: &t) }
+        let hks = try o.constraints[p..<(p + k)].map { try fw.have(try fw.proof($0, in: &t), in: &t) }
+        let hc = try fw.have(try fw.proof(o.constraints[p + k], in: &t), in: &t)
+        let ht = try fw.have(try fw.proof(o.constraints[p + k + 1], in: &t), in: &t)
+        let es = Array(o.witnesses[..<p])
+        let ks = Array(o.witnesses[p..<(p + k)])
+        let member = try atTuple(es).converted(
+            o.witnesses[p + k],
+            ks,
+            hc,
+            o.witnesses[p + k + 1],
+            ht,
+            value: nil,
+            &fw,
+            &t,
+        )
         var reached = try t.intern(.folIffElimL(member, try fw.proof(o.core, in: &t)))
-        if let read = try readBack(ks, hks, value: nil, fw, &t) { reached = try t.intern(.folIffElimL(read, reached)) }
+        if let read = try readBack(ks, hks, es, value: nil, fw, &t) {
+            reached = try t.intern(.folIffElimL(read, reached))
+        }
+        if let read = try truthsRead(es, hes, value: nil, fw, &t) { reached = try t.intern(.folIffElimL(read, reached))
+        }
         let forward = try fw.close(reached, in: &t)
 
         var bw = f
         let hb = bw.assume(try bw.scope.lift(right, from: depth, in: &t))
+        let (bes, bhes) = try truthSets(&bw, &t)
         let (bks, bhks) = try slotClasses(&bw, &t)
-        let (c, hc2) = try bw.open(try atTuple.classExists(bks, bw, &t), in: &t)
-        let (tw, ht2) = try bw.open(try atTuple.tupleExists(bw, &t), in: &t)
-        let member2 = try atTuple.converted(c, bks, hc2, tw, ht2, value: nil, &bw, &t)
+        let at = atTuple(bes)
+        let (c, hc2) = try bw.open(try at.classExists(bks, bw, &t), in: &t)
+        let (tw, ht2) = try bw.open(try at.tupleExists(bw, &t), in: &t)
+        let member2 = try at.converted(c, bks, hc2, tw, ht2, value: nil, &bw, &t)
         var body = try bw.hypothesis(hb, in: &t)
-        if let read = try readBack(bks, bhks, value: nil, bw, &t) { body = try t.intern(.folIffElimR(read, body)) }
+        if let read = try truthsRead(bes, bhes, value: nil, bw, &t) { body = try t.intern(.folIffElimR(read, body)) }
+        if let read = try readBack(bks, bhks, bes, value: nil, bw, &t) { body = try t.intern(.folIffElimR(read, body)) }
         let inC = try t.intern(.folIffElimR(member2, body))
         let backward = try bw.close(
             try closing(
                 try bw.scope.lift(left, from: depth, in: &t),
-                try (bks + [c, tw]).map { try bw.variable($0, in: &t) },
-                try (bhks + [hc2, ht2]).map { try bw.hypothesis($0, in: &t) },
+                try (bes + bks + [c, tw]).map { try bw.variable($0, in: &t) },
+                try (bhes + bhks + [hc2, ht2]).map { try bw.hypothesis($0, in: &t) },
                 inC,
                 in: &t,
             ),
@@ -188,16 +229,75 @@ private struct Unfolder {
         definition.type.domains
     }
 
+    private var slots: [Int] {
+        variables.indices.filter { !isEntry(domains[$0]) }
+    }
+
+    private var propositions: [Int] {
+        variables.indices.filter { domains[$0] == .o }
+    }
+
     private var sets: [Int] {
         variables.indices.filter { domains[$0] == .i }.map { variables[$0] }
     }
 
-    private var slots: [Int] {
-        variables.indices.filter { domains[$0] != .i }
+    private func atTuple(_ truthSets: [Int]) -> AtTuple {
+        var queue = truthSets[...]
+        let entries = variables.indices.filter { isEntry(domains[$0]) }.map { j in
+            domains[j] == .o ? queue.removeFirst() : variables[j]
+        }
+        return AtTuple(base: base, graphs: graphs, constant: constant, type: definition.type, sets: entries, name: name)
     }
 
-    private var atTuple: AtTuple {
-        AtTuple(base: base, graphs: graphs, constant: constant, type: definition.type, sets: sets, name: name)
+    private func proposition(_ j: Int, _ s: Scope, _ t: inout Table) throws -> NodeID {
+        try t.intern(.isaPropBound(s.depth - 1 - variables[j]))
+    }
+
+    private func truthSets(_ f: inout Frame, _ t: inout Table) throws -> (sets: [Int], constraints: [Int]) {
+        var sets = [Int]()
+        var constraints = [Int]()
+        for j in propositions {
+            let read = try walked(formula: try proposition(j, f.scope, &t), in: &t)
+            let (e, h) = try f.open(try base.instance(.truthSetEX, [read], in: &t), in: &t)
+            sets.append(e)
+            constraints.append(h)
+        }
+        return (sets, constraints)
+    }
+
+    private func truthsRead(
+        _ es: [Int],
+        _ hes: [Int],
+        value r: Int?,
+        _ f: Frame,
+        _ t: inout Table,
+    ) throws -> NodeID? {
+        guard !es.isEmpty else { return nil }
+        var atTruthSets = [Int: NodeID]()
+        var atPropositions = [Int: NodeID]()
+        for j in slots {
+            atTruthSets[j] = try slot(j, f, &t)
+            atPropositions[j] = atTruthSets[j]
+        }
+        var holes = [(set: NodeID, read: NodeID, constraint: Int)]()
+        for (n, j) in propositions.enumerated() {
+            atTruthSets[j] = try holds(try f.variable(es[n], in: &t), in: &t)
+            atPropositions[j] = try proposition(j, f.scope, &t)
+            holes.append((atTruthSets[j]!, try walked(formula: atPropositions[j]!, in: &t), hes[n]))
+        }
+        let have = try walked(try instance(atTruthSets, value: r, f.scope, &t), base: base, in: &t)
+        let wanted = try walked(try instance(atPropositions, value: r, f.scope, &t), base: base, in: &t)
+        let d = f.scope.depth
+        return try Replacement(base: base) { _, l, r, inner, t in
+            for hole in holes {
+                guard
+                    l == (try inner.lift(hole.set, from: d, in: &t)),
+                    r == (try inner.lift(hole.read, from: d, in: &t))
+                else { continue }
+                return try inner.proof(.right(.hypothesis(hole.constraint)), in: &t)
+            }
+            return nil
+        }.proof(have, have, wanted, in: f.scope, &t)
     }
 
     private func slotClasses(_ f: inout Frame, _ t: inout Table) throws -> (classes: [Int], definitions: [Int]) {
@@ -235,6 +335,7 @@ private struct Unfolder {
     private func readBack(
         _ ks: [Int],
         _ hks: [Int],
+        _ es: [Int],
         value r: Int?,
         _ f: Frame,
         _ t: inout Table,
@@ -274,6 +375,10 @@ private struct Unfolder {
                     givenInner[i] = try inner.variable(later[m - n - 1], in: &t)
                     givenOuter[i] = try outer.variable(later[m - n - 1], in: &t)
                 }
+            }
+            for (m, i) in propositions.enumerated() {
+                givenInner[i] = try holds(try inner.variable(es[m], in: &t), in: &t)
+                givenOuter[i] = try holds(try outer.variable(es[m], in: &t), in: &t)
             }
             let psi = try instance(givenInner, value: r, inner, &t)
             let wanted = try walked(try instance(givenOuter, value: r, outer, &t), base: base, in: &t)

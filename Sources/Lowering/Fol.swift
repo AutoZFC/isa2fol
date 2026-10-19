@@ -58,10 +58,10 @@ private func piece(_ p: Pattern) -> Piece? {
     case .isaAllIntro(let T, _): isObject(T) ? .intro(T) : nil
     case .isaAllElim(_, let T): T == .i ? .instance : nil
     case .isaGuard(let T, _): isObject(T) ? .guardOf : nil
-    case .isaBound(let T): mentionsTypeVariable(T) || T == .o ? nil : isObject(T) ? .variable : .unbuilt
+    case .isaBound(let T): mentionsTypeVariable(T) || T == .o ? nil : isObject(objectType(T)) ? .variable : .unbuilt
     case .isaExIntro(_, let T, _): T == .i ? .existsIntro : nil
     case .isaExElim(let T, _, _): T == .i ? .existsElim : nil
-    case .isaHidden(let T, _): isObject(T) ? .hidden(T) : nil
+    case .isaHidden(let T, _): isObject(objectType(T)) ? .hidden(T) : nil
     case .hyp: .renumber
     case .isaConst, .isaFree, .isaVarApp, .isaAbs, .isaOfClass, .isaReflexive, .isaSymmetric, .isaTransitive,
          .isaCombination, .isaAbstract, .isaClassical, .isaIffReflection, .isaDefinition, .isaPropAll, .isaPropIntro,

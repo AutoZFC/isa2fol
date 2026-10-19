@@ -26,7 +26,7 @@ public struct Reify {
             }
 
         case .isaVarApp(head: let T, _):
-            return mentionsTypeVariable(T) ? nil : isObject(T) ? .rule : .unbuilt
+            return mentionsTypeVariable(T) ? nil : isObject(objectType(T)) ? .rule : .unbuilt
 
         case .isaAbs(let T, body: let U):
             return isObject(.fn(T, U)) ? .rule : nil
@@ -75,7 +75,7 @@ public struct Reify {
 
 private func namesConstant(_ T: IRType) -> Bool {
     let domains = T.domains
-    return domains.allSatisfy(isObject) && (result(T) == .i || result(T) == .o && !domains.isEmpty)
+    return domains.allSatisfy { isObject($0) || $0 == .o } && (result(T) == .i || result(T) == .o && !domains.isEmpty)
 }
 
 private func value(_ p: Pattern) -> IRType? {
@@ -112,6 +112,7 @@ enum NamedPiece: Hashable {
     case tuple([Ref])
     case value(tuple: Ref, cls: Ref)
     case applied(tuple: Ref, function: NodeID)
+    case truthSet(NodeID)
 }
 
 /// ⚠ ONE VARIABLE PER OCCURRENCE, NEVER PER DISTINCT TERM: shared per term, the instance of a translation differs from
@@ -147,7 +148,7 @@ struct Naming {
             return try chain.predicate(.base("elem"), [tau, C], in: &t)
 
         case .isaVarApp(let P, let args):
-            let sets = try args.indices.map { try name(args[$0], [$0], &t) }
+            let sets = try entries(args, [], &t)
             let tau = try tupled(sets, &t)
             return try chain.predicate(.base("elem"), [tau, .outer(P)], in: &t)
 
@@ -191,7 +192,7 @@ struct Naming {
             return r
 
         case .isaVarApp(let f, let args):
-            let sets = try args.indices.map { try name(args[$0], path + [$0], &t) }
+            let sets = try entries(args, path, &t)
             let tau = try tupled(sets, &t)
             let r = bind(.set, .applied(tuple: tau, function: f))
             chain.constrain(r, try chain.predicate(.base("apply"), [tau, r, .outer(f)], in: &t))
@@ -227,9 +228,30 @@ struct Naming {
         _ t: inout Table,
     ) throws -> ([Ref], [Ref]) {
         let domains = T.domains
-        let sets = try args.indices.filter { domains[$0] == .i }.map { try name(args[$0], path + [$0], &t) }
-        let classes = try args.indices.filter { domains[$0] != .i }.map { try nameClass(args[$0], path + [$0], &t) }
+        let sets = try args.indices.filter { isEntry(domains[$0]) }.map { k in
+            try entry(args[k], domains[k], path + [k], &t)
+        }
+        let classes = try args.indices.filter { !isEntry(domains[$0]) }.map { try nameClass(args[$0], path + [$0], &t) }
         return (sets, classes)
+    }
+
+    private mutating func entries(_ args: [NodeID], _ path: [Int], _ t: inout Table) throws -> [Ref] {
+        try args.indices.map { k in
+            guard let T = t.type(of: args[k]) else { throw ReifyError.notATerm(args[k]) }
+            return try entry(args[k], T, path + [k], &t)
+        }
+    }
+
+    private mutating func entry(_ x: NodeID, _ T: IRType, _ path: [Int], _ t: inout Table) throws -> Ref {
+        guard T == .o else { return try name(x, path, &t) }
+        let start = chain.binders.count
+        let read = try walked(formula: x, in: &t)
+        let E = bind(.set, .truthSet(x))
+        let e = try chain.here(E, in: &t)
+        let holding = try t.intern(.folIff(try holds(e, in: &t), try chain.here(.outer(read), in: &t)))
+        chain.constrain(E, try t.intern(.folAnd(try truth(e, in: &t), holding)))
+        if path == designated { site = (start..<chain.binders.count, E) }
+        return E
     }
 
     private mutating func bind(_ b: Binder, _ piece: NamedPiece) -> Ref {
@@ -361,7 +383,7 @@ func atDefinition(_ c: Defined, _ definitions: [Definition], in t: inout Table) 
             valued,
         ))))
     }
-    let classes = domains.filter { $0 != .i }
+    let classes = domains.filter { !isEntry($0) }
     let k = classes.count
     let lambda = try definedLambda(
         d,
@@ -380,13 +402,13 @@ func atDefinition(_ c: Defined, _ definitions: [Definition], in t: inout Table) 
 
 func definedLambda(_ d: Definition, classes: [NodeID], in t: inout Table) throws -> NodeID {
     let domains = d.type.domains
-    let m = domains.count(where: { $0 == .i })
+    let m = domains.count(where: isEntry)
     var sets = 0
     var slots = 0
     let arguments = try domains.map { T -> NodeID in
-        if T == .i {
+        if isEntry(T) {
             defer { sets += 1 }
-            return try t.intern(.isaBound(m - 1 - sets, .i))
+            return try atEntry(T, try t.intern(.isaBound(m - 1 - sets, .i)), in: &t)
         }
         defer { slots += 1 }
         return try shift(classes[slots], by: m, in: &t)

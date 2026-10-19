@@ -5261,6 +5261,285 @@ lemmas left out (7,018); 8 refused unbuilt. `scripts/check-unit.sh`: 33 parts, e
 2,331 of 2,331, schemas 352 of 352; 264.2 MB, 2,884,207 steps written. The step's reach is step 6's: the 668 wait on
 `If`, and the memory they bring is paid now.
 
+### Step 6 — a proposition as an argument: `If`, `bool_of_o`, and a variable only the proof uses at `o ⇒ i`  **[AGREED 2026-10-18 (user), the two decisions one by one]**
+
+**The step.** ZF's `If :: o ⇒ i ⇒ i ⇒ i` and Bool's `bool_of_o :: o ⇒ i` take a proposition, and IFOL's eight
+`quant_simps` hold or cite a variable only the proof uses at `o ⇒ i`, applied to a proposition: iprover's unknown witness,
+lifted over the goal's proposition. No pass reads either.
+The complete run: Logic leaves 874 named theorems unbuilt, 873 at `If(φ, a, b)` (`isaConst(defined zf object, (o ⇒ (i ⇒
+(i ⇒ i))))`), 25 of them also at Pure's equality at `o ⇒ i ⇒ i ⇒ i`, and one at `bool_of_o`. In a throwaway trace of the
+873, not kept, 116 state `If` or `bool_of_o`; 856 cite a statement that does — `ZF_Base.if_def` 714, `upair.if_weak_cong`
+694, `Arith.natify_def` 470, `Int.intify_def` 295 — and 833 apply it in a step of their own proof (`Arith.add_natify1`
+inside the λ of `natify`'s definition, `Vrecursor(λf a. if a = succ(pred(a)) then … else 0)`, at an instance). `if_def`'s
+proof, step 9's box read at `If`, is `transitive` and `combination` at `o ⇒ i ⇒ i ⇒ i`. Among the refused citations
+`ZF_Base.Replace_iff` 144 and `FOL.IFOL_simps.32` 116 fall with `IFOL.quant_simps`' variable at `o ⇒ i` (believed, from a
+trace not kept). The census: `If` applied in 5,590 closures, `bool_of_o` in 983, the variable at `o ⇒ i` applied in 7,418,
+Pure's equality at `o ⇒ i ⇒ i ⇒ i` in 5,020 (`SOURCE_SURFACE.md`).
+
+**The problem, in target text.**
+
+```
+Isabelle   definition If :: "[o, i, i] ⇒ i"   where  if_def: "if P then a else b ≡ THE z. P ∧ z = a ∨ ¬P ∧ z = b"
+           upair.if_P        P ⟹ (if P then a else b) = a                                 by (unfold if_def, blast)
+read       isaConst(If, o ⇒ i ⇒ i ⇒ i, [P, a, b]) = a                                         Logic: unbuilt
+           if_def's proof    isaTransitive and isaCombination at o ⇒ i ⇒ i ⇒ i                 Logic: unbuilt
+
+Isabelle   IFOL.quant_simps(4)   ⋀P. (∃x. P) ⟷ P                                             by iprover
+             its box       IFOL.BOX_b500525026ad427f, binding P: exI at f(P), f :: o ⇒ i only the proof's
+read       isaHidden(o ⇒ i, … isaVarApp(f, [P]) …)                                           Logic: unbuilt
+```
+
+FOUNDATION S4 reads both: "a proposition as a constant's argument (`If(φ, a, b)`) … is its truth set, a set entry of the
+argument tuple (R7)", and a function of propositions is a class of tuples of truth sets. Wanted, `⟨E, a, b⟩ = t` standing
+for the tuple's `snoc` chain as the walk writes it:
+
+```
+@def(ZF_Base.If)  forall C. (ZF_Base.If(C) <-> (forall t. (set(t) -> (forall r. (set(r) -> (pmem(t, r, C) <->
+                    (exists E. (set(E) & (exists a. (set(a) & (exists b. (set(b) & (⟨E, a, b⟩ = t &
+                      r = THE z. ((holds(E) & z = a) | (~holds(E) & z = b)) …                    the THE named as now
+schema upair.if_P [A0(0)]: forall a. (set(a) -> (forall b. (set(b) -> (A0 ->
+                    (exists E. (set(E) & ((truth(E) & (holds(E) <-> A0)) & (exists C. (ZF_Base.If(C) &
+                      (exists t. (set(t) & (⟨E, a, b⟩ = t & (exists r. (set(r) & (pmem(t, r, C) & eq(r, a)) …
+quant_simps(4)    exists_elim function_inhabited, F;   f(P):   exists E. (set(E) & ((truth(E) & (holds(E) <-> A0)) &
+                      (exists t. (set(t) & (⟨E⟩ = t & (exists r. (set(r) & (apply(t, r, F) & …
+```
+
+**1. A proposition as an argument is its truth set, a set entry of the argument tuple, named where it stands: a
+constant taking one is a class over such tuples, a variable taking one a class variable as at the object type.**
+**AGREED 2026-10-18 (user).** FOUNDATION S4 as written. A term `c(…, φ, …)` or `f(…, φ, …)` with `φ` at an argument `o`
+names a set `E` where `φ` stands in its tuple, its constraint `truth(E) ∧ (holds(E) ↔ φ*)`: EX base's `truth_EX`, whose
+witness, `{∅}` or `∅`, is a set; UNIQ a new base claim, `truth_UNIQ`, two truth sets of one truth equal by
+extensionality. A constant whose arguments are propositions and objects has its class over those tuples — its `@def` its
+definiens with each proposition parameter read `holds(E)`, `E` its entry — and its facts are every constant's: class
+existence, totality, function, agreement, `c_UNFOLD`; the class prover reads `truth` and `holds` by base's definitions.
+A variable at such a type — the one only the proof uses at `o ⇒ i` — is a class variable as at the object type: valued
+in `i`, `function(F)` its guard, `function_inhabited` binding it, `apply` at its tuple its value.
+
+| | `If(φ, a, b)`; `f(φ)`, `f :: o ⇒ i` only the proof's |
+|---|---|
+| now | Logic, unbuilt |
+| named | `∃E. truth(E) ∧ (holds(E) ↔ φ*) ∧ ∃C. If(C) ∧ ∃t. ⟨E, a, b⟩ = t ∧ ∃r. pmem(t, r, C) ∧ …`; `… apply(⟨E⟩, r, F) …` |
+
+Not the reference's reading, the class of the empty tuple a class argument (R4's route): a class argument is a parameter
+of the constant's class, bringing a λ class per proposition, their agreement for UNIQ and a lift per constant; and the
+variable at `o ⇒ i` would take a class, which has no reading — no class of classes, as at `(i ⇒ o) ⇒ o ⇒ i`. A truth set
+is a set: `truth_EX` names it where it stands, it sits in the tuple, and the variable at `o ⇒ i` is a class of sets. Not
+`If` unfolded where it stands: it is a ZF constant at the object level, its definiens a `THE`, and 116 theorems state it.
+
+**2. Pure's equality at a function whose arguments are propositions and objects is pointwise in every argument, each
+binder by its argument's kind — a proposition's the bound `⋀P`'s truth set, an object's step 4's: one reading, so Truths'
+rules at `o⃗ ⇒ o` and Functions' at objects become one.** **AGREED 2026-10-18 (user).** Step 4 reads `f ≡ g` over objects as `⋀x⃗. f x⃗ ≡ g x⃗`;
+"Functions of propositions" reads it at `o⃗ ⇒ o` as `∀E⃗. truth(E⃗) → (f*(E⃗) ↔ g*(E⃗))`. At `o ⇒ i ⇒ i ⇒ i` both kinds
+stand in one type:
+
+```
+f ≡ g at o ⇒ i ⇒ i ⇒ i   forall E. (truth(E) -> (forall a. (set(a) -> (forall b. (set(b) ->
+                            f(holds(E), a, b) = g(holds(E), a, b) …                       the equation at i named
+```
+
+`reflexive`, `symmetric` and `transitive` under the binders; `combination` at a proposition argument the truth instance
+then β, at an object step 4's; the λ over a proposition a wrapper. A ZF definition cited at such a constant is its
+`c_UNFOLD`, which states this reading, instantiated at its terms by each binder's instance. Built as two components each
+reading its own kind of argument, one equation's rule would be split by the kinds in its type (one route per rule): the
+step folds Truths' function rules into Functions', and Truths keeps S4's truth set — its binder, intro, variable and
+instance. A proposition argument's variable under its binder is the bound `⋀P`'s, read `holds(E)` by the walk, so a term
+holding it — `If(P, a, b)` at an instance — closes over it as a letter of its EX and UNIQ (`closed`), as a λ's does.
+
+| `if_def`'s proof, step 9's box read at `If` | at `o ⇒ i ⇒ i ⇒ i` |
+|---|---|
+| `h`, `reflexive If` | `∀E. truth(E) → ∀a b. If(holds(E), a, b) = If(holds(E), a, b)`, `eq_refl` under the binders |
+| `If_def_raw`, the definition cited | `If_UNFOLD`: `∀E. truth(E) → ∀a b. If(holds(E), a, b) = THE z. (holds(E) ∧ z = a) ∨ (¬holds(E) ∧ z = b)` |
+| `transitive h If_def_raw` | `eq_trans` under the binders |
+| `combination … (reflexive P)` | `truth_EX` at `P` opens `E`, the premise at `E`, `holds(E)` replaced by `P` (β); then step 4's at `a`, `b` |
+
+Not the two kept apart, each reading its own kind of argument and handing the equation at the rest of the type to the
+other: a step at the rest of the type would read its premises again at the isa level, where they are already the
+kernel's. Not Functions widened to a type with an object argument and Truths kept at `o⃗ ⇒ o`: one equation's rule split
+by the kinds in its type.
+
+**FOUNDATION first.**
+- S4's consequences: "A proposition as a constant's argument … is its truth set, a set entry of the argument tuple (R7)"
+  gains "named where it stands, `E ⊆ {∅}` and `∅ ∈ E ↔ φ`, unique by extensionality; the constant's class reads its
+  parameter `∅ ∈ E`. A variable taking a proposition — one only a proof uses at `o ⇒ i` — is a class variable over such
+  tuples, single-valued as at `i ⇒ i`."
+- "At `o⃗ ⇒ o` the equation is pointwise in every argument" becomes "At a type whose arguments are propositions and
+  objects the equation is pointwise in every argument, a truth-set binder at a proposition, an object binder at an object".
+- R6's note on `If` ("takes R4's route: build the graph per USE SITE") gains its correction: S4 supersedes it — `If` is one
+  class of tuples whose first entry is a truth set, and no graph is built per use.
+
+**The contracts (D2):**
+
+| | provides | assumes |
+|---|---|---|
+| Base | `truth_UNIQ`, kernel-checked | NBG's extensionality; the `truth` tier |
+| Reify | a proposition argument named by its truth set, its tuple's entry; a constant taking propositions: its class, `@def` and facts over those tuples; a variable taking them applied at its tuple | base's `truth_EX`, `truth_UNIQ` |
+| Class prover | `truth` and `holds` read by base's definitions | — |
+| Fol | a variable at a type of propositions and objects: its guard and its binding as at the object type | — |
+| Logic | Pure's equality at a function of propositions and objects, one pointwise reading and its steps; Truths' function rules folded into it | Reify's naming of a proposition argument |
+
+**Tests, written first.**
+- `check-base.sh`: the `truth` tier proves `truth_UNIQ`.
+- `ReifyTests`: `If(φ, a, b) = a` named with `φ`'s truth set its tuple's entry; the `@def` of a constant taking a
+  proposition reads `holds(E)` at its entry; `f(φ)` at `o ⇒ i` by `apply`. EX and UNIQ of `If(φ, a, b)` proved.
+- `FolTests`: `isaHidden(o ⇒ i)` opens `function_inhabited`.
+- `LogicTests`: Pure's equality at `o ⇒ i ⇒ i ⇒ i` — the formula, `reflexive`, `transitive`, `combination` at its
+  proposition argument — concluding as read; at `o⃗ ⇒ o` each concludes what it concluded.
+- `PlanTests`: `isaConst` and `isaVarApp` at a type taking a proposition Reify's, `isaHidden(o ⇒ i)` Fol's, Pure's
+  equality at `o ⇒ i ⇒ i ⇒ i` Logic's, each with a rule.
+- `ProofEmissionTests`, the real checker: an `if_P` and a `quant_simps` in miniature, proved.
+- The ZF session: `ZF_Base.if_def`, `upair.if_P`, `if_not_P`, `if_weak_cong`, `Bool.bool_of_o_def`, `IFOL.quant_simps`
+  lowered; Logic leaving `AC.AC` alone; complete, emitted, kernel-checked.
+
+**Not in this step.** A variable only the proof uses at a type taking a class (`(i ⇒ o) ⇒ o ⇒ i`, `FOL.int_all_simps.3`,
+behind `ZF_Base.BOX_fe88880df9563825` 178); Pure's `abstract_rule` over a proposition, whose premise the table reads as
+a letter's `⋀`; `AC.AC`.
+
+**Built.** IR: `objectType(T)`, a type with each proposition argument read at `i`, its truth set; a guard is its object
+type's. Base, the `truth` tier: `truth_set_EX`, `truth_UNIQ`, `truth_of_set`, `cong_holds`. Reify: the piece
+`truthSet`, a proposition argument named where it stands, an entry of its tuple; a constant whose arguments are objects
+and propositions is named, its `@def` and its facts reading each proposition parameter `holds(E)` at its entry; a
+variable applied likewise. Fol: a variable at a type of objects and propositions is a variable as at its object type,
+bound by its inhabitation. The class prover reads `holds` and `truth` by base's statements. Logic: one piece,
+`pointwise`, for Pure's equality at a function of objects and propositions, its rules in Functions — the formula built
+at the isa level and walked once, a proposition's binder the bound `⋀P`'s; `combination` at a proposition the truth
+instance, then the replacement walk with the argument's equation as its hole. Truths keeps the truth set's instance and
+`fill`. The unfolding opens the truth set of each proposition parameter and reads `holds(E′)` back to the parameter.
+The instance walk takes a proposition argument holding the instantiated variable as a slot, converted through its truth
+set's constraint as a λ is through its class's definition.
+
+**Decisions made in the build**, for the user's review:
+1. **Base states the truth set as the naming binds it**: a tuple's entry is a set, and Fol discharges a set's guard
+   from its binder, so the naming binds the truth set at `i` and its EX is `truth_set_EX`, `∃E. set(E) ∧ truth(E) ∧
+   (holds(E) ↔ A)`, proved from `truth_EX`, which the truth instance keeps opening as fol-zfc's own `∃`. `truth_UNIQ`
+   takes the naming's two constraints as its premises, as every UNIQ does. `truth_of_set` is `truth` at a set, `truth_def`
+   without its `set(E)` conjunct, which the class prover has no row for. `cong_holds` is `holds`'s congruence: the
+   `@def`'s reading `holds(E)` meets an entry replaced by an equal one (`T.select_FUNC`, `_UNFOLD`).
+2. **A proposition argument is recognised by its own type, never its head's**: a class variable's head can be fol-zfc's
+   own variable, untyped in the table (`combinationAtAClassArgumentSubstitutesIntoTheFunctionOfClasses` and
+   `aHiddenVariableIsTheWitnessOfItsTypesInhabitation` failed so).
+3. **A variable at `o ⇒ o` reads as one at `o ⇒ i`**: its application is a class's membership at the truth set's tuple,
+   its occurrence and its binding as only the proof's are Fol's, by the one rule (FOUNDATION S4's class of tuples of
+   truth sets); a statement binding one stays Logic's, unbuilt.
+4. **The unit kind `lambda` is `slot`**: a class slot's λ and a proposition argument, each converted by the replacement
+   walk over its reading — the class's definition, the truth set's constraint.
+5. **A truth set's piece carries its proposition as Isabelle states it, and the class prover builds the proposition from
+   it**: the constraint holds the proposition named, its constants' classes bound by fol-zfc's own `∃`, which the class
+   prover reads only through a naming's pieces — `Arith.natify_CLASS` (`if a = succ(pred(a)) then …`) stopped the run
+   `unread`. `truth(E)` and `holds(E)` it reads by base's statements, the proposition from its own formula
+   (`aDefinitionApplyingAConstantToAPropositionHoldingATermHasItsClass`).
+
+### Proof size — an instance converts each atom once, at the term's value; Pure's equality at objects on values  **[AGREED 2026-10-18 (user), the three decisions one by one]**
+
+**The step.** Step 6 lets in the integer theories, which `If` blocked (`intify`, `natify` are defined with `if`), and
+the ZF session no longer lowers in memory: through logic it was killed at 48 GB and again at 85 GB, after 32 minutes, in
+`List` (before step 6 the whole complete run peaked at 24.9 GB). In a throwaway trace, not kept, single theorems added
+millions of nodes to the table each — `Int.zmult_congruent2` 21.9M in 83 s, `IntDiv.DIVISION_BY_ZERO_ZDIV` 9.1M,
+`IntDiv.zdiv_zero` 7.8M, `Bin.integ_of_add` 7.3M — 180M in all before the kill, `IntDiv` 87M, `Int` 50M, `Bin` 19M.
+Lowered alone, `Int.zmult_congruent2` and the 720 statements it cites read to 220K nodes and leave logic at 30.7M, 140
+times as many, 11.4M of them reachable from the statements; emitted, the 1,364 statements of the unit it leaves (it is
+itself refused, citing `FOL.int_ex_simps.2`) write 1,270,204 steps, 107 MB, every part kernel-checked — the whole
+complete run before step 6, 2,845 statements, wrote 2,884,207. Nothing of it is step 6's: measured by wrapping each
+component (throwaway, not kept),
+
+| component | calls | nodes made, inclusive | per call |
+|---|---:|---:|---:|
+| an instance at a compound term (`TermInstance`) | 7,692 | 22.7M | 2,950 |
+| its conversions, one per occurrence of the variable (`Conversion.step`) | 16,413 | 21.7M | 1,320 |
+| an instance at a λ (`LambdaInstance`) | 2,134 | 5.7M | 2,650 |
+
+and by Logic's piece: Isabelle's own instances at compound terms 8.6M (28%); our translation of Pure's equality at
+objects 21M (68%) — `transitive` at `i` 3.0M, `combination` at an object or class argument 17.5M, a single
+`combination` at `(i ⇒ i ⇒ i) ⇒ (i ⇒ i)` up to 1.4M. The chains a conversion opens are short, 9 to 18 binders: no one
+construction explodes; every instance at a compound term costs thousands of nodes, and the simplifier's proofs make
+thousands.
+
+**The problem, in target text.** `lem : ⋀x. x ∈ x` at `succ(0)` ("Reify — S1 at the site", 3):
+
+```
+Isabelle   lem · succ(0)                                                       ⊢ succ(0) ∈ succ(0)
+now        EX ⟨succ(0)⟩ opened:  y,  ⟦y = succ(0)⟧ = ∃z C τ r. zero(z) ∧ succ(C) ∧ ⟨z⟩ = τ ∧ pmem(τ, r, C) ∧ eq(y, r)
+           lem at y:  elem(y, y)
+           elem(y, y) ↔ ⟦succ(0) ∈ succ(0)⟧, one occurrence of x at a time — each a step: both atoms named again,
+             → the atom's chain and EX's naming opened, the target closed, its constraints moved from y to r by
+               membership's congruence;  ← the target's chain opened, UNIQ ⟨succ(0)⟩, closed, congruence again
+           then iff_elim_l: only → was used
+```
+
+Each Isabelle step of Pure's equality between compound terms adds more such instances, of laws over variables:
+
+```
+Isabelle   transitive (s ≡ t) (t ≡ u)                                         ⊢ s ≡ u, at i
+now        ∀x y z. x = y → y = z → x = z (base's eq_trans) at s, t and u: three instances at compound terms
+Isabelle   combination (f ≡ g) (a ≡ b)                                        ⊢ f a ≡ g b, at an object argument
+now        f ≡ g pointwise at a (one instance), and ∀x y. x = y → (⟦f a … x⟧ ↔ ⟦f a … y⟧) at a and b (two)
+           at a class argument, the same congruence again at each application of the class variable inside the λ
+```
+
+**1. An instance at a compound term converts each atom once, at the term's value: every occurrence at once, its
+chain closed with the term's own pieces.** **AGREED 2026-10-18 (user).** EX ⟨t⟩ opened gives `t`'s pieces and its value `r` — the value's own piece,
+not a fresh `y` equal to it — and the premise is instantiated at `r`, an instance at a variable. An atom `α` holding
+`x` is converted once: `⟦α(r)⟧ → ⟦α(t)⟧` opens the atom's chain and closes the target's with EX's witnesses at every
+occurrence of `t` — one copy of `t`'s pieces serving each — and the atom's own pieces as they stand, whose constraints at
+the occurrences' values are those at `r`: no congruence. `⟦α(t)⟧ → ⟦α(r)⟧` opens the target's chain, moves each
+occurrence's value to `r` by UNIQ ⟨t⟩, and the atom's constraints that name it by membership's congruence. A slot — a λ
+argument, a proposition argument — keeps the replacement walk over its reading, its definition being a biconditional.
+
+```
+after      EX ⟨succ(0)⟩ opened:  z, C, τ, r;   lem at r:  elem(r, r)
+           ⟦succ(0) ∈ succ(0)⟧ = ∃z₁ C₁ τ₁ r₁. … ∃z₂ C₂ τ₂ r₂. … elem(r₁, r₂), closed at z C τ r twice, elem(r, r) its core
+```
+
+Not one conversion per occurrence, as now: each re-names and re-opens the whole atom, so an atom pays for its chain once
+per occurrence of the variable. Not the instance at a fresh `y`: every constraint naming `t`'s value then needs `eq(y,
+r)` and membership's congruence, which the instance at `r` makes unnecessary.
+
+**2. Each atom converts only in the direction its position takes.** **AGREED 2026-10-18 (user).** A walk carrying the polarity proves `⟦φ(r)⟧ →
+⟦φ(t)⟧`: an atom in a positive position by the closing of 1, one in a negative position — under `¬`, left of `→` — by
+1's opening with UNIQ, both under `↔`; the connectives and quantifiers by base's monotonicity schemas (`mono_and`,
+`mono_or`, `mono_imp`, `mono_not`, `mono_forall`, `mono_exists` and their bare forms, new), as `cong_*` serve the
+equivalence walk. Not the equivalence everywhere, as now: an instance at a compound term uses one direction, and the
+other doubles every atom's conversion.
+
+**3. Pure's equality at objects is proved on values: from the premises' namings, opened, their values chained by base's
+`eq_*`, the conclusion's naming closed with the premises' own witnesses — no law instantiated at a compound term.**
+**AGREED 2026-10-18 (user).** `transitive` at `i` opens `⟦s = t⟧` and `⟦t = u⟧`, relates the two namings of `t` by UNIQ ⟨t⟩, chains the values by
+`eq_trans` and closes `⟦s = u⟧` with `s`'s pieces from the first and `u`'s from the second; `symmetric` closes `⟦t = s⟧`
+from `⟦s = t⟧`'s own pieces, `reflexive` `⟦t = t⟧` from EX ⟨t⟩'s, twice. `combination` at an object argument opens `⟦a =
+b⟧`, instantiates the pointwise premise and the congruence at the values, variables, and closes the conclusion with `a`'s
+and `b`'s pieces by 1's closing.
+
+```
+after      ⟦s = t⟧ and ⟦t = u⟧ opened:  S, v_s;  T, v_t;  T′, v_t′;  U, v_u
+           UNIQ ⟨t⟩ at T, T′: eq(v_t, v_t′);  eq_trans twice: eq(v_s, v_u);  ⟦s = u⟧ closed at S, U
+```
+
+Not 1 alone: it makes each of the laws' instances cheaper, but `transitive` still instantiates three at compound terms,
+each with its EX, while the premises already name every term.
+
+**FOUNDATION first.** §3b's rows for an `AppT` at a compound term and for Pure's equality at objects gain how they are
+proved: the instance at the term's value, each atom's naming closed with the term's pieces, or opened by its UNIQ; the
+equality on the premises' values.
+
+**The contracts (D2):**
+
+| | provides | assumes |
+|---|---|---|
+| Base | the monotonicity schemas, kernel-checked | — |
+| Reify | an instance at a compound term concluding Isabelle's formula named, as now: each atom converted once, at the term's value, in its position's direction | EX and UNIQ per term, as now; the polarity walk |
+| Logic | Pure's equality at objects, as now in what it concludes, proved on the premises' values | UNIQ and EX per term; Reify's closing |
+
+**Tests, written first.**
+- `ReifyTests`: `lem : ⋀x. x ∈ x` at `succ(0)` concludes as now, its proof citing EX and no UNIQ, with no membership
+  congruence; at an atom with `x` in a negative position, UNIQ once per occurrence; the kernel checks both.
+- `LogicTests`: `transitive`, `symmetric`, `reflexive` at `i` between compound terms, and `combination` at an object
+  argument, conclude as now, citing no instance at a compound term; the kernel checks them.
+- A size check: the proof of the instance and of the `transitive` step, written, against the same proof now.
+- The ZF session: `Int.zmult_congruent2` lowered alone, its table and its emitted steps against now; then the complete
+  run within the CI's 32 GB, emitted and kernel-checked.
+
+**Not in this step.** An instance at a λ (`LambdaInstance`, 2,134 calls and 5.7M above) and `combination` at a class
+argument keep their per-occurrence β; measured after 1–3, they are the next candidates.
+
 ### Fol — binders, guards and variables  **[BUILT 2026-09-28 as the guard; Fol's 2026-10-14; every object type and `∃` at `i` with "Reify — S1 at the site" — `Sources/Lowering/Fol.swift`]**
 
 **Every isa binder at an object type, its intro, its variable and the guard of its variable become fol-zfc's, with the
