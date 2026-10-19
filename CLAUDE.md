@@ -11,7 +11,8 @@ the ZF sessions, statement AND proof, into the IR: ALL 9,420 are proved — the 
 conclusion is the statement's node, by ID — and 0 are refused (`DESIGN.md` §2). Nothing is
 absorbed: a type variable is `IRType.variable`, a class membership `isaOfClass` — and a theorem whose every type variable
 is restricted to `term` is read at `i`, the only type in `term` ("Step 1"); one no class restricts, cited at a type, is
-its proof read there, in place, when it binds no proposition on its spine there ("OFCLASS — …", 3). **The input layer is
+its proof read there, in place, when it binds no proposition on its spine there ("OFCLASS — …", 3), and its instance
+there a statement of the unit, named by its proof's content, when it binds one ("A theorem cited at a type"). **The input layer is
 `DESIGN.md` §4.3b**: Pure, IFOL, FOL and ZF contribute axioms and constants, read as typed values — Pure's equality
 rules, and the logic's natural-deduction rules fol-zfc has, read as their steps ("The logic's rules read as steps") —
 `Constant` (primitive · defined · declared), `Cited` (theorem · definition · axiom · theory axiom,
@@ -40,8 +41,8 @@ the argument, then the argument's equation substituted into the function by the 
 letters come first** (`DESIGN.md` "Letters first"): the reader closes a theorem over its propositions before its other
 frees and permutes each citation's leading term arguments to match, so a letter is instantiated by `schema_inst` on the
 citation and no instance walks a binder over a proposition; an axiom keeps the export's order. Of the ZF session's
-3,616 named theorems (`--skip` the other seven), `lower` lowers 278 to fol-zfc: 673 stop at no
-owner, 326 at logic (`If`, step 6; `AC.AC`, Choice), and 2,339 cite a refused statement, led by a box of `ZF_Base` that
+3,616 named theorems (`--skip` the other seven), `lower` lowers 279 to fol-zfc: 7 stop at no
+owner, 874 at logic (`If`, step 6; `AC.AC`, Choice), and 2,456 cite a refused statement, led by a box of `ZF_Base` that
 falls with `FOL.int_all_simps.3`, then `ZF_Base.Replace_iff` with `FOL.IFOL_simps.32`, each at a variable only the
 proof uses beyond objects — a `@def` holding a piece not built, or a theorem refused for one of the others. **ZF's axioms are theorems of base read back into Isabelle's form**
 (`DESIGN.md` "Step 8 — ZF's axioms, derived from NBG"): base states each in NBG's words — a primitive by its relation,
@@ -85,11 +86,11 @@ constant's from its `@def` and a primitive's from base. **Class existence has it
 `member_class` or `graph_class`; a class binder a hypothesis of what lies under it; one lift per class-taking constant,
 uniform in the record's length, re-keyed by `REKEY`; the class prover does not read yet the classes of λs holding a
 proposition. **A lemma is proved once a statement that stands cites it** (`DESIGN.md` "Lazy proving"): the link closes
-before the registry proves, and the unit keeps only what a kept statement cites — 7,018 lemmas of the
+before the registry proves, and the unit keeps only what a kept statement cites — 8,207 lemmas of the
 ZF session left out, never proved; a request set aside comes back when a proof the registry makes cites it. **Emission
 is built** (`DESIGN.md` "Emission"): `isa2fol lower data/zf_export --emit DIR` writes the unit as parts — a theory's
 theorems, a lemma in its first citer's part — and `scripts/check-unit.sh DIR` kernel-checks each against the libraries
-of base and of the parts it cites: all 2,330 claims and 350 schemas of the ZF session's unit Proved, 264.2 MB; a step
+of base and of the parts it cites: all 2,331 claims and 352 schemas of the ZF session's unit Proved, 264.2 MB; a step
 is cited only inside the block that wrote it, the checker keying a fact by its formula. `DESIGN.md` is the plan; its "The steps after class
 existence, in order" is the order of work, agreed again from step 2 on around FOUNDATION S4.
 
@@ -274,7 +275,7 @@ determinism R1–R3 (§4.6).
    print(f'{c}/{t} = {100*c/t:.1f}%')"
    ```
 
-   ✓ **CURRENTLY 64/13570 = 0.5%, under the cap.** Keep it there: a breach is
+   ✓ **CURRENTLY 64/13574 = 0.5%, under the cap.** Keep it there: a breach is
    fixed by deleting prose, never by raising the cap.
 
    Does not apply to `base/**/*.fol.def` headers: those record provenance of

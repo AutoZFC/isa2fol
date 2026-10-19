@@ -49,7 +49,7 @@ private let typeB = tfree("'b")
 ///   T.polyNamed  OFCLASS('a, term) ⟹ y = y   as box 80, read at i: every type variable restricted to term; cited by
 /// T.usesPoly at i
 ///   T.polyPartial  OFCLASS('a, term) ⟹ (⋀h::'b. Q) ⟹ (⋀h::'b. Q)   'b unrestricted: read as stated; cited by
-/// T.usesPartial at i, i
+/// T.usesPartial and T.usesPartialAgain at i, i
 ///   T.defax      axiom with a typed free: A ∈ A;   T.useDef  a ∈ a   T.defax % a
 ///   T.vacAx      axiom (⋀h::'a. Q) ⟹ Q;          T.hidden  Q ⟹ Q   λH. vacAx[dummy] % Q %% (⋀h::dummy. H)
 ///   T.hiddenTerm (⋀x::i. ⋀R::o. Q) ⟹ Q        λH. H % dummy_pattern::i % dummy_pattern::o   variables only the proof
@@ -333,6 +333,14 @@ private func miniReader() throws -> Reader {
                 pcite(95, "ZF.T"),
             ),
         )),
+        ("T.usesPartialAgain", 245, proofFile(
+            frees: [("R", o)],
+            prop: imp(all("h", i, trueprop(free("R"))), all("h", i, trueprop(free("R")))),
+            proof: pappp(
+                pappt(pcite(230, "ZF.T", "T.polyPartial", i, i), free("R")),
+                pcite(95, "ZF.T"),
+            ),
+        )),
     ]
     files["ZF.T/theory/thms"] = thmsFile(theorems.compactMap { f in f.0.map { ($0, f.1) } })
     for (_, serial, text) in theorems { files["ZF.T/proofs/\(serial)"] = text }
@@ -609,21 +617,29 @@ func aTheoremRestrictedToTermIsReadAtI() throws {
 }
 
 /// `T.polyPartial`'s `'b` carries no class: it is read at its variables. Cited at `[i, i]` it binds `Q`, a proposition,
-/// on
-/// its spine there: never put in place, the citation keeps its types.
+/// on its spine there: its instance there is a statement of the unit, named by its proof's content as a box binding a
+/// proposition is, and cited with no types — by `T.usesPartial` and `T.usesPartialAgain` alike.
 @Test
-func aTheoremWithATypeVariableNotRestrictedToTermIsReadAsStated() throws {
+func aTheoremCitedAtATypeBindingAPropositionIsItsInstanceAStatement() throws {
     var r = try miniReader()
     guard
         let (statement, _) = try proved(&r, "T.polyPartial"),
-        let (_, user) = try proved(&r, "T.usesPartial")
+        let (_, user) = try proved(&r, "T.usesPartial"),
+        let (_, again) = try proved(&r, "T.usesPartialAgain")
     else { return }
     var t = r.table
     #expect(reaches(statement, try t.intern(.isaOfClass(.variable("'a"), ifolTerm)), t))
-    #expect(citations(user, r.table) == [
-        Citation(cited: .theorem("T.polyPartial"), types: [.i, .i]),
-        Citation(cited: .theorem("T.arity"), types: []),
-    ])
+    let named = uses(user, r.table).filter { $0.hasPrefix("T.BOX_") }
+    #expect(named.count == 1)
+    #expect(uses(again, r.table).filter { $0.hasPrefix("T.BOX_") } == named)
+    #expect(!citations(user, r.table).contains { !$0.types.isEmpty })
+    let instance = try #require(r.cited.first { $0.at == [.i, .i] })
+    #expect(r.name(of: instance) == nil)
+    guard case .proved(let stated, _) = try r.read(instance) else {
+        Issue.record("the instance is not proved")
+        return
+    }
+    #expect(roots(citing: try #require(named.first), user, r.table) == [stated])
 }
 
 /// Isabelle's citation carries one type per type variable of what it cites (`ZConstp`), and so does `use` — but a
@@ -773,7 +789,7 @@ func theReaderEmitsOnlyTheIsaDialect() throws {
     for theorem in r.population {
         if case .proved(let statement, let proof)? = try? r.read(theorem) { roots += [statement, proof] }
     }
-    #expect(roots.count == 54)
+    #expect(roots.count == 56)
     var seen = Set<NodeID>()
     var work = roots
     while let n = work.popLast() {

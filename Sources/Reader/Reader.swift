@@ -2,16 +2,18 @@ import IR
 import YXML
 
 public struct Theorem: Hashable, Sendable, CustomStringConvertible {
-    init(_ key: TheoremKey) {
+    init(_ key: TheoremKey, at types: [IRType]? = nil) {
         theory = key.theory
         serial = key.serial
+        at = types
     }
 
     public let theory: String
     public let serial: Int
+    public let at: [IRType]?
 
     public var description: String {
-        key.path
+        at.map { "\(key.path) at \($0)" } ?? key.path
     }
 
     var key: TheoremKey {
@@ -189,7 +191,7 @@ public struct Reader {
         families = export.families
         population = corpus.names.keys.filter { session(of: $0.theory) != nil }
             .sorted { ($0.theory, $0.serial) < ($1.theory, $1.serial) }
-            .map(Theorem.init)
+            .map { Theorem($0) }
     }
 
     public private(set) var table = Table()
@@ -197,12 +199,12 @@ public struct Reader {
     public private(set) var cited = [Theorem]()
 
     public func name(of theorem: Theorem) -> String? {
-        corpus.names[theorem.key]
+        theorem.at == nil ? corpus.names[theorem.key] : nil
     }
 
     public mutating func read(_ theorem: Theorem) throws -> Outcome {
         do {
-            let (statement, proof) = try prove(theorem.key, at: try types(of: theorem.key))
+            let (statement, proof) = try prove(theorem.key, at: try theorem.at ?? types(of: theorem.key))
             return .proved(statement: statement, proof: proof)
         } catch let refusal as ReaderRefusal {
             return .refused(refusal)
@@ -527,13 +529,15 @@ public struct Reader {
             guard let name = try claim(key) else { return try prove(key, at: instance.types).proof }
             let read = try types(of: key)
             let root = try statement(instance)
-            if
-                instance.types != read, !instance.types.contains(where: mentionsTypeVariable), spineLetters(
-                    root,
-                    in: table,
-                ) == 0
-            {
-                return try prove(key, at: instance.types).proof
+            if instance.types != read, !instance.types.contains(where: mentionsTypeVariable) {
+                let proof = try prove(key, at: instance.types).proof
+                if spineLetters(root, in: table) == 0 || isReadAtItsTerms(proof) { return proof }
+                let named = "\(key.theory.split(separator: ".").last!).BOX_\(fingerprint(proof, table))"
+                if citedAs[named] == nil {
+                    citedAs[named] = Theorem(key, at: instance.types)
+                    cited.append(Theorem(key, at: instance.types))
+                }
+                return try table.intern(.use(.theorem(named), [], root))
             }
             if citedAs[name] == nil {
                 citedAs[name] = Theorem(key)

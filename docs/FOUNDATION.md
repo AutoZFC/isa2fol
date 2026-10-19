@@ -1281,6 +1281,7 @@ specialisation at `kpair`.
 | Pure's `abstract_rule` | its premise: `⋀x. f x ≡ g x` and `f ≡ g` are one formula |
 | Pure's `combination` | the premise at the argument, then the argument's equation substituted into the function by the formula recursion, membership's congruence at its atoms |
 | `Thm` of a theorem polymorphic in a type no class restricts, at a type binding no proposition on its spine | its proof at that type, in place: the target has no type |
+| `Thm` of a theorem polymorphic in a type no class restricts, at a type binding a proposition on its spine | its instance there, a schema of the unit named by its proof's content; `schema_inst` at the citation |
 | an application of a logical rule (`conjI`, `mp`, `spec`, `exE`, …) | the kernel's OWN step at its premises; never translated (S4) |
 | `exI` at `P` and `a` | base's `ex_intro` at `P`, then `forall_elim` at `a`: an ∃-introduction given its body |
 | an application of a definition whose constant is unfolded, `AppT` at its parameters | `reflexive` at its terms: the definiens at them on both sides, no binder introduced (S1) |

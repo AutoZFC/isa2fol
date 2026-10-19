@@ -5178,6 +5178,89 @@ which falls through `FOL.int_all_simps.3` with `FOL.BOX_1cd4667e985779e8`, a var
 `infinity` with it. `scripts/check-unit.sh`: 33 parts, each exit 0 and empty stderr, claims 2,330 of 2,330, schemas 350
 of 350; 264.2 MB, 2,883,958 steps written (3,129,500 as trees).
 
+### A theorem cited at a type, binding a proposition there: a statement of the unit, as a box is  **[AGREED 2026-10-18 (user); BUILT 2026-10-18, its decisions in the build for the user's review — `Sources/Reader/Reader.swift`, `docs/FOUNDATION.md`]**
+
+**The step.** `use(theorem, [i], o)` has no owner, and 668 named theorems of the ZF session are refused on it. In the
+unit it is one citation (a throwaway census of every citation at a type, not kept): `FOL.meta_simps(1)` at `[i]`, Pure's
+`triv_forall_equality`, which the simplifier cites wherever it prunes a parameter. "OFCLASS — …", 3 reads a named
+theorem at its own type variables and, cited at a type with none, reads its proof there "as an unnamed box is" — only
+where it binds no proposition on its spine there, since an inlined letter would stand in the citer's proof.
+`meta_simps(1)` binds one, `V`, and that decision left it: "its instance as a named statement is a later step".
+
+**The problem, in target text.**
+
+```
+Isabelle   FOL.meta_simps(1) = triv_forall_equality:   ⋀V. (⋀x::'a. PROP V) ≡ PROP V           'a no class restricts
+             its proof   equal_intr (λH. H · x) (λH. ⋀x. H)                    x a variable only the proof uses
+           simp, pruning a parameter:   meta_simps(1) · [i] · φ
+read       ⋀-elim (use(theorem FOL.meta_simps.1, [i], ⋀V. (∀x::i. V) ↔ V), φ)             a citation at a type: no owner
+```
+
+**1. A theorem cited at a type it is not read at is read there as an unnamed box is, whatever its spine binds: where
+it binds a proposition there, its instance is a statement of the unit named by its proof's content and cited by
+`schema_inst`; where it binds none, its proof is in place, as now.** **AGREED 2026-10-18 (user).** Decision 3 already reads the
+instance as an unnamed box, and an unnamed box binding a proposition is a statement named `<theory>.BOX_<fingerprint
+of its proof>` ("Boxes binding a proposition, read as schemas", 1–2); this step composes the two. The instance's proof
+at `[i]` is not the theorem's, so its fingerprint names it apart from the theorem and from an instance at another type.
+
+```
+the instance   schema FOL.BOX_<fp> [A0(0)]: ((forall x. (set(x) -> A0)) <-> A0)             its proof at [i]
+the citation   schema_inst FOL.BOX_<fp> { A0: φ }
+```
+
+Not its proof in place with `V` substituted at each citation, as step 9 substitutes a stand-in: the proof copied at
+every citation, where a schema is proved once and instantiated by one step, and decision 3 named the instance a
+statement. Not the theorem read at `i` under its own name, step 1 widened: that names one instance the generic theorem,
+and an instance at another type would be a second statement under one name. Not `V` a truth set: about twenty steps an
+instance.
+
+**FOUNDATION first.** §3b's row "`Thm` of a theorem polymorphic in a type no class restricts, at a type binding no
+proposition on its spine — its proof at that type, in place" gains its other half: "at a type binding a proposition on
+its spine — its instance there, a schema of the unit named by its proof's content, `schema_inst` at the citation".
+
+**The contracts (D2):**
+
+| | provides | assumes |
+|---|---|---|
+| Reader | a theorem cited at a type it is not read at: binding a proposition on its spine there, its instance a statement of the unit, named by its proof's content and cited with no type arguments; binding none, its proof in place | an export of one build |
+| Logic, Fol, emission | unchanged: a schema's letter and `schema_inst` at the citation (Logic, 1–3) | — |
+
+**Tests, written first.**
+- `ProofReaderTests`: a named theorem at an unrestricted `'a`, binding a proposition, cited at `i` twice, is two citations
+  of one name with no type arguments, and the unit holds its instance at `i`, proved
+  (`aTheoremCitedAtATypeBindingAPropositionIsItsInstanceAStatement`).
+- The ZF session: no `use(theorem, [i], o)` at no owner; complete, emitted, kernel-checked.
+
+**Not in this step.** A named theorem's own statement at an unrestricted type variable (`pair.split`,
+`Inductive.def_trans`), refused as now; a citation leaving a type variable.
+
+**Built.** The reader: a citation at a type with no variable, of a theorem not read there, reads the instance's proof;
+binding no proposition on its spine there, or a variable step 9 substitutes, it is put in place as before, and
+otherwise its instance is cited by `<theory>.BOX_<fingerprint of its proof>` with no types, a statement of the unit
+read at the instance's types. `Theorem` carries the types it is read at (`at`).
+
+**Decisions made in the build**, for the user's review:
+1. **An instance is a cited statement read at its types**: `Theorem.at`, nil for a theorem read at its own. `name(of:)`
+   answers nil for an instance, as for a box — it has no Isabelle name — so `lower` counts it among the boxes cited, and
+   its description names the types.
+2. **An instance binding a variable step 9 substitutes is put in place, read at its terms**: the test `claim` applies to
+   a box, `isReadAtItsTerms`, so no instance is a schema binding a variable with no reading.
+3. **The fixture's test of the old reading became the new one**: the test that pinned the citation keeping its types,
+   `aTheoremWithATypeVariableNotRestrictedToTermIsReadAsStated`, is
+   `aTheoremCitedAtATypeBindingAPropositionIsItsInstanceAStatement`, two citers of `T.polyPartial` at `[i, i]` read as
+   one instance; `theReaderEmitsOnlyTheIsaDialect` counts the second citer's two roots.
+
+**Measured** (the ZF session, the release build on 48 cores, the lint first): no owner 7 (673) — the 668 pass it — and
+through logic 2,735 named theorems stand (2,617), Logic leaving 874 unbuilt (326), 873 of them holding `If`: 548 of the
+668 stop at step 6. `lower --emit` 7:14 and 24.9 GB (4:43, 12.8 GB), the 668 now through expand and logic — the table
+75.6M nodes (42.7M), logic 295 s (155 s): **279 lowered** (278), `ZF_Base.equality_iffD` the one more; the instance of
+`FOL.meta_simps.1` at `[i]` is `schema FOL.BOX_c94ff9da85184c7d [A0(0)]: ((forall b1. (set(b1) -> A0)) <-> A0)`, and
+one box its proof cites, `FOL.BOX_cf7e16345567c022`, the same at `[i]`. A refused citation 2,456 (2,339), led by
+`ZF_Base.BOX_fe88880df9563825` 178, `Replace_iff` 144, `FOL.IFOL_simps.32` 116, `RepFunI` 77, `Inter_iff` 76; 8,207
+lemmas left out (7,018); 8 refused unbuilt. `scripts/check-unit.sh`: 33 parts, each exit 0 and empty stderr, claims
+2,331 of 2,331, schemas 352 of 352; 264.2 MB, 2,884,207 steps written. The step's reach is step 6's: the 668 wait on
+`If`, and the memory they bring is paid now.
+
 ### Fol — binders, guards and variables  **[BUILT 2026-09-28 as the guard; Fol's 2026-10-14; every object type and `∃` at `i` with "Reify — S1 at the site" — `Sources/Lowering/Fol.swift`]**
 
 **Every isa binder at an object type, its intro, its variable and the guard of its variable become fol-zfc's, with the
