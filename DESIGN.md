@@ -6035,6 +6035,106 @@ read and each entry carried, 38.6% (an attribution by each step's head).
 `exists_elim`, `and_elim_l`, `and_elim_r`, its body, `exists_intro`. `ClassTests`: `CLASS ⟨λx. x⟩`'s bound lowered. The
 ZF session: the complete run, emitted and kernel-checked, and no named theorem lost.
 
+### A record's facts at fewer steps — a line written once in scope, an extension's lemma once per length  **[BUILT 2026-10-19 — `Render.swift`'s `line` and `scoped`; base's `snoc_facts`; `Comprehension.numeral`, `Reading.extend`]**
+
+**The step.** After "A fact derived once, cited by name", the unit writes 4.26M steps; class existence 65% of them. A
+record's bookkeeping is the class lemmas' largest part: of their 2.83M steps, 396K instantiate `snoc_facts` — 35,994
+extensions, 11 steps each — 386K project a level's facts, and 313K carry entries, 104,204 of them, 2.9 an extension.
+Unit-wide, 279K written steps repeat a line still in scope, 268,754 of them in class lemmas, nearly all projections.
+
+**The problem, in target text.** `CLASS ⟨λx. x⟩`, its walk extending the record `f12` by `f13` to `f14`:
+```
+_107 = forall_elim _66, f12                 snoc_facts at f12, f2, f3, f13, f14 and its three premises
+       …
+_119 = implies_elim _117, _118              tuple(f14, f3) & (pmem(f2, f13, f14) & (forall b. forall c. (…)))
+_120 = and_elim_r _119
+_121 = and_elim_r _120                      the extension keeps the record's entries
+_122 = forall_elim _121, f0
+_123 = forall_elim _122, f9
+_124 = implies_elim _123, _96               pmem(f0, f9, f14), an entry carried
+_125 = and_elim_r _119                      _120 again
+_126 = and_elim_r _125                      _121 again
+       …
+_140 = and_elim_r _119                      _120 a third time
+```
+and every extension at a record's length instantiates `snoc_facts` at the same two numerals — `forall_elim` and the
+guard at `n`, at `m`, and `nsucc(n, m)`: `_108` to `_111` and `_117` at `f2`, `f3`, as every extension at that length.
+
+**The root causes.**
+1. *The writer keys a step by its node, and a node names a hypothesis by its de Bruijn index.* The same projection under
+   one more cut or assumption is another node, so the writer writes it again though its line is the same: `_125` is
+   `_120`.
+2. *`snoc_facts` is instantiated whole at every extension*, though its first part — `n`, `m`, their guards and
+   `nsucc(n, m)` — is the record's length's, the same at every extension at that length.
+
+**Decisions (AGREED, BUILT):**
+
+1. **The writer keys a step by its line.** **AGREED 2026-10-19 (user).** Its rule and the names it cites: a line
+   already written in an open block is cited by that line's name, never written again; a line opening or closing a
+   block — `assume`, `exists_elim`, `implies_intro`, `not_intro`, `classical_absurd`, `forall_intro`, the closing
+   `exists_intro` — is never shared. Exact: the line cited was written in a block still open, so the fact it derived
+   rests only on scopes still open, and the checker drops a fact only with a scope it rests on.
+   `aStepWrittenInAClosedBlockIsDerivedAgain` stands. ⚠ Found in the build: a closing line's text does not say which
+   block it closes — two sibling blocks ending on one step outside them close with the same `implies_intro _1`, and
+   the second, shared, left its block open (`aClosingLineIsNeverShared`, the kernel's `p_closers`).
+   ```
+   before   _120 = and_elim_r _119 … _125 = and_elim_r _119 … _140 = and_elim_r _119
+   after    _120 = and_elim_r _119 … _120 cited … _120 cited
+   ```
+2. **`snoc_facts` is instantiated once per record length.** **AGREED 2026-10-19 (user).** Its length's part first:
+   `∀ᵢn m. nsucc(n, m) → ∀a. ∀ᵢv. ∀b. tuple(a, n) → snoc(a, n, v, b) → tuple(b, m) ∧ pmem(n, v, b) ∧ ∀i y. pmem(i, y,
+   a) → pmem(i, y, b)`. The class prover cuts its instance at each numeral it opens, at the numeral before it and their
+   `nsucc`; an extension cites that instance at `a`, `v`, `b` and its two premises.
+   ```
+   before   an extension: forall_elim ×5, the guards of n, m, v, implies_elim ×3 — 11 steps
+   after    an extension: forall_elim ×3, the guard of v, implies_elim ×2 — 6 steps; once per numeral, 5
+   ```
+
+Not decided here: the entries carried, 2.9 an extension, three steps each — the reads below a record need each at that
+record; read back through the parents instead, an atom pays a step per level in scope (the ⚠ on `Record`). Nor what the
+two walks repeat: each extends its own records.
+
+Estimated before the build: 279K by the first, 35,994 × 5 − 9,224 × 5 ≈ 134K by the second (9,224 numerals opened in
+class lemmas): about 0.41M of 4.26M, a tenth.
+
+**Built.** The writer keeps, beside its node memo, the lines each open block has said (`said`): `line` cites a line an
+open block already wrote; `scoped` writes, unshared, a line that opens or closes a block. Base's `snoc_facts` states its
+length's part first, kernel-checked; `Comprehension.numeral` cuts its instance at each numeral it opens, at the numeral
+before it and their `nsucc`, beside the `nsucc` fact (`Numerals.successors`); `Reading.extend` cites it at `a`, `v`,
+`b`, the record's tuple and the extension's `snoc`.
+
+**Measured** (the complete run, emitted and kernel-checked — every part exit 0, stderr empty):
+
+| | before | after |
+|---|---|---|
+| steps written | 4,264,966 | 3,863,075 (−9.4%) |
+| λ classes, 596 | 1,448,251; median 1,107 | 1,248,428 (−14%); median 989 |
+| constant classes, 241 | 1,060,910; median 2,320 | 909,822 (−14%); median 2,058 |
+| lifts, 34 | 267,985; median 6,874 | 227,731 (−15%); median 5,934 |
+| everything else | 1,487,820 | 1,477,094 (−0.7%) |
+| lines repeating one in scope | 278,637 | 0 |
+| class existence's share | 64.0% | 60.7% |
+| `CLASS ⟨λx. x⟩` | 284 | 271 |
+| the unit | 7,969 claims, 568 schemas, 219.2 MB | the same, all Proved, 206.3 MB (−6%) |
+| the run | 13:44, 45.8 GB | 13:11, 45.8 GB |
+| lowered | 369 | 369, the same set |
+
+What a record's bookkeeping still costs, of the class lemmas' 2.44M steps: the entries carried, 313K (12.8%); the
+extensions, 260K (10.7%) — 6 steps each and 5 per numeral; the projections, 146K (6.0%).
+
+**The contracts (D2):**
+
+| | provides | assumes |
+|---|---|---|
+| FolDialect | a line written once in the open blocks; an `assume` or `exists_elim` always written | the checker's: a fact lives while the scopes it rests on are open |
+| Base | `snoc_facts`, its length's part first, kernel-checked | — |
+| The class prover | an extension cites its length's instance, cut once at the numeral | base's |
+
+**Tests, written first.** `ProofEmissionTests`: a projection under a further assumption cites the line written above it;
+`assume A` nested in `assume A` is written twice; the real checker proves a proof whose second derivation is cited.
+`EmissionTests`: `aStepWrittenInAClosedBlockIsDerivedAgain` unchanged. `ClassTests`: `CLASS ⟨λx. x⟩`'s bound lowered.
+Base: `snoc_facts` kernel-checked. The ZF session: the complete run, emitted and kernel-checked, no named theorem lost.
+
 ### Fol — binders, guards and variables  **[BUILT 2026-09-28 as the guard; Fol's 2026-10-14; every object type and `∃` at `i` with "Reify — S1 at the site" — `Sources/Lowering/Fol.swift`]**
 
 **Every isa binder at an object type, its intro, its variable and the guard of its variable become fol-zfc's, with the

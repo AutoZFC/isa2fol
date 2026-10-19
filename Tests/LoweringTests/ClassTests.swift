@@ -353,7 +353,8 @@ func theTupleFormulaIsOneRowOverRecordPositions() throws {
 }
 
 /// `CLASS ⟨λx. x⟩`: the argument tuple `⟨x⟩ = t` one atom, `TUPLE_ROW_1` at the record; a level one fact, `snoc_facts`.
-/// 669 steps when the tuple formula's binders were levels of the walk, 365 by its row, 284 with a cut a named step.
+/// 669 steps when the tuple formula's binders were levels of the walk, 365 by its row, 284 with a cut a named step,
+/// 271 with a line written once and an extension's lemma once per length.
 @Test
 func theIdentityClassReadsItsArgumentTupleByItsRow() throws {
     var r = Terms()
@@ -364,7 +365,7 @@ func theIdentityClassReadsItsArgumentTupleByItsRow() throws {
     #expect(cited.isDisjoint(with: ["cls_zero", "cls_nsucc", "cls_snoc4", "read4"]), "\(cited.sorted())")
     #expect(cited.contains("snoc_facts") && cited.isDisjoint(with: ["tuple_snoc", "snoc_new", "snoc_keep"]))
     let steps = try #require(try emitted(proved, in: &r.t).statements.first { $0.name == name }).written
-    #expect(steps <= 284, "\(steps)")
+    #expect(steps <= 271, "\(steps)")
     try kernelChecks(proved, in: &r.t)
 }
 

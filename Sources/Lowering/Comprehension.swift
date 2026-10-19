@@ -136,11 +136,19 @@ struct Env {
 
 struct Numerals {
     var levels: [Int]
-    var successors: [Int]
+    var successors: [(nsucc: Int, extending: Int)]
     let first: Int
     let zero: Int?
 
     func successor(_ k: Int) throws -> Int {
+        try at(k).nsucc
+    }
+
+    func extending(_ k: Int) throws -> Int {
+        try at(k).extending
+    }
+
+    private func at(_ k: Int) throws -> (nsucc: Int, extending: Int) {
         guard k >= first, k - first < successors.count else { throw ComprehensionError.noEntry(k) }
         return successors[k - first]
     }
@@ -208,10 +216,19 @@ struct Comprehension {
 
     mutating func numeral(_ j: Int, _ t: inout Table) throws -> Int {
         while numerals.levels.count <= j {
-            let last = try top.variable(numerals.levels[numerals.levels.count - 1], in: &t)
-            let (n, h) = try top.open(try eliminated(try base.cite(.nsuccEX, in: &t), at: [last], in: &t), in: &t)
+            let previous = numerals.levels[numerals.levels.count - 1]
+            let (n, h) = try top.open(
+                try eliminated(try base.cite(.nsuccEX, in: &t), at: [try top.variable(previous, in: &t)], in: &t),
+                in: &t,
+            )
+            let extended = try eliminated(
+                try base.cite(.snocFacts, in: &t),
+                at: [try top.variable(previous, in: &t), try top.variable(n, in: &t)],
+                premises: [try top.hypothesis(h, in: &t)],
+                in: &t,
+            )
             numerals.levels.append(n)
-            numerals.successors.append(h)
+            numerals.successors.append((h, try top.have(extended, in: &t)))
         }
         return numerals.levels[j]
     }
@@ -746,15 +763,10 @@ struct Reading {
         _ t: inout Table,
     ) throws -> Record {
         let k = r.length
-        let at = try [r.variable, numerals.levels[k], numerals.levels[k + 1], v, b].map { try f.variable($0, in: &t) }
         let facts = try eliminated(
-            try base.cite(.snocFacts, in: &t),
-            at: at,
-            premises: [
-                try f.proof(r.tuple, in: &t),
-                try f.hypothesis(try numerals.successor(k), in: &t),
-                try f.proof(s, in: &t),
-            ],
+            try f.hypothesis(try numerals.extending(k), in: &t),
+            at: try [r.variable, v, b].map { try f.variable($0, in: &t) },
+            premises: [try f.proof(r.tuple, in: &t), try f.proof(s, in: &t)],
             in: &t,
         )
         let h = Fact.hypothesis(try f.have(facts, in: &t))

@@ -86,6 +86,7 @@ private struct Writer {
     var lines = [String]()
     var steps = 0
     var written: [[Written: String]] = [[:]]
+    var said: [[String: String]] = [[:]]
 
     mutating func formula(_ id: NodeID, operand: Bool = false, spine: Bool = false) throws -> String {
         guard case .formula(let s) = try render(id, operand: operand, spine: spine)
@@ -111,6 +112,17 @@ private struct Writer {
     }
 
     private mutating func line(_ rule: String) -> String {
+        for layer in said.reversed() {
+            if let name = layer[rule] { return name }
+        }
+        let name = scoped(rule)
+        said[said.count - 1][rule] = name
+        return name
+    }
+
+    /// ⚠ A LINE THAT OPENS OR CLOSES A BLOCK IS NEVER SHARED: its text does not say which block, and a second
+    /// `implies_intro _1` cited as the first leaves its own block open.
+    private mutating func scoped(_ rule: String) -> String {
         let name = "_\(steps)"
         steps += 1
         lines.append("    \(name) = \(rule)")
@@ -125,8 +137,10 @@ private struct Writer {
         if let term { terms.append(term) }
         if let hyp { hyps.append(hyp) }
         written.append([:])
+        said.append([:])
         defer {
             written.removeLast()
+            said.removeLast()
             if term != nil { terms.removeLast() }
             if hyp != nil { hyps.removeLast() }
         }
@@ -225,7 +239,7 @@ private struct Writer {
             let fixed = "f\(terms.count)"
             lines.append("    fix \(fixed)")
             let proved = try binding(term: fixed, hyp: nil) { try $0.step(body, spine: spine) }
-            return emit("forall_intro \(proved)")
+            return .step(scoped("forall_intro \(proved)"))
 
         case .isaAllIntro(.o, let body):
             let name = try nextLetter(id, spine: spine)
@@ -237,9 +251,9 @@ private struct Writer {
 
         case .folExistsElim(let p, let body):
             let witness = "f\(terms.count)"
-            let instance = line("exists_elim \(try step(p)), \(witness)")
+            let instance = scoped("exists_elim \(try step(p)), \(witness)")
             let proved = try binding(term: witness, hyp: instance) { try $0.step(body) }
-            return emit("exists_intro \(proved)")
+            return .step(scoped("exists_intro \(proved)"))
 
         case .folCut(let p, let body):
             let fact = try step(p)
@@ -339,9 +353,9 @@ private struct Writer {
         _ rule: String,
         spine: Bool,
     ) throws -> Rendered {
-        let h = line(assumption)
+        let h = scoped(assumption)
         let proved = try binding(term: nil, hyp: h) { try $0.step(body, spine: spine) }
-        return emit("\(rule) \(proved)")
+        return .step(scoped("\(rule) \(proved)"))
     }
 }
 

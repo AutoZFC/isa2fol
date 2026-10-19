@@ -2111,16 +2111,16 @@ proof snoc_facts:
     _ts = use tuple_snoc
     _sn = use snoc_new
     _sk = use snoc_keep
-    fix a
     fix n
     _gn = assume set(n)
     fix m
     _gm = assume set(m)
+    _hn = assume nsucc(n,m)
+    fix a
     fix v
     _gv = assume set(v)
     fix b
     _ht = assume tuple(a,n)
-    _hn = assume nsucc(n,m)
     _hs = assume snoc(a,n,v,b)
     _t0 = forall_elim _ts, a
     _t1 = forall_elim _t0, b
@@ -2149,13 +2149,13 @@ proof snoc_facts:
     _c2 = and_intro _tb, _c1
     _i1 = implies_intro _c2
     _i2 = implies_intro _i1
-    _i3 = implies_intro _i2
-    _i4 = forall_intro _i3
-    _i5 = implies_intro _i4
+    _i3 = forall_intro _i2
+    _i4 = implies_intro _i3
+    _i5 = forall_intro _i4
     _i6 = forall_intro _i5
     _i7 = implies_intro _i6
-    _i8 = forall_intro _i7
-    _i9 = implies_intro _i8
-    _ia = forall_intro _i9
+    _i8 = implies_intro _i7
+    _i9 = forall_intro _i8
+    _ia = implies_intro _i9
     _ib = forall_intro _ia
     qed _ib

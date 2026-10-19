@@ -77,6 +77,75 @@ func aCutIsWrittenAsItsProofsStepTheBodyCitingIt() throws {
         """)
 }
 
+/// A line already written in an open block is cited, never written again: the projection under `assume C` is another
+/// node — its hypothesis one deeper — and the same line, `and_elim_r _0`.
+@Test
+func aLineWrittenInAnOpenBlockIsCitedNotWrittenAgain() throws {
+    var f = Pf()
+    let aAndB = try f.n(.folAnd(try f.p("A"), try f.p("B")))
+    let inner = try f.intro(try f.p("C"), try f.n(.folAndElimR(try f.hyp(1, aAndB))))
+    let proof = try f.intro(aAndB, try f.n(.folAndIntro(try f.n(.folAndElimR(try f.hyp(0, aAndB))), inner)))
+    let claim = Declaration(kind: .claim, name: "probe", root: try #require(f.t.conclusion(of: proof)))
+    #expect(try render(proof: proof, of: claim, in: f.t) == """
+        proof probe:
+            _0 = assume (A & B)
+            _1 = and_elim_r _0
+            _2 = assume C
+            _3 = implies_intro _1
+            _4 = and_intro _1, _3
+            _5 = implies_intro _4
+            qed _5
+
+        """)
+}
+
+/// A line that closes a block closes the one open, so two sibling blocks ending on one step outside them each write
+/// their own `implies_intro _1`: shared, the second block would never close.
+@Test
+func aClosingLineIsNeverShared() throws {
+    var f = Pf()
+    let both = try f.n(.folAnd(try f.p("A"), try f.p("B")))
+    let fromC = try f.intro(try f.p("C"), try f.n(.folAndElimR(try f.hyp(1, both))))
+    let fromD = try f.intro(try f.p("D"), try f.n(.folAndElimR(try f.hyp(1, both))))
+    let proof = try f.intro(both, try f.n(.folAndIntro(
+        try f.n(.folAndElimR(try f.hyp(0, both))),
+        try f.n(.folAndIntro(fromC, fromD)),
+    )))
+    let claim = Declaration(kind: .claim, name: "probe", root: try #require(f.t.conclusion(of: proof)))
+    #expect(try render(proof: proof, of: claim, in: f.t) == """
+        proof probe:
+            _0 = assume (A & B)
+            _1 = and_elim_r _0
+            _2 = assume C
+            _3 = implies_intro _1
+            _4 = assume D
+            _5 = implies_intro _1
+            _6 = and_intro _3, _5
+            _7 = and_intro _1, _6
+            _8 = implies_intro _7
+            qed _8
+
+        """)
+}
+
+/// An `assume` opens a block, so one inside another of the same formula is written again: each is its own scope.
+@Test
+func anAssumptionIsNeverShared() throws {
+    var f = Pf()
+    let A = try f.p("A")
+    let proof = try f.intro(A, try f.intro(A, try f.hyp(0, A)))
+    let claim = Declaration(kind: .claim, name: "probe", root: try #require(f.t.conclusion(of: proof)))
+    #expect(try render(proof: proof, of: claim, in: f.t) == """
+        proof probe:
+            _0 = assume A
+            _1 = assume A
+            _2 = implies_intro _1
+            _3 = implies_intro _2
+            qed _3
+
+        """)
+}
+
 /// An instance has no claim name yet: rendering it by its theorem's name would conflate its instances.
 @Test
 func aCitationOfAnInstanceIsNotRendered() throws {
@@ -259,6 +328,16 @@ func theRealCheckerProvesWhatEmissionWrites() throws {
     proofs.append(("p_exists_cut", try f.n(.folForallIntro(body: try f.intro(
         someSet,
         try f.n(.folExistsElim(try f.hyp(0, someSet), body: opened)),
+    )))))
+
+    let deeper = try f.intro(try f.p("C"), try f.n(.folAndElimR(try f.hyp(1, aAndB))))
+    proofs.append(("p_cited", try f.intro(aAndB, try f.n(.folAndIntro(try f.n(.folAndElimR(hAB)), deeper)))))
+    proofs.append(("p_assume_twice", try f.intro(A, try f.intro(A, hA))))
+    let fromC = try f.intro(try f.p("C"), try f.n(.folAndElimR(try f.hyp(1, aAndB))))
+    let fromD = try f.intro(try f.p("D"), try f.n(.folAndElimR(try f.hyp(1, aAndB))))
+    proofs.append(("p_closers", try f.intro(aAndB, try f.n(.folAndIntro(
+        try f.n(.folAndElimR(hAB)),
+        try f.n(.folAndIntro(fromC, fromD)),
     )))))
 
     let elem10 = try f.p("elem", try f.b(1), try f.b(0))
