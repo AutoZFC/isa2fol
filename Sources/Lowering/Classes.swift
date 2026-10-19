@@ -32,6 +32,12 @@ public struct ClassProver: Prover {
         case is RekeyFact:
             return .rule
 
+        case let f as TupleFact:
+            switch f.fact {
+            case .row: return .rule
+            case .existence, .uniqueness, .injectivity, .congruence: return nil
+            }
+
         default:
             return nil
         }
@@ -57,6 +63,8 @@ public struct ClassProver: Prover {
         case let f as LambdaFact: proof = try proofs.lambda(f, &t)
 
         case let f as RekeyFact: proof = try proofs.rekey(f.width, &t)
+
+        case let f as TupleFact where f.fact == .row: proof = try proofs.row(f.arity, &t)
 
         default: throw ClassError.notMine(l.name)
         }
@@ -95,8 +103,8 @@ struct ClassProofs {
         var g = try Comprehension(base: base, top: top, in: &t)
         let c = try g.context(values, &t)
         let exists = try g.section(
-            raw: raw.body,
-            named: named.body,
+            raw: .body(raw),
+            named: named.formula,
             outside: named.outside,
             roles: roles,
             depth: depth,
@@ -104,6 +112,37 @@ struct ClassProofs {
             &t,
         )
         return try g.top.close(exists, in: &t)
+    }
+
+    func row(_ n: Int, _ t: inout Table) throws -> NodeID {
+        var top = Frame()
+        let positions = (0...n).map { _ in top.fix(.i) }
+        let L = top.fix(.i)
+        var g = Comprehension(base: base, top: top, positions: positions, length: L)
+        let ys = try (0..<n).map { try t.intern(.isaBound(n - $0, .i)) }
+        let built = try g.build(
+            try tuple(ys, try t.intern(.isaBound(0, .i)), in: &t),
+            (0...n).map { .entry($0) },
+            n + 1,
+            &t,
+        )
+        var e = Frame(g.top.scope)
+        let a = e.fix(.i)
+        let ht = e.assume(try pred("tuple", [a, L], at: e.scope, &t))
+        var values = [Int]()
+        var facts = [Int: Fact]()
+        for k in 0...n {
+            values.append(e.fix(.i))
+            facts[k] = .hypothesis(e.assume(try pred("pmem", [positions[k], values[k], a], at: e.scope, &t)))
+        }
+        let record = Record(a, tuple: .hypothesis(ht), entries: values, facts: facts)
+        let phi = try tuple(
+            try values.dropLast().map { try e.variable($0, in: &t) },
+            try e.variable(values[n], in: &t),
+            in: &t,
+        )
+        let exact = try e.close(try g.reading.read(phi, built, e, record, Env(), &t), in: &t)
+        return try g.top.close(try t.intern(.folExistsIntro(exact, try g.top.variable(built.cls, in: &t))), in: &t)
     }
 
     func constant(_ f: ConstantFact, _ t: inout Table) throws -> NodeID {
@@ -119,7 +158,7 @@ struct ClassProofs {
             outside: src.outside,
             roles: ps.map { .fixed($0) },
             depth: depth,
-            context: g.empty,
+            context: try g.context([], &t),
             &t,
         )
         let (K, hK) = try g.top.open(exists, in: &t)
@@ -233,7 +272,7 @@ struct ClassProofs {
         var g = try Comprehension(base: base, top: top, in: &t)
         let c = try g.context([p, p1], &t)
         let ex = try g.section(
-            raw: Q,
+            raw: .formula(Q),
             named: Q,
             outside: 1,
             roles: [.entry(0), .entry(1), .fixed(W), .fixed(T)],
@@ -601,7 +640,7 @@ struct ClassProofs {
     }
 
     private func source(_ c: Constant, _ T: IRType, _ t: inout Table) throws
-        -> (definition: NodeID, outside: Int, raw: NodeID, named: NodeID)
+        -> (definition: NodeID, outside: Int, raw: Raw, named: NodeID)
     {
         let classes = T.domains.filter { !isEntry($0) }
         let k = classes.count
@@ -616,8 +655,8 @@ struct ClassProofs {
             return (
                 try t.intern(.use(.definition(d), [], try atDefinition(d, definitions, in: &t))),
                 named.outside,
-                raw.body,
-                named.body,
+                .body(raw),
+                named.formula,
             )
 
         case .primitive(.zf(.pow)), .primitive(.zf(.union)), .primitive(.zf(.primReplace)):
@@ -634,7 +673,7 @@ struct ClassProofs {
             var matrix = try iff(inner, t).right
             while case .ifolAll(.i, let body) = t[matrix] { (outside, matrix) = (outside + 1, body) }
             let phi = try dropping(try iff(matrix, t).right, k + outside, in: &t)
-            return (definition, outside, phi, phi)
+            return (definition, outside, .formula(phi), phi)
 
         case .primitive, .declared:
             throw ClassError.noDefinition(c.name)

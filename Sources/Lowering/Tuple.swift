@@ -145,7 +145,11 @@ public struct TupleProver: Prover {
     public let name = "tuple"
 
     public func owns(_ l: Lemma) -> Owned? {
-        l.request is TupleFact ? .rule : nil
+        guard let f = l.request as? TupleFact else { return nil }
+        switch f.fact {
+        case .existence, .uniqueness, .injectivity, .congruence: return .rule
+        case .row: return nil
+        }
     }
 
     public func prove(
@@ -162,6 +166,7 @@ public struct TupleProver: Prover {
             case .uniqueness: f.arity == 0 ? try base.cite(.zeroUNIQ, in: &t) : try uniqueness(f.arity, &t)
             case .injectivity: try injectivity(f.arity, &t)
             case .congruence: try congruence(f.arity, &t)
+            case .row: throw TupleError.notMine(l.name)
             }
         guard t.conclusion(of: proof) == statement else { throw TupleError.misproved(l.name) }
         return .proof(proof)

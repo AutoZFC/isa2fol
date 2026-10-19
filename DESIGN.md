@@ -5828,6 +5828,107 @@ Tests: `DefinitionTests.aDefinitionApplyingItsFunctionToACompoundArgumentIsItsUn
 `AxiomTests.replacementIsReadFromBasesStatement` — each kernel-checked; `anInstanceAtACompoundArgumentIsBetaAtItsValue`'s
 `λx. x = x` stays refused unbuilt. The 25 named theorems lost, run alone, all lower, every part Proved.
 
+### Class existence at a few steps a node — a tuple one atom, a level one fact  **[BUILT 2026-10-19 — `Sources/Lowering/Comprehension.swift`, `Classes.swift`; base's `snoc_facts`]**
+
+**The step.** The complete run after "Linear proof size" writes 9.26M steps against about 36,600 Isabelle nodes (the
+named statements, their proofs and the definitions they reach): about 250 a node, linear or not. Class existence writes
+7.49M of them (81%): 596 `CLASS ⟨λ⟩`, a median 3,239 steps; 241 `c_CLASS`, a median 6,332; 34 `c_LIFT`, 16,859 each —
+about 200 steps a node, where the theorems' own proofs take 5 and the meeting lemmas 29. A class lemma's steps grow as
+its statement's binders^1.39: 145 a binder in a small formula, 360 in a large one. "Linear proof size" nearly tripled
+them: a λ's class 2,401 steps before it, 6,678 after; a constant's 3,546 and 11,788; a lift 4,980 and 16,672.
+
+**The problem, in target text.** Isabelle's `λx. x`, two nodes; its class, 669 steps:
+```
+claim CLASS_87b5665dcc1ef8e4: exists K. forall t. (set(t) -> (forall r. (set(r) -> (pmem(t, r, K) <->
+        (exists x. (set(x) & ((forall e. (set(e) -> (zero(e) -> snoc(e, e, x, t)))) & eq(r, x))))))))
+proof   82 steps build the class: numerals 0–4, then cls_zero, read1, cls_snoc4, read4, B_imp, row_all, cls_diag, read2,
+        B2, row_ex, graph_class
+        587 steps read it back exact, both ways, over four binders: each opens a record, about 60 steps of it its facts
+```
+
+**The root cause: two multipliers.**
+1. *The walk's levels are S1's encoding.* It reads the named formula, so every binder of the naming is a level of
+   records with its rows. Of the 13,634 binders of the λs' class statements, 37% are a tuple formula's own (`∀e. zero(e)
+   → ∀n. nsucc(e, n) → ∀h. snoc(e, e, x, h) → snoc(h, n, y, t)`), 18% a tuple's, 10% a value's, 11% a class's (a
+   hypothesis, no row); a quarter at most are a λ's own. A tuple formula's `zero`, `nsucc` and `snoc` are atoms, each
+   `snoc` read through `cls_snoc4` by `read4` (6.3% of all class steps).
+2. *A binder level is a record, written out.* A connective costs about 5 steps each way and an atom 15 to 20; a binder
+   about 70, 60 of them its record: `snoc_EX` opened, `tuple_snoc`, `snoc_new` and `snoc_keep` instantiated and each cut,
+   every entry read below carried to it and cut (`Reading.extend`) — so a level costs more the deeper the reads it
+   carries, the binders^1.39. Of all class steps, cuts (an `assume`, its `implies_intro` and its uses) are 41%, the
+   record's facts 28%, rows 22%, the walk's quantifiers 6%.
+
+**Decisions (AGREED, BUILT):**
+
+1. **A tuple formula is one atom of the record.** **AGREED 2026-10-19 (user); its mechanism the reference's, found
+   before the build.** S1's tuple formula `⟨y⃗⟩ = z` at arity `n` is read by one row over record positions, base's read
+   rows' shape: `TUPLE_ROW_n: ∀ᵢi₁…iₙ j L. ∃C. ∀ᵢa. tuple(a, L) → ∀ᵢy₁. pmem(i₁, y₁, a) → … → ∀ᵢz. pmem(j, z, a) →
+   (elem(a, C) ↔ ⟨y⃗⟩ = z)`, proved once per arity by the class prover, its generator run at symbolic positions — `i⃗`,
+   `j`, then `L`, `L + 1`, … for the formula's own binders, which extend the record past its length. An occurrence is
+   one instance of the row at its record: a naming's `.tuple` piece, and the argument tuple of the formula the prover
+   is handed — a λ's class definition, a `@def`'s graph — which the prover builds from its parts rather than walking it
+   (the reference recognized it by rebuilding it, by ID: a shape detected, D1). Its binders and its `zero`, `nsucc`,
+   `snoc` atoms are no levels and no atoms of the formula that holds it. ⚠ The reference: no lookup class of tuples —
+   a witness, as `cls_snoc4` is of 4-tuples — can serve, proving it rebuilds the tuple formula's own class; the row is
+   over record positions. Measured there: λ classes −47%, lifts −63%; rows at arities 1–7, 184 to 1,969 steps each.
+   ```
+   before   ⟨a, b⟩ = τ:  three levels (e, n, h), each a record of ~60 steps each way, and four atoms read
+   after    ⟨a, b⟩ = τ:  one atom, TUPLE_ROW_2 at the record's positions of a, b, τ
+   ```
+2. **A binder level opens one fact.** **AGREED 2026-10-19 (user).** `tuple_snoc`, `snoc_new` and `snoc_keep` become one base lemma, `snoc_facts`:
+   `∀a. ∀ᵢn m v. ∀b. tuple(a, n) → nsucc(n, m) → snoc(a, n, v, b) → tuple(b, m) ∧ pmem(n, v, b) ∧ ∀i y. pmem(i, y, a)
+   → pmem(i, y, b)` — guarded where `tuple_snoc` is — instantiated once at each extension and cut once; an entry carried
+   by its last conjunct.
+   ```
+   before   a level's record: tuple_snoc 11, snoc_new 7, snoc_keep 5 steps, each cut (3 more each), carries 6 each
+   after    snoc_facts 9 steps, one cut, carries 6 each
+   ```
+
+**Built.** `TupleFact.row`, `TUPLE_ROW_n`, is stated from the request and proved by the class prover: the generator at
+symbolic positions (`Numerals` from `first`, no zero, no empty record), its record given — `tuple(a, L)` and an entry's
+`pmem` each a hypothesis. A class body crosses from Reify as its parts, `ClassBody` (outside, arity, member, formula):
+the generator builds `∃x⃗` levels, the argument tuple one `.tuple` atom and the member, while the reading walks the named
+formula as before; a naming's `.tuple(refs)` piece is the same atom at its refs' entries. The generator reads `Raw` —
+a class body by its parts, or a formula as written (base's `@def`s of `Pow`, `Union`, `PrimReplace`, and `REKEY`'s, each
+one lemma). `Reading.extend` cites `snoc_facts` once and cuts it once; a record's tuple, newest entry and carried
+entries are `Fact`s. `snoc_new` and `snoc_keep` are no longer cited.
+
+**Measured** (the complete run, emitted and kernel-checked — every part exit 0, stderr empty; written steps from the
+run's `steps by kind`, medians from the emitted proofs):
+
+| | before | after |
+|---|---|---|
+| steps written | 9,054,441 | 5,166,635 (−43%) |
+| λ classes, 596 | 3,980,289; median 3,246 | 1,824,613 (−54%); median 1,400 |
+| constant classes, 241 | 2,840,865; median 6,332 | 1,328,243 (−53%); median 2,883 |
+| lifts, 34 | 566,841; median 13,828 | 343,174 (−39%); median 8,824 |
+| `TUPLE_ROW_0`–`_4` | — | 4,405 (57 to 1,976 each) |
+| class existence's share | 81% | 67% |
+| a λ class's steps per statement binder | 268 (147 small, 354 large), binders^1.37 | 123 (79 small, 163 large), binders^1.35 |
+| `CLASS ⟨λx. x⟩` | 669 | 365 |
+| the unit | 7,964 claims, 568 schemas, 419.8 MB | 7,969 claims, 568 schemas, all Proved, 272.5 MB |
+| the run | 23:30, 50.4 GB, 143.5M nodes | 13:48, 45.8 GB, 119.1M nodes |
+| lowered | 369 | 369, the same set |
+
+The estimate — under 250 steps for `λx. x`, class existence 2.5 to 3 times smaller — was wrong: what a level costs
+beyond its fact is structure, unchanged. In `CLASS ⟨λx. x⟩`'s 365: eight `∃`-elims at `i`, about 10 steps each as Fol
+writes them (the guard and the body each assumed, then discharged); nine cuts, 3 each; an entry carried, about 9. Over
+the class lemmas' 3.55M steps: assumptions used, `implies_intro` and `assume` — the cuts and the `∃`-elims — 47%,
+`snoc_facts` 12%, the rows 20%. Steps still grow faster than binders: a level carries what is read below it. The next
+decisions, from these numbers: Fol's `∃`-elim at `i`, the cuts the walk writes, the carrying, what the two walks repeat.
+
+**The contracts (D2):**
+
+| | provides | assumes |
+|---|---|---|
+| Base | `snoc_facts`, kernel-checked | — |
+| The class prover | `TUPLE_ROW_n`, from the request alone (I2); every class exact as now; a tuple it builds — a naming's `.tuple` piece, a class body's argument tuple (`ClassBody`, the body's parts) — read by its row, base's own text (`Pow_def`, `Union_def`, `PrimReplace_def`) and `REKEY`'s walked as written; a level by `snoc_facts` | base's gains |
+
+**Tests, written first.** `ClassTests`: `TUPLE_ROW_0` to `_2`, kernel-checked; `CLASS ⟨λx. x⟩` citing `TUPLE_ROW_1`
+and `snoc_facts`, never `cls_zero`, `cls_nsucc`, `cls_snoc4` or `read4`, its steps bounded; `CLASS ⟨λx. f(x, x) ∈ A⟩`,
+`f` a function variable, its naming's `⟨x, x⟩` read by `TUPLE_ROW_2`, an entry twice. The ZF session: the complete run,
+emitted and kernel-checked, the class lemmas' steps against this section's, and no named theorem lost.
+
 ### Fol — binders, guards and variables  **[BUILT 2026-09-28 as the guard; Fol's 2026-10-14; every object type and `∃` at `i` with "Reify — S1 at the site" — `Sources/Lowering/Fol.swift`]**
 
 **Every isa binder at an object type, its intro, its variable and the guard of its variable become fol-zfc's, with the

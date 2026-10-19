@@ -15,11 +15,11 @@ struct Row: Hashable {
 /// ⚠ AN ENTRY'S FACT AT A RECORD IS CARRIED THERE ONCE, AT THE RECORD'S EXTENSION, AND ONLY IF A READ BELOW TAKES IT:
 /// read back through the parents instead, an atom paid one step per binder in scope.
 final class Record {
-    init(empty variable: Int, tuple: Int) {
-        (self.variable, self.tuple, entries, facts, link) = (variable, tuple, [], [:], nil)
+    init(_ variable: Int, tuple: Fact, entries: [Int] = [], facts: [Int: Fact] = [:]) {
+        (self.variable, self.tuple, self.entries, self.facts, link) = (variable, tuple, entries, facts, nil)
     }
 
-    init(_ parent: Record, value: Int, variable: Int, snoc: Fact, tuple: Int, newest: Int?, facts: [Int: Int]) {
+    init(_ parent: Record, value: Int, variable: Int, snoc: Fact, tuple: Fact, newest: Fact, facts: [Int: Fact]) {
         (self.variable, self.tuple, entries, self.facts, link) = (
             variable,
             tuple,
@@ -30,10 +30,10 @@ final class Record {
     }
 
     let variable: Int
-    let tuple: Int
+    let tuple: Fact
     let entries: [Int]
-    let facts: [Int: Int]
-    let link: (parent: Record, snoc: Fact, newest: Int?)?
+    let facts: [Int: Fact]
+    let link: (parent: Record, snoc: Fact, newest: Fact)?
 
     var length: Int {
         entries.count
@@ -88,6 +88,7 @@ indirect enum Built {
     case all(Row, Built)
     case bottom(Int)
     case atom(Row, [Int], Witness)
+    case tuple(Row, [Int])
     case unfolded(BaseStatement, Built)
     case sectioned(Int, Built)
     case opened(binder: Int, Row, Built)
@@ -97,7 +98,9 @@ indirect enum Built {
 
     var cls: Int {
         switch self {
-        case .connective(_, let row, _), .exists(let row, _), .all(let row, _), .atom(let row, _, _): row.cls
+        case .connective(_, let row, _), .exists(let row, _), .all(let row, _), .atom(let row, _, _),
+             .tuple(let row, _):
+            row.cls
         case .unfolded(_, let inner), .sectioned(_, let inner), .opened(_, _, let inner), .lambda(_, _, let inner),
              .lifted(_, _, let inner):
             inner.cls
@@ -113,7 +116,7 @@ indirect enum Built {
              .opened(_, _, let inner), .lifted(_, _, let inner):
             inner.needs
         case .lambda(_, let l, let inner): inner.needs.union(l.bundle.needs)
-        case .atom(_, let es, _): Set(es)
+        case .atom(_, let es, _), .tuple(_, let es): Set(es)
         case .bottom, .liftedAtom: []
         }
     }
@@ -134,7 +137,18 @@ struct Env {
 struct Numerals {
     var levels: [Int]
     var successors: [Int]
-    let zero: Int
+    let first: Int
+    let zero: Int?
+
+    func successor(_ k: Int) throws -> Int {
+        guard k >= first, k - first < successors.count else { throw ComprehensionError.noEntry(k) }
+        return successors[k - first]
+    }
+}
+
+enum Raw {
+    case formula(NodeID)
+    case body(ClassBody)
 }
 
 private enum StandIn {
@@ -145,6 +159,7 @@ private enum StandIn {
 
 private enum Key: Hashable {
     case read([Int], Int)
+    case tupleRow([Int], Int)
     case connective(Connective, [Int])
     case exists(Int, Int)
     case all(Int, Int)
@@ -170,18 +185,22 @@ struct Comprehension {
         let def = try eliminated(try base.cite(.zeroDef, in: &t), at: [n], in: &t)
         let isEmpty = try t.intern(.folIffElimL(def, try top.hypothesis(h0, in: &t)))
         let tuple = try eliminated(try base.cite(.tupleZero, in: &t), at: [n], premises: [isEmpty], in: &t)
-        let empty = Record(empty: n0, tuple: try top.have(tuple, in: &t))
+        let empty = Record(n0, tuple: .hypothesis(try top.have(tuple, in: &t)))
         (self.base, self.top, numerals, self.empty) = (
             base,
             top,
-            Numerals(levels: [n0], successors: [], zero: h0),
+            Numerals(levels: [n0], successors: [], first: 0, zero: h0),
             empty,
         )
     }
 
+    init(base: Base, top: Frame, positions: [Int], length: Int) {
+        (self.base, self.top, empty) = (base, top, nil)
+        numerals = Numerals(levels: positions + [length], successors: [], first: positions.count, zero: nil)
+    }
+
     let base: Base
     var top: Frame
-    let empty: Record
 
     var reading: Reading {
         Reading(base: base, numerals: numerals, empty: empty)
@@ -210,7 +229,7 @@ struct Comprehension {
     }
 
     mutating func section(
-        raw: NodeID,
+        raw: Raw,
         named: NodeID,
         outside: Int,
         roles: [Role],
@@ -255,6 +274,13 @@ struct Comprehension {
         return try eliminated(schema, at: at, premises: [premise], in: &t)
     }
 
+    mutating func build(_ raw: Raw, _ roles: [Role], _ k: Int, _ t: inout Table) throws -> Built {
+        switch raw {
+        case .formula(let phi): try build(phi, roles, k, &t)
+        case .body(let b): try built(b, roles, k, &t)
+        }
+    }
+
     mutating func build(_ phi: NodeID, _ roles: [Role], _ k: Int, _ t: inout Table) throws -> Built {
         switch t[phi] {
         case .folAnd(let a, let b): return try binary(.and, a, b, roles, k, &t)
@@ -270,6 +296,7 @@ struct Comprehension {
             return try connective(.not, [x], &t)
 
         case .folBottom:
+            guard numerals.zero != nil else { throw ComprehensionError.unread(phi) }
             return .bottom(numerals.levels[0])
 
         case .ifolEx(.i, let body):
@@ -302,10 +329,58 @@ struct Comprehension {
         }
     }
 
+    private let empty: Record?
     private var numerals: Numerals
     private var memo = [Key: Row]()
     private var standIns = [Int: StandIn]()
     private var sections = [Int: Section]()
+
+    private mutating func built(_ b: ClassBody, _ roles: [Role], _ k: Int, _ t: inout Table) throws -> Built {
+        let inner = roles + (0..<b.arity).map { Role.entry(k + $0) }
+        let xs = try (0..<b.arity).map { try t.intern(.isaBound(b.arity - 1 - $0, .i)) }
+        let argument = try tupled(
+            xs + [try t.intern(.isaBound(b.arity + b.outside - 1, .i))],
+            inner,
+            k + b.arity,
+            &t,
+        )
+        var built = try connective(.and, [argument, try build(b.member, inner, k + b.arity, &t)], &t)
+        for j in (0..<b.arity).reversed() { built = try exists(built, k + j, &t) }
+        return built
+    }
+
+    private mutating func tupled(_ args: [NodeID], _ roles: [Role], _ k: Int, _ t: inout Table) throws -> Built {
+        let es = try entries(args, roles, t)
+        let positions = try es.map { try numeral($0, &t) }
+        let length = try numeral(k, &t)
+        let row = try open(.tupleRow(positions, length), &t) { top, t in
+            let f = TupleFact(arity: es.count - 1, fact: .row)
+            return try eliminated(
+                try cited(f, try statement(f, in: &t), &t),
+                at: try (positions + [length]).map { try top.variable($0, in: &t) },
+                in: &t,
+            )
+        }
+        return .tuple(row, es)
+    }
+
+    private func role(_ x: NodeID, _ roles: [Role], _ t: Table) throws -> Role {
+        let d: Int
+        switch t[x] {
+        case .isaBound(let j, _): d = j
+        case .folBound(let j): d = j
+        default: throw ComprehensionError.unread(x)
+        }
+        guard d < roles.count else { throw ComprehensionError.unread(x) }
+        return roles[roles.count - 1 - d]
+    }
+
+    private func entries(_ args: [NodeID], _ roles: [Role], _ t: Table) throws -> [Int] {
+        try args.map { x in
+            guard case .entry(let j) = try role(x, roles, t) else { throw ComprehensionError.unread(x) }
+            return j
+        }
+    }
 
     private mutating func binary(
         _ c: Connective,
@@ -358,7 +433,23 @@ struct Comprehension {
             let remaining = try chain(after, rest, ids, inner, k + 1, &t)
             return try all(try connective(.implies, [constraint, remaining], &t), k, &t)
 
-        case .tuple, .value, .applied:
+        case .tuple(let refs):
+            guard
+                case .ifolAll(.i, let body) = t[phi],
+                case .folImplies(_, let after) = t[body]
+            else { throw ComprehensionError.unread(phi) }
+            let inner = roles + [.entry(k)]
+            let args = try refs.map { ref -> NodeID in
+                switch ref {
+                case .outer(let x): try shift(x, by: position + 1, in: &t)
+                case .bound(let j): try t.intern(.isaBound(position - j, .i))
+                }
+            }
+            let constraint = try tupled(args + [try t.intern(.isaBound(0, .i))], inner, k + 1, &t)
+            let remaining = try chain(after, rest, ids, inner, k + 1, &t)
+            return try all(try connective(.implies, [constraint, remaining], &t), k, &t)
+
+        case .value, .applied:
             guard
                 case .ifolAll(.i, let body) = t[phi],
                 case .folImplies(let c, let after) = t[body]
@@ -395,16 +486,16 @@ struct Comprehension {
                 case .folForall(let body) = t[phi],
                 case .folImplies(_, let after) = t[body]
             else { throw ComprehensionError.unread(phi) }
-            let (outside, raw) = try classBody(try shift(lambda, by: position, in: &t), raw: true, in: &t)
-            _ = try numeral(k + outside, &t)
-            let bundle = try build(raw, roles + (0..<outside).map { Role.entry(k + $0) }, k + outside, &t)
+            let raw = try classBody(try shift(lambda, by: position, in: &t), raw: true, in: &t)
+            _ = try numeral(k + raw.outside, &t)
+            let bundle = try built(raw, roles + (0..<raw.outside).map { Role.entry(k + $0) }, k + raw.outside, &t)
             let m = standIns.count
             standIns[m] = .lambda(bundle.cls)
             var bound = ids
             bound[position] = m
             return .lambda(
                 binder: m,
-                Lambda(bundle: bundle, outside: outside),
+                Lambda(bundle: bundle, outside: raw.outside),
                 try chain(after, rest, bound, roles + [.binder(m)], k, &t),
             )
         }
@@ -420,33 +511,18 @@ struct Comprehension {
     ) throws -> Built {
         guard case .base(let name) = p else { throw ComprehensionError.unread(phi) }
         if let def = relations[name] { return try unfolded(def, args, roles, k, &t) }
-        let rs = try args.map { x -> Role in
-            let d: Int
-            switch t[x] {
-            case .isaBound(let j, _): d = j
-            case .folBound(let j): d = j
-            default: throw ComprehensionError.unread(phi)
-            }
-            guard d < roles.count else { throw ComprehensionError.unread(phi) }
-            return roles[roles.count - 1 - d]
-        }
-        let entries = { (rs: ArraySlice<Role>) throws -> [Int] in
-            try rs.map { r -> Int in
-                guard case .entry(let j) = r else { throw ComprehensionError.unread(phi) }
-                return j
-            }
-        }
+        let rs = try args.map { try role($0, roles, t) }
         switch (name, rs.count) {
-        case ("eq", 2): return try witnessed(try witness(.clsDiag, &t), try entries(rs[...]), &t)
+        case ("eq", 2): return try witnessed(try witness(.clsDiag, &t), try entries(args, roles, t), &t)
 
-        case ("zero", 1): return try witnessed(try witness(.clsZero, &t), try entries(rs[...]), &t)
+        case ("zero", 1): return try witnessed(try witness(.clsZero, &t), try entries(args, roles, t), &t)
 
-        case ("nsucc", 2): return try witnessed(try witness(.clsNsucc, &t), try entries(rs[...]), &t)
+        case ("nsucc", 2): return try witnessed(try witness(.clsNsucc, &t), try entries(args, roles, t), &t)
 
-        case ("snoc", 4): return try witnessed(try snocs(&t), try entries(rs[...]), &t)
+        case ("snoc", 4): return try witnessed(try snocs(&t), try entries(args, roles, t), &t)
 
         case ("elem", 2), ("pmem", 3), ("apply", 3):
-            let es = try entries(rs.dropLast())
+            let es = try entries(Array(args.dropLast()), roles, t)
             switch rs[rs.count - 1] {
             case .entry(let j):
                 guard name == "elem" else { throw ComprehensionError.unread(phi) }
@@ -638,7 +714,7 @@ struct Comprehension {
         let n = try numeral(k, &t)
         let n1 = try numeral(k + 1, &t)
         _ = try numeral(k + 2, &t)
-        let successor = numerals.successors[k]
+        let successor = try numerals.successor(k)
         return try open(.lifted(c, T, k, bundles), &t) { top, t in
             let f = ConstantFact(constant: c, type: T, fact: .lift)
             let at = try eliminated(
@@ -658,7 +734,7 @@ struct Comprehension {
 struct Reading {
     let base: Base
     let numerals: Numerals
-    let empty: Record
+    let empty: Record?
 
     func extend(
         _ r: Record,
@@ -670,65 +746,35 @@ struct Reading {
         _ t: inout Table,
     ) throws -> Record {
         let k = r.length
-        let a = try f.variable(r.variable, in: &t)
-        let n = try f.variable(numerals.levels[k], in: &t)
-        let m = try f.variable(numerals.levels[k + 1], in: &t)
-        let x = try f.variable(v, in: &t)
-        let y = try f.variable(b, in: &t)
-        let tuple = try eliminated(
-            try base.cite(.tupleSnoc, in: &t),
-            at: [a, y, n, x, m],
+        let at = try [r.variable, numerals.levels[k], numerals.levels[k + 1], v, b].map { try f.variable($0, in: &t) }
+        let facts = try eliminated(
+            try base.cite(.snocFacts, in: &t),
+            at: at,
             premises: [
-                try f.hypothesis(r.tuple, in: &t),
-                try f.hypothesis(numerals.successors[k], in: &t),
+                try f.proof(r.tuple, in: &t),
+                try f.hypothesis(try numerals.successor(k), in: &t),
                 try f.proof(s, in: &t),
             ],
             in: &t,
         )
-        let ht = try f.have(tuple, in: &t)
-        var hn: Int?
-        if needs.contains(k) {
-            let new = try eliminated(
-                try base.cite(.snocNew, in: &t),
-                at: [a, n, x, y],
-                premises: [
-                    try f.proof(s, in: &t),
-                    try isaGuard(n, .i, &t),
-                    try isaGuard(x, .i, &t),
-                ],
+        let h = Fact.hypothesis(try f.have(facts, in: &t))
+        var carried = [Int: Fact]()
+        for j in needs.filter({ $0 < k }).sorted() {
+            let moved = try eliminated(
+                try f.proof(.right(.right(h)), in: &t),
+                at: [try f.variable(numerals.levels[j], in: &t), try f.variable(r.entries[j], in: &t)],
+                premises: [try entry(j, of: r, in: f.scope, &t)],
                 in: &t,
             )
-            hn = try f.have(new, in: &t)
+            carried[j] = .hypothesis(try f.have(moved, in: &t))
         }
-        var facts = [Int: Int]()
-        let carried = needs.filter { $0 < k }.sorted()
-        if !carried.isEmpty {
-            let keep = try f.have(
-                try eliminated(
-                    try base.cite(.snocKeep, in: &t),
-                    at: [a, n, x, y],
-                    premises: [try f.proof(s, in: &t)],
-                    in: &t,
-                ),
-                in: &t,
-            )
-            for j in carried {
-                let moved = try eliminated(
-                    try f.hypothesis(keep, in: &t),
-                    at: [try f.variable(numerals.levels[j], in: &t), try f.variable(r.entries[j], in: &t)],
-                    premises: [try entry(j, of: r, in: f.scope, &t)],
-                    in: &t,
-                )
-                facts[j] = try f.have(moved, in: &t)
-            }
-        }
-        return Record(r, value: v, variable: b, snoc: s, tuple: ht, newest: hn, facts: facts)
+        return Record(r, value: v, variable: b, snoc: s, tuple: .left(h), newest: .left(.right(h)), facts: carried)
     }
 
     /// ⚠ OPENS ITS PREFIXES, FIXING ONE VARIABLE PER ENTRY: a formula taken in `f` before it is that many levels
     /// shallow.
     func record(_ values: [Int], in f: inout Frame, _ t: inout Table) throws -> Record {
-        var r = empty
+        guard var r = empty else { throw ComprehensionError.noEntry(0) }
         let every = Set(values.indices)
         for v in values {
             let at = try [r.variable, numerals.levels[r.length], v].map { try f.variable($0, in: &t) }
@@ -742,11 +788,11 @@ struct Reading {
     func tupled(_ r: Record, in s: Scope, _ t: inout Table) throws -> NodeID {
         var records = [r]
         while let link = records[0].link { records.insert(link.parent, at: 0) }
-        guard let last = r.link else { throw ComprehensionError.noEntry(0) }
+        guard let last = r.link, let zero = numerals.zero else { throw ComprehensionError.noEntry(0) }
         let n = r.length
         let chain = try TupleChain(
-            zero: (numerals.levels[0], .hypothesis(numerals.zero)),
-            indices: (1..<n).map { (numerals.levels[$0], .hypothesis(numerals.successors[$0 - 1])) },
+            zero: (numerals.levels[0], .hypothesis(zero)),
+            indices: (1..<n).map { (numerals.levels[$0], .hypothesis(try numerals.successor($0 - 1))) },
             prefixes: (1..<n).map { j in
                 guard let link = records[j].link else { throw ComprehensionError.noEntry(j) }
                 return (records[j].variable, link.snoc)
@@ -757,10 +803,9 @@ struct Reading {
     }
 
     func entry(_ j: Int, of r: Record, in s: Scope, _ t: inout Table) throws -> NodeID {
-        guard let link = r.link, j < r.length else { throw ComprehensionError.noEntry(j) }
-        if j == r.length - 1, let newest = link.newest { return try s.hypothesis(newest, in: &t) }
-        guard let h = r.facts[j] else { throw ComprehensionError.noEntry(j) }
-        return try s.hypothesis(h, in: &t)
+        if let link = r.link, j == r.length - 1 { return try s.proof(link.newest, in: &t) }
+        guard let fact = r.facts[j] else { throw ComprehensionError.noEntry(j) }
+        return try s.proof(fact, in: &t)
     }
 
     /// `elem(r, A) ↔ φ`: the two walks, each discharged once.
@@ -884,6 +929,9 @@ struct Reading {
             let w = try t.intern(.folIffElimL(read, p))
             guard let property else { return w }
             return try t.intern(.folIffElimL(property, w))
+
+        case .tuple(let row, let es):
+            return try t.intern(.folIffElimL(try tupleRead(row, es, f, r, &t), p))
 
         case .unfolded(let def, let inner):
             guard case .folPred(_, let args) = t[phi] else { throw ComprehensionError.misread(phi) }
@@ -1060,6 +1108,9 @@ struct Reading {
             let (read, property) = try atomParts(row, es, witness, f, r, env, &t)
             let w = try property.map { try t.intern(.folIffElimR($0, p)) } ?? p
             return try t.intern(.folIffElimR(read, w))
+
+        case .tuple(let row, let es):
+            return try t.intern(.folIffElimR(try tupleRead(row, es, f, r, &t), p))
 
         case .unfolded(let def, let inner):
             guard case .folPred(_, let args) = t[phi] else { throw ComprehensionError.misread(phi) }
@@ -1270,7 +1321,7 @@ struct Reading {
             return (b.variable, a)
         }
         var p = try t.intern(.isaAllElim(try g.hypothesis(lift.cls.hyp, in: &t), try g.variable(r.variable, in: &t)))
-        p = try t.intern(.folImpliesElim(p, try g.hypothesis(r.tuple, in: &t)))
+        p = try t.intern(.folImpliesElim(p, try g.proof(r.tuple, in: &t)))
         p = try eliminated(
             p,
             at: try lambdas.map { try g.variable($0.variable, in: &t) },
@@ -1306,17 +1357,11 @@ struct Reading {
         _ env: Env,
         _ t: inout Table,
     ) throws -> (NodeID, NodeID?) {
-        var p = try t.intern(.folForallElim(try at(row, f, r, &t), try f.variable(numerals.levels[r.length], in: &t)))
-        p = try t.intern(.folImpliesElim(p, try f.hypothesis(r.tuple, in: &t)))
-        for j in es {
-            guard j < r.length else { throw ComprehensionError.noEntry(j) }
-            p = try eliminated(
-                p,
-                at: [try f.variable(r.entries[j], in: &t)],
-                premises: [try entry(j, of: r, in: f.scope, &t)],
-                in: &t,
-            )
-        }
+        let sized = try t.intern(.folForallElim(
+            try at(row, f, r, &t),
+            try f.variable(numerals.levels[r.length], in: &t),
+        ))
+        let p = try entries(es, try t.intern(.folImpliesElim(sized, try f.proof(r.tuple, in: &t))), f, r, &t)
         let values = try es.map { try f.variable(r.entries[$0], in: &t) }
         switch witness {
         case .fixed:
@@ -1340,6 +1385,24 @@ struct Reading {
         }
     }
 
+    private func tupleRead(_ row: Row, _ es: [Int], _ f: Frame, _ r: Record, _ t: inout Table) throws -> NodeID {
+        try entries(es, try t.intern(.folImpliesElim(try at(row, f, r, &t), try f.proof(r.tuple, in: &t))), f, r, &t)
+    }
+
+    private func entries(_ es: [Int], _ p: NodeID, _ f: Frame, _ r: Record, _ t: inout Table) throws -> NodeID {
+        var p = p
+        for j in es {
+            guard j < r.length else { throw ComprehensionError.noEntry(j) }
+            p = try eliminated(
+                p,
+                at: [try f.variable(r.entries[j], in: &t)],
+                premises: [try entry(j, of: r, in: f.scope, &t)],
+                in: &t,
+            )
+        }
+        return p
+    }
+
     private func operands(_ c: Connective, _ phi: NodeID, _ t: Table) throws -> [NodeID] {
         switch (c, t[phi]) {
         case (.and, .folAnd(let a, let b)), (.or, .folOr(let a, let b)), (.iff, .folIff(let a, let b)),
@@ -1354,10 +1417,11 @@ struct Reading {
     }
 
     private func bottom(_ f: Frame, _ r: Record, _ t: inout Table) throws -> NodeID {
+        guard let zero = numerals.zero else { throw ComprehensionError.noEntry(0) }
         let notMember = { (s: Scope, t: inout Table) throws -> NodeID in
             let n0 = try s.variable(numerals.levels[0], in: &t)
             let def = try eliminated(try base.cite(.zeroDef, in: &t), at: [n0], in: &t)
-            let none = try t.intern(.folIffElimL(def, try s.hypothesis(numerals.zero, in: &t)))
+            let none = try t.intern(.folIffElimL(def, try s.hypothesis(zero, in: &t)))
             return try t.intern(.isaAllElim(none, try s.variable(r.variable, in: &t)))
         }
         let member = try t.intern(.folPred(

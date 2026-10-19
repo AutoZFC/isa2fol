@@ -90,13 +90,14 @@ prover"): a term's naming walked binder by binder, one fact per piece, per const
 constant's from its `@def` and a primitive's from base. **Class existence has its prover** (`DESIGN.md` "Class existence
 — its prover", FOUNDATION §3, R5, R4): a formula's class of records built from base's rows and read back exact, named by
 `member_class` or `graph_class`; a class binder a hypothesis of what lies under it; one lift per class-taking constant,
-uniform in the record's length, re-keyed by `REKEY`; the class prover does not read yet the classes of λs holding a
-proposition. **A lemma is proved once a statement that stands cites it** (`DESIGN.md` "Lazy proving"): the link closes
+uniform in the record's length, re-keyed by `REKEY`; S1's tuple formula one atom, `TUPLE_ROW_n`, proved once per arity
+at symbolic positions, and a level one fact, base's `snoc_facts` (`DESIGN.md` "Class existence at a few steps a node");
+the class prover does not read yet the classes of λs holding a proposition. **A lemma is proved once a statement that stands cites it** (`DESIGN.md` "Lazy proving"): the link closes
 before the registry proves, and the unit keeps only what a kept statement cites — 8,207 lemmas of the
 ZF session left out, never proved; a request set aside comes back when a proof the registry makes cites it. **Emission
 is built** (`DESIGN.md` "Emission"): `isa2fol lower data/zf_export --emit DIR` writes the unit as parts — a theory's
 theorems, a lemma in its first citer's part — and `scripts/check-unit.sh DIR` kernel-checks each against the libraries
-of base and of the parts it cites: all 7,964 claims and 568 schemas of the ZF session's unit Proved, 419.8 MB; a step
+of base and of the parts it cites: all 7,969 claims and 568 schemas of the ZF session's unit Proved, 272.5 MB; a step
 is cited only inside the block that wrote it, the checker keying a fact by its formula. `DESIGN.md` is the plan; its "The steps after class
 existence, in order" is the order of work, agreed again from step 2 on around FOUNDATION S4.
 
@@ -133,7 +134,7 @@ MEM=32G scripts/capped.sh scripts/check-unit.sh DIR        # each part, against 
 MEM=16G scripts/capped.sh scripts/check-base.sh [LIBDIR]   # base alone, each tier once
 ```
 
-⚠ **THE COMPLETE RUN PEAKS AT 50.4 GB** (2026-10-19, `--threads 16`, 23:30): `MEM=32G` kills it. Run it with
+⚠ **THE COMPLETE RUN PEAKS AT 45.8 GB** (2026-10-19, `--threads 16`, 13:48): `MEM=32G` kills it. Run it with
 `MEM=80G` until its memory is brought back under the CI's 32 GB.
 
 The checker is at **`~/repos/fol-zfc-comb/bazel-bin/src/tools/proof_checker`**
@@ -284,7 +285,7 @@ determinism R1–R3 (§4.6).
    print(f'{c}/{t} = {100*c/t:.1f}%')"
    ```
 
-   ✓ **CURRENTLY 261/16600 = 1.6%, under the cap.** Keep it there: a breach is
+   ✓ **CURRENTLY 261/16727 = 1.6%, under the cap.** Keep it there: a breach is
    fixed by deleting prose, never by raising the cap.
 
    Does not apply to `base/**/*.fol.def` headers: those record provenance of

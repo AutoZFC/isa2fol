@@ -1106,10 +1106,21 @@ B5/B6/B7-as-composed, and every arity-indexed placement law.
 in the diagonal; the tuple formation's atoms — `t` empty, `n` the successor of
 `m`, `s` the tuple `t` with index `n` set to `v` — are membership of one, two and
 four entries in their classes, each built once from B1–B7 (`base/tiers/classes`).
+S1's tuple formula — `t` the tuple of `x₁ … xₙ` — is ONE atom (decided
+2026-10-19), read by one row per arity over a record's positions: at positions
+`i₁ … iₙ, j` and length `L`, the class of records of length `L` whose entries at
+`i₁ … iₙ` form the tuple at `j`. It is built once per arity from the formation's
+atoms, its own binders the record's positions past `L` — the only place they are
+walked. No class of tuples serves it as a witness, as the class of 4-tuples serves
+the snoc atom: a record's sub-tuple is read only by the tuple formula's own class.
 A class parameter `Y` is its own witness. So the table's atom rows become one per
-WIDTH, a record's one, two or four entries read into ANY class, and membership's
-congruence, proved once inside those three, is the only congruence the
-construction uses: no atom carries its own.
+WIDTH, a record's entries read into ANY class, and membership's congruence,
+proved once inside those rows, is the only congruence the construction uses: no
+atom carries its own.
+
+> **⚠ READ AS A FORMULA, S1'S TUPLE FORMULA MADE THE CONSTRUCTION'S STRUCTURE**:
+> its binders were over a third of a class's levels, each tuple a formula's
+> worth of levels at every occurrence.
 
 > **⚠ THIS TABLE HAD A WIDENING ROW, `{a : dom(a) = J ∧ a↾I ∈ A}`**, with each
 > subformula over only the variables it MENTIONS — so `x ∈ y` and `y ∈ z` had

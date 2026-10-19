@@ -2106,3 +2106,56 @@ proof snoc_some:
     _i6 = implies_intro _i5
     _i7 = forall_intro _i6
     qed _i7
+
+proof snoc_facts:
+    _ts = use tuple_snoc
+    _sn = use snoc_new
+    _sk = use snoc_keep
+    fix a
+    fix n
+    _gn = assume set(n)
+    fix m
+    _gm = assume set(m)
+    fix v
+    _gv = assume set(v)
+    fix b
+    _ht = assume tuple(a,n)
+    _hn = assume nsucc(n,m)
+    _hs = assume snoc(a,n,v,b)
+    _t0 = forall_elim _ts, a
+    _t1 = forall_elim _t0, b
+    _t2 = forall_elim _t1, n
+    _t3 = implies_elim _t2, _gn
+    _t4 = forall_elim _t3, v
+    _t5 = implies_elim _t4, _gv
+    _t6 = forall_elim _t5, m
+    _t7 = implies_elim _t6, _gm
+    _t8 = implies_elim _t7, _ht
+    _t9 = implies_elim _t8, _hn
+    _tb = implies_elim _t9, _hs
+    _n0 = forall_elim _sn, a
+    _n1 = forall_elim _n0, n
+    _n2 = forall_elim _n1, v
+    _n3 = forall_elim _n2, b
+    _n4 = implies_elim _n3, _hs
+    _n5 = implies_elim _n4, _gn
+    _n6 = implies_elim _n5, _gv
+    _k0 = forall_elim _sk, a
+    _k1 = forall_elim _k0, n
+    _k2 = forall_elim _k1, v
+    _k3 = forall_elim _k2, b
+    _k4 = implies_elim _k3, _hs
+    _c1 = and_intro _n6, _k4
+    _c2 = and_intro _tb, _c1
+    _i1 = implies_intro _c2
+    _i2 = implies_intro _i1
+    _i3 = implies_intro _i2
+    _i4 = forall_intro _i3
+    _i5 = implies_intro _i4
+    _i6 = forall_intro _i5
+    _i7 = implies_intro _i6
+    _i8 = forall_intro _i7
+    _i9 = implies_intro _i8
+    _ia = forall_intro _i9
+    _ib = forall_intro _ia
+    qed _ib

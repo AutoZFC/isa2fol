@@ -45,15 +45,15 @@ func theFormulaWalkRefusesAStepWhateverItsPiece() throws {
     #expect(throws: LogicError.notAFormula(h)) { _ = try formula(h, .statement, in: &r.t) }
 }
 
-/// `CLASS ⟨λx. x ∈ y⟩`: `∃` by `row_ex`, the tuple's atoms read through `cls_zero`'s and `cls_snoc4`'s classes, `x ∈ y`
-/// through `B1`'s, and the class named by `member_class` at the record `⟨y⟩`.
+/// `CLASS ⟨λx. x ∈ y⟩`: `∃` by `row_ex`, the tuple by `TUPLE_ROW_1`, `x ∈ y` through `B1`'s class, and the class named
+/// by `member_class` at the record `⟨y⟩`.
 @Test
 func aLambdasClassIsItsRecordsSectionAtItsFreeVariables() throws {
     var r = Terms()
     let mem = try r.n(.isaConst(.primitive(.zf(.mem)), fn(i, fn(i, o)), args: [try r.x(0), try r.x(1)]))
     let (proved, unbuilt) = try proveAll(try classOf(lambda: try r.lam(i, mem), in: &r.t), [], in: &r.t)
     #expect(unbuilt.isEmpty)
-    #expect(proved.count == 1)
+    #expect(proved.count == 2 && proved.contains { $0.name == "TUPLE_ROW_1" })
     try kernelChecks(proved, in: &r.t)
 }
 
@@ -65,7 +65,7 @@ func aFunctionVariablesApplicationIsReadThroughItsApplicationClass() throws {
     let applied = try r.n(.isaVarApp(head: try r.n(.isaBound(1, fn(i, i))), args: [try r.x(0)]))
     let (proved, unbuilt) = try proveAll(try classOf(lambda: try r.lam(i, applied), in: &r.t), [], in: &r.t)
     #expect(unbuilt.isEmpty)
-    #expect(proved.count == 1)
+    #expect(proved.count == 2 && proved.contains { $0.name == "TUPLE_ROW_1" })
     try kernelChecks(proved, in: &r.t)
 }
 
@@ -99,7 +99,7 @@ func aConstantsClassOpensTheClassesItsBodyNames() throws {
     )
     let (proved, unbuilt) = try proveAll(try classOf(.defined(s), fn(i, i), in: &r.t), [d], in: &r.t)
     #expect(unbuilt.isEmpty)
-    #expect(Set(proved.map(\.name)) == ["T.s_CLASS", "ZF_Base.Pow_CLASS", "ZF_Base.Pow_AGREE"])
+    #expect(Set(proved.map(\.name)) == ["T.s_CLASS", "ZF_Base.Pow_CLASS", "ZF_Base.Pow_AGREE", "TUPLE_ROW_1"])
     try kernelChecks(proved, definitions: [(s, try atDefinition(s, [d], in: &r.t))], in: &r.t)
 }
 
@@ -316,8 +316,8 @@ private func baseCited(_ proof: NodeID, _ t: Table) -> Set<String> {
     return found
 }
 
-/// The bytes a unit of these claims writes, emitted.
-private func emittedBytes(_ claims: [(name: String, root: NodeID, proof: NodeID)], in t: inout Table) throws -> Int {
+/// A unit of these claims, emitted.
+private func emitted(_ claims: [(name: String, root: NodeID, proof: NodeID)], in t: inout Table) throws -> Emission {
     let fol = Fol(base: try base(in: &t))
     var statements = [Statement]()
     for c in claims {
@@ -328,10 +328,60 @@ private func emittedBytes(_ claims: [(name: String, root: NodeID, proof: NodeID)
     defer { try? FileManager.default.removeItem(at: dir) }
     let repo = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
         .deletingLastPathComponent()
-    let e = try emit(IR.Unit(table: t, statements: statements), to: dir, base: try baseTexts(
+    return try emit(IR.Unit(table: t, statements: statements), to: dir, base: try baseTexts(
         repo.appendingPathComponent("base")
     ))
-    return e.parts.map(\.bytes).reduce(0, +)
+}
+
+private func emittedBytes(_ claims: [(name: String, root: NodeID, proof: NodeID)], in t: inout Table) throws -> Int {
+    try emitted(claims, in: &t).parts.map(\.bytes).reduce(0, +)
+}
+
+/// `TUPLE_ROW_0` to `TUPLE_ROW_2`: S1's tuple formula as one row over record positions, `∃C. ∀a. tuple(a, L) → … →
+/// (elem(a, C) ↔ ⟨y⃗⟩ = z)`, the generator run at symbolic positions; at arity 0, `zero(z)`.
+@Test
+func theTupleFormulaIsOneRowOverRecordPositions() throws {
+    var t = Table()
+    let rows = try [0, 1, 2].map { n in
+        let f = TupleFact(arity: n, fact: .row)
+        return (Lemma(f), try statement(f, in: &t))
+    }
+    let (proved, unbuilt) = try proveAll(rows, [], in: &t)
+    #expect(unbuilt.isEmpty)
+    #expect(Set(proved.map(\.name)) == ["TUPLE_ROW_0", "TUPLE_ROW_1", "TUPLE_ROW_2"])
+    try kernelChecks(proved, in: &t)
+}
+
+/// `CLASS ⟨λx. x⟩`: the argument tuple `⟨x⟩ = t` one atom, `TUPLE_ROW_1` at the record; a level one fact, `snoc_facts`.
+/// 669 steps when the tuple formula's binders were levels of the walk, 365 by its row.
+@Test
+func theIdentityClassReadsItsArgumentTupleByItsRow() throws {
+    var r = Terms()
+    let (proved, unbuilt) = try proveAll(try classOf(lambda: try r.lam(i, try r.x(0)), in: &r.t), [], in: &r.t)
+    #expect(unbuilt.isEmpty)
+    let name = try #require(proved.first { $0.name.hasPrefix("CLASS_") }).name
+    let cited = baseCited(try #require(proved.first { $0.name == name }).proof, r.t)
+    #expect(cited.isDisjoint(with: ["cls_zero", "cls_nsucc", "cls_snoc4", "read4"]), "\(cited.sorted())")
+    #expect(cited.contains("snoc_facts") && cited.isDisjoint(with: ["tuple_snoc", "snoc_new", "snoc_keep"]))
+    let steps = try #require(try emitted(proved, in: &r.t).statements.first { $0.name == name }).written
+    #expect(steps <= 365, "\(steps)")
+    try kernelChecks(proved, in: &r.t)
+}
+
+/// `CLASS ⟨λx. f(x, x) ∈ A⟩`: the naming's tuple `⟨x, x⟩` is `TUPLE_ROW_2` at the record, its entry twice; the class's
+/// argument tuple `TUPLE_ROW_1`. No `zero`, `nsucc` or `snoc` atom is read in the class's proof.
+@Test
+func aNamingsTupleIsReadByItsRow() throws {
+    var r = Terms()
+    let applied = try r.n(.isaVarApp(head: try r.n(.isaBound(1, fn(i, fn(i, i)))), args: [try r.x(0), try r.x(0)]))
+    let mem = try r.n(.isaConst(.primitive(.zf(.mem)), fn(i, fn(i, o)), args: [applied, try r.x(2)]))
+    let (proved, unbuilt) = try proveAll(try classOf(lambda: try r.lam(i, mem), in: &r.t), [], in: &r.t)
+    #expect(unbuilt.isEmpty)
+    #expect(Set(proved.map(\.name)).isSuperset(of: ["TUPLE_ROW_1", "TUPLE_ROW_2"]))
+    let cls = try #require(proved.first { $0.name.hasPrefix("CLASS_") })
+    let cited = baseCited(cls.proof, r.t)
+    #expect(cited.isDisjoint(with: ["cls_zero", "cls_nsucc", "cls_snoc4", "read4"]), "\(cited.sorted())")
+    try kernelChecks(proved, in: &r.t)
 }
 
 /// `CLASS ⟨λx. ∀y. y ∈ x ⟶ y ∈ A⟩`: its exactness walked once each way, `∀` by `row_all` and `⟶` by `B_imp` — no
@@ -346,8 +396,8 @@ func aClassesExactnessIsWalkedOnceEachWayStatingNoSubformula() throws {
     let lambda = try r.lam(i, try r.n(.ifolAll(i, body: inside)))
     let (proved, unbuilt) = try proveAll(try classOf(lambda: lambda, in: &r.t), [], in: &r.t)
     #expect(unbuilt.isEmpty)
-    #expect(proved.count == 1)
-    let cited = baseCited(proved[0].proof, r.t)
+    #expect(proved.count == 2)
+    let cited = baseCited(try #require(proved.first { $0.name.hasPrefix("CLASS_") }).proof, r.t)
     #expect(cited.isSuperset(of: ["row_all", "B_imp"]), "\(cited.sorted())")
     #expect(!cited.contains { $0.hasPrefix("cong_") } && !cited.contains("iff_trans"), "\(cited.sorted())")
     #expect(cited.isDisjoint(with: ["forall_as_nexists", "imp_as_nand", "snoc_some"]), "\(cited.sorted())")

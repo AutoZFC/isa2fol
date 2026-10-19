@@ -59,6 +59,9 @@ claim next_in: forall j. (set(j) -> (forall j2. (set(j2) -> (nsucc(j,j2) -> (for
 claim snoc_EQ: forall s. forall s2. forall n. forall n2. forall v. forall t. forall t2. (eq(s,s2) -> (eq(n,n2) -> (snoc(s,n,v,t) -> (snoc(s2,n2,v,t2) -> eq(t,t2)))))
 schema snoc_read [P(0)]: forall K. forall a. (set(a) -> (forall k. (set(k) -> (forall m. (set(m) -> (tuple(a,k) -> (nsucc(k,m) -> (forall v. (set(v) -> ((forall b. (set(b) -> (tuple(b,m) -> (pmem(k,v,b) -> ((forall i. (forall y. (pmem(i,y,a) -> pmem(i,y,b)))) -> (elem(b,K) <-> P)))))) -> ((exists b. (set(b) & (snoc(a,k,v,b) & elem(b,K)))) <-> P)))))))))))
 
+# A record's extension, its three facts at once: the one fact class existence's walk opens at each level.
+claim snoc_facts: forall a. forall n. (set(n) -> (forall m. (set(m) -> (forall v. (set(v) -> (forall b. (tuple(a,n) -> (nsucc(n,m) -> (snoc(a,n,v,b) -> (tuple(b,m) & (pmem(n,v,b) & (forall i. (forall y. (pmem(i,y,a) -> pmem(i,y,b)))))))))))))))
+
 # An extension read at every b that IS a's extension by v: what class existence's read-back of an existential takes,
 # keeping the snoc fact, so a record's chain of extensions stays at hand (DESIGN "Class existence — its prover").
 schema snoc_some [X(1), P(0)]: forall a. (set(a) -> (forall k. (set(k) -> (forall v. (set(v) -> ((forall b. (set(b) -> (snoc(a,k,v,b) -> (X(b) <-> P)))) -> ((exists b. (set(b) & (snoc(a,k,v,b) & X(b)))) <-> P)))))))

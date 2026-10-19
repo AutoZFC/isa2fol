@@ -120,6 +120,7 @@ struct TupleFact: Request {
         case uniqueness
         case injectivity
         case congruence
+        case row
     }
 
     let arity: Int
@@ -131,6 +132,7 @@ struct TupleFact: Request {
         case .uniqueness: "TUPLE_UNIQ_\(arity)"
         case .injectivity: "TUPLE_INJ_\(arity)"
         case .congruence: "TUPLE_CONG_\(arity)"
+        case .row: "TUPLE_ROW_\(arity)"
         }
     }
 }
@@ -443,6 +445,33 @@ func statement(_ f: TupleFact, in t: inout Table) throws -> NodeID {
             try t.intern(.folImplies(try tuple(ys, tau, in: &t), equal)),
         ))
         for _ in 0..<(2 * n + 1) { body = try t.intern(.ifolAll(.i, body: body)) }
+        return body
+
+    case .row:
+        var s = Scope()
+        let positions = (0...n).map { _ in s.fix(.i) }
+        let L = s.fix(.i)
+        let C = s.fix(nil)
+        let a = s.fix(.i)
+        let atA = s
+        var values = [Int]()
+        var premises = [NodeID]()
+        for k in 0...n {
+            values.append(s.fix(.i))
+            premises.append(try pred("pmem", [positions[k], values[k], a], at: s, &t))
+        }
+        let ys = try values.dropLast().map { try s.variable($0, in: &t) }
+        var body = try t.intern(.folIff(
+            try pred("elem", [a, C], at: s, &t),
+            try tuple(ys, try s.variable(values[n], in: &t), in: &t),
+        ))
+        for premise in premises.reversed() { body = try t.intern(.ifolAll(.i, body: try t.intern(.folImplies(
+            premise,
+            body,
+        )))) }
+        body = try t.intern(.ifolAll(.i, body: try t.intern(.folImplies(try pred("tuple", [a, L], at: atA, &t), body))))
+        body = try t.intern(.folExists(body: body))
+        for _ in 0...(n + 1) { body = try t.intern(.ifolAll(.i, body: body)) }
         return body
     }
 }

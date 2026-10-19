@@ -333,7 +333,9 @@ func classDefinition(
     mode: Mode = .statement,
     in t: inout Table,
 ) throws -> NodeID {
-    let (outside, inside) = try classBody(lambda, raw: raw, mode: mode, in: &t)
+    let b = try classBody(lambda, raw: raw, mode: mode, in: &t)
+    let outside = b.outside
+    let inside = b.formula
     let k = try shift(K, by: outside, in: &t)
     let application = outside == 1
         ? try t.intern(.folPred(.base("elem"), args: [try t.intern(.isaBound(0, .i)), k]))
@@ -346,12 +348,19 @@ func classDefinition(
     return definition
 }
 
+struct ClassBody {
+    let outside: Int
+    let arity: Int
+    let member: NodeID
+    let formula: NodeID
+}
+
 func classBody(
     _ lambda: NodeID,
     raw: Bool,
     mode: Mode = .statement,
     in t: inout Table,
-) throws -> (outside: Int, body: NodeID) {
+) throws -> ClassBody {
     var n = 0
     var inner = lambda
     while case .isaAbs(let T, let body) = t[inner] {
@@ -376,7 +385,7 @@ func classBody(
     let xs = try (0..<n).map { try t.intern(.isaBound(n - 1 - $0, .i)) }
     var inside = try t.intern(.folAnd(try tuple(xs, try t.intern(.isaBound(n + outside - 1, .i)), in: &t), member))
     for _ in 0..<n { inside = try t.intern(.ifolEx(.i, body: inside)) }
-    return (outside, inside)
+    return ClassBody(outside: outside, arity: n, member: member, formula: inside)
 }
 
 public struct ReifyProver: Prover {
