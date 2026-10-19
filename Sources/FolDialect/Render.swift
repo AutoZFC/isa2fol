@@ -263,7 +263,7 @@ private struct Writer {
         case .folLetterAll, .folLetter:
             throw RenderError.schema(id)
 
-        case .folLetterAbs:
+        case .folLetterAbs, .isaValue, .isaValueFact:
             var names = [String]()
             var body = id
             while case .folLetterAbs(let b) = t[body] {

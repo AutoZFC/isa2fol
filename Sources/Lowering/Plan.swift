@@ -11,6 +11,7 @@ public func provers(_ base: Base) -> Provers {
         ClassProver(base: base),
         LambdaProver(base: base),
         AxiomProver(base: base),
+        MeetingProver(base: base),
     ])
 }
 

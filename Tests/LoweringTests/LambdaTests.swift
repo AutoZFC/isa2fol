@@ -54,9 +54,8 @@ private func user(
     )
 }
 
-/// `thm · (λx. x ∈ A)`: the λ's class at its arguments, `LAMBDA_<fp>`, opened; `thm`'s class binder eliminated at its
-/// class;
-/// β at the atom `⟨b⟩ ∈ K` is the opened lemma at `b`. The kernel proves the unit.
+/// `thm · (λx. x ∈ A)`: the λ's class opened by its existence, `thm`'s class binder eliminated at it, and the formula's
+/// `BETA_<fp>` lemma reading the class at `⟨b⟩` as the λ's body at `b`. The kernel proves the unit.
 @Test
 func anInstanceAtALambdaIsItsClassThenBeta() throws {
     var l = LogicTable()
@@ -65,7 +64,7 @@ func anInstanceAtALambdaIsItsClassThenBeta() throws {
     let use = try user("T.use", thm, lambda, try l.mem(try l.bound(0, i), try l.bound(1, i)), &l)
     let unit = try lowered(l, [thm, use])
     #expect(unit.refused.isEmpty)
-    #expect(unit.statements.contains { $0.name.hasPrefix("LAMBDA_") })
+    #expect(unit.statements.contains { $0.name.hasPrefix("BETA_") })
     try kernelChecks(unit)
 }
 
@@ -165,6 +164,21 @@ func aNestedApplicationOfAFunctionLambdaIsBetaAtEachValue() throws {
     }
     let unit = try lowered(l, statements)
     #expect(unit.refused.isEmpty)
+    try kernelChecks(unit)
+}
+
+/// `F(Pow(a)) ∈ B` at `λx. Pow(x)`: `Pow(a)` holds the formula's own `a`, so it has no value; β takes `F`'s
+/// application at the variable naming `Pow(a)`, which both forms name alike (DESIGN "Linear proof size", 5).
+@Test
+func anApplicationAtACompoundArgumentOverABoundVariableIsBetaAtItsName() throws {
+    var l = LogicTable()
+    let lambda = try l.lam(i, try pow(try l.bound(0, i), &l))
+    let used = try l.mem(try pow(try pow(try l.bound(1, i), &l), &l), try l.bound(0, i))
+    let statements = try functional(F, 1, lambda, used, &l) { F, a, l in
+        try l.t.intern(.isaVarApp(head: F, args: [try pow(a[0], &l)]))
+    }
+    let unit = try lowered(l, statements)
+    #expect(unit.refused.isEmpty, "\(unit.refused)")
     try kernelChecks(unit)
 }
 
@@ -306,7 +320,6 @@ func aLambdaHoldingALetterIsASchemaInIt() throws {
     )
     let unit = try lowered(l, [thm, schematic])
     #expect(unit.refused.contains { $0.name.hasPrefix("CLASS_") && $0.refusal == .lemmaUnbuilt })
-    #expect(unit.refused.contains { $0.name.hasPrefix("LAMBDA_") })
     #expect(unit.refused.contains { $0.name == "T.use" })
 }
 
@@ -333,12 +346,10 @@ func aLambdaHoldingATruthSetVariableIsASchemaCitedAtItsTruth() throws {
     #expect(unit.refused.contains { $0.name == "T.use" })
 }
 
-/// `⋀P Q::o a. (P(a) ∧ Q) ⟶ …` at `λx. x ∈ A`, then at `Q`: the instance walks under `⋀Q`, a letter the theorem binds
-/// after
-/// its class binder, and `schema_inst` at `Q` stands off the citation's head — refused, `letterOffSpine`, after the
-/// last pass.
+/// `⋀P Q::o a. (P(a) ∧ Q) ⟶ …` at `λx. x ∈ A`, then at `Q`: the formula the λ meets binds the letter `Q` below its
+/// top, which no first-order lemma states — its `BETA_<fp>` is refused unbuilt, and the use with it.
 @Test
-func aLetterTheCitedTheoremBindsAfterTheInstantiatedClassIsOffItsSpine() throws {
+func aLetterTheCitedTheoremBindsBelowTheInstantiatedClassFallsWithItsLemma() throws {
     var l = LogicTable()
     let applied = try l.t.intern(.isaVarApp(head: try l.bound(2, P), args: [try l.bound(0, i)]))
     let phi = try l.t.intern(.folAnd(applied, try l.bound(1, o)))
@@ -367,10 +378,8 @@ func aLetterTheCitedTheoremBindsAfterTheInstantiatedClassIsOffItsSpine() throws 
         theory: "Test",
     )
     let unit = try lowered(l, [thm, use])
-    #expect(unit.refused.map(\.name) == ["T.use"])
-    guard case .letterOffSpine? = unit.refused.first?.refusal else { Issue.record("\(unit.refused)")
-        return
-    }
+    #expect(unit.refused.contains { $0.name.hasPrefix("BETA_") && $0.refusal == .lemmaUnbuilt })
+    #expect(unit.refused.contains { $0.name == "T.use" })
 }
 
 /// The theorem above with its letter first, as the reader reads it (DESIGN "Letters first"): `schema_inst` at `Q` on

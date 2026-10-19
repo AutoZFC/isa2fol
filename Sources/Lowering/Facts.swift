@@ -119,6 +119,7 @@ struct TupleFact: Request {
         case existence
         case uniqueness
         case injectivity
+        case congruence
     }
 
     let arity: Int
@@ -129,6 +130,7 @@ struct TupleFact: Request {
         case .existence: "TUPLE_EX_\(arity)"
         case .uniqueness: "TUPLE_UNIQ_\(arity)"
         case .injectivity: "TUPLE_INJ_\(arity)"
+        case .congruence: "TUPLE_CONG_\(arity)"
         }
     }
 }
@@ -213,7 +215,7 @@ func statement(_ r: Existence, in t: inout Table) throws -> NodeID {
     let valued = try equation(try t.intern(.isaBound(0, .i)), try shift(r.term, by: 1, in: &t), in: &t)
     return try universal(
         r.types,
-        guards: false,
+        guards: true,
         try t.intern(.ifolEx(.i, body: try named(atom: t[valued], in: &t))),
         in: &t,
     )
@@ -221,10 +223,10 @@ func statement(_ r: Existence, in t: inout Table) throws -> NodeID {
 
 func statement(_ r: Uniqueness, in t: inout Table) throws -> NodeID {
     var naming = Naming()
-    let v = try naming.name(r.term, [], &t)
-    let v2 = try naming.name(r.term, [], &t)
+    let v = try naming.name(r.term, &t)
+    let v2 = try naming.name(r.term, &t)
     let core = try naming.chain.predicate(.base("eq"), [v, v2], in: &t)
-    return try universal(r.types, guards: true, try naming.chain.premises(core, in: &t), in: &t)
+    return try universal(r.types, guards: true, try naming.chain.formula(core, in: &t), in: &t)
 }
 
 private func classParameters(_ T: IRType, under inner: Int, in t: inout Table) throws -> [NodeID] {
@@ -329,11 +331,11 @@ func statement(_ f: ConstantFact, in t: inout Table) throws -> NodeID {
         ))
         var body = try t.intern(.folImplies(try tuple(xs, tau, in: &t), try t.intern(.ifolEx(.i, body: value))))
         for _ in 0...m { body = try t.intern(.ifolAll(.i, body: body)) }
-        body = try t.intern(.folImplies(
+        body = try t.intern(.folForall(body: try t.intern(.folImplies(
             try named(try t.intern(.folBound(0)), try classParameters(f.type, under: 1, in: &t), &t),
             body,
-        ))
-        return try foralls(k + 1, body, &t)
+        ))))
+        return try foralls(k, try functionGuarded(body, f.type, in: &t), &t)
 
     case .lift:
         return try lift(f, in: &t)
@@ -341,14 +343,20 @@ func statement(_ f: ConstantFact, in t: inout Table) throws -> NodeID {
     case .function:
         let C = try t.intern(.folBound(0))
         let ps = try classParameters(f.type, under: 1, in: &t)
-        var body = try t.intern(.folImplies(try named(C, ps, &t), try t.intern(.folPred(.base("function"), args: [C]))))
-        body = try t.intern(.folForall(body: body))
-        let outer = try classParameters(f.type, under: 0, in: &t)
-        for j in (0..<k).reversed() where isFunctionClass(classes[j]) {
-            if let g = try guarded(outer[j], classes[j], in: &t) { body = try t.intern(.folImplies(g, body)) }
-        }
-        return try foralls(k, body, &t)
+        let body = try t.intern(.folImplies(try named(C, ps, &t), try t.intern(.folPred(.base("function"), args: [C]))))
+        return try foralls(k, try functionGuarded(try t.intern(.folForall(body: body)), f.type, in: &t), &t)
     }
+}
+
+/// `body` below the guards of a constant's function-class parameters, which stand outside it.
+private func functionGuarded(_ body: NodeID, _ type: IRType, in t: inout Table) throws -> NodeID {
+    let classes = type.domains.filter { !isEntry($0) }
+    let outer = try classParameters(type, under: 0, in: &t)
+    var root = body
+    for j in classes.indices.reversed() where isFunctionClass(classes[j]) {
+        if let g = try guarded(outer[j], classes[j], in: &t) { root = try t.intern(.folImplies(g, root)) }
+    }
+    return root
 }
 
 func statement(_ f: LambdaFact, base: Base, in t: inout Table) throws -> NodeID {
@@ -401,6 +409,22 @@ func statement(_ f: TupleFact, in t: inout Table) throws -> NodeID {
         for j in (0..<n).reversed() {
             let x = try shift(xs[j], by: -2, in: &t)
             let y = try shift(ys[j], by: -2, in: &t)
+            body = try t.intern(.folImplies(try t.intern(.folPred(.base("eq"), args: [x, y])), body))
+        }
+        for _ in 0..<(2 * n) { body = try t.intern(.ifolAll(.i, body: body)) }
+        return body
+
+    case .congruence:
+        let xs = try (0..<n).map { try t.intern(.isaBound(2 * n - $0, .i)) }
+        let ys = try (0..<n).map { try t.intern(.isaBound(n - $0, .i)) }
+        let tau = try t.intern(.isaBound(0, .i))
+        var body = try t.intern(.ifolAll(.i, body: try t.intern(.folImplies(
+            try tuple(xs, tau, in: &t),
+            try tuple(ys, tau, in: &t),
+        ))))
+        for j in (0..<n).reversed() {
+            let x = try shift(xs[j], by: -1, in: &t)
+            let y = try shift(ys[j], by: -1, in: &t)
             body = try t.intern(.folImplies(try t.intern(.folPred(.base("eq"), args: [x, y])), body))
         }
         for _ in 0..<(2 * n) { body = try t.intern(.ifolAll(.i, body: body)) }

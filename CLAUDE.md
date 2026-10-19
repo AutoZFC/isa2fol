@@ -40,11 +40,17 @@ equality between functions": pointwise, `f ≡ g` read `⋀x⃗. f x⃗ ≡ g x�
 the argument, then the argument's equation substituted into the function by the replacement walk). **A statement's
 letters come first** (`DESIGN.md` "Letters first"): the reader closes a theorem over its propositions before its other
 frees and permutes each citation's leading term arguments to match, so a letter is instantiated by `schema_inst` on the
-citation and no instance walks a binder over a proposition; an axiom keeps the export's order. Of the ZF session's
-3,616 named theorems (`--skip` the other seven), `lower` lowers 279 to fol-zfc: 7 stop at no
-owner, 874 at logic (`If`, step 6; `AC.AC`, Choice), and 2,456 cite a refused statement, led by a box of `ZF_Base` that
-falls with `FOL.int_all_simps.3`, then `ZF_Base.Replace_iff` with `FOL.IFOL_simps.32`, each at a variable only the
-proof uses beyond objects — a `@def` holding a piece not built, or a theorem refused for one of the others. **ZF's axioms are theorems of base read back into Isabelle's form**
+citation and no instance walks a binder over a proposition; an axiom keeps the export's order. **A proposition as an
+argument is its truth set** (`DESIGN.md` "Step 6"): `If`, `bool_of_o` take a proposition, an entry of the argument tuple
+named where it stands. **In a proof, a term is its value** (`DESIGN.md` "Proof size", "Linear proof size"): a term whose
+variables the proof has fixed is fixed once, by `exists_elim` over its EX, and every formula the proof passes holds the
+value; a statement keeps S1's naming, universal (`∀v. ⟦v = t⟧ → φ(v)`); where a formula meets the proof's values, a lemma
+proved once per formula crosses them — `MEET_<fp>`, `BETA_<fp>` at a λ (its class variable's application read at its
+arguments' names), `SUBST_<fp>` Leibniz, `ARGS_<fp>` — below a statement's letters, which stay on its spine. Of the ZF
+session's 3,616 named theorems (`--skip` the other seven), `lower` lowers 369 to fol-zfc: 7 stop at no owner, 1 at logic
+(`AC.AC`, Choice), and 3,239 cite a refused statement, led by a box of `ZF_Base` (595) and `FOL.int_ex_simps.2` (296),
+each at a variable only the proof uses beyond objects — a `@def` holding a piece not built, or a theorem refused for one
+of the others. **ZF's axioms are theorems of base read back into Isabelle's form**
 (`DESIGN.md` "Step 8 — ZF's axioms, derived from NBG"): base states each in NBG's words — a primitive by its relation,
 a predicate Isabelle defines by its definition — and proves it, Regularity pinned for `foundation`; a lemma per axiom,
 `ZF_Base.a_AXIOM`, reads the words back, a named predicate by its `c_UNFOLD`, a primitive's application by its class at
@@ -90,7 +96,7 @@ before the registry proves, and the unit keeps only what a kept statement cites 
 ZF session left out, never proved; a request set aside comes back when a proof the registry makes cites it. **Emission
 is built** (`DESIGN.md` "Emission"): `isa2fol lower data/zf_export --emit DIR` writes the unit as parts — a theory's
 theorems, a lemma in its first citer's part — and `scripts/check-unit.sh DIR` kernel-checks each against the libraries
-of base and of the parts it cites: all 2,331 claims and 352 schemas of the ZF session's unit Proved, 264.2 MB; a step
+of base and of the parts it cites: all 7,964 claims and 568 schemas of the ZF session's unit Proved, 419.8 MB; a step
 is cited only inside the block that wrote it, the checker keying a fact by its formula. `DESIGN.md` is the plan; its "The steps after class
 existence, in order" is the order of work, agreed again from step 2 on around FOUNDATION S4.
 
@@ -126,6 +132,9 @@ MEM=32G scripts/capped.sh .build/release/isa2fol lower data/zf_export $ZF --emit
 MEM=32G scripts/capped.sh scripts/check-unit.sh DIR        # each part, against base's and its parts' libraries
 MEM=16G scripts/capped.sh scripts/check-base.sh [LIBDIR]   # base alone, each tier once
 ```
+
+⚠ **THE COMPLETE RUN PEAKS AT 50.4 GB** (2026-10-19, `--threads 16`, 23:30): `MEM=32G` kills it. Run it with
+`MEM=80G` until its memory is brought back under the CI's 32 GB.
 
 The checker is at **`~/repos/fol-zfc-comb/bazel-bin/src/tools/proof_checker`**
 and its source at `~/repos/fol-zfc-comb` (C++, Bazel). Tests find it via
@@ -275,7 +284,7 @@ determinism R1–R3 (§4.6).
    print(f'{c}/{t} = {100*c/t:.1f}%')"
    ```
 
-   ✓ **CURRENTLY 64/13574 = 0.5%, under the cap.** Keep it there: a breach is
+   ✓ **CURRENTLY 261/16600 = 1.6%, under the cap.** Keep it there: a breach is
    fixed by deleting prose, never by raising the cap.
 
    Does not apply to `base/**/*.fol.def` headers: those record provenance of
@@ -322,7 +331,7 @@ Sources/
   IR/            Node · Table · transform · index engine · passes · legalize
   FolDialect/    Declaration · render (formulas and proofs) · parse (base's schemas) — the text boundary over IR
   Reader/        the export → isa nodes: Export (loading) · IsaType · Constants · Terms (η-long, closed) · Statements · Proofs (decoder) · Reader (proofs) · Census
-  Lowering/      the plan, never seen by the framework: the passes Expand · Logic · Fol, Reify a component in Logic's walk, and the registry — Expand's rules, Logic's for a proposition's letter, Pure's `⋀` over a proposition and functions of propositions (Truth, S4's truth set), `subst` and Pure's equality at `o` and at `i`, Reify's naming, `@def`s and instance at a compound term, a ZF definition cited (Unfolding, `c_UNFOLD`), Fol's at every object type, and class existence (Comprehension, the class prover) built
+  Lowering/      the plan, never seen by the framework: the passes Expand · Logic · Fol, Reify a component in Logic's walk, and the registry — Expand's rules, Logic's for a proposition's letter, Pure's `⋀` over a proposition and functions of propositions (Truth, S4's truth set), `subst` and Pure's equality at `o` and at `i`, Reify's naming, `@def`s and instance at a compound term, a ZF definition cited (Unfolding, `c_UNFOLD`), Fol's at every object type, class existence (Comprehension, the class prover), a proof's values (Values) and the meeting lemmas (Meeting) built
   isa2fol/       CLI
 Tests/           YXMLTests · FolDialectTests · IRTests · ReaderTests · LoweringTests
 base/            the NBG foundation: axioms.fol.def + 13 tiers, kernel-checked

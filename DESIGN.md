@@ -5562,7 +5562,7 @@ range of every occurrence it is given (`occurrences`, `sites`).
    expects EX alone; `anInstanceAtAnAppliedFunctionVariableDischargesItsGuard` puts its atom in a negative position, where
    UNIQ and its guard still stand.
 
-### Linear proof size — in a proof, a term is its value  **[AGREED 2026-10-18 (user), the three decisions one by one]**
+### Linear proof size — in a proof, a term is its value  **[AGREED 2026-10-18 (user), the three decisions one by one; decision 4, the class prover, 2026-10-19 (user)]**
 
 **The step.** What we emit, measured per statement against Isabelle's size — the DAG of its statement and proof, with the
 definitions it first reaches — by a trace over the ZF session's complete unit after "Proof size" (throwaway, not kept;
@@ -5647,12 +5647,186 @@ after      forall b3. (ZF_Base.Union(b3) -> (forall b4. (set(b4) -> ((forall b5.
 Not the `∃`-chain, as now: a naming of k binders writes about k²/2 pieces each way — `exists_elim` assumes each binder's
 body, an `∃`-intro states it — where the universal writes k.
 
+**4. The class prover's exactness walked once each way, each level's row on classes alone.** **AGREED 2026-10-19
+(user).** Class existence is a third of what the unit writes (139 MB of 409: `CLASS ⟨λ⟩`, `c_CLASS`, `c_LIFT`), and the
+function and arguments facts another 13%: each proves `elem(b, A_ψ) ↔ ψ` level by level, a `cong_*` and an `iff_trans`
+at each restating ψ's subformulas, and an atom's read walks the record back to its entry, one step per later binder.
+Decisions 1–3 do not reach them, and 3 makes them grow: the prover reads `∀` as `¬∃¬` and `→` as `¬(A ∧ ¬B)`, each by a
+conversion restating the formula, and every naming binder becomes both. Exactness is two walks over ψ instead, `→` and
+`←`, each a proof built from the one below it: at `∧` the row `B2` at `b` and `and_elim`, `and_intro`; at `∃` `row_ex`,
+`exists_elim` and the `∃`-intro; `∀` and `→` by rows of their own, `row_all` and `B_imp`, new in base as `B2` and
+`row_ex` are. A record's entries are hypotheses, each carried to the extended record once per binder, so an atom's read
+does not depend on how many binders are in scope. The function facts' walks — an entry moved by its equation, a graph's
+body at its tuple — are directional the same way.
+
+```
+now        row       elem(b, A_ψ) ↔ (elem(b, A₁) ∧ elem(b, A₂))
+           cong_and  { A: elem(b, A₁), A2: ψ₁, B: elem(b, A₂), B2: ψ₂ }                 — both subformulas written
+           iff_trans { A: elem(b, A_ψ), B: elem(b, A₁) ∧ elem(b, A₂), C: ψ₁ ∧ ψ₂ }      — and again
+after      →  from elem(b, A_ψ):  B2 at b, and_elim twice, each side read down to its atom, and_intro       — nothing written
+           ←  from ψ₁ ∧ ψ₂:  and_elim twice, each side read up to its class, and_intro, B2 at b              — nothing written
+```
+
+Not `∀` and `→` by conversion, as now: each restates the formula it converts. Not one walk proving the equivalence at
+each level: an equivalence composed of its parts' is the `cong_*` instance, which states them.
+
 **FOUNDATION first**, once the decisions stand: S1 gains decision 1 and, with 3, its naming's universal form; §3b's rows for
 an `AppT` at a compound term and for Pure's equality at objects become `forall_elim` and `eq_*` at values, the terms an
 instance closes meeting their values by decision 2's lemma.
 
 **Not in this step.** Pure's equality at `o`, the `iff_*` walks: a proposition's truth set as its value (S4) is a step of
-its own. The contracts and the tests are written once the decisions stand.
+its own.
+
+**The contracts (D2):**
+
+| | provides | assumes |
+|---|---|---|
+| IR | `isaValue(t)`, a term's value standing in a proof's formula, and `isaValueFact(v, φ)`, the step concluding its fact: isa only, lowering's, gone after Logic | — |
+| Base | `row_all`, `B_imp`; the primitives' `@def`s, `class_subst` and `PrimReplace_value` in S1's universal form, kernel-checked | — |
+| Reify (`Naming`) | S1's naming universal, a tuple's formula alike; a formula's value form — each term holding no variable the formula binds is its value, the rest named — and a value's fact, `⟦v = t⟧` with `t`'s own arguments valued | — |
+| Logic | every proof's formulas in value form, each value bound where its innermost variable is fixed, by `exists_elim` over its EX; Isabelle's steps on values — an `AppT` `forall_elim` at the value, Pure's equality at `i` `eq_*`; each proof concluding its statement's S1 form | the meeting and Leibniz lemmas; EX per term |
+| Registry: the meeting prover | `MEET_<fp>`, a formula's form with some variables' terms named against its form with them valued, over its skeleton — its other fixed terms plain variables — premised on the valued terms' facts, one direction; `SUBST_<fp>`, Leibniz for a formula in one variable | UNIQ, EX per term; `TUPLE_CONG_n` |
+| Registry: Reify's provers | EX ⟨t⟩ as `∃r. ⟦r = t⟧`, universal; UNIQ, the constants' and λs' facts, `c_UNFOLD`, in S1's universal form | the class prover |
+| Registry: the class prover | `CLASS ⟨λ⟩`, `c_CLASS`, `c_LIFT` as now, exactness by two directional walks over universal namings, each atom's read from the record's entries as hypotheses | `row_all`, `B_imp` |
+
+**Tests, written first.**
+- `ProofSizeTests`: `lem · Pow(0)` at a positive and at a negative atom, `transitive`, `symmetric`, `reflexive` at `i`,
+  `combination` at an object argument — each step on values, its site citing only formula-free steps and lemmas; and the
+  size of a proof against its Isabelle size, linear: a chain of n instances, of n equalities, a term n deep.
+- `ReifyTests`: a statement's S1 form universal; a proof's formula in value form, a value bound where its last variable is
+  fixed; the kernel checks both.
+- `ClassTests`: a class's exactness written with no `cong_*` and no `iff_trans`, `∀` and `→` read by `row_all`, `B_imp`.
+- The ZF session: the complete run within the CI's 32 GB, emitted and kernel-checked; the unit's size and its slope
+  against Isabelle's, by statement.
+
+**Built** (2026-10-19, not committed: with decisions 5–7 the complete run lowers the run before it's 369 named theorems, HEAD's 279 among them, every claim Proved). IR: `isaValue(t)` and `isaValueFact(v, φ)` (`Sources/IR/Node.swift`, `Table.swift`:
+a value is a predicate argument and a `forall_elim`'s). Reify: `Chain.formula` universal, the tuple's formula with it;
+`Naming` takes a `Mode` — a statement's, every term named; a proof's, below `d` binders of its own and naming the
+terms holding some given variables, each other term holding no variable the formula binds its value — and records each
+term's binders (`ranges`); `valueFact`, `⟦v = t⟧` with `t`'s arguments valued (`Sources/Lowering/Reify.swift`). Values
+(`Sources/Lowering/Values.swift`): `value(of:)`; a skeleton, a formula's chosen terms abstracted as variables; EX of a
+value over its term's skeleton; the values a binder fixes (`scoped`), bound by `exists_elim` over their EX, by `∀`
+and a premise in a lemma (`fixing`). Logic (`Sources/Lowering/Logic.swift`): a proof's formulas in value form, a
+statement's root and a citation's in S1's; a citation through its statement's lemma, `AppT` at `i` `forall_elim` at the
+value and the instantiated formula's lemma, a `⋀` concluded through its body's lemma with the values over its variable
+bound inside it, `exE`'s assumption and `exI`'s premise likewise, Pure's equality at `i` `eq_*` at the values; each
+proof concluding its statement's S1 form through the statement's lemma, its closed values bound at its top. The meeting
+prover (`Sources/Lowering/Meeting.swift`): `MEET_<fp>` (a formula naming its moving terms against holding their values,
+over its skeleton, premised on the values' facts; variables the formula binds at the site kept named in both), its
+proof one walk — connectives by their own introductions and eliminations, an atom by aligning its two namings, a term
+the named form names and the valued form holds the value of opened by its pieces' facts or fixed, its top equal to the
+value by the value's fact, a shared binder's constraint carried by `TUPLE_CONG_n` at a tuple and by the walk itself at a
+class's definition or a truth set; `BETA_<fp>` (`∀P. ψ` at a λ, `P` the λ's class: an atom `P(t⃗)` through `ARGS ⟨λ⟩`,
+the λ's class at its arguments from its definition, then the body's own lemma; an application `P(t⃗)` of a function
+variable by the λ's function form; the λ's class fixed at the site by CLASS ⟨λ⟩ of its skeleton); `SUBST_<fp>`
+(Leibniz for a formula in one variable: at an object membership's congruence at its atoms; at a letter, `P ↔ Q`; at
+a class `iⁿ ⇒ o` the same members, at a function class `iⁿ ⇒ i` the same pairs, `apply` by `apply_class_cong` — by
+the replacement walk), `combination` the premise at `a` — an object's value, a proposition's truth instance, a λ's class
+and `BETA` back — then `f a ≡ g x` carried from `a` to `b` by it; at a class, the two λs' classes having the same
+members (pairs) by their definitions and the premise `a ≡ b`, a function λ's body through its value
+(`Sources/Lowering/Functions.swift`). Tuple: `TUPLE_CONG_n`. EX ⟨t⟩: `∃y. ⟦y = t⟧`, its pieces opened by their facts
+and UNIQ making `y` every value (`Sources/Lowering/Terms.swift`). `c_UNFOLD` at class parameters: the naming at the
+slots' classes read back to the slots by `BETA` in statement form, one slot after another, the later ones still at
+their classes (`Sources/Lowering/Unfolding.swift`). The axioms' readings unfold a defined predicate at a λ through its
+class and `BETA` in statement form (`instantiatedStated`).
+
+**Decisions made in the build**, for the user's review:
+1. **A value is a term's, never a piece's**: Isabelle's terms at `i` are values; a constant's class, a λ's class, a
+   tuple and a truth set stay named — inside the atoms and inside the values' facts, `⟦v = t⟧` naming `t`'s own
+   application with its arguments valued. Decision 1 listed the pieces as values too, but a class is equal to another
+   only extensionally: as a value it needs an agreement at every conversion and an extensionality lemma per constant,
+   where a term's value needs only `eq`. A λ's or a truth set's class needed as a variable at a site — a `⋀P`
+   instantiated at a λ — is fixed there by its existence.
+2. **A lemma is stated over its formula's skeleton**: the formula's fixed terms that do not move are plain variables of
+   the lemma, without facts, so a lemma is shared by every site holding the same shape, and its statement's size is the
+   formula's, not its terms'.
+3. **The formula's own variables at a site stay named in both forms** (`keep`): a lemma cited inside another's walk —
+   at a λ's body below the formula's binders — names the terms holding them on both sides.
+4. **Not yet built, refused as unbuilt**: ZF's `replacement` (NBG's words state a class variable's atom with the
+   existential tuple, S1's naming with the universal one: the reading owes the two tuples' equivalence) and
+   `infinity` (`Ball` unfolded at the constant `Inf`, an instance at a closed term in statement form); a λ whose body
+   names a compound argument twice (`λx. x = x` at `Pow(b)`), and a function variable applied to its own application
+   (`F(F(a))` at a λ), each `BETA_<fp>` refused; ⋀ over a proposition instantiated keeps its per-site walk (`Truths`).
+5. **EX and TOTAL carry the guards of their function-typed variables** (FOUNDATION S1, "a term's existence"): with S1
+   universal, `∃y. ∀v. apply(τ, v, F) → y = v` needs `F`'s value unique, so EX ⟨t⟩ is stated, like every lemma over
+   variables, with `function(F)` for each function-typed variable, and TOTAL with it for each function-class
+   parameter, as FUNC already was. Every citation supplies it: a variable's from its binder, a λ's class's from
+   FUNC ⟨λ⟩ at the class.
+6. **A lemma's own variable has its guard as a hypothesis of the lemma's proof, never `isaGuard`**: Fol discharges an
+   `isaGuard` only from a guarded binder, and a lemma's variables are bound by `∀` and the guard's `→`. The meeting
+   walk carries its lemma's guards (`Meet.guardOf`) into every lemma it cites.
+7. **A value holds a proposition variable as its truth, `holds(E)`** (FOUNDATION S1): a lemma's letter is instantiated
+   at the truth, and a value holding the variable itself differed from it by ID (a `witnessEscapes` in the complete
+   run, at `reflexive` over a function of propositions). EX of such a value reads the truths back as the variables,
+   so its lemma is over letters.
+8. **An argument both forms name is fixed by its pieces** in `BETA`'s atom and block: the pieces the two namings share
+   fixed once, the λ's class at the pieces' values. A body naming it again is refused (4).
+9. **An instance at a λ whose formula does not hold the class variable is the instance at the λ's class**: no `BETA`.
+10. **Fol owns the guard at every object type**, `o ⇒ i` included (a function of propositions), as it owns the
+    variable and the binder there.
+
+**Measured** (2026-10-19, the ZF session, `--threads 16`, emitted and kernel-checked; sizes by the size trace's
+per-theorem table, every theorem with the lemmas and @defs it reaches first, against its Isabelle statement ∪ proof
+and those definitions):
+
+| | HEAD | before the step (the size step) | this step | with 5–7 |
+|---|---|---|---|---|
+| named theorems lowered (`X_def` · other) | 279 (162 · 117) | 369 (240 · 129), never kernel-checked | 344 (223 · 121): 25 lost, none gained | **369**, the same set |
+| claims · schemas, all Proved | 2,331 · 352 | 3,513 · 363 emitted | 7,578 · 538 (35 parts, 56 s to check) | 7,964 · 568 (35 parts, 77 s) |
+| unit | 264.2 MB | 409 MB (745 theorems, 36,633 Isabelle nodes) | 389.5 MB (713 theorems, 35,030 nodes) | 419.8 MB (745 theorems) |
+| bytes per Isabelle node | — | 11,169 | 11,119 | — |
+| theorems' own proofs | — | 174.5 MB, b = 3.13 | **12.2 MB**, b = 2.17 (95% envelope 1.43) | — |
+| distinct steps vs Isabelle proof steps | — | b = 1.75 | b = 1.20 (envelope 0.47) | — |
+| class existence (λ · constant) | — | 73.8 · 56.2 MB | **146.5 · 107.8 MB** | — |
+| meeting · β · Leibniz · ARGS lemmas | — | — | 25.7 · 23.5 · 11.9 · 7.1 MB | — |
+| run | 7:14, 24.9 GB | 15:43, 49.0 GB (`--threads 48`) | **18:36, 50.4 GB** (the CI's 32 GB exceeded) | 23:30, 50.4 GB |
+
+A theorem's proof is linear in its steps, the step's aim: its own bytes fell 14-fold. The unit did not shrink: the class
+prover's lemmas doubled for the same constants — not yet traced to its cause — and they are now two thirds of the unit (b = 1.38 for a λ's class against its statement, 1.64 for a
+constant's against its definiens). Of the 3,272 named statements refused, 3,251 cite a refused statement, led by
+`ZF_Base.BOX_fe88880df9563825` (595) and `FOL.int_ex_simps.2` (296); logic's only unbuilt pattern left is `AC.AC`; 146
+lemmas are refused unbuilt (4). The 25 named the step loses, 12 of them HEAD's, are `replacement` and
+definitions of constants taking a function or a proposition (`nat_rec`, `wfrec`, `case`, `bool_of_o`, …) and the
+datatype facts citing them: run alone (`--theorem`), 20 cite a β lemma refused unbuilt, every one at an η-expanded
+variable whose application holds a compound argument; 4 hold a letter off its spine (`ifolAll(o, body: o)`), a refusal no
+run before the step had; `replacement` cites its axiom's reading, refused at its tuple atoms.
+
+**The losses, fixed at their providers.** **AGREED 2026-10-19 (user: "Go ahead with the fix"); BUILT 2026-10-19, not
+committed** — `Sources/Lowering/Meeting.swift` (`Atom.own`, `betaBlock`, `applied`), `Logic.swift` (`finished`,
+`metBelowLetters`, `letterInstance`, `generalized`), `Axioms.swift` (`piecesProof`), `base/tiers/zf`.
+
+5. **β reads the class variable's application at its arguments' names.** `P(t⃗)` inside an atom was read only where each
+   `tᵢ` is a variable or a value; a compound argument holding a variable the formula binds — `b(m, f`m)`, `f(fst(p))` —
+   has no value, and the walk refused it, though both forms name it alike. Now the β block is the application's own `τ`
+   and `r`; each argument's naming is binders both forms have, carried as any other (the walk keeps which binder of the
+   valued form each pairs with), or a crossing term, or an inner block (`F(F(a))`, `H(a, the_recfun(r, a, H))`); and the
+   λ's class is taken at the tuple's entries as the valued form names them — where the walk related a named variable to
+   the valued form's, a crossing value or an inner block's top, the tuple carried there by `TUPLE_CONG`. The atom-level
+   β (`betaAtom`) keeps its own reading of an argument both forms name. Refused unbuilt before the walk, never
+   misaligned in it: a body naming a compound argument twice or not at all (`λx. x = x`), or not first and in order.
+   Found in the build: where the λ's body is a term the atom names beside `P(t⃗)` (`cond(…) = P(x)` at
+   `λu. cond(…)`), the valued form's block is its occurrence at the walk's position, not the first.
+6. **A statement's letters stay above its values.** The proof's last step met the whole statement, letters included,
+   and fixed the closed values above the letters' intros; a citation met the whole cited statement. A letter binds only on
+   a spine, so both are below the letters now. A letter's intro leaves its body's values alone; the proof's last step
+   peels the letters, meets the matrix once — closed terms and those holding a letter — fixes those values under the
+   intros, the ones holding a letter innermost, and restores the intros. A citation whose statement has letters stays
+   bare until its last letter's `schema_inst`, where its matrix is met at the letters' instances; a definition read at
+   its terms takes its letters the same way. A letter below another binder, off its statement's spine, meets its own
+   terms where it is instantiated, and the statement falls for its letter.
+7. **The axiom reading takes each piece of an atom by its own EX and UNIQ** (`piecesProof`): a tuple as a set constant
+   is, by `TUPLE_EX_n` forward and `TUPLE_UNIQ_n` back; the refusal of an atom naming a tuple goes. Found in the build:
+   base's `replacement_NBG` was still HEAD's text — its premise not the class prover's universal `CLASS ⟨λ⟩`, its words'
+   tuples existential. Base states it now in the translator's words (`ZF_Base.replacement_NBG`), proved from the old
+   statement, kept as `replacement_ex`, by `cong_*` at each level, the two tuple forms related at the leaves by
+   `tup2_ue` (`⟨x, y⟩ = t` existential ↔ universal) and `pmem2_ue` (`P(x, y)`'s two namings), each proved from the
+   tuples tier's EX and UNIQ; the walk generated mechanically from the two statements. No axiom added.
+
+Tests: `DefinitionTests.aDefinitionApplyingItsFunctionToACompoundArgumentIsItsUnfoldingAtItsTerms`,
+`LambdaTests.anApplicationAtACompoundArgumentOverABoundVariableIsBetaAtItsName` and
+`aNestedApplicationOfAFunctionLambdaIsBetaAtEachValue`, `ProofSizeTests.aSchemaHoldingACompoundTermKeepsItsLetterAboveItsValues`,
+`AxiomTests.replacementIsReadFromBasesStatement` — each kernel-checked; `anInstanceAtACompoundArgumentIsBetaAtItsValue`'s
+`λx. x = x` stays refused unbuilt. The 25 named theorems lost, run alone, all lower, every part Proved.
 
 ### Fol — binders, guards and variables  **[BUILT 2026-09-28 as the guard; Fol's 2026-10-14; every object type and `∃` at `i` with "Reify — S1 at the site" — `Sources/Lowering/Fol.swift`]**
 

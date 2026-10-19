@@ -77,11 +77,15 @@ private struct Q {
         try n(.isaConst(.defined(c), T, args: xs))
     }
 
-    /// `⟨a, b⟩ = τ`, each at the index it stands at outside the tuple's three binders.
+    mutating func imp(_ a: NodeID, _ b: NodeID) throws -> NodeID {
+        try n(.folImplies(a, b))
+    }
+
+    /// `⟨a, b⟩ = τ`, S1's universal tuple, each at the index it stands at outside the tuple's three binders.
     mutating func pair(_ a: Int, _ b: Int, _ tau: Int) throws -> NodeID {
-        try some(try and(try p("zero", try x(0)), try some(try and(
+        try every(try imp(try p("zero", try x(0)), try every(try imp(
             try p("nsucc", try x(1), try x(0)),
-            try some(try and(
+            try every(try imp(
                 try p("snoc", try x(2), try x(2), try x(a + 3), try x(0)),
                 try p("snoc", try x(0), try x(1), try x(b + 3), try x(tau + 3)),
             )),
@@ -115,8 +119,8 @@ private struct Q {
     }
 }
 
-/// `y ∈ T.select(z ∈ z, z)`: the proposition named first, a set `E` with `truth(E) ∧ (holds(E) ↔ z ∈ z)`, then the
-/// constant's class, the tuple `⟨E, z⟩` and its value, by ID.
+/// `y ∈ T.select(z ∈ z, z)`: the proposition named first, every set `E` with `truth(E) ∧ (holds(E) ↔ z ∈ z)`, then
+/// the constant's class, the tuple `⟨E, z⟩` and its value, each universal (S1), by ID.
 @Test
 func aPropositionArgumentIsNamedByItsTruthSetAnEntryOfItsTuple() throws {
     var q = Q()
@@ -127,13 +131,13 @@ func aPropositionArgumentIsNamedByItsTruthSetAnEntryOfItsTuple() throws {
         try q.p("truth", try q.x(0)),
         try q.iff(try q.p("holds", try q.x(0)), try q.p("elem", try q.x(1), try q.x(1))),
     )
-    let value = try q.some(try q.and(
+    let value = try q.every(try q.imp(
         try q.p("pmem", try q.x(1), try q.x(0), try q.c(2)),
         try q.p("elem", try q.x(5), try q.x(0)),
     ))
-    let named = try q.some(try q.and(truthSet, try q.n(.folExists(body: try q.and(
+    let named = try q.every(try q.imp(truthSet, try q.n(.folForall(body: try q.imp(
         try q.k(selectConstant, try q.c(0)),
-        try q.some(try q.and(try q.pair(2, 3, 0), value)),
+        try q.every(try q.imp(try q.pair(2, 3, 0), value)),
     )))))
     #expect(out == [named])
 }
@@ -206,7 +210,7 @@ func theUnfoldingOfAConstantTakingAPropositionIsPointwiseOverItsTruthSet() throw
     let d = try q.selectDefinition()
     let b = try base(in: &q.t)
     let eta = try q.eta(selectConstant, i)
-    let stated = try walked(try q.t.equation(fn(o, fn(i, i)), eta, d.definiens), base: b, in: &q.t)
+    let stated = try formula(try q.t.equation(fn(o, fn(i, i)), eta, d.definiens), .statement, in: &q.t)
     guard
         case .folForall(let guarded) = q.t[stated], case .folImplies(let premise, let rest) = q.t[guarded],
         case .ifolAll(.i, _) = q.t[rest]

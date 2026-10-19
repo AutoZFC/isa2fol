@@ -13,47 +13,96 @@ func cited(_ r: some Request, _ statement: NodeID, _ t: inout Table) throws -> N
 struct TermProofs {
     let base: Base
 
+    /// EX ⟨t⟩, `∃y. ⟦y = t⟧`: `t`'s pieces opened by their facts, `y` their value, which UNIQ ⟨t⟩ makes every other.
     func existence(_ r: Existence, in t: inout Table) throws -> NodeID {
         var f = Frame()
-        for T in r.types { _ = f.fix(T) }
+        var guards = [Int: Int]()
+        for (j, T) in r.types.enumerated() {
+            let v = f.fix(T)
+            if T != .i, T != .o, let g = try guarded(try f.variable(v, in: &t), T, in: &t) { guards[j] = f.assume(g) }
+        }
         let outer = f.scope.depth
         var naming = Naming()
-        let value = try naming.name(r.term, [], &t)
+        let value = try naming.name(r.term, &t)
         let constraints = try naming.chain.stated()
         var witnesses = [Int]()
         var hypotheses = [Int]()
         for (j, piece) in naming.pieces.enumerated() {
             let at = Refs(outer: outer, witnesses: witnesses, frame: f)
-            let (w, h) = try f.open(try witness(piece, at, hypotheses, naming.pieces, &t), in: &t)
+            let current = f
+            let guardOf = { (x: NodeID, t: inout Table) throws -> NodeID in
+                for (j, h) in guards where try current.variable(j, in: &t) == x { return try current.hypothesis(
+                    h,
+                    in: &t,
+                ) }
+                throw TermsError.noFact("the guard of \(x)")
+            }
+            let (w, h) = try f.open(try witness(piece, at, hypotheses, naming.pieces, guardOf, &t), in: &t)
             let assumed = try f.hypothesis(h, in: &t)
             guard t.conclusion(of: assumed) == constraints[j] else { throw TermsError.notItsConstraint(r.name) }
             witnesses.append(w)
             hypotheses.append(h)
         }
         let r0 = try Refs(outer: outer, witnesses: witnesses, frame: f).node(value, &t)
-        var z = Frame(f.scope)
-        let zl = z.fix(.i)
-        let hz = z.assume(try t.intern(.folPred(
-            .base("eq"),
-            args: [try z.variable(zl, in: &t), try z.scope.lift(r0, from: f.scope.depth, in: &t)],
-        )))
-        let term = try z.scope.lift(r.term, from: outer, in: &t)
-        let atZ = try equation(try z.variable(zl, in: &t), term, in: &t)
-        let closedChain = try closing(
-            try named(atom: t[atZ], in: &t),
-            try witnesses.map { try z.variable($0, in: &t) },
-            try hypotheses.map { try z.hypothesis($0, in: &t) },
-            try z.hypothesis(hz, in: &t),
-            in: &t,
-        )
+        let term = try f.scope.lift(r.term, from: outer, in: &t)
         let atY = try equation(try t.intern(.isaBound(0, .i)), try shift(term, by: 1, in: &t), in: &t)
-        let some = try t.intern(.ifolEx(.i, body: try named(atom: t[atY], in: &t)))
-        let everyZ = try z.close(
-            try introduced(some, at: [try z.variable(zl, in: &t)], from: closedChain, in: &t),
+        let body = try named(atom: t[atY], in: &t)
+        if case .outer = value {
+            let reflexive = try base.claimed(.eqRefl, [r0], [], in: &t)
+            return try f.close(try t.intern(.isaExIntro(reflexive, r0, body: body)), in: &t)
+        }
+        var g = Frame(f.scope)
+        var rest = try instantiate(body, with: r0, in: &t)
+        var restScope = g.scope
+        var fixed = [Int]()
+        var assumed = [Int]()
+        while true {
+            let here = try lifted(rest, from: restScope, to: g.scope, in: &t)
+            let inner: NodeID
+            switch t[here] {
+            case .ifolAll(.i, let b): inner = b
+                fixed.append(g.fix(.i))
+
+            case .folForall(let b): inner = b
+                fixed.append(g.fix(nil))
+
+            default: inner = here
+            }
+            guard inner != here, case .folImplies(let c, let after) = t[inner] else { break }
+            assumed.append(g.assume(c))
+            rest = after
+            restScope = g.scope
+        }
+        let u = Uniqueness(term: r.term, types: r.types, name: "UNIQ_" + fingerprint(r.term, t))
+        var unique = try instantiated(
+            try cited(u, try statement(u, in: &t), &t),
+            at: try (0..<outer).map { try g.variable($0, in: &t) },
+            r.types,
+            guards: true,
+            guardOf: { x, _, t in
+                for (j, h) in guards where try g.variable(j, in: &t) == x { return try g.hypothesis(h, in: &t) }
+                throw TermsError.noFact("the guard of \(x)")
+            },
             in: &t,
         )
-        let reflexive = try eliminated(try base.cite(.eqRefl, in: &t), at: [r0], in: &t)
-        return try f.close(try t.intern(.folImpliesElim(try t.intern(.isaAllElim(everyZ, r0)), reflexive)), in: &t)
+        for (w, h) in zip(witnesses, hypotheses) {
+            unique = try eliminated(
+                unique,
+                at: [try g.variable(w, in: &t)],
+                premises: [try g.hypothesis(h, in: &t)],
+                in: &t,
+            )
+        }
+        for (w, h) in zip(fixed, assumed) {
+            unique = try eliminated(
+                unique,
+                at: [try g.variable(w, in: &t)],
+                premises: [try g.hypothesis(h, in: &t)],
+                in: &t,
+            )
+        }
+        let every = try g.close(unique, in: &t)
+        return try f.close(try t.intern(.isaExIntro(every, r0, body: body)), in: &t)
     }
 
     func uniqueness(_ r: Uniqueness, in t: inout Table) throws -> NodeID {
@@ -65,8 +114,14 @@ struct TermProofs {
         }
         let outer = f.scope.depth
         var naming = Naming()
-        let v1 = try naming.name(r.term, [], &t)
-        let v2 = try naming.name(r.term, [], &t)
+        let v1 = try naming.name(r.term, &t)
+        let v2 = try naming.name(r.term, &t)
+        if case .outer(let x) = v1 {
+            return try f.close(
+                try base.claimed(.eqRefl, [try f.scope.lift(x, from: outer, in: &t)], [], in: &t),
+                in: &t,
+            )
+        }
         let constraints = try naming.chain.stated()
         let binders = naming.chain.binders
         let m = binders.count / 2
@@ -103,11 +158,12 @@ struct TermProofs {
         return try f.close(agreed[k], in: &t)
     }
 
-    private func witness(
+    func witness(
         _ piece: NamedPiece,
         _ at: Refs,
         _ hypotheses: [Int],
         _ pieces: [NamedPiece],
+        _ guardOf: (NodeID, inout Table) throws -> NodeID,
         _ t: inout Table,
     ) throws -> NodeID {
         switch piece {
@@ -126,7 +182,7 @@ struct TermProofs {
             let (f, c) = try lambdaFact(try at.lift(lambda, &t), .classExists, in: &t)
             return try instantiated(
                 try cited(f, try statement(f, base: base, in: &t), &t),
-                at: try c.variables.map { try walked($0, base: base, in: &t) },
+                at: try c.variables.map { try formula($0, .statement, in: &t) },
                 c.types,
                 guards: false,
                 guardOf: isaGuard,
@@ -148,9 +204,17 @@ struct TermProofs {
                 case .tuple(let entries) = pieces[kt]
             else { throw TermsError.noFact("a value") }
             let f = ConstantFact(constant: c, type: T, fact: .totality)
+            let classGuards = try zip(classes, T.domains.filter { !isEntry($0) }).compactMap { k, D -> NodeID? in
+                isFunctionClass(D) ? try lambdaFunction(k, at, hypotheses, pieces, guardOf, &t) : nil
+            }
             let total = try eliminated(
-                try cited(f, try statement(f, in: &t), &t),
-                at: try (classes + [C]).map { try at.node($0, &t) },
+                try eliminated(
+                    try cited(f, try statement(f, in: &t), &t),
+                    at: try classes.map { try at.node($0, &t) },
+                    premises: classGuards,
+                    in: &t,
+                ),
+                at: [try at.node(C, &t)],
                 premises: [try at.frame.hypothesis(hypotheses[kc], in: &t)],
                 in: &t,
             )
@@ -169,7 +233,7 @@ struct TermProofs {
             )
 
         case .truthSet(let proposition):
-            let read = try walked(formula: proposition, in: &t)
+            let read = try formula(proposition, .statement, in: &t)
             return try base.instance(.truthSetEX, [try at.lift(read, &t)], in: &t)
         }
     }
@@ -280,7 +344,7 @@ struct TermProofs {
 
         case .truthSet(let proposition):
             guard case .truthSet(proposition) = p2 else { throw unexpected }
-            let read = try walked(formula: proposition, in: &t)
+            let read = try formula(proposition, .statement, in: &t)
             let unique = try base.instance(.truthUNIQ, [try at.lift(read, &t)], in: &t)
             return try eliminated(unique, at: [w, w2], premises: [try hyp(j, &t), try hyp(j + m, &t)], in: &t)
         }
@@ -325,7 +389,7 @@ struct TermProofs {
         let (f, c) = try lambdaFact(try at.lift(lambda, &t), .function, in: &t)
         let atVariables = try instantiated(
             try cited(f, try statement(f, base: base, in: &t), &t),
-            at: try c.variables.map { try walked($0, base: base, in: &t) },
+            at: try c.variables.map { try formula($0, .statement, in: &t) },
             c.types,
             guards: true,
             guardOf: { x, _, t in try guardOf(x, &t) },

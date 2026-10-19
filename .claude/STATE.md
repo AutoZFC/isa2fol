@@ -1,5 +1,6 @@
 # STATE — isa2fol
-HEAD "A theorem cited at a type, binding a proposition there: its instance a statement of the unit, as a box is" (parent `39a12ba5`) · primitives · 2026-10-18.  RUN §0 BEFORE TRUSTING ANY LINE BELOW.
+HEAD "Linear proof size: in a proof a term is its value; a formula meets the values through its lemma, once" (parents
+"Proof size: …", "Step 6: …") · primitives · 2026-10-19.  RUN §0 BEFORE TRUSTING ANY LINE BELOW.
 
 ## 0. Staleness checks
 `$ZF` is `--skip ZF-AC,ZF-Coind,ZF-Constructible,ZF-IMP,ZF-Induct,ZF-Resid,ZF-ex`: every run is the ZF session alone
@@ -8,17 +9,16 @@ until it is fully translated (user). Lint before every run: `pre-commit run --al
 | command | expect |
 |---|---|
 | `git branch --show-current` | `primitives` |
-| `git log -1 --format=%s` | `A theorem cited at a type, binding a proposition there: its instance a statement of the unit, as a box is` |
+| `git log -3 --format=%s` | `Linear proof size: …`, `Proof size: …`, `Step 6: …` |
 | `git status --short \| wc -l` | `0` |
 | `git rev-parse --short kinds-proposal` | `21ca100f` |
-| `find Sources -name '*.swift' -exec cat {} + \| grep -cv '^\s*$'` | `13574` |
+| `find Sources -name '*.swift' -exec cat {} + \| grep -cv '^\s*$'` | `16600` |
 | `git -C ~/repos/fol-zfc-comb log -1 --format=%h` | `224d60e` (branch `libraries-and-streaming`) |
 | `grep -c '^axiom ' base/axioms.fol.def` | `18` — NBG with Regularity, and `elem_first_subst`; Choice unstated; the tiers admit none |
 | `pre-commit run --all-files` | `SwiftFormat ... Passed`, `SwiftLint ... Passed` |
-| `MEM=48G scripts/capped.sh swift test 2>&1 \| grep "Test run with"` | five lines, all passed: 14, 141, 127, 121, 43 tests |
-| `MEM=16G scripts/capped.sh scripts/check-base.sh` | 14 tiers, each `exit 0  stderr 0`; `axioms` Proved 8 of 8; `logic` Schemas proved 10 of 10; `metafun` Proved 19 of 19; `zf` Proved 19 of 19 |
-| `swift build -c release`, then `MEM=48G scripts/capped.sh .build/release/isa2fol lower data/zf_export --through logic $ZF` (about 6 min) | `through logic: 2735 named theorems stand`; `no owner: 7`; `logic, unbuilt: 874` |
-| `MEM=32G scripts/capped.sh .build/release/isa2fol lower data/zf_export $ZF --emit DIR --threads 48` (7:14, 24.9 GB peak; the CI), then `MEM=32G scripts/capped.sh scripts/check-unit.sh DIR` | `lowered … 279`; `left out, no kept statement citing them: 8207 lemmas, 0 @defs`; `lemmas requested and refused, unbuilt: 8`; `cites a refused statement: 2456`, led by `ZF_Base.BOX_fe88880df9563825` 178; 33 parts, every one `exit 0  stderr 0`; claims 2331 of 2331, schemas 352 of 352 |
+| `MEM=48G scripts/capped.sh swift test 2>&1 \| grep "Test run with"` | 14, 141, 121, 43 passed; Lowering 149 with 2 failing: `infinityReadsSuccByTheTheoremStatingItsMembers`, `anInstanceAtACompoundArgumentIsBetaAtItsValue` |
+| `MEM=16G scripts/capped.sh scripts/check-base.sh` | 14 tiers, each `exit 0  stderr 0`; `zf` Proved 22 of 22 |
+| `swift build -c release`, then `MEM=80G scripts/capped.sh .build/release/isa2fol lower data/zf_export $ZF --emit DIR --threads 16` (23:30, 50.4 GB peak), then `MEM=32G scripts/capped.sh scripts/check-unit.sh DIR` | `lowered … 369`; `refused, named: 3247`: no owner 7, `logic, unbuilt: 1` (`AC.AC`), `cites a refused statement: 3239`, led by `ZF_Base.BOX_fe88880df9563825` 595, `FOL.int_ex_simps.2` 296; 35 parts, every one `exit 0  stderr 0`; claims 7964 of 7964, schemas 568 of 568; 419,775,237 bytes |
 If any row disagrees, THIS FILE IS STALE. Trust the code and fix this file first.
 
 ## 1. Where
@@ -26,17 +26,15 @@ If any row disagrees, THIS FILE IS STALE. Trust the code and fix this file first
 `224d60e`, built only with `bazel build -c opt`. `kinds-proposal` (`21ca100f`) is the REFERENCE.
 
 ## 2. Read these first-hand
-- `DESIGN.md` "A theorem cited at a type, binding a proposition there": its agreed decision and the build's three;
-  Measured — the 668 pass no owner and 548 of them stop at `If`.
-- `DESIGN.md` "Step 9, widened — the definition command's local constant at a function of propositions": the reading
-  decided over five others (option 2 for the stand-ins, option 3 for a hidden variable at `o ⇒ i`, step 6), its two
-  agreed decisions, and **Decisions made in the build** 1–3 for review — 3 corrects emission.
-- `Sources/FolDialect/Render.swift` — `Writer.binding`: a block's steps forgotten when it closes; the ⚠ on `step`.
-- `Sources/Reader/Reader.swift` — `claim` and `isReadAtItsTerms`: one test names a box and substitutes it; `head`'s
-  `.theorem` case: an instance binding a proposition named `<theory>.BOX_<fp>`, `Theorem.at` its types.
-- `docs/FOUNDATION.md` S4 "At arity 0 …" and §3b "SO IS ONE WHOSE TYPE TAKES A PROPOSITION": a function of
-  propositions has a proposition's two kinds, substituted where Isabelle substitutes, a class where bound.
-- `DESIGN.md` "The steps after class existence, in order" — 6 is next by the refusals (§6).
+- `DESIGN.md` "Linear proof size — in a proof, a term is its value": decisions 1–4, the Built paragraph, Measured
+  (with 5–7), and "The losses, fixed at their providers", 5–7.
+- `Sources/Lowering/Meeting.swift` — `met`, the meeting lemma at a site; `Atom.convert`, `own`, `betaBlock`, `applied`:
+  β at the class variable's application, its arguments read at their names; `MeetingProver.prove`: only `unmet` is
+  unbuilt.
+- `Sources/Lowering/Logic.swift` — `finished`, `metBelowLetters`, `letterInstance`: a statement's letters above its
+  values. `Sources/Lowering/Values.swift` — a value, its fact, where it is fixed.
+- `base/tiers/zf` — `replacement_NBG` in the translator's words, proved from `replacement_ex` by a generated `cong_*`
+  walk, `tup2_ue` and `pmem2_ue` at its leaves (the header says so).
 
 ## 3. Invariants
 | invariant | enforced by |
@@ -44,64 +42,49 @@ If any row disagrees, THIS FILE IS STALE. Trust the code and fix this file first
 | a unit is valid only when every part exits 0, stderr empty, every claim and schema Proved | `scripts/check-unit.sh`, `check-base.sh` |
 | nothing Isabelle states is admitted: base admits 18 axioms, NBG's with Regularity | §0's `grep`; `check-base.sh` |
 | each pattern has the owner the division gives it, one at most | `eachPatternHasTheOwnerTheDivisionGivesIt` |
-| a box binding a variable whose type takes a function or a proposition is read at its citation, never a schema | `aBoxBindingAVariableTakingAFunctionIsReadAtItsCitation`, `…TakingAPropositionIsReadAtItsCitation` |
-| a theorem cited at a type, binding a proposition there, is its instance, a statement named by its content | `aTheoremCitedAtATypeBindingAPropositionIsItsInstanceAStatement` |
-| Pure's equality at a type with an argument taking a function or a proposition is `reflexive` or has no reading | `pureEqualityAtATypeTakingAFunctionIs…`, `…TakingAPropositionIsReflexivityWhenItsSidesAreOneTerm` |
-| emission cites a step only inside the block that wrote it | `aStepWrittenInAClosedBlockIsDerivedAgain`; `theRealCheckerProvesWhatEmissionWrites` (`p_block`) |
-| a ZF axiom cited is its lemma, proved from base's statement in NBG's words | `AxiomTests` (eight) |
-| a statement is emitted no earlier than any statement it cites | `aStatementIsPlacedNoEarlierThanWhatItCites` |
-| a lemma is proved only for a statement that stands, directly or through lemmas so proved | `aLemmaRequestedByAStatementCitingARefusedOneIsNeverProved` |
+| a proof's formulas hold values, linear in Isabelle's steps | `ProofSizeTests` |
+| a statement's letters stay above its values, in its proof and at its citations | `aSchemaHoldingACompoundTermKeepsItsLetterAboveItsValues` |
+| β reads the class variable's application at its arguments' names | `anApplicationAtACompoundArgumentOverABoundVariableIsBetaAtItsName`, `aNestedApplicationOfAFunctionLambdaIsBetaAtEachValue`, `aDefinitionApplyingItsFunctionToACompoundArgumentIsItsUnfoldingAtItsTerms` |
+| a ZF axiom cited is its lemma, proved from base's statement in the translator's words | `AxiomTests` (`replacementIsReadFromBasesStatement`) |
+| emission cites a step only inside the block that wrote it | `aStepWrittenInAClosedBlockIsDerivedAgain` |
 | format and lint are the tools', before every run of the program | `pre-commit run --all-files`; the commit hook |
 | every build, test, checker and lowering run is capped | `scripts/capped.sh` |
 
 **Standing warnings — each repeated silently otherwise:**
-- ⚠ **THE CHECKER KEYS A DERIVED FACT BY ITS FORMULA** and keeps the scopes of the derivation it met first
-  (`derive_with_deps`): a step re-derived inside a block can die with a scope it never names. Never cite a step outside
-  the block that wrote it; the kernel, not a test of the renderer's own, is what catches it.
-- ⚠ **A STEP THAT LETS STATEMENTS STAND REACHES CODE NO RUN REACHED**: this step's reach failed emission, not its own
-  code. Run the complete run and the kernel check, not only through logic — the through-logic count did not move.
-- ⚠ **A FORMULA BUILT AT ONE FRAME IS LIFTED BEFORE A DEEPER FRAME READS IT** (`Scope.lift`).
-- ⚠ **BASE'S `_NBG` STATEMENTS ARE THE PROVER'S WORDS, CHECKED ONLY BY THE KERNEL**: match `base/tiers/zf` to the walk.
-- ⚠ **AN INSTANCE OR A LEMMA REQUEST IS BUILT FROM `t[id]`, NEVER FROM `n`'S CHILDREN**; ⚠ **A TEST INTERNS EVERY NODE
-  BEFORE ITS TABLE IS PASSED**; ⚠ **`t[try instantiate(…)]` READS A COPY TAKEN BEFORE THE MUTATION** (rule 13).
-- ⚠ **A BINDER AT `iⁿ ⇒ i` INSTANTIATED AT A CLASS LEAVES `function(K)` A PREMISE**: discharge it.
-- ⚠ **AN ∃-INTRO STATES ITS BODY, NEVER FINDS IT**; ⚠ **A DEFINIENS IS NEVER CLOSED LETTERS FIRST**.
-- ⚠ **A STEP'S REACH IS READ IN THE REFUSALS, NEVER IN THE UNIT'S SIZE OR THE CLOSURES' BOUND.**
+- ⚠ **A PROVER'S ERROR OTHER THAN `MeetingError.unmet` IS FATAL TO THE RUN**: a shape the β walk cannot align is refused
+  unbuilt before the walk (`own`), never left to throw `misaligned` in it.
+- ⚠ **BASE'S `_NBG` STATEMENTS ARE THE TRANSLATOR'S WORDS, CHECKED ONLY BY THE KERNEL**: a change to the naming changes
+  them; `replacement_NBG` was left behind once and only the kernel saw it.
+- ⚠ **THE COMPLETE RUN NEEDS `MEM=80G`** (50.4 GB peak): the CI's 32 GB kills it.
+- ⚠ **A LOST THEOREM IS FOUND BY DIFFING NAMED SETS ACROSS RUNS, NEVER BY THE COUNT ALONE**: the count rose over HEAD
+  while 25 of the run before were lost.
+- ⚠ **THE CHECKER KEYS A DERIVED FACT BY ITS FORMULA**: never cite a step outside the block that wrote it.
+- ⚠ **A FORMULA BUILT AT ONE FRAME IS LIFTED BEFORE A DEEPER FRAME READS IT** (`Scope.lift`); ⚠ **`t[try instantiate(…)]`
+  READS A COPY TAKEN BEFORE THE MUTATION** (rule 13).
 - ⚠ **`pre-commit run --all-files` LINTS TRACKED FILES ONLY**; ⚠ **THE RELEASE BINARY IS NOT REBUILT BY `swift test`**;
-  ⚠ **STATE GOES IN ITS STEP'S COMMIT**; ⚠ **THE TABLE TRUSTS A CITATION'S ROOT**: kernel-check every new reach.
+  ⚠ **STATE GOES IN ITS STEP'S COMMIT**.
 
 ## 4. State
 | claim | verified by |
 |---|---|
-| ZF (3,616 named): 279 lowered; refused: no owner 7, logic 874, cites a refused statement 2,456 | §0's complete run |
-| `FOL.meta_simps.1` at `[i]` is `schema FOL.BOX_c94ff9da85184c7d [A0(0)]: ((forall b1. (set(b1) -> A0)) <-> A0)`, kernel-checked | `grep 'BOX_c94ff9da85184c7d' DIR/FOL.fol.def`; §0's check |
-| `IFOL.not_def`, `iff_def`, `notI`, `iffD1`, `iffD2`, `FOL.cases_simp` are in the unit, kernel-checked | `grep '^\(claim\|schema\) IFOL\.iffD1' DIR/IFOL.fol.def`; §0's check |
-| refused citations led by `ZF_Base.BOX_fe88880df9563825` 178, `Replace_iff` 144, `FOL.IFOL_simps.32` 116, `RepFunI` 77, `Inter_iff` 76 | §0's complete run |
-| `upair.succ_iff`, `UpairI1`, `ZF_Base.infinity` refused; the four cite `IFOL_simps.32`, `BOX_fe88…`, `infinity_AXIOM`, `UpairI2` | `lower … $ZF --theorem upair.succ_iff,ZF_Base.infinity,upair.UpairI1,ZF_Base.Replace_iff` |
-| Logic's 874: `If` (873, `if_def` stopping at `If ≡ If`) and `AC.AC`; no owner 7, unrestricted type variables (`pair.split`, `Inductive.def_trans`) | §0's through-logic report |
-| complete run: read 46.0 s; expand 4.1, logic 295.0, registry 35.6, fol 32.9, link 2.9 s; 264.2 MB, 2,884,207 steps written; 75.6M nodes, 24.9 GB peak | §0's complete run |
-| comments 64/13574 = 0.5% of `Sources` | `CLAUDE.md` rule 9's script |
+| ZF (3,616 named): 369 lowered — the run before "Linear proof size"'s set exactly, HEAD's 279 among them; 240 of them `X_def` | §0's complete run; its parts' `claim`/`schema` names diffed |
+| refused 3,247: no owner 7 (unrestricted type variables), logic 1 (`AC.AC`), 3,239 cite a refused statement | §0's complete run |
+| the unit: 7,964 claims, 568 schemas, 419.8 MB; class existence two thirds of it | §0's complete run, its `steps by kind` |
+| `infinity` and `λx. x = x` (a body naming its argument twice) refused unbuilt; both passed before "Linear proof size" (`Proof size`, every suite green) | the two failing tests of §0 |
+| comments 261/16600 = 1.6% of `Sources` | `CLAUDE.md` rule 9's script |
 
 ## 5. Beliefs — NOT verified
-- From a throwaway trace of every refusal (not kept): `BOX_fe88…` falls through `ZF_Base.BOX_8405…` and
-  `FOL.int_all_simps.3` with `FOL.BOX_1cd4667e985779e8`, a variable only the proof uses at `(i ⇒ o) ⇒ o ⇒ i` and
-  `o ⇒ (i ⇒ o) ⇒ i`; `Replace_iff` through `IFOL_simps.32`, `quant_simps.1` with `IFOL.BOX_701952b5794ca2e9`, one at
-  `o ⇒ i`; `succ_iff` through `UpairI2`, `Replace_iff`; the 8 unbuilt lemmas are `CLASS_<fp>`, `ZF_Base.bexE` behind
-  `CLASS_02a8d0fe3431aadb`; FOL's `induct_conj_def`, `induct_implies_def` are not in the ZF session's unit.
-- `is_bool_of_o`'s box (ZF-Constructible) is now read at its citation: outside the ZF session, never run.
-- `SOURCE_SURFACE.md` predates step 7 (stale `isaFree(.hidden)`).
+- The class prover's lemmas doubled with decision 3's universal naming (146.5 + 107.8 MB against 73.8 + 56.2 MB, the
+  size trace before decisions 5–7): not traced to its cause.
+- The memory peak is the table (143.5M nodes) and the emission of 420 MB; not profiled.
 
 ## 6. Open decisions
-- **The next step.** By the refusals: step 6 — `If`, `bool_of_o` and a variable only the proof uses at `o ⇒ i`, a
-  proposition as an argument its truth set (decided in outline, user 2026-10-18): `If` holds 873 at Logic, 548 of them
-  freed from no owner by the last step, and `Replace_iff` 144, `IFOL_simps.32` 116 wait on the hidden `o ⇒ i`; then
-  the one at a type taking a class (`BOX_fe88…` 178), with no reading as a variable — its own design; the class
-  prover's λs it does not build (8 `CLASS_` lemmas); `AC.AC`. Memory: the CI peaked at 24.9 GB, under `MEM=32G`.
-- **For review**: the instance step's three build decisions; step 9 widened's three (3: emission corrected, +3.3%
-  steps, the checker's bookkeeping mirrored would win it back); step 8's five; step 9's three; step 5's six; and the earlier steps' (§6 of the last
-  STATE in git history); merging the checker branch.
+- **Memory and the class prover**: the complete run is above the CI's 32 GB, and class existence doubled — which first.
+- **The two unit tests HEAD passed**: `infinity` needs `c_UNFOLD` at `Inf`; `λx. x = x` needs β to meet a body naming
+  its argument twice (UNIQ of the second naming).
+- **For review**: the build decisions of "Step 6", "Proof size" and "Linear proof size" (DESIGN), and the generated walk
+  in `base/tiers/zf`.
 
 ## 7. Next action
-Get the user's choice of the next step; then write its section in `DESIGN.md` — the problem in target text, its
-decisions, the contracts, the tests first — and agree it decision by decision before any code. Done when the user has
-agreed every decision of that section.
+Get the user's choice among §6's first two; then write its section in `DESIGN.md` and agree it decision by decision
+before any code. Done when the user has agreed every decision of that section.

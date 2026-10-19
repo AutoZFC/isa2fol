@@ -24,19 +24,68 @@ public struct Logic: Pass {
     }
 
     public func run(_ roots: [NodeID], _: [Definition], in t: inout Table) throws -> [NodeID] {
-        try transform(roots, Steps(base: base), in: &t)
+        let proofs = roots.filter { t.conclusion(of: $0) != nil }
+        let lowered = try transform(proofs, Steps(base: base), in: &t)
+        var byRoot = [NodeID: NodeID]()
+        for (p, q) in zip(proofs, lowered) {
+            guard let c = t.conclusion(of: p) else { throw LogicError.notTheRule(p) }
+            byRoot[p] = try finished(q, c, base: base, in: &t)
+        }
+        return try roots.map { r in try byRoot[r] ?? formula(r, .statement, in: &t) }
     }
 
     let base: Base
 
 }
 
-func walked(_ x: NodeID, base: Base, in t: inout Table) throws -> NodeID {
-    try transform(x, Steps(base: base), in: &t)
+/// A formula's form where it stands: a statement's, every term named; a proof's, each term holding no variable the
+/// formula binds its value.
+func formula(_ x: NodeID, _ mode: Mode, in t: inout Table) throws -> NodeID {
+    try transform(x, Formulas(mode: mode), in: &t)
 }
 
-func walked(formula: NodeID, in t: inout Table) throws -> NodeID {
-    try transform(formula, Formulas(), in: &t)
+func valued(_ x: NodeID, in t: inout Table) throws -> NodeID {
+    try formula(x, .proof(0), in: &t)
+}
+
+/// A proof's last step: its statement's S1 form from its value form, below the statement's letters, which stay on its
+/// spine — the values holding a letter fixed under them, the closed values above those.
+private func finished(_ p: NodeID, _ statement: NodeID, base: Base, in t: inout Table) throws -> NodeID {
+    var letters = 0
+    var proof = p
+    var matrix = statement
+    while case .ifolAll(.o, let body) = t[matrix], case .isaAllIntro(.o, let inner) = t[proof] {
+        (letters, proof, matrix) = (letters + 1, inner, body)
+    }
+    let named = try met(proof, matrix, moving: .closed, toValues: false, in: &t)
+    let lettered = try fixing(
+        try scoped(named, closed: false, below: letters, in: &t),
+        in: named,
+        by: .existence(base),
+        in: &t,
+    )
+    var done = try fixing(try scoped(lettered, closed: true, in: &t), in: lettered, by: .existence(base), in: &t)
+    for _ in 0..<letters { done = try t.intern(.isaAllIntro(.o, body: done)) }
+    return done
+}
+
+/// `p` proving a cited statement's S1 form at its letters' `instances`: its value form, its matrix met once below the
+/// letters, the closed terms and those holding a letter crossing to their values.
+func metBelowLetters(_ p: NodeID, _ stated: NodeID, at instances: [NodeID], in t: inout Table) throws -> NodeID {
+    var matrix = stated
+    for _ in instances {
+        guard case .ifolAll(.o, let body) = t[matrix] else { throw LogicError.notTheRule(stated) }
+        matrix = body
+    }
+    var sites = [Int: NodeID]()
+    for (j, a) in instances.reversed().enumerated() { sites[j] = a }
+    return try met(p, matrix, moving: .closed, at: sites, drop: instances.count, toValues: true, in: &t)
+}
+
+/// The letters a statement binds at its top.
+func letters(_ stated: NodeID, _ t: Table) -> Int {
+    guard case .ifolAll(.o, let body) = t[stated] else { return 0 }
+    return 1 + letters(body, t)
 }
 
 private enum Piece {
@@ -93,6 +142,7 @@ private func piece(_ p: Pattern) -> Piece? {
 
     case .isaCombination(let F, _, _):
         if overArguments(F) { return .pointwise(.combination) }
+        if overArguments(F) { return .unbuilt }
         return mentionsTypeVariable(F) || onlyReflexive(F) ? nil : .unbuilt
 
     case .isaAbstract(let F, _):
@@ -137,14 +187,15 @@ private func piece(_ p: Pattern) -> Piece? {
          .folNotIntro, .folNotElim, .folIffIntro, .folIffElimL, .folIffElimR, .folForallIntro, .folForallElim,
          .folExistsIntro, .folExistsElim, .folBottomElim, .folClassicalAbsurd, .folSchemaInst, .folLetterAll,
          .folLetter,
-         .folLetterAbs:
+         .folLetterAbs, .isaValue, .isaValueFact:
         return nil
     }
 }
 
 private func equality(_ T: IRType, _ e: Equality) -> Piece? {
     if mentionsTypeVariable(T) { return nil }
-    return T == .o || T == .i || overArguments(T) ? .equality(e) : .unbuilt
+    if overArguments(T) { return .equality(e) }
+    return T == .o || T == .i ? .equality(e) : .unbuilt
 }
 
 private func beyondObjects(_ T: IRType) -> Bool {
@@ -165,16 +216,26 @@ private func rule(_ a: Axiom) -> Piece {
 }
 
 private struct Formulas: Rule {
-    var start: Anywhere {
-        Anywhere()
-    }
+    let mode: Mode
 
-    func enter(_ c: Anywhere, _: Node, _: Binds, in _: Table) -> Anywhere {
-        c
-    }
-
-    func after(_ n: Node, was id: NodeID, context _: Anywhere, in t: inout Table) throws -> NodeID? {
+    func before(_ id: NodeID, context depth: Depth, in t: inout Table) throws -> NodeID? {
         guard t.conclusion(of: id) == nil else { throw LogicError.notAFormula(id) }
+        let p = Pattern(t[id], in: t)
+        if Reify().names(p) { return try named(atom: t[id], mode: mode.deeper(depth.terms), in: &t) }
+        if case .pointwise(.equation)? = piece(p) {
+            guard case .isaConst(_, .fn(let F, _), let args) = t[id], args.count == 2 else {
+                throw LogicError.notTheRule(id)
+            }
+            return try formula(
+                try Functions.isaPointwise(F, args[0], args[1], in: &t),
+                mode.deeper(depth.terms),
+                in: &t,
+            )
+        }
+        return nil
+    }
+
+    func after(_ n: Node, was id: NodeID, context _: Depth, in t: inout Table) throws -> NodeID? {
         switch piece(Pattern(n, in: t)) {
         case .proposition(.binder)?:
             guard case .isaPropAll(let body) = n else { throw LogicError.notTheRule(id) }
@@ -187,26 +248,24 @@ private struct Formulas: Rule {
             guard case .isaPropBound(let k) = n else { throw LogicError.notTheRule(id) }
             return try holds(try t.intern(.folBound(k)), in: &t)
 
-        case .pointwise(.equation)?:
-            guard
-                case .isaConst(_, .fn(let F, _), let args) = n,
-                args.count == 2
-            else { throw LogicError.notTheRule(id) }
-            return try Functions.pointwise(F, args[0], args[1], in: &t)
-
-        case .pointwise(.wrapper)?, .unbuilt?:
+        case .pointwise(.wrapper)?, .unbuilt?, nil:
             return nil
 
-        case nil:
-            return try Reify().formula(n, was: id, in: &t)
-
-        case .claimed?, .axiom?, .instance?, .lambda?, .equality?, .classical?, .iffReflection?,
-             .proposition(.intro)?, .proposition(.hidden)?, .pointwise(.combination)?, .pointwise(.abstract)?:
+        case .pointwise(.equation)?, .claimed?, .axiom?, .instance?, .lambda?, .equality?, .classical?,
+             .iffReflection?, .proposition(.intro)?, .proposition(.hidden)?, .pointwise(.combination)?,
+             .pointwise(.abstract)?:
             throw LogicError.notAFormula(id)
         }
     }
 }
 
+private enum Place: Hashable {
+    case proof
+    case formula
+}
+
+/// ⚠ A FORMULA A STEP HOLDS IS VALUED AT THE STEP, NEVER WALKED BELOW IT: under a binder of its own, as an `∃`-intro's
+/// body, its variable would read as the proof's.
 private struct Steps: Rule {
     init(base: Base) {
         self.base = base
@@ -218,31 +277,77 @@ private struct Steps: Rule {
     let equalities: Equalities
     let truths: Truths
 
-    var start: Anywhere {
-        Anywhere()
+    var start: Place {
+        .proof
     }
 
-    func enter(_ c: Anywhere, _: Node, _: Binds, in _: Table) -> Anywhere {
-        c
+    func enter(_ c: Place, _ binder: Node, _: Binds, in _: Table) -> Place {
+        if case .isaExIntro = binder { return .formula }
+        return c
     }
 
-    func after(_ n: Node, was id: NodeID, context _: Anywhere, in t: inout Table) throws -> NodeID? {
+    func before(_ id: NodeID, context c: Place, in t: inout Table) throws -> NodeID? {
+        if c == .formula { return id }
+        guard t.conclusion(of: id) != nil else { return t.type(of: id) == .o ? try valued(id, in: &t) : id }
+        switch t[id] {
+        case .use(let cited, let types, let root):
+            let stated = try formula(root, .statement, in: &t)
+            let citation: NodeID =
+                switch piece(Pattern(t[id], in: t)) {
+                case .claimed(let s)?: try claimed(s, stated, was: id, in: &t)
+                case .axiom?: try axiomCited(.use(cited, types, stated), was: id, in: &t)
+                default: try t.intern(.use(cited, types, stated))
+                }
+            return letters(root, t) == 0 ? try metBelowLetters(citation, root, at: [], in: &t) : citation
+
+        case .isaDefinition(_, .constant(let c), _, let stated, let args):
+            guard Reify().owns(Pattern(t[id], in: t)) == .rule else { return nil }
+            let statement = try formula(stated, .statement, in: &t)
+            let k = min(letters(stated, t), args.count)
+            var proof = try cited(Unfolding(constant: c, statement: statement), statement, &t)
+            for a in args.prefix(k) { proof = try t.intern(.folSchemaInst(proof, try valued(a, in: &t))) }
+            proof = try metBelowLetters(proof, stated, at: Array(args.prefix(k)), in: &t)
+            var at = stated
+            for a in args.prefix(k) {
+                guard case .ifolAll(.o, let body) = t[at] else { throw LogicError.notTheRule(id) }
+                at = try instantiate(body, with: a, in: &t)
+            }
+            for a in args.dropFirst(k) {
+                guard case .ifolAll(let T, let body) = t[at] else { throw LogicError.notTheRule(id) }
+                proof = T == .i
+                    ? try Instances(base: base).instance(proof, body, T, at: a, in: &t)
+                    : try instantiatedAtLambda(proof, body, T, at: a, base: base, in: &t)
+                at = try instantiate(body, with: a, in: &t)
+            }
+            return proof
+
+        default:
+            return nil
+        }
+    }
+
+    func after(_ n: Node, was id: NodeID, context _: Place, in t: inout Table) throws -> NodeID? {
+        let instances = Instances(base: base)
         switch piece(Pattern(n, in: t)) {
-        case .claimed(let s)?:
-            guard case .use(_, _, let root) = n else { throw LogicError.notTheRule(id) }
-            return try claimed(s, root, was: id, in: &t)
+        case .claimed?, .axiom?:
+            throw LogicError.notTheRule(id)
 
-        case .axiom?:
-            return try axiomCited(n, was: id, in: &t)
-
-        case .instance?:
-            let p = children(n)[0]
-            let a = children(n)[1]
-            if case .ifolAll(.o, _)? = t.conclusion(of: p).map({ t[$0] }) { return try t.intern(.folSchemaInst(p, a)) }
-            return try truths.instance(p, at: a, in: &t)
-
-        case .lambda?:
-            return try LambdaInstance(base: base).proof(children(n)[0], was: id, in: &t)
+        case .instance?, .lambda?:
+            guard
+                case .isaAllElim(let original, let a) = t[id], let stated = t.conclusion(of: original),
+                case .ifolAll(let T, let body) = t[stated]
+            else {
+                if
+                    case .isaAllElim(let original, let a) = t[id], let stated = t.conclusion(of: original),
+                    case .isaPropAll = t[stated]
+                {
+                    return try truths.instance(children(n)[0], at: try valued(a, in: &t), in: &t)
+                }
+                throw LogicError.notTheRule(id)
+            }
+            if T == .o { return try letterInstance(children(n)[0], body, at: a, was: id, in: &t) }
+            if T != .i { return try instantiatedAtLambda(children(n)[0], body, T, at: a, base: base, in: &t) }
+            return try instances.instance(children(n)[0], body, T, at: a, in: &t)
 
         case .equality(let e)?:
             return try equalities.rewrite(e, n, was: id, in: &t)
@@ -256,19 +361,23 @@ private struct Steps: Rule {
             return try t.intern(.folIffIntro(try t.intern(.folAndElimL(h)), try t.intern(.folAndElimR(h))))
 
         case .proposition(.binder)?, .proposition(.variable)?, .pointwise(.wrapper)?, .pointwise(.equation)?:
-            return try Formulas().after(n, was: id, context: Anywhere(), in: &t)
+            throw LogicError.notTheRule(id)
 
         case .proposition(.intro)?:
             guard
-                case .isaPropIntro(let body) = n,
-                let phi = t.conclusion(of: body)
+                case .isaPropIntro(let body) = n, case .isaPropIntro(let original) = t[id],
+                let phi = t.conclusion(of: original)
             else { throw LogicError.notTheRule(id) }
+            let named = try met(body, phi, moving: .variables([0]), toValues: false, in: &t)
+            let bound = try fixing(try scoped(named, closed: false, in: &t), in: named, by: .existence(base), in: &t)
+            guard let stated = t.conclusion(of: bound) else { throw LogicError.notTheRule(id) }
             let premise = try truth(try t.intern(.folBound(0)), in: &t)
-            return try t.intern(.folForallIntro(body: try base.applied(.weaken, [phi, premise], [body], in: &t)))
+            return try t.intern(.folForallIntro(body: try base.applied(.weaken, [stated, premise], [bound], in: &t)))
 
         case .proposition(.hidden)?:
             guard case .isaHidden(.o, let body) = n else { throw LogicError.notTheRule(id) }
-            return try hiddenProposition(body, base, in: &t)
+            let bound = try fixing(try scoped(body, closed: false, in: &t), in: body, by: .existence(base), in: &t)
+            return try hiddenProposition(bound, base, in: &t)
 
         case .pointwise(.combination)?:
             guard case .isaCombination(let F, let p, let q) = n else { throw LogicError.notTheRule(id) }
@@ -282,8 +391,58 @@ private struct Steps: Rule {
             return nil
 
         case nil:
-            return try Reify().after(n, was: id, base: base, in: &t)
+            switch t[id] {
+            case .isaAllElim(let original, let a):
+                guard let stated = t.conclusion(of: original), case .ifolAll(.i, let body) = t[stated] else {
+                    return nil
+                }
+                return try instances.instance(children(n)[0], body, .i, at: a, in: &t)
+
+            case .isaAllIntro(let T, let original):
+                guard let phi = t.conclusion(of: original) else { throw LogicError.notTheRule(id) }
+                return try instances.generalized(children(n)[0], phi, T, in: &t)
+
+            case .isaHidden(let T, _):
+                let body = children(n)[0]
+                let bound = try fixing(try scoped(body, closed: false, in: &t), in: body, by: .existence(base), in: &t)
+                return try t.intern(.isaHidden(T, body: bound))
+
+            case .isaExElim(let T, let premise, let original):
+                guard
+                    let some = t.conclusion(of: premise), case .ifolEx(_, let psi) = t[some]
+                else { throw LogicError.notTheRule(id) }
+                _ = original
+                return try instances.eliminated(children(n)[0], children(n)[1], psi, T, in: &t)
+
+            case .isaExIntro(_, let a, let psi):
+                return try instances.introduced(children(n)[0], psi, at: a, in: &t)
+
+            default:
+                return nil
+            }
         }
+    }
+
+    /// `p`, a citation with its earlier letters instantiated, at its next letter `a`: `schema_inst`; at its last, the
+    /// citation's matrix met at its letters' instances. A letter below another binder, off its statement's spine,
+    /// meets its own terms where it is instantiated.
+    private func letterInstance(_ p: NodeID, _ body: NodeID, at a: NodeID, was id: NodeID, in t: inout Table) throws
+        -> NodeID
+    {
+        let at = try t.intern(.folSchemaInst(p, try valued(a, in: &t)))
+        var instances = [NodeID]()
+        var head = id
+        while
+            case .isaAllElim(let q, let x) = t[head], let c = t.conclusion(of: q), case .ifolAll(.o, _) = t[c]
+        {
+            instances.insert(x, at: 0)
+            head = q
+        }
+        guard case .use(_, _, let root) = t[head] else {
+            return try met(at, body, moving: .variables([0]), at: [0: a], drop: 1, toValues: true, in: &t)
+        }
+        if case .ifolAll(.o, _) = t[body] { return at }
+        return try metBelowLetters(at, root, at: instances, in: &t)
     }
 
     /// ⚠ AN AXIOM BASE CLAIMS STATES ITS CLASS PREMISES, AND BASE'S CLAIM NONE: relabelled whole, the citation
@@ -312,6 +471,66 @@ private struct Steps: Rule {
             body: proof,
         )) }
         return proof
+    }
+}
+
+/// Isabelle's binders and instances on values: each meets the proof's values through its formula's lemma.
+struct Instances {
+    let base: Base
+
+    /// `p` proving `∀x. ψ`'s value form, at `a`: `ψ[a/x]`'s.
+    func instance(_ p: NodeID, _ psi: NodeID, _ T: IRType, at a: NodeID, in t: inout Table) throws -> NodeID {
+        let at: NodeID
+        switch T {
+        case .i: at = try t.intern(.isaAllElim(p, try value(of: a, in: &t)))
+        case .o, .fn, .variable: throw LogicError.notTheRule(p)
+        }
+        return try met(at, psi, moving: .variables([0]), at: [0: a], drop: 1, toValues: true, in: &t)
+    }
+
+    /// `body` proving `ψ`'s value form below a new variable: `∀x. ψ`'s. A letter's intro leaves its body's values to
+    /// the proof's last step, below every letter.
+    func generalized(_ body: NodeID, _ psi: NodeID, _ T: IRType, in t: inout Table) throws -> NodeID {
+        if T == .o { return try t.intern(.isaAllIntro(.o, body: body)) }
+        let named = try met(body, psi, moving: .variables([0]), toValues: false, in: &t)
+        let bound = try fixing(try scoped(named, closed: false, in: &t), in: named, by: .existence(base), in: &t)
+        return try t.intern(.isaAllIntro(T, body: bound))
+    }
+
+    /// `exists_elim` over `p`, proving `∃y. ψ`'s value form, of `body`, which assumes `ψ`'s at `y`: a cut from the
+    /// elimination's own assumption, `ψ` naming `y`'s terms, where the two differ.
+    func eliminated(_ p: NodeID, _ body: NodeID, _ psi: NodeID, _ T: IRType, in t: inout Table) throws -> NodeID {
+        let own = try formula(psi, .proof(0, naming: [0]), in: &t)
+        let assumed = try valued(psi, in: &t)
+        var proof = body
+        if own != assumed {
+            let moved = try met(try t.intern(.hyp(0, own)), psi, moving: .variables([0]), toValues: true, in: &t)
+            let under = try t.intern(.folImpliesIntro(assumed, body: try transform(body, Inserting(), in: &t)))
+            proof = try t.intern(.folImpliesElim(under, moved))
+        }
+        let bound = try fixing(try scoped(proof, closed: false, in: &t), in: proof, by: .existence(base), in: &t)
+        return try t.intern(.isaExElim(T, p, body: bound))
+    }
+
+    /// `p` proving `ψ[a/y]`'s value form: `∃y. ψ`'s.
+    func introduced(_ p: NodeID, _ psi: NodeID, at a: NodeID, in t: inout Table) throws -> NodeID {
+        let named = try met(p, psi, moving: .variables([0]), at: [0: a], drop: 1, toValues: false, in: &t)
+        let body = try formula(psi, .proof(0, naming: [0]), in: &t)
+        return try t.intern(.isaExIntro(named, try value(of: a, in: &t), body: body))
+    }
+
+}
+
+/// ⚠ A CUT INSERTED BELOW A BODY'S HYPOTHESIS 0 TAKES ITS PLACE: 0 stays the cut's, and every hypothesis beyond moves
+/// one further out.
+private struct Inserting: Rule {
+    func before(_ id: NodeID, context depth: Depth, in t: inout Table) throws -> NodeID? {
+        t.looseHyps(of: id) <= depth.hyps + 1 ? id : nil
+    }
+
+    func after(_ n: Node, was _: NodeID, context depth: Depth, in t: inout Table) throws -> NodeID? {
+        guard case .hyp(let h, let a) = n, h > depth.hyps else { return nil }
+        return try t.intern(.hyp(h + 1, a))
     }
 }
 
@@ -349,51 +568,14 @@ struct Equalities {
         }
     }
 
+    /// Pure's equality at `i` on values: base's `eq_*` at the sides' values.
     func atI(_ e: Equality, _ sides: [NodeID], _ premises: [NodeID], in t: inout Table) throws -> NodeID {
-        var f = Frame()
+        let values = try sides.map { try value(of: $0, in: &t) }
         switch e {
-        case .reflexive:
-            let x = sides[0]
-            guard Reify().owns(Pattern(t[x], in: t)) == .rule else { return try base.claimed(.eqRefl, [x], [], in: &t) }
-            let side = EquationSide(term: x, opened: try openedExistence(x, base: base, in: &f, &t))
-            let core = try base.claimed(.eqRefl, [try side.value(f.scope, &t)], [], in: &t)
-            return try f.close(try closedEquation(side, side, core, in: f, &t), in: &t)
-
-        case .symmetric:
-            let h = f.assume(try conclusion(premises[0], t))
-            let (l, r, core) = try openedEquation(sides[0], sides[1], h, in: &f, &t)
-            let values = [try l.value(f.scope, &t), try r.value(f.scope, &t)]
-            let flipped = try base.claimed(.eqSymm, values, [try f.proof(core, in: &t)], in: &t)
-            let closed = try f.close(try closedEquation(r, l, flipped, in: f, &t), in: &t)
-            return try t.intern(.folImpliesElim(closed, premises[0]))
-
-        case .transitive:
-            let hp = f.assume(try conclusion(premises[0], t))
-            let hq = f.assume(try conclusion(premises[1], t))
-            let (l, m, cp) = try openedEquation(sides[0], sides[1], hp, in: &f, &t)
-            let (m2, r, cq) = try openedEquation(sides[1], sides[2], hq, in: &f, &t)
-            let vl = try l.value(f.scope, &t)
-            let vm = try m.value(f.scope, &t)
-            let vm2 = try m2.value(f.scope, &t)
-            var first = try f.proof(cp, in: &t)
-            if let o = m.opened, let o2 = m2.opened {
-                let same = try uniquenessApplied(o, o2, base: base, in: f.scope, &t)
-                first = try base.claimed(.eqTrans, [vl, vm, vm2], [first, same], in: &t)
-            }
-            let chained = try base.claimed(
-                .eqTrans,
-                [vl, vm2, try r.value(f.scope, &t)],
-                [first, try f.proof(cq, in: &t)],
-                in: &t,
-            )
-            let closed = try f.close(try closedEquation(l, r, chained, in: f, &t), in: &t)
-            return try t.intern(.folImpliesElim(try t.intern(.folImpliesElim(closed, premises[0])), premises[1]))
+        case .reflexive: return try base.claimed(.eqRefl, [values[0]], [], in: &t)
+        case .symmetric: return try base.claimed(.eqSymm, values, premises, in: &t)
+        case .transitive: return try base.claimed(.eqTrans, values, premises, in: &t)
         }
-    }
-
-    private func conclusion(_ p: NodeID, _ t: Table) throws -> NodeID {
-        guard let c = t.conclusion(of: p) else { throw TableError.expectedStep(p) }
-        return c
     }
 }
 

@@ -5,6 +5,10 @@ struct Scope {
         variables.count
     }
 
+    var hyps: Int {
+        hypotheses.count
+    }
+
     mutating func fix(_ T: IRType?) -> Int {
         variables.append(T)
         return variables.count - 1

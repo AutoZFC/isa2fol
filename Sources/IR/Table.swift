@@ -63,7 +63,7 @@ public struct Table: Sendable {
              .folAndElimL, .folAndElimR,
              .folOrIntroL, .folOrIntroR, .folOrElim, .folNotIntro, .folNotElim, .folIffElimR, .folForallIntro,
              .folForallElim, .folExistsIntro, .folExistsElim, .folBottomElim, .folClassicalAbsurd, .folSchemaInst,
-             .folLetterAll, .folLetter, .folLetterAbs:
+             .folLetterAll, .folLetter, .folLetterAbs, .isaValue, .isaValueFact:
             nil
         }
     }
@@ -134,7 +134,7 @@ public struct Table: Sendable {
             return .value(.i)
 
         case .folPred(_, let xs):
-            for x in xs { try termVariable(x, else: .predicateArgumentNotVariable(x)) }
+            for x in xs { try termArgument(x, else: .predicateArgumentNotVariable(x)) }
             return .value(.o)
 
         case .folAnd(let a, let b), .folOr(let a, let b), .folImplies(let a, let b), .folIff(let a, let b):
@@ -239,7 +239,7 @@ public struct Table: Sendable {
             return .step(concluding: try intern(.folForall(body: try premise(body))))
 
         case .folForallElim(let p, let v):
-            try termVariable(v, else: .notATermVariable(v))
+            try termArgument(v, else: .notATermVariable(v))
             let premised = try premise(p)
             if case .folForall(let body) = self[premised] { return .step(concluding: try instantiate(
                 body,
@@ -297,7 +297,7 @@ public struct Table: Sendable {
 
         case .folLetter(let h, let xs):
             guard case .folBound = self[h] else { throw TableError.varAppHeadNotVariable(h) }
-            for x in xs { try termVariable(x, else: .predicateArgumentNotVariable(x)) }
+            for x in xs { try termArgument(x, else: .predicateArgumentNotVariable(x)) }
             return .value(.o)
 
         case .folLetterAbs(let b):
@@ -364,6 +364,15 @@ public struct Table: Sendable {
             }
             return .step(concluding: try instance(try premise(p), at: x, blaming: p))
 
+        case .isaValue(let x):
+            try expect(.i, x)
+            return .value(.i)
+
+        case .isaValueFact(let v, let a):
+            guard case .isaValue = self[v] else { throw TableError.notATermVariable(v) }
+            try expect(.o, a)
+            return .step(concluding: a)
+
         case .isaDefinition(_, _, _, let stated, let xs):
             try expect(.o, stated)
             var concluded = stated
@@ -389,6 +398,12 @@ public struct Table: Sendable {
         if case .folLetterAbs = self[inner] { throw TableError.letterArity(a) }
     }
 
+    private func termArgument(_ x: NodeID, else notVariable: TableError) throws {
+        if case .isaValue = self[x] { return }
+        _ = try termVariable(x, else: notVariable)
+    }
+
+    @discardableResult
     private func termVariable(_ x: NodeID, else notVariable: TableError) throws -> Int {
         if case .folBound(let k) = self[x] { return k }
         guard case .isaBound(let k, let T) = self[x] else { throw notVariable }

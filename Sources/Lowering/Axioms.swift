@@ -71,6 +71,7 @@ public struct AxiomProver: Prover {
             members = (name, root)
         }
         let reading = AxiomReading(base: base, definitions: definitions, members: members)
+        if try reading.unbuilt(r.stated, &t) { return .unbuilt }
         var slots = [LambdaFact]()
         let read = try reading.target(r.stated, Scope(), &slots, &t)
         let equivalence = try Replacement(base: base) { phi, l, w, s, t in try reading.hole(phi, l, w, s, &t) }
@@ -125,6 +126,11 @@ private struct AxiomReading {
             return try primitiveWords(x, a, &t)
         }
         if let (a, other) = try function(phi, t) { return try functionWords(a, other, &t) }
+        if Reify().names(Pattern(t[phi], in: t)) {
+            var naming = Naming()
+            let core = try naming.atom(t[phi], in: &t)
+            return try words(naming.chain, core, &t)
+        }
         switch t[phi] {
         case .folAnd(let a, let b):
             return try t.intern(.folAnd(try target(a, s, &slots, &t), try target(b, s, &slots, &t)))
@@ -158,8 +164,8 @@ private struct AxiomReading {
              .folPred, .folForall, .folExists, .folAndIntro, .folAndElimL, .folAndElimR, .folOrIntroL, .folOrIntroR,
              .folOrElim, .folNotIntro, .folNotElim, .folIffElimR, .folForallIntro, .folForallElim, .folExistsIntro,
              .folExistsElim, .folBottomElim, .folClassicalAbsurd, .folSchemaInst, .folLetterAll, .folLetter,
-             .folLetterAbs:
-            return try walked(formula: phi, in: &t)
+             .folLetterAbs, .isaValue, .isaValueFact:
+            return try formula(phi, .statement, in: &t)
         }
     }
 
@@ -169,7 +175,7 @@ private struct AxiomReading {
             let unfolding = try Lowering.unfolding(
                 c,
                 stated: stated,
-                statement: try walked(formula: stated, in: &t),
+                statement: try formula(stated, .statement, in: &t),
                 at: args,
                 base: base,
                 in: &t,
@@ -185,13 +191,40 @@ private struct AxiomReading {
         }
         if let (x, a) = try primitive(phi, t) {
             guard try primitiveWords(x, a, &t) == w else { throw AxiomError.misread(phi) }
-            return try primitiveProof(a, l, w, s, &t)
+            return try primitiveProof(x, a, l, w, s, &t)
         }
         if let (a, other) = try function(phi, t) {
             guard try functionWords(a, other, &t) == w else { throw AxiomError.misread(phi) }
-            return try functionProof(a, l, w, s, &t)
+            return try functionProof(a, other, l, w, s, &t)
         }
+        if Reify().names(Pattern(t[phi], in: t)) { return try piecesProof(phi, l, w, s, &t) }
         return nil
+    }
+
+    /// Whether reading `phi` meets what the reading does not have: a defined predicate's unfolding at a set argument
+    /// that is no variable, or an atom naming more than set constants and tuples outside a primitive's and a function's
+    /// reading.
+    func unbuilt(_ phi: NodeID, _ t: inout Table) throws -> Bool {
+        if let (_, d, args) = predicate(phi, t) {
+            if args.contains(where: { t.type(of: $0) == .i && !isBound($0, t) }) { return true }
+            return try unbuilt(try beta(d.definiens, args, in: &t), &t)
+        }
+        if try primitive(phi, t) != nil || (try function(phi, t)) != nil { return false }
+        if Reify().names(Pattern(t[phi], in: t)) {
+            var naming = Naming()
+            _ = try naming.atom(t[phi], in: &t)
+            return naming.pieces.contains { piece in
+                switch piece {
+                case .setConstant, .tuple: false
+                case .constantClass, .lambdaClass, .value, .applied, .truthSet: true
+                }
+            }
+        }
+        var found = false
+        for c in children(t[phi]) where !found && t.type(of: c) == .o {
+            found = try unbuilt(c, &t)
+        }
+        return found
     }
 
     private func predicate(_ phi: NodeID, _ t: Table) -> (Defined, Definition, [NodeID])? {
@@ -254,7 +287,7 @@ private struct AxiomReading {
             value: try chain.here(u, in: &t),
             &t,
         ))
-        return try chain.formula(try chain.predicate(.base("elem"), [.outer(x), u], in: &t), in: &t)
+        return try words(chain, try chain.predicate(.base("elem"), [.outer(x), u], in: &t), &t)
     }
 
     private func related(
@@ -285,7 +318,10 @@ private struct AxiomReading {
         return body
     }
 
+    /// `x ∈ c(…)` named, against NBG's words for it: forward the naming's pieces opened by their existence and the
+    /// naming instantiated there; back the naming's pieces fixed, their value the words' by UNIQ.
     private func primitiveProof(
+        _ element: NodeID,
         _ a: Application,
         _ l: NodeID,
         _ w: NodeID,
@@ -303,20 +339,60 @@ private struct AxiomReading {
         )
         var fw = Frame(s)
         let hl = fw.assume(l)
-        let o = try fw.open(chain: .hypothesis(hl), Array(repeating: .cls, count: k) + [.cls, .set, .set], in: &t)
-        let ks = Array(o.witnesses[..<k])
-        let hks = try o.constraints[..<k].map { try fw.have(try fw.proof($0, in: &t), in: &t) }
-        let hc = try fw.have(try fw.proof(o.constraints[k], in: &t), in: &t)
-        let ht = try fw.have(try fw.proof(o.constraints[k + 1], in: &t), in: &t)
-        let r = o.witnesses[k + 2]
-        let member = try at.converted(o.witnesses[k], ks, hc, o.witnesses[k + 1], ht, value: r, &fw, &t)
-        let related = try t.intern(.folIffElimL(member, try fw.proof(o.constraints[k + 2], in: &t)))
+        var ks = [Int]()
+        var hks = [Int]()
+        for lambda in classes(a) {
+            let (K, hK) = try fw.open(try classExists(try fw.scope.lift(lambda, from: s.depth, in: &t), &t), in: &t)
+            ks.append(K)
+            hks.append(hK)
+        }
+        let (c, hc) = try fw.open(try at.classExists(ks, fw, &t), in: &t)
+        let (tw, ht) = try fw.open(try at.tupleExists(fw, &t), in: &t)
+        let total = ConstantFact(constant: a.constant, type: a.type, fact: .totality)
+        let guards = try zip(zip(ks, hks), zip(classes(a), a.type.domains.filter { $0 != .i })).compactMap {
+            k, lambda -> NodeID? in
+            guard isFunctionClass(lambda.1) else { return nil }
+            let at = try fw.scope.lift(lambda.0, from: s.depth, in: &t)
+            let fact = try functionFact(at, mode: .statement, base, &t)
+            let K = try fw.variable(k.0, in: &t)
+            return try t.intern(.folImpliesElim(try t.intern(.folForallElim(fact, K)), try fw.hypothesis(k.1, in: &t)))
+        }
+        let (r, hr) = try fw.open(
+            try eliminated(
+                try eliminated(
+                    try eliminated(
+                        try cited(total, try statement(total, in: &t), &t),
+                        at: try ks.map { try fw.variable($0, in: &t) },
+                        premises: guards,
+                        in: &t,
+                    ),
+                    at: [try fw.variable(c, in: &t)],
+                    premises: [try fw.hypothesis(hc, in: &t)],
+                    in: &t,
+                ),
+                at: try (at.sets + [tw]).map { try fw.variable($0, in: &t) },
+                premises: [try fw.hypothesis(ht, in: &t)],
+                in: &t,
+            ),
+            in: &t,
+        )
+        let member = try at.converted(c, ks, hc, tw, ht, value: r, &fw, &t)
+        let related = try t.intern(.folIffElimL(member, try fw.hypothesis(hr, in: &t)))
+        var core = try fw.hypothesis(hl, in: &t)
+        for (v, h) in zip(ks + [c, tw, r], hks + [hc, ht, hr]) {
+            core = try eliminated(
+                core,
+                at: [try fw.variable(v, in: &t)],
+                premises: [try fw.hypothesis(h, in: &t)],
+                in: &t,
+            )
+        }
         let forward = try fw.close(
             try closing(
                 try fw.scope.lift(w, from: s.depth, in: &t),
                 try (ks + [r]).map { try fw.variable($0, in: &t) },
                 try hks.map { try fw.hypothesis($0, in: &t) } + [related],
-                try fw.proof(o.core, in: &t),
+                core,
                 in: &t,
             ),
             in: &t,
@@ -328,21 +404,35 @@ private struct AxiomReading {
         let bks = Array(ob.witnesses[..<k])
         let bhks = try ob.constraints[..<k].map { try bw.have(try bw.proof($0, in: &t), in: &t) }
         let hb = try bw.have(try bw.proof(ob.constraints[k], in: &t), in: &t)
+        let inU = try bw.have(try bw.proof(ob.core, in: &t), in: &t)
         let u = ob.witnesses[k]
-        let (c, hc2) = try bw.open(try at.classExists(bks, bw, &t), in: &t)
-        let (tw, ht2) = try bw.open(try at.tupleExists(bw, &t), in: &t)
-        let member2 = try at.converted(c, bks, hc2, tw, ht2, value: u, &bw, &t)
-        let valued = try t.intern(.folIffElimR(member2, try bw.hypothesis(hb, in: &t)))
-        let backward = try bw.close(
-            try closing(
-                try bw.scope.lift(l, from: s.depth, in: &t),
-                try (bks + [c, tw, u]).map { try bw.variable($0, in: &t) },
-                try (bhks + [hc2, ht2]).map { try bw.hypothesis($0, in: &t) } + [valued],
-                try bw.proof(ob.core, in: &t),
-                in: &t,
-            ),
+        let (c2, hc2) = try bw.open(try at.classExists(bks, bw, &t), in: &t)
+        let (tw2, ht2) = try bw.open(try at.tupleExists(bw, &t), in: &t)
+        let member2 = try at.converted(c2, bks, hc2, tw2, ht2, value: u, &bw, &t)
+        let valued = try bw.have(try t.intern(.folIffElimR(member2, try bw.hypothesis(hb, in: &t))), in: &t)
+        var rest = try bw.scope.lift(l, from: s.depth, in: &t)
+        var restScope = bw.scope
+        var named = [Int]()
+        var assumed = [Int]()
+        for _ in 0..<(k + 3) {
+            let (v, h) = try peel(&rest, &restScope, &bw, &t)
+            named.append(v)
+            assumed.append(h)
+        }
+        let term = try t.intern(.isaConst(
+            a.constant,
+            a.type,
+            args: try a.args.map { try bw.scope.lift($0, from: s.depth, in: &t) },
+        ))
+        let equal = try unique(term, (bks + [c2, tw2, u], bhks + [hc2, ht2, valued]), (named, assumed), bw, &t)
+        let x = try bw.scope.lift(element, from: s.depth, in: &t)
+        let moved = try eliminated(
+            try base.cite(.congElemR, in: &t),
+            at: [x, try bw.variable(u, in: &t), try bw.variable(named[k + 2], in: &t)],
+            premises: [equal],
             in: &t,
         )
+        let backward = try bw.close(try t.intern(.folIffElimL(moved, try bw.hypothesis(inU, in: &t))), in: &t)
         return try t.intern(.folIffIntro(forward, backward))
     }
 
@@ -357,15 +447,34 @@ private struct AxiomReading {
         ).psi
         let into = try t.intern(.folPred(.base("elem"), args: [z, try t.intern(.isaBound(1, .i))]))
         chain.constrain(v, try t.intern(.ifolAll(.i, body: try t.intern(.folIff(into, psi)))))
-        let core = try walked(
-            formula: try t.intern(.isaConst(
-                .primitive(.zf(.mem)),
-                .fn(.i, .fn(.i, .o)),
-                args: [try chain.here(v, in: &t), try chain.here(.outer(other), in: &t)],
-            )),
-            in: &t,
+        let core = try atomWords(
+            try membership(try chain.here(v, in: &t), try chain.here(.outer(other), in: &t), &t),
+            &t,
         )
-        return try chain.formula(core, in: &t)
+        return try words(chain, core, &t)
+    }
+
+    private func membership(_ x: NodeID, _ y: NodeID, _ t: inout Table) throws -> NodeID {
+        try t.intern(.isaConst(.primitive(.zf(.mem)), .fn(.i, .fn(.i, .o)), args: [x, y]))
+    }
+
+    /// An atom in NBG's words: its terms' pieces each existential.
+    private func atomWords(_ atom: NodeID, _ t: inout Table) throws -> NodeID {
+        var naming = Naming()
+        let core = try naming.atom(t[atom], in: &t)
+        return try words(naming.chain, core, &t)
+    }
+
+    /// `x ∈ y` at `s`, its named form proved from its words (`toNamed`) or back.
+    private func membershipMoved(_ p: NodeID, _ x: NodeID, _ y: NodeID, toNamed: Bool, _ s: Scope, _ t: inout Table)
+        throws -> NodeID
+    {
+        let atom = try membership(x, y, &t)
+        let named = try formula(atom, .statement, in: &t)
+        let said = try atomWords(atom, &t)
+        if named == said { return p }
+        let iff = try piecesProof(atom, named, said, s, &t)
+        return try t.intern(toNamed ? .folIffElimR(iff, p) : .folIffElimL(iff, p))
     }
 
     private func membership(z: NodeID, args: [NodeID], _ t: inout Table) throws -> (named: NodeID, psi: NodeID) {
@@ -381,8 +490,11 @@ private struct AxiomReading {
         return (named, psi)
     }
 
+    /// `f(y⃗) ∈ w` named, against NBG's words, `∃v. (∀z. z ∈ v ↔ ψ) ∧ v ∈ w`: forward the naming's pieces opened by
+    /// their existence, `v` their value; back the naming's pieces fixed, its value `v` by extensionality.
     private func functionProof(
         _ a: Application,
+        _ other: NodeID,
         _ l: NodeID,
         _ w: NodeID,
         _ s: Scope,
@@ -398,18 +510,56 @@ private struct AxiomReading {
             name: a.constant.name,
         )
         let named = Members(application: a, arguments: ys, theorem: members, base: base)
+        let total = ConstantFact(constant: a.constant, type: a.type, fact: .totality)
+        let opened = { (f: inout Frame, t: inout Table) throws -> [(Int, Int)] in
+            let (c, hc) = try f.open(try at.classExists([], f, &t), in: &t)
+            let (tw, ht) = try f.open(try at.tupleExists(f, &t), in: &t)
+            let atC = try eliminated(
+                try cited(total, try statement(total, in: &t), &t),
+                at: [try f.variable(c, in: &t)],
+                premises: [try f.hypothesis(hc, in: &t)],
+                in: &t,
+            )
+            let (v, hv) = try f.open(
+                try eliminated(
+                    atC,
+                    at: try (ys + [tw]).map { try f.variable($0, in: &t) },
+                    premises: [try f.hypothesis(ht, in: &t)],
+                    in: &t,
+                ),
+                in: &t,
+            )
+            return [(c, hc), (tw, ht), (v, hv)]
+        }
 
         var fw = Frame(s)
         let hl = fw.assume(l)
-        let o = try fw.open(chain: .hypothesis(hl), [.cls, .set, .set], in: &t)
-        let value = try o.constraints.map { try fw.have(try fw.proof($0, in: &t), in: &t) }
-        let every = try named.members(Array(o.witnesses), value, fw, &t)
+        let pieces = try opened(&fw, &t)
+        var core = try fw.hypothesis(hl, in: &t)
+        for (v, h) in pieces {
+            core = try eliminated(
+                core,
+                at: [try fw.variable(v, in: &t)],
+                premises: [try fw.hypothesis(h, in: &t)],
+                in: &t,
+            )
+        }
+        let every = try named.members(pieces.map(\.0), pieces.map(\.1), fw, &t)
+        let otherHere = try fw.scope.lift(other, from: s.depth, in: &t)
+        let said = try membershipMoved(
+            core,
+            try fw.variable(pieces[2].0, in: &t),
+            otherHere,
+            toNamed: false,
+            fw.scope,
+            &t,
+        )
         let forward = try fw.close(
             try closing(
                 try fw.scope.lift(w, from: s.depth, in: &t),
-                [try fw.variable(o.witnesses[2], in: &t)],
+                [try fw.variable(pieces[2].0, in: &t)],
                 [every],
-                try fw.proof(o.core, in: &t),
+                said,
                 in: &t,
             ),
             in: &t,
@@ -420,68 +570,257 @@ private struct AxiomReading {
         let ob = try bw.open(chain: .hypothesis(hw), [.set], in: &t)
         let v = ob.witnesses[0]
         let hall = try bw.have(try bw.proof(ob.constraints[0], in: &t), in: &t)
-        let (c, hc) = try bw.open(try at.classExists([], bw, &t), in: &t)
-        let (tw, ht) = try bw.open(try at.tupleExists(bw, &t), in: &t)
-        let total = ConstantFact(constant: a.constant, type: a.type, fact: .totality)
-        let atC = try eliminated(
-            try cited(total, try statement(total, in: &t), &t),
-            at: [try bw.variable(c, in: &t)],
-            premises: [try bw.hypothesis(hc, in: &t)],
-            in: &t,
-        )
-        let (v0, hv0) = try bw.open(
-            try eliminated(
-                atC,
-                at: try (ys + [tw]).map { try bw.variable($0, in: &t) },
-                premises: [try bw.hypothesis(ht, in: &t)],
-                in: &t,
-            ),
-            in: &t,
-        )
-        let hall0 = try bw.have(try named.members([c, tw, v0], [hc, ht, hv0], bw, &t), in: &t)
+        let inV = try bw.have(try bw.proof(ob.core, in: &t), in: &t)
+        var rest = try bw.scope.lift(l, from: s.depth, in: &t)
+        var restScope = bw.scope
+        var fixed = [(Int, Int)]()
+        for _ in 0..<3 { fixed.append(try peel(&rest, &restScope, &bw, &t)) }
+        let r = fixed[2].0
+        let hall0 = try bw.have(try named.members(fixed.map(\.0), fixed.map(\.1), bw, &t), in: &t)
         var fz = Frame(bw.scope)
         let z = fz.fix(.i)
         let x = try fz.variable(z, in: &t)
         let at0 = try t.intern(.isaAllElim(try fz.hypothesis(hall0, in: &t), x))
         let atV = try t.intern(.isaAllElim(try fz.hypothesis(hall, in: &t), x))
         let (in0, psi) = try sides(at0, t)
-        let inV = try sides(atV, t).left
-        let flipped = try base.applied(.iffSymm, [inV, psi], [atV], in: &t)
-        let agree = try fz.close(try base.applied(.iffTrans, [in0, psi, inV], [at0, flipped], in: &t), in: &t)
+        let inv = try sides(atV, t).left
+        let flipped = try base.applied(.iffSymm, [inv, psi], [atV], in: &t)
+        let agree = try fz.close(try base.applied(.iffTrans, [in0, psi, inv], [at0, flipped], in: &t), in: &t)
         let ext = try eliminated(
             try base.cite(.extensionality, in: &t),
-            at: [try bw.variable(v0, in: &t), try bw.variable(v, in: &t)],
+            at: [try bw.variable(r, in: &t), try bw.variable(v, in: &t)],
             in: &t,
         )
-        let heq = try bw.have(try t.intern(.folIffElimR(ext, agree)), in: &t)
-        let lifted = try bw.scope.lift(w, from: s.depth, in: &t)
-        guard case .ifolEx(.i, let chained) = t[lifted] else { throw AxiomError.misread(w) }
-        let atV0 = try instantiate(chained, with: try bw.variable(v0, in: &t), in: &t)
-        guard case .folAnd(_, let atS) = t[atV0] else { throw AxiomError.misread(w) }
-        let core = try bw.proof(ob.core, in: &t)
-        guard let atV1 = t.conclusion(of: core) else { throw TableError.expectedStep(core) }
-        let moved = try Replacement(base: base) { phi, l, r, sc, t in
-            guard case .folPred = t[phi] else { return nil }
-            return try congruent(l, r, base, { _, _, t in
-                try base.claimed(
-                    .eqSymm,
-                    [try sc.variable(v0, in: &t), try sc.variable(v, in: &t)],
-                    [try sc.hypothesis(heq, in: &t)],
-                    in: &t,
-                )
+        let equal = try base.claimed(
+            .eqSymm,
+            [try bw.variable(r, in: &t), try bw.variable(v, in: &t)],
+            [try t.intern(.folIffElimR(ext, agree))],
+            in: &t,
+        )
+        let otherBack = try bw.scope.lift(other, from: s.depth, in: &t)
+        let inNamed = try membershipMoved(
+            try bw.hypothesis(inV, in: &t),
+            try bw.variable(v, in: &t),
+            otherBack,
+            toNamed: true,
+            bw.scope,
+            &t,
+        )
+        guard let from = t.conclusion(of: inNamed) else { throw TableError.expectedStep(inNamed) }
+        let target = try lifted(rest, from: restScope, to: bw.scope, in: &t)
+        let vv = try bw.variable(v, in: &t)
+        let rv = try bw.variable(r, in: &t)
+        let level = bw.scope.depth
+        let moved = try Carry { q, wanted, sc, t in
+            guard let have = t.conclusion(of: q) else { throw TableError.expectedStep(q) }
+            let iff = try congruent(have, wanted, base, { a, b, t in
+                guard try sc.lift(vv, from: level, in: &t) == a, try sc.lift(rv, from: level, in: &t) == b else {
+                    throw AxiomError.misread(w)
+                }
+                return try lifted(equal, terms: sc.depth - level, hyps: sc.hyps - bw.scope.hyps, in: &t)
             }, &t)
-        }.proof(atV1, atV1, atS, in: bw.scope, &t)
-        let backward = try bw.close(
+            return try t.intern(.folIffElimL(iff, q))
+        }.proof(inNamed, from: from, to: target, in: bw.scope, &t)
+        let backward = try bw.close(moved, in: &t)
+        return try t.intern(.folIffIntro(forward, backward))
+    }
+
+    /// An atom's naming `∀v. c(v) → …` against NBG's words `∃v. c(v) ∧ …`, its pieces set constants and tuples: each
+    /// piece's value opened by its EX one way, met by its UNIQ the other.
+    private func piecesProof(
+        _ phi: NodeID,
+        _ l: NodeID,
+        _ w: NodeID,
+        _ s: Scope,
+        _ t: inout Table,
+    ) throws -> NodeID {
+        var naming = Naming()
+        _ = try naming.atom(t[phi], in: &t)
+        let pieces = naming.pieces
+        var fw = Frame(s)
+        let hl = fw.assume(l)
+        var opened = [(Int, Int)]()
+        for piece in pieces {
+            let witnesses = opened.map(\.0)
+            let frame = fw
+            let at = { (r: Ref, t: inout Table) throws -> NodeID in try entry(r, witnesses, frame, s, &t) }
+            opened.append(try fw.open(try existence(piece, phi, at, &t), in: &t))
+        }
+        var core = try fw.hypothesis(hl, in: &t)
+        for (v, h) in opened {
+            core = try eliminated(
+                core,
+                at: [try fw.variable(v, in: &t)],
+                premises: [try fw.hypothesis(h, in: &t)],
+                in: &t,
+            )
+        }
+        let forward = try fw.close(
             try closing(
-                try bw.scope.lift(l, from: s.depth, in: &t),
-                try [c, tw, v0].map { try bw.variable($0, in: &t) },
-                try [hc, ht, hv0].map { try bw.hypothesis($0, in: &t) },
-                try t.intern(.folIffElimL(moved, core)),
+                try fw.scope.lift(w, from: s.depth, in: &t),
+                try opened.map { try fw.variable($0.0, in: &t) },
+                try opened.map { try fw.hypothesis($0.1, in: &t) },
+                core,
                 in: &t,
             ),
             in: &t,
         )
+
+        var bw = Frame(s)
+        let hw = bw.assume(w)
+        let o = try bw.open(chain: .hypothesis(hw), pieces.map { _ in .set }, in: &t)
+        let facts = try o.constraints.map { try bw.have(try bw.proof($0, in: &t), in: &t) }
+        let held = try bw.have(try bw.proof(o.core, in: &t), in: &t)
+        var rest = try bw.scope.lift(l, from: s.depth, in: &t)
+        var restScope = bw.scope
+        var fixed = [(Int, Int)]()
+        for _ in pieces { fixed.append(try peel(&rest, &restScope, &bw, &t)) }
+        var equal = [(NodeID, NodeID, NodeID)]()
+        for (j, piece) in pieces.enumerated() {
+            let v = try bw.variable(o.witnesses[j], in: &t)
+            let v2 = try bw.variable(fixed[j].0, in: &t)
+            let ends = [try bw.hypothesis(facts[j], in: &t), try bw.hypothesis(fixed[j].1, in: &t)]
+            let p: NodeID
+            switch piece {
+            case .setConstant(let c):
+                p = try eliminated(try setConstantUniqueness(c, &t), at: [v, v2], premises: ends, in: &t)
+
+            case .tuple(let refs):
+                let frame = bw
+                let words = try refs.map { try entry($0, o.witnesses, frame, s, &t) }
+                let named = try refs.map { try entry($0, fixed.map(\.0), frame, s, &t) }
+                let same = try refs.indices.map { k -> NodeID in
+                    if case .bound(let m) = refs[k] { return equal[m].2 }
+                    return try eliminated(try base.cite(.eqRefl, in: &t), at: [words[k]], in: &t)
+                }
+                let f = TupleFact(arity: refs.count, fact: .uniqueness)
+                let unique = try eliminated(
+                    try cited(f, try Lowering.statement(f, in: &t), &t),
+                    at: words + named,
+                    premises: same,
+                    in: &t,
+                )
+                p = try eliminated(unique, at: [v, v2], premises: ends, in: &t)
+
+            case .constantClass, .lambdaClass, .value, .applied, .truthSet:
+                throw AxiomError.noReading(phi)
+            }
+            equal.append((v, v2, p))
+        }
+        let have = try bw.hypothesis(held, in: &t)
+        guard let from = t.conclusion(of: have) else { throw TableError.expectedStep(have) }
+        let target = try lifted(rest, from: restScope, to: bw.scope, in: &t)
+        let moved = try congruent(from, target, base, { a, b, _ in
+            guard let (_, _, p) = equal.first(where: { $0.0 == a && $0.1 == b }) else { throw AxiomError.misread(phi) }
+            return p
+        }, &t)
+        let backward = try bw.close(try t.intern(.folIffElimL(moved, have)), in: &t)
         return try t.intern(.folIffIntro(forward, backward))
+    }
+
+    /// A piece's EX, its entries `at` the opened values: `∃v. c(v)` for a set constant, `∃τ. tuple(x⃗, τ)` for a tuple.
+    private func existence(
+        _ piece: NamedPiece,
+        _ phi: NodeID,
+        _ at: (Ref, inout Table) throws -> NodeID,
+        _ t: inout Table,
+    ) throws -> NodeID {
+        switch piece {
+        case .setConstant(let c):
+            return try setConstantExistence(c, base, &t)
+
+        case .tuple(let refs):
+            let f = TupleFact(arity: refs.count, fact: .existence)
+            return try eliminated(
+                try cited(f, try Lowering.statement(f, in: &t), &t),
+                at: try refs.map { try at($0, &t) },
+                in: &t,
+            )
+
+        case .constantClass, .lambdaClass, .value, .applied, .truthSet:
+            throw AxiomError.noReading(phi)
+        }
+    }
+
+    /// A tuple's entry in `f`: an earlier piece's value among `values`, or a variable of the atom at `s`.
+    private func entry(_ r: Ref, _ values: [Int], _ f: Frame, _ s: Scope, _ t: inout Table) throws -> NodeID {
+        switch r {
+        case .bound(let k): try f.variable(values[k], in: &t)
+        case .outer(let x): try f.scope.lift(x, from: s.depth, in: &t)
+        }
+    }
+
+    private func setConstantUniqueness(_ c: Constant, _ t: inout Table) throws -> NodeID {
+        switch c {
+        case .primitive(.zf(.zero)): return try base.cite(.zfZeroUNIQ, in: &t)
+
+        case .primitive(.zf(.inf)): return try base.cite(.zfInfUNIQ, in: &t)
+
+        case .defined:
+            let f = ConstantFact(constant: c, type: .i, fact: .uniqueness)
+            return try cited(f, try Lowering.statement(f, in: &t), &t)
+
+        case .primitive(.zf(.mem)), .primitive(.zf(.pow)), .primitive(.zf(.union)), .primitive(.zf(.primReplace)),
+             .primitive(.pure), .primitive(.ifol), .declared:
+            throw AxiomError.noReading(try t.intern(.isaConst(c, .i, args: [])))
+        }
+    }
+
+    /// CLASS ⟨λ⟩ at the λ's free variables: `∃K. def(λ, K)`.
+    private func classExists(_ lambda: NodeID, _ t: inout Table) throws -> NodeID {
+        let (f, c) = try lambdaFact(lambda, .classExists, in: &t)
+        return try instantiated(
+            try cited(f, try Lowering.statement(f, base: base, in: &t), &t),
+            at: try c.variables.map { try formula($0, .statement, in: &t) },
+            c.types,
+            guards: false,
+            guardOf: isaGuard,
+            in: &t,
+        )
+    }
+
+    /// `eq(v, v′)`: UNIQ ⟨term⟩ at two sets of its pieces, each its constraints' hypotheses.
+    private func unique(
+        _ term: NodeID,
+        _ one: ([Int], [Int]),
+        _ two: ([Int], [Int]),
+        _ f: Frame,
+        _ t: inout Table,
+    ) throws -> NodeID {
+        let c = try closed(term, in: &t)
+        let u = try uniqueness(of: term, in: &t)
+        var p = try instantiated(
+            try cited(u, try Lowering.statement(u, in: &t), &t),
+            at: c.variables,
+            c.types,
+            guards: true,
+            guardOf: isaGuard,
+            in: &t,
+        )
+        for (x, h) in zip(one.0 + two.0, one.1 + two.1) {
+            p = try eliminated(p, at: [try f.variable(x, in: &t)], premises: [try f.hypothesis(h, in: &t)], in: &t)
+        }
+        return p
+    }
+
+    /// The next binder of `rest`, a universal naming at `scope`, fixed in `f` and its constraint assumed.
+    private func peel(_ rest: inout NodeID, _ scope: inout Scope, _ f: inout Frame, _ t: inout Table) throws
+        -> (Int, Int)
+    {
+        let here = try lifted(rest, from: scope, to: f.scope, in: &t)
+        let body: NodeID
+        let set: Bool
+        switch t[here] {
+        case .ifolAll(.i, let b): (body, set) = (b, true)
+        case .folForall(let b): (body, set) = (b, false)
+        default: throw AxiomError.misread(here)
+        }
+        let v = f.fix(set ? .i : nil)
+        guard case .folImplies(let c, let after) = t[body] else { throw AxiomError.misread(here) }
+        let h = f.assume(c)
+        rest = after
+        scope = f.scope
+        return (v, h)
     }
 
     private func level(_ x: NodeID, _ s: Scope, _ t: Table) throws -> Int {
@@ -513,6 +852,8 @@ private struct Members {
     let theorem: (name: String, root: NodeID)?
     let base: Base
 
+    /// `∀z. z ∈ r ↔ ψ(z)` at the naming's pieces `named`, `r` their value: the members theorem's naming proved there
+    /// by UNIQ one way, instantiated there the other.
     func members(_ named: [Int], _ hs: [Int], _ f: Frame, _ t: inout Table) throws -> NodeID {
         var fz = Frame(f.scope)
         let z = fz.fix(.i)
@@ -528,44 +869,52 @@ private struct Members {
 
         var fa = Frame(fz.scope)
         let hz = fa.assume(element)
-        let witnessed = try closing(
-            naming,
-            try named.map { try fa.variable($0, in: &t) },
-            try hs.map { try fa.hypothesis($0, in: &t) },
-            try fa.hypothesis(hz, in: &t),
+        var fn = Frame(fa.scope)
+        var rest = naming
+        var restScope = fz.scope
+        var fixed = [Int]()
+        var assumed = [Int]()
+        for _ in 0..<3 {
+            let here = try lifted(rest, from: restScope, to: fn.scope, in: &t)
+            let body: NodeID
+            let set: Bool
+            switch t[here] {
+            case .ifolAll(.i, let b): (body, set) = (b, true)
+            case .folForall(let b): (body, set) = (b, false)
+            default: throw AxiomError.misread(here)
+            }
+            fixed.append(fn.fix(set ? .i : nil))
+            guard case .folImplies(let c, let after) = t[body] else { throw AxiomError.misread(here) }
+            assumed.append(fn.assume(c))
+            rest = after
+            restScope = fn.scope
+        }
+        let equal = try same(named, hs, fixed, assumed, fn, &t)
+        let moved = try eliminated(
+            try base.cite(.congElemR, in: &t),
+            at: [try fn.variable(z, in: &t), try fn.variable(named[2], in: &t), try fn.variable(fixed[2], in: &t)],
+            premises: [equal],
             in: &t,
         )
-        let into1 = try fa.close(try t.intern(.folImpliesElim(try t.intern(.folAndElimL(th)), witnessed)), in: &t)
+        let proved = try fn.close(try t.intern(.folIffElimL(moved, try fn.hypothesis(hz, in: &t))), in: &t)
+        let left = try t.intern(.folAndElimL(try lifted(th, from: fz.scope, to: fa.scope, in: &t)))
+        let into1 = try fa.close(try t.intern(.folImpliesElim(left, proved)), in: &t)
 
         var fb = Frame(fz.scope)
         let hp = fb.assume(psi)
-        let hn = try fb.have(try t.intern(.folImpliesElim(
-            try t.intern(.folAndElimR(th)),
+        var back = try t.intern(.folImpliesElim(
+            try t.intern(.folAndElimR(try lifted(th, from: fz.scope, to: fb.scope, in: &t))),
             try fb.hypothesis(hp, in: &t),
-        )), in: &t)
-        let o = try fb.open(chain: .hypothesis(hn), [.cls, .set, .set], in: &t)
-        let other = try o.constraints.map { try fb.have(try fb.proof($0, in: &t), in: &t) }
-        let equal = try same(named, hs, Array(o.witnesses), other, fb, &t)
-        let flipped = try base.claimed(
-            .eqSymm,
-            [try fb.variable(named[2], in: &t), try fb.variable(o.witnesses[2], in: &t)],
-            [equal],
-            in: &t,
-        )
-        let inOther = try fb.proof(o.core, in: &t)
-        guard let atOther = t.conclusion(of: inOther) else { throw TableError.expectedStep(inOther) }
-        // ⚠ A FORMULA BUILT AT ONE FRAME IS LIFTED BEFORE A DEEPER ONE READS IT: `element` names `z` and `v` by index,
-        // and
-        // read under the three binders `fb` opened it names `v2` and `τ2` — the congruence's premise mismatches.
-        let moved = try congruent(
-            atOther,
-            try fb.scope.lift(element, from: fz.scope.depth, in: &t),
-            base,
-            { _, _, _ in flipped },
-            &t,
-        )
-        let back = try fb.close(try t.intern(.folIffElimL(moved, inOther)), in: &t)
-        return try fz.close(try t.intern(.folIffIntro(into1, back)), in: &t)
+        ))
+        for (x, h) in zip(named, hs) {
+            back = try eliminated(
+                back,
+                at: [try fb.variable(x, in: &t)],
+                premises: [try fb.hypothesis(h, in: &t)],
+                in: &t,
+            )
+        }
+        return try fz.close(try t.intern(.folIffIntro(into1, try fb.close(back, in: &t))), in: &t)
     }
 
     private func instance(_ z: Int, _ f: Frame, _ t: inout Table) throws -> NodeID {
@@ -605,4 +954,15 @@ private struct Members {
         }
         return p
     }
+}
+
+/// NBG's words for a chain: each binder existential, its constraint conjoined — base's vocabulary, never S1's naming.
+private func words(_ chain: Chain, _ core: NodeID, _ t: inout Table) throws -> NodeID {
+    let constraints = try chain.stated()
+    var body = core
+    for k in chain.binders.indices.reversed() {
+        let both = try t.intern(.folAnd(constraints[k], body))
+        body = try t.intern(chain.binders[k] == .set ? .ifolEx(.i, body: both) : .folExists(body: both))
+    }
+    return body
 }

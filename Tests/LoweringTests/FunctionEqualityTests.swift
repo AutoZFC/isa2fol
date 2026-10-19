@@ -291,6 +291,39 @@ func combinationAtAClassArgumentSubstitutesIntoTheFunctionOfClasses() throws {
     try kernelChecks(unit)
 }
 
+/// `combination` at a function class, `combination (reflexive g) (abstract_rule q)`, `g = λF. ∀y. y ∈ A ⟶ F(y) ∈ B`
+/// and `q ⊢ ⋀x. Pow(x) = Pow(Pow(x))`: the two λs' classes have the same pairs by their definitions and `q`, and `g`'s
+/// formula is carried between them through `apply`'s congruence. The kernel proves the unit.
+@Test
+func combinationAtAFunctionClassArgumentCarriesItsApplications() throws {
+    var l = LogicTable()
+    let F = fn(i, i)
+    let pow = { (x: NodeID, l: inout LogicTable) throws -> NodeID in try l.const(.primitive(.zf(.pow)), fn(i, i), x) }
+    let x = try l.bound(0, i)
+    let premise = try l.all(i, try l.equal(i, try pow(x, &l), try pow(try pow(x, &l), &l)))
+    let abstracted = try l.t.intern(.isaAbstract(F, try l.t.intern(.hyp(0, premise))))
+    let g = try l.lam(F, try l.all(i, try l.imp(
+        try l.mem(try l.bound(0, i), try l.bound(3, i)),
+        try l.mem(try applied(try l.bound(1, F), try l.bound(0, i), &l), try l.bound(2, i)),
+    )))
+    let combined = try l.t.intern(.isaCombination(fn(F, o), try l.t.intern(.isaReflexive(g)), abstracted))
+    let below = { (twice: Bool, l: inout LogicTable) throws -> NodeID in
+        let y = try l.bound(0, i)
+        let image = twice ? try pow(try pow(y, &l), &l) : try pow(y, &l)
+        return try l.all(i, try l.imp(try l.mem(y, try l.bound(2, i)), try l.mem(image, try l.bound(1, i))))
+    }
+    let carried = try closed(
+        2,
+        i,
+        try l.imp(premise, try iff(try below(false, &l), try below(true, &l), &l)),
+        try l.t.intern(.folImpliesIntro(premise, body: combined)),
+        &l,
+    )
+    let unit = try lowered(l, [statement("T.carried", carried)], [])
+    #expect(unit.refused.isEmpty, "\(unit.refused)")
+    try kernelChecks(unit)
+}
+
 /// `reflexive (λA. PrimReplace(A, λx y. y ∈ Pow(x)))` at `i ⇒ i`: the instance at the term reads it as Isabelle states
 /// it, so its EX names the inner λ's class from the λ itself, never from the walk's naming of its body.
 @Test

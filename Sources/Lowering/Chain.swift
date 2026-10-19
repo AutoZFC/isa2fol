@@ -57,13 +57,6 @@ struct Chain {
 
     func formula(_ core: NodeID, in t: inout Table) throws -> NodeID {
         try folded(core, in: &t) { b, c, body, t in
-            let both = try t.intern(.folAnd(c, body))
-            return try t.intern(b == .set ? .ifolEx(.i, body: both) : .folExists(body: both))
-        }
-    }
-
-    func premises(_ core: NodeID, in t: inout Table) throws -> NodeID {
-        try folded(core, in: &t) { b, c, body, t in
             let premised = try t.intern(.folImplies(c, body))
             return try t.intern(b == .set ? .ifolAll(.i, body: premised) : .folForall(body: premised))
         }

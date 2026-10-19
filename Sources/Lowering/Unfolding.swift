@@ -6,13 +6,7 @@ public enum UnfoldingError: Error, Equatable, Sendable {
     case notAnUnfolding(String)
 }
 
-func unfolded(_ n: Node, was id: NodeID, base: Base, in t: inout Table) throws -> NodeID {
-    guard case .isaDefinition(_, .constant(let c), _, let stated, let args) = t[id] else {
-        throw UnfoldingError.notADefinition(id)
-    }
-    return try unfolding(c, stated: stated, statement: children(n)[0], at: args, base: base, in: &t)
-}
-
+/// `c_UNFOLD` at its arguments, every term named: a set variable by its instance, a λ by its class and `BETA` there.
 func unfolding(
     _ c: Defined,
     stated: NodeID,
@@ -22,11 +16,18 @@ func unfolding(
     in t: inout Table,
 ) throws -> NodeID {
     var proof = try cited(Unfolding(constant: c, statement: statement), statement, &t)
-    var at = stated
+    var rest = stated
     for a in args {
-        guard case .ifolAll(let T, let body) = t[at] else { throw UnfoldingError.notADefinition(stated) }
-        proof = try Functions(base: base).instance(proof, of: at, at: a, T, in: &t)
-        at = try instantiate(body, with: a, in: &t)
+        guard case .ifolAll(let T, let psi) = t[rest] else { throw UnfoldingError.notADefinition(a) }
+        switch t[a] {
+        case .isaBound where T == .i:
+            proof = try t.intern(.isaAllElim(proof, a))
+        case .isaAbs where !isEntry(T):
+            proof = try instantiatedStated(proof, psi, T, at: a, base: base, in: &t)
+        default:
+            throw UnfoldingError.notADefinition(a)
+        }
+        rest = try instantiate(psi, with: a, in: &t)
     }
     return proof
 }
@@ -117,82 +118,68 @@ private struct Unfolder {
     let depth: Int
     let name: String
 
+    /// `∀v. c(v) → ⟦v = b⟧`: the value fixed and assumed, its `@def` there.
     func set(_ matrix: NodeID, _ f: Frame, _ t: inout Table) throws -> NodeID {
         var f = f
-        let fact = ConstantFact(constant: constant, type: .i, fact: .existence)
-        let (v, hv) = try f.open(try cited(fact, try statement(fact, in: &t), &t), in: &t)
-        let V = try f.variable(v, in: &t)
-        let def = try eliminated(try graphs.definitionCited(constant, &t), at: [V], in: &t)
-        let valued = try t.intern(.folIffElimL(def, try f.hypothesis(hv, in: &t)))
-        let formula = try f.scope.lift(matrix, from: depth, in: &t)
-        return try f.close(try closing(formula, [V], [try f.hypothesis(hv, in: &t)], valued, in: &t), in: &t)
+        var rest = try f.scope.lift(matrix, from: depth, in: &t)
+        var restScope = f.scope
+        let (v, hv) = try peel(&rest, &restScope, &f, &t)
+        let def = try eliminated(try graphs.definitionCited(constant, &t), at: [try f.variable(v, in: &t)], in: &t)
+        return try f.close(try t.intern(.folIffElimL(def, try f.hypothesis(hv, in: &t))), in: &t)
     }
 
+    /// The pointwise equation's naming: its pieces fixed and assumed, the value's graph at them read back.
     func function(_ matrix: NodeID, _ f: Frame, _ t: inout Table) throws -> NodeID {
         var f = f
-        let (es, hes) = try truthSets(&f, &t)
-        let (ks, hks) = try slotClasses(&f, &t)
+        var rest = try f.scope.lift(matrix, from: depth, in: &t)
+        var restScope = f.scope
+        var es = [Int]()
+        var hes = [Int]()
+        for _ in propositions {
+            let (e, h) = try peel(&rest, &restScope, &f, &t)
+            es.append(e)
+            hes.append(h)
+        }
+        var ks = [Int]()
+        var hks = [Int]()
+        for _ in slots {
+            let (k, h) = try peel(&rest, &restScope, &f, &t)
+            ks.append(k)
+            hks.append(h)
+        }
+        let (c, hc) = try peel(&rest, &restScope, &f, &t)
+        let (tw, ht) = try peel(&rest, &restScope, &f, &t)
+        let (r, hr) = try peel(&rest, &restScope, &f, &t)
         let at = atTuple(es)
-        let (c, hc) = try f.open(try at.classExists(ks, f, &t), in: &t)
-        let (tw, ht) = try f.open(try at.tupleExists(f, &t), in: &t)
-        let total = ConstantFact(constant: constant, type: definition.type, fact: .totality)
-        let classes = try (ks + [c]).map { try f.variable($0, in: &t) }
-        let atC = try eliminated(
-            try cited(total, try statement(total, in: &t), &t),
-            at: classes,
-            premises: [try f.hypothesis(hc, in: &t)],
-            in: &t,
-        )
-        let (r, hr) = try f.open(
-            try eliminated(
-                atC,
-                at: try (at.sets + [tw]).map { try f.variable($0, in: &t) },
-                premises: [try f.hypothesis(ht, in: &t)],
-                in: &t,
-            ),
-            in: &t,
-        )
         let member = try at.converted(c, ks, hc, tw, ht, value: r, &f, &t)
         let valued = try t.intern(.folIffElimL(member, try f.hypothesis(hr, in: &t)))
         var core = try readBack(ks, hks, es, value: r, f, &t).map { try t.intern(.folIffElimL($0, valued)) } ?? valued
         if let read = try truthsRead(es, hes, value: r, f, &t) { core = try t.intern(.folIffElimL(read, core)) }
-        return try f.close(
-            try closing(
-                try f.scope.lift(matrix, from: depth, in: &t),
-                try (es + ks + [c, tw, r]).map { try f.variable($0, in: &t) },
-                try (hes + hks + [hc, ht, hr]).map { try f.hypothesis($0, in: &t) },
-                core,
-                in: &t,
-            ),
-            in: &t,
-        )
+        return try f.close(core, in: &t)
     }
 
+    /// `c(x⃗) ↔ body`: forward the naming's pieces opened by their existence and the naming instantiated there; back
+    /// the pieces fixed and assumed.
     func predicate(_ matrix: NodeID, _ f: Frame, _ t: inout Table) throws -> NodeID {
         guard case .folIff(let left, let right) = t[matrix] else { throw UnfoldingError.notAnUnfolding(name) }
-        let p = propositions.count
-        let k = slots.count
         var fw = f
         let ha = fw.assume(try fw.scope.lift(left, from: depth, in: &t))
-        let binders = propositions.map { _ in Binder.set } + slots.map { _ in .cls } + [.cls, .set]
-        let o = try fw.open(chain: .hypothesis(ha), binders, in: &t)
-        let hes = try o.constraints[..<p].map { try fw.have(try fw.proof($0, in: &t), in: &t) }
-        let hks = try o.constraints[p..<(p + k)].map { try fw.have(try fw.proof($0, in: &t), in: &t) }
-        let hc = try fw.have(try fw.proof(o.constraints[p + k], in: &t), in: &t)
-        let ht = try fw.have(try fw.proof(o.constraints[p + k + 1], in: &t), in: &t)
-        let es = Array(o.witnesses[..<p])
-        let ks = Array(o.witnesses[p..<(p + k)])
-        let member = try atTuple(es).converted(
-            o.witnesses[p + k],
-            ks,
-            hc,
-            o.witnesses[p + k + 1],
-            ht,
-            value: nil,
-            &fw,
-            &t,
-        )
-        var reached = try t.intern(.folIffElimL(member, try fw.proof(o.core, in: &t)))
+        let (es, hes) = try truthSets(&fw, &t)
+        let (ks, hks) = try slotClasses(&fw, &t)
+        let at = atTuple(es)
+        let (c, hc) = try fw.open(try at.classExists(ks, fw, &t), in: &t)
+        let (tw, ht) = try fw.open(try at.tupleExists(fw, &t), in: &t)
+        let member = try at.converted(c, ks, hc, tw, ht, value: nil, &fw, &t)
+        var naming = try fw.hypothesis(ha, in: &t)
+        for (w, h) in zip(es + ks + [c, tw], hes + hks + [hc, ht]) {
+            naming = try eliminated(
+                naming,
+                at: [try fw.variable(w, in: &t)],
+                premises: [try fw.hypothesis(h, in: &t)],
+                in: &t,
+            )
+        }
+        var reached = try t.intern(.folIffElimL(member, naming))
         if let read = try readBack(ks, hks, es, value: nil, fw, &t) {
             reached = try t.intern(.folIffElimL(read, reached))
         }
@@ -202,26 +189,29 @@ private struct Unfolder {
 
         var bw = f
         let hb = bw.assume(try bw.scope.lift(right, from: depth, in: &t))
-        let (bes, bhes) = try truthSets(&bw, &t)
-        let (bks, bhks) = try slotClasses(&bw, &t)
-        let at = atTuple(bes)
-        let (c, hc2) = try bw.open(try at.classExists(bks, bw, &t), in: &t)
-        let (tw, ht2) = try bw.open(try at.tupleExists(bw, &t), in: &t)
-        let member2 = try at.converted(c, bks, hc2, tw, ht2, value: nil, &bw, &t)
+        var rest = try bw.scope.lift(left, from: depth, in: &t)
+        var restScope = bw.scope
+        var bes = [Int]()
+        var bhes = [Int]()
+        for _ in propositions {
+            let (e, h) = try peel(&rest, &restScope, &bw, &t)
+            bes.append(e)
+            bhes.append(h)
+        }
+        var bks = [Int]()
+        var bhks = [Int]()
+        for _ in slots {
+            let (k, h) = try peel(&rest, &restScope, &bw, &t)
+            bks.append(k)
+            bhks.append(h)
+        }
+        let (c2, hc2) = try peel(&rest, &restScope, &bw, &t)
+        let (tw2, ht2) = try peel(&rest, &restScope, &bw, &t)
+        let member2 = try atTuple(bes).converted(c2, bks, hc2, tw2, ht2, value: nil, &bw, &t)
         var body = try bw.hypothesis(hb, in: &t)
         if let read = try truthsRead(bes, bhes, value: nil, bw, &t) { body = try t.intern(.folIffElimR(read, body)) }
         if let read = try readBack(bks, bhks, bes, value: nil, bw, &t) { body = try t.intern(.folIffElimR(read, body)) }
-        let inC = try t.intern(.folIffElimR(member2, body))
-        let backward = try bw.close(
-            try closing(
-                try bw.scope.lift(left, from: depth, in: &t),
-                try (bes + bks + [c, tw]).map { try bw.variable($0, in: &t) },
-                try (bhes + bhks + [hc2, ht2]).map { try bw.hypothesis($0, in: &t) },
-                inC,
-                in: &t,
-            ),
-            in: &t,
-        )
+        let backward = try bw.close(try t.intern(.folIffElimR(member2, body)), in: &t)
         return try t.intern(.folIffIntro(forward, backward))
     }
 
@@ -241,6 +231,29 @@ private struct Unfolder {
         variables.indices.filter { domains[$0] == .i }.map { variables[$0] }
     }
 
+    /// The next binder of `rest`, a universal naming at `scope`, fixed in `f` and its constraint assumed.
+    private func peel(
+        _ rest: inout NodeID,
+        _ scope: inout Scope,
+        _ f: inout Frame,
+        _ t: inout Table,
+    ) throws -> (Int, Int) {
+        let here = try lifted(rest, from: scope, to: f.scope, in: &t)
+        let body: NodeID
+        let set: Bool
+        switch t[here] {
+        case .ifolAll(.i, let b): (body, set) = (b, true)
+        case .folForall(let b): (body, set) = (b, false)
+        default: throw UnfoldingError.notAnUnfolding(name)
+        }
+        let w = f.fix(set ? .i : nil)
+        guard case .folImplies(let c, let after) = t[body] else { throw UnfoldingError.notAnUnfolding(name) }
+        let h = f.assume(c)
+        rest = after
+        scope = f.scope
+        return (w, h)
+    }
+
     private func atTuple(_ truthSets: [Int]) -> AtTuple {
         var queue = truthSets[...]
         let entries = variables.indices.filter { isEntry(domains[$0]) }.map { j in
@@ -257,7 +270,7 @@ private struct Unfolder {
         var sets = [Int]()
         var constraints = [Int]()
         for j in propositions {
-            let read = try walked(formula: try proposition(j, f.scope, &t), in: &t)
+            let read = try formula(try proposition(j, f.scope, &t), .statement, in: &t)
             let (e, h) = try f.open(try base.instance(.truthSetEX, [read], in: &t), in: &t)
             sets.append(e)
             constraints.append(h)
@@ -283,10 +296,10 @@ private struct Unfolder {
         for (n, j) in propositions.enumerated() {
             atTruthSets[j] = try holds(try f.variable(es[n], in: &t), in: &t)
             atPropositions[j] = try proposition(j, f.scope, &t)
-            holes.append((atTruthSets[j]!, try walked(formula: atPropositions[j]!, in: &t), hes[n]))
+            holes.append((atTruthSets[j]!, try formula(atPropositions[j]!, .statement, in: &t), hes[n]))
         }
-        let have = try walked(try instance(atTruthSets, value: r, f.scope, &t), base: base, in: &t)
-        let wanted = try walked(try instance(atPropositions, value: r, f.scope, &t), base: base, in: &t)
+        let have = try formula(try instance(atTruthSets, value: r, f.scope, &t), .statement, in: &t)
+        let wanted = try formula(try instance(atPropositions, value: r, f.scope, &t), .statement, in: &t)
         let d = f.scope.depth
         return try Replacement(base: base) { _, l, r, inner, t in
             for hole in holes {
@@ -332,6 +345,8 @@ private struct Unfolder {
         return lambda
     }
 
+    /// The naming at the slots' classes against it at the slots, `BETA` read one slot after another, the later ones
+    /// still at their classes.
     private func readBack(
         _ ks: [Int],
         _ hks: [Int],
@@ -340,62 +355,52 @@ private struct Unfolder {
         _ f: Frame,
         _ t: inout Table,
     ) throws -> NodeID? {
-        let arguments = try slots.indices.map { n in
-            try LambdaProofs(base: base).classAtArguments(
-                try slot(slots[n], f, &t),
-                from: f.scope.depth,
-                ks[n],
-                hks[n],
-                f,
-                guardOf: isaGuard,
-                in: &t,
-            )
+        guard !slots.isEmpty else { return nil }
+        var guards = [NodeID: NodeID]()
+        for (m, j) in slots.enumerated() where guardPredicate(domains[j]) != nil {
+            let K = try f.variable(ks[m], in: &t)
+            let function = try t.intern(.folForallElim(try functionFact(try slot(j, f, &t), base, &t), K))
+            guards[K] = try t.intern(.folImpliesElim(function, try f.hypothesis(hks[m], in: &t)))
         }
-        let instantiated = { (step: NodeID, n: Int, t: inout Table) throws -> NodeID in
-            let at = try t.intern(.folForallElim(step, try f.variable(ks[n], in: &t)))
-            guard guardPredicate(domains[slots[n]]) != nil else { return at }
-            return try t.intern(.folImpliesElim(at, try t.intern(.folAndElimL(arguments[n]))))
-        }
-        var joined: NodeID?
+        var steps = [NodeID]()
         for (n, j) in slots.enumerated() {
-            var outer = f.scope
-            let later = slots[(n + 1)...].map { outer.fix(domains[$0]) }
-            var inner = outer
+            var inner = f.scope
             let y = inner.fix(domains[j])
-            var givenInner = [Int: NodeID]()
-            var givenOuter = [Int: NodeID]()
+            var given = [Int: NodeID]()
+            var classes = [Int: NodeID]()
             for (m, i) in slots.enumerated() {
                 if m < n {
-                    givenInner[i] = try slot(i, Frame(inner), &t)
-                    givenOuter[i] = try slot(i, Frame(outer), &t)
+                    given[i] = try slot(i, Frame(inner), &t)
                 } else if m == n {
-                    givenInner[i] = try inner.variable(y, in: &t)
-                    givenOuter[i] = try slot(i, Frame(outer), &t)
+                    given[i] = try inner.variable(y, in: &t)
                 } else {
-                    givenInner[i] = try inner.variable(later[m - n - 1], in: &t)
-                    givenOuter[i] = try outer.variable(later[m - n - 1], in: &t)
+                    let k = inner.depth - 1 - ks[m]
+                    given[i] = try t.intern(.isaBound(k, domains[i]))
+                    classes[k] = try f.variable(ks[m], in: &t)
                 }
             }
             for (m, i) in propositions.enumerated() {
-                givenInner[i] = try holds(try inner.variable(es[m], in: &t), in: &t)
-                givenOuter[i] = try holds(try outer.variable(es[m], in: &t), in: &t)
+                given[i] = try holds(try inner.variable(es[m], in: &t), in: &t)
             }
-            let psi = try instance(givenInner, value: r, inner, &t)
-            let wanted = try walked(try instance(givenOuter, value: r, outer, &t), base: base, in: &t)
-            var step = try LambdaInstance(base: base).equivalence(
-                domains[j],
-                psi,
-                try walked(psi, base: base, in: &t),
-                wanted,
-                try slot(j, Frame(outer), &t),
-                in: &t,
-            )
-            for i in slots[(n + 1)...].reversed() { step = try t.intern(.isaAllIntro(domains[i], body: step)) }
-            for m in (n + 1)..<slots.count { step = try instantiated(step, m, &t) }
-            step = try t.intern(.folImpliesElim(try instantiated(step, n, &t), arguments[n]))
-            joined = try joined.map { try chained($0, step, base, &t) } ?? step
+            let psi = try instance(given, value: r, inner, &t)
+            guard looseIndices(psi, in: t).contains(0) else { continue }
+            let read = { (forward: Bool, t: inout Table) throws -> NodeID in
+                try betaCited(
+                    psi,
+                    domains[j],
+                    at: try slot(j, f, &t),
+                    cls: try f.variable(ks[n], in: &t),
+                    definition: try f.hypothesis(hks[n], in: &t),
+                    stated: true,
+                    forward: forward,
+                    classes: classes,
+                    guardOf: { x, U, t in try guards[x] ?? isaGuard(x, U, &t) },
+                    in: &t,
+                )
+            }
+            steps.append(try t.intern(.folIffIntro(try read(true, &t), try read(false, &t))))
         }
-        return joined
+        return steps.isEmpty ? nil : try chained(steps, &t)
     }
 
     private func instance(_ given: [Int: NodeID], value r: Int?, _ s: Scope, _ t: inout Table) throws -> NodeID {
@@ -469,4 +474,24 @@ struct AtTuple {
             &t,
         )
     }
+}
+
+/// `A₀ ↔ Aₙ` from `A₀ ↔ A₁`, …, `Aₙ₋₁ ↔ Aₙ`.
+func chained(_ iffs: [NodeID], _ t: inout Table) throws -> NodeID {
+    guard iffs.count > 1 else { return iffs[0] }
+    let sides = try iffs.map { p -> (NodeID, NodeID) in
+        guard let c = t.conclusion(of: p), case .folIff(let a, let b) = t[c] else { throw TableError.expectedStep(p) }
+        return (a, b)
+    }
+    let first = sides[0].0
+    let last = sides[sides.count - 1].1
+    let lifted = try iffs.map { try lifted($0, terms: 0, hyps: 1, in: &t) }
+    var forward = try t.intern(.hyp(0, first))
+    for p in lifted { forward = try t.intern(.folIffElimL(p, forward)) }
+    var backward = try t.intern(.hyp(0, last))
+    for p in lifted.reversed() { backward = try t.intern(.folIffElimR(p, backward)) }
+    return try t.intern(.folIffIntro(
+        try t.intern(.folImpliesIntro(first, body: forward)),
+        try t.intern(.folImpliesIntro(last, body: backward)),
+    ))
 }

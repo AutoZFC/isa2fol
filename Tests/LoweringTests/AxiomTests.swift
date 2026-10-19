@@ -207,8 +207,100 @@ func infinityReadsSuccByTheTheoremStatingItsMembers() throws {
     let succIff = try f.succIff()
     var t = f.l.t
     let b = try base(in: &t)
-    let statement = try walked(formula: stated, in: &t)
-    let members = try walked(formula: succIff, in: &t)
+    let statement = try formula(stated, .statement, in: &t)
+    let members = try formula(succIff, .statement, in: &t)
+    let fact = AxiomFact(axiom: .infinity, stated: stated, statement: statement)
+    let answer = try AxiomProver(base: b).prove(
+        Lemma(fact),
+        statement,
+        definitions,
+        ["upair.succ_iff": members],
+        in: &t,
+    )
+    guard case .proof(let p) = answer else {
+        Issue.record("not proved: \(answer)")
+        return
+    }
+    #expect(t.conclusion(of: p) == statement)
+    #expect(try misscoped(p, in: t).isEmpty)
+    let lowered = try Fol(base: b).run([statement, p], [], in: &t)
+    #expect(t.conclusion(of: lowered[1]) == lowered[0])
+    try legalize(lowered[1], in: t)
+    var requests = [(Lemma, NodeID)]()
+    var seen = Set<NodeID>()
+    var work = [p]
+    while let id = work.popLast() {
+        guard seen.insert(id).inserted else { continue }
+        if case .use(.lemma(let l), _, let root) = t[id] { requests.append((l, root)) }
+        t[id].forEachChild { c, _ in work.append(c) }
+    }
+    let (_, unbuilt) = try proveAll(requests, definitions, in: &t)
+    #expect(unbuilt.isEmpty)
+}
+
+/// `Union_iff` with its bounded `∃` written out, so no predicate unfolds at a λ: `⋃`'s class read at its tuple against
+/// NBG's words — the named form's pieces opened by their existence one way, fixed and met by UNIQ the other.
+@Test
+func unionIffWithItsBoundedExistentialWrittenOutIsReadByItsClass() throws {
+    var f = Fixture()
+    let definitions = try f.definitions()
+    let a = try f.l.bound(1, i)
+    let c = try f.l.bound(0, i)
+    let inUnion = try f.l.mem(a, try f.l.const(.primitive(.zf(.union)), fn(i, i), c))
+    let both = try f.l.and(
+        try f.l.mem(try f.l.bound(0, i), try f.l.bound(1, i)),
+        try f.l.mem(try f.l.bound(2, i), try f.l.bound(0, i)),
+    )
+    let some = try f.l.t.intern(.ifolEx(i, body: both))
+    let stated = try f.l.all(i, try f.l.all(i, try f.iff(inUnion, some)))
+    var t = f.l.t
+    let statement = try formula(stated, .statement, in: &t)
+    let fact = AxiomFact(axiom: .unionIff, stated: stated, statement: statement)
+    let (proved, unbuilt) = try proveAll([(Lemma(fact), statement)], definitions, in: &t)
+    #expect(unbuilt.isEmpty)
+    try kernelChecks(proved, in: &t)
+}
+
+/// `foundation` with its bounded quantifiers written out: `A = 0`'s named form, `∀v. 0(v) → A = v`, read against NBG's
+/// `∃v. 0(v) ∧ A = v` — `0`'s value opened by its EX one way, met by its UNIQ the other.
+@Test
+func foundationWithItsBoundedQuantifiersWrittenOutReadsZeroByItsValue() throws {
+    var f = Fixture()
+    let definitions = try f.definitions()
+    let empty = try f.l.equal(i, try f.l.bound(0, i), try f.l.const(.primitive(.zf(.zero)), i))
+    let notIn = try f.l.imp(
+        try f.l.mem(try f.l.bound(0, i), try f.l.bound(1, i)),
+        try f.l.imp(try f.l.mem(try f.l.bound(0, i), try f.l.bound(2, i)), try f.l.bottom()),
+    )
+    let minimal = try f.l.and(try f.l.mem(try f.l.bound(0, i), try f.l.bound(1, i)), try f.l.all(i, notIn))
+    let stated = try f.l.all(i, try f.l.t.intern(.folOr(empty, try f.l.t.intern(.ifolEx(i, body: minimal)))))
+    var t = f.l.t
+    let statement = try formula(stated, .statement, in: &t)
+    let fact = AxiomFact(axiom: .foundation, stated: stated, statement: statement)
+    let (proved, unbuilt) = try proveAll([(Lemma(fact), statement)], definitions, in: &t)
+    #expect(unbuilt.isEmpty)
+    try kernelChecks(proved, in: &t)
+}
+
+/// `infinity` with its bounded `∀` written out: `0 ∈ Inf` by the constants' values, `succ(y) ∈ Inf` by the theorem
+/// stating `succ`'s members, `Inf` again by its value — the proof concludes the lemma's statement and its lemmas are
+/// proved in turn.
+@Test
+func infinityWithItsBoundedForallWrittenOutReadsSuccByItsMembers() throws {
+    var f = Fixture()
+    let definitions = try f.definitions()
+    let inf = try f.l.const(.primitive(.zf(.inf)), i)
+    let zero = try f.l.const(.primitive(.zf(.zero)), i)
+    let next = try f.l.mem(try f.l.const(.defined(f.succ), fn(i, i), try f.l.bound(0, i)), inf)
+    let stated = try f.l.and(
+        try f.l.mem(zero, inf),
+        try f.l.all(i, try f.l.imp(try f.l.mem(try f.l.bound(0, i), inf), next)),
+    )
+    let succIff = try f.succIff()
+    var t = f.l.t
+    let b = try base(in: &t)
+    let statement = try formula(stated, .statement, in: &t)
+    let members = try formula(succIff, .statement, in: &t)
     let fact = AxiomFact(axiom: .infinity, stated: stated, statement: statement)
     let answer = try AxiomProver(base: b).prove(
         Lemma(fact),

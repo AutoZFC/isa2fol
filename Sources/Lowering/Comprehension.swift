@@ -12,24 +12,28 @@ struct Row: Hashable {
     let hyp: Int
 }
 
+/// ⚠ AN ENTRY'S FACT AT A RECORD IS CARRIED THERE ONCE, AT THE RECORD'S EXTENSION, AND ONLY IF A READ BELOW TAKES IT:
+/// read back through the parents instead, an atom paid one step per binder in scope.
 final class Record {
     init(empty variable: Int, tuple: Int) {
-        (self.variable, self.tuple, entries, link) = (variable, tuple, [], nil)
+        (self.variable, self.tuple, entries, facts, link) = (variable, tuple, [], [:], nil)
     }
 
-    init(_ parent: Record, value: Int, variable: Int, snoc: Int, tuple: Int, newest: Int, keep: Int) {
-        (self.variable, self.tuple, entries, link) = (
+    init(_ parent: Record, value: Int, variable: Int, snoc: Fact, tuple: Int, newest: Int?, facts: [Int: Int]) {
+        (self.variable, self.tuple, entries, self.facts, link) = (
             variable,
             tuple,
             parent.entries + [value],
-            (parent, snoc, newest, keep),
+            facts,
+            (parent, snoc, newest),
         )
     }
 
     let variable: Int
     let tuple: Int
     let entries: [Int]
-    let link: (parent: Record, snoc: Int, newest: Int, keep: Int)?
+    let facts: [Int: Int]
+    let link: (parent: Record, snoc: Fact, newest: Int?)?
 
     var length: Int {
         entries.count
@@ -49,10 +53,6 @@ enum Connective: Hashable {
     case or
     case iff
     case not
-}
-
-enum Rewrite {
-    case forall
     case implies
 }
 
@@ -85,7 +85,7 @@ struct Section {
 indirect enum Built {
     case connective(Connective, Row, [Built])
     case exists(Row, Built)
-    case rewritten(Rewrite, Built)
+    case all(Row, Built)
     case bottom(Int)
     case atom(Row, [Int], Witness)
     case unfolded(BaseStatement, Built)
@@ -97,11 +97,24 @@ indirect enum Built {
 
     var cls: Int {
         switch self {
-        case .connective(_, let row, _), .exists(let row, _), .atom(let row, _, _): row.cls
-        case .rewritten(_, let inner), .unfolded(_, let inner), .sectioned(_, let inner), .opened(_, _, let inner),
-             .lambda(_, _, let inner), .lifted(_, _, let inner):
+        case .connective(_, let row, _), .exists(let row, _), .all(let row, _), .atom(let row, _, _): row.cls
+        case .unfolded(_, let inner), .sectioned(_, let inner), .opened(_, _, let inner), .lambda(_, _, let inner),
+             .lifted(_, _, let inner):
             inner.cls
         case .bottom(let empty), .liftedAtom(_, let empty): empty
+        }
+    }
+
+    /// The record entries the reading below takes.
+    var needs: Set<Int> {
+        switch self {
+        case .connective(_, _, let parts): parts.reduce(into: Set<Int>()) { $0.formUnion($1.needs) }
+        case .exists(_, let inner), .all(_, let inner), .unfolded(_, let inner), .sectioned(_, let inner),
+             .opened(_, _, let inner), .lifted(_, _, let inner):
+            inner.needs
+        case .lambda(_, let l, let inner): inner.needs.union(l.bundle.needs)
+        case .atom(_, let es, _): Set(es)
+        case .bottom, .liftedAtom: []
         }
     }
 }
@@ -134,6 +147,7 @@ private enum Key: Hashable {
     case read([Int], Int)
     case connective(Connective, [Int])
     case exists(Int, Int)
+    case all(Int, Int)
     case witness(BaseStatement)
     case applied(Int)
     case setConstant(Constant)
@@ -222,7 +236,8 @@ struct Comprehension {
             r,
             value: values[j],
             record: records[j],
-            snoc: snocs[j],
+            snoc: .hypothesis(snocs[j]),
+            needs: built.needs,
             in: &g,
             &t,
         ) }
@@ -248,16 +263,11 @@ struct Comprehension {
 
         case .folIff(let a, let b): return try binary(.iff, a, b, roles, k, &t)
 
+        case .folImplies(let a, let b): return try binary(.implies, a, b, roles, k, &t)
+
         case .folNot(let a):
             let x = try build(a, roles, k, &t)
             return try connective(.not, [x], &t)
-
-        case .folImplies(let a, let b):
-            let x = try build(a, roles, k, &t)
-            let y = try build(b, roles, k, &t)
-            let notY = try connective(.not, [y], &t)
-            let both = try connective(.and, [x, notY], &t)
-            return .rewritten(.implies, try connective(.not, [both], &t))
 
         case .folBottom:
             return .bottom(numerals.levels[0])
@@ -268,9 +278,7 @@ struct Comprehension {
 
         case .ifolAll(.i, let body):
             let x = try build(body, roles + [.entry(k)], k + 1, &t)
-            let negated = try connective(.not, [x], &t)
-            let some = try exists(negated, k, &t)
-            return .rewritten(.forall, try connective(.not, [some], &t))
+            return try all(x, k, &t)
 
         case .folPred(let p, let args):
             return try atom(phi, p, args, roles, k, &t)
@@ -289,7 +297,7 @@ struct Comprehension {
              .folAndElimR, .folOrIntroL, .folOrIntroR, .folOrElim, .folNotIntro, .folNotElim, .folIffIntro,
              .folIffElimL,
              .folIffElimR, .folForallIntro, .folForallElim, .folExistsIntro, .folExistsElim, .folBottomElim,
-             .folClassicalAbsurd, .folSchemaInst, .folLetterAll, .folLetter, .folLetterAbs:
+             .folClassicalAbsurd, .folSchemaInst, .folLetterAll, .folLetter, .folLetterAbs, .isaValue, .isaValueFact:
             throw ComprehensionError.unread(phi)
         }
     }
@@ -312,6 +320,8 @@ struct Comprehension {
         return try connective(c, [x, y], &t)
     }
 
+    /// A universal naming, binder by binder: a set piece `∀v. c → rest` by `row_all` and `B_imp`, a class piece
+    /// `∀C. c → rest` as `rest` at its stand-in.
     private mutating func chain(
         _ phi: NodeID,
         _ pieces: ArraySlice<NamedPiece>,
@@ -326,18 +336,18 @@ struct Comprehension {
         switch piece {
         case .setConstant(let c):
             guard
-                case .ifolEx(.i, let body) = t[phi],
-                case .folAnd(_, let after) = t[body]
+                case .ifolAll(.i, let body) = t[phi],
+                case .folImplies(_, let after) = t[body]
             else { throw ComprehensionError.unread(phi) }
             let S = try setConstantClass(c, &t)
             let constraint = Built.atom(try readRow([k], S.cls, &t), [k], .property(S.hyp))
             let remaining = try chain(after, rest, ids, roles + [.entry(k)], k + 1, &t)
-            return try exists(try connective(.and, [constraint, remaining], &t), k, &t)
+            return try all(try connective(.implies, [constraint, remaining], &t), k, &t)
 
         case .truthSet(let proposition):
             guard
-                case .ifolEx(.i, let body) = t[phi],
-                case .folAnd(let c, let after) = t[body],
+                case .ifolAll(.i, let body) = t[phi],
+                case .folImplies(let c, let after) = t[body],
                 case .folAnd(let truthAtom, let held) = t[c],
                 case .folIff(let holdsAtom, _) = t[held]
             else { throw ComprehensionError.unread(phi) }
@@ -346,21 +356,21 @@ struct Comprehension {
             let holding = try connective(.iff, [try build(holdsAtom, inner, k + 1, &t), read], &t)
             let constraint = try connective(.and, [try build(truthAtom, inner, k + 1, &t), holding], &t)
             let remaining = try chain(after, rest, ids, inner, k + 1, &t)
-            return try exists(try connective(.and, [constraint, remaining], &t), k, &t)
+            return try all(try connective(.implies, [constraint, remaining], &t), k, &t)
 
         case .tuple, .value, .applied:
             guard
-                case .ifolEx(.i, let body) = t[phi],
-                case .folAnd(let c, let after) = t[body]
+                case .ifolAll(.i, let body) = t[phi],
+                case .folImplies(let c, let after) = t[body]
             else { throw ComprehensionError.unread(phi) }
             let constraint = try build(c, roles + [.entry(k)], k + 1, &t)
             let remaining = try chain(after, rest, ids, roles + [.entry(k)], k + 1, &t)
-            return try exists(try connective(.and, [constraint, remaining], &t), k, &t)
+            return try all(try connective(.implies, [constraint, remaining], &t), k, &t)
 
         case .constantClass(let c, let T, let classes):
             guard
-                case .folExists(let body) = t[phi],
-                case .folAnd(_, let after) = t[body]
+                case .folForall(let body) = t[phi],
+                case .folImplies(_, let after) = t[body]
             else { throw ComprehensionError.unread(phi) }
             let m = standIns.count
             if classes.isEmpty {
@@ -382,8 +392,8 @@ struct Comprehension {
 
         case .lambdaClass(let lambda):
             guard
-                case .folExists(let body) = t[phi],
-                case .folAnd(_, let after) = t[body]
+                case .folForall(let body) = t[phi],
+                case .folImplies(_, let after) = t[body]
             else { throw ComprehensionError.unread(phi) }
             let (outside, raw) = try classBody(try shift(lambda, by: position, in: &t), raw: true, in: &t)
             _ = try numeral(k + outside, &t)
@@ -513,6 +523,7 @@ struct Comprehension {
             case .or: .bOr
             case .iff: .bIff
             case .not: .b3
+            case .implies: .bImp
             }
         let base = base
         let row = try open(.connective(c, classes), &t) { top, t in
@@ -522,18 +533,25 @@ struct Comprehension {
     }
 
     private mutating func exists(_ child: Built, _ k: Int, _ t: inout Table) throws -> Built {
+        .exists(try quantifierRow(.rowEx, child, k, &t), child)
+    }
+
+    private mutating func all(_ child: Built, _ k: Int, _ t: inout Table) throws -> Built {
+        .all(try quantifierRow(.rowAll, child, k, &t), child)
+    }
+
+    private mutating func quantifierRow(_ s: BaseStatement, _ child: Built, _ k: Int, _ t: inout Table) throws -> Row {
         let n = try numeral(k, &t)
         let A = child.cls
         _ = try numeral(k + 1, &t)
         let base = base
-        let row = try open(.exists(n, A), &t) { top, t in
+        return try open(s == .rowEx ? .exists(n, A) : .all(n, A), &t) { top, t in
             try eliminated(
-                try base.cite(.rowEx, in: &t),
+                try base.cite(s, in: &t),
                 at: [try top.variable(n, in: &t), try top.variable(A, in: &t)],
                 in: &t,
             )
         }
-        return .exists(row, child)
     }
 
     private mutating func readRow(_ es: [Int], _ cls: Int, _ t: inout Table) throws -> Row {
@@ -634,6 +652,9 @@ struct Comprehension {
     }
 }
 
+/// A formula's exactness at a record, `elem(r, A) ↔ φ`, as two walks, each built from the one below it: `down` from
+/// the membership to φ, `up` back. Each level uses its row at the record as it stands and states no subformula; only
+/// an assumption the kernel needs writes its formula — the antecedent an implication or a negation discharges.
 struct Reading {
     let base: Base
     let numerals: Numerals
@@ -643,7 +664,8 @@ struct Reading {
         _ r: Record,
         value v: Int,
         record b: Int,
-        snoc s: Int,
+        snoc s: Fact,
+        needs: Set<Int>,
         in f: inout Frame,
         _ t: inout Table,
     ) throws -> Record {
@@ -659,211 +681,481 @@ struct Reading {
             premises: [
                 try f.hypothesis(r.tuple, in: &t),
                 try f.hypothesis(numerals.successors[k], in: &t),
-                try f.hypothesis(s, in: &t),
+                try f.proof(s, in: &t),
             ],
             in: &t,
         )
         let ht = try f.have(tuple, in: &t)
-        let new = try eliminated(
-            try base.cite(.snocNew, in: &t),
-            at: [a, n, x, y],
-            premises: [
-                try f.hypothesis(s, in: &t),
-                try isaGuard(n, .i, &t),
-                try isaGuard(x, .i, &t),
-            ],
-            in: &t,
-        )
-        let hn = try f.have(new, in: &t)
-        let keep = try eliminated(
-            try base.cite(.snocKeep, in: &t),
-            at: [a, n, x, y],
-            premises: [try f.hypothesis(s, in: &t)],
-            in: &t,
-        )
-        let hk = try f.have(keep, in: &t)
-        return Record(r, value: v, variable: b, snoc: s, tuple: ht, newest: hn, keep: hk)
+        var hn: Int?
+        if needs.contains(k) {
+            let new = try eliminated(
+                try base.cite(.snocNew, in: &t),
+                at: [a, n, x, y],
+                premises: [
+                    try f.proof(s, in: &t),
+                    try isaGuard(n, .i, &t),
+                    try isaGuard(x, .i, &t),
+                ],
+                in: &t,
+            )
+            hn = try f.have(new, in: &t)
+        }
+        var facts = [Int: Int]()
+        let carried = needs.filter { $0 < k }.sorted()
+        if !carried.isEmpty {
+            let keep = try f.have(
+                try eliminated(
+                    try base.cite(.snocKeep, in: &t),
+                    at: [a, n, x, y],
+                    premises: [try f.proof(s, in: &t)],
+                    in: &t,
+                ),
+                in: &t,
+            )
+            for j in carried {
+                let moved = try eliminated(
+                    try f.hypothesis(keep, in: &t),
+                    at: [try f.variable(numerals.levels[j], in: &t), try f.variable(r.entries[j], in: &t)],
+                    premises: [try entry(j, of: r, in: f.scope, &t)],
+                    in: &t,
+                )
+                facts[j] = try f.have(moved, in: &t)
+            }
+        }
+        return Record(r, value: v, variable: b, snoc: s, tuple: ht, newest: hn, facts: facts)
     }
 
     /// ⚠ OPENS ITS PREFIXES, FIXING ONE VARIABLE PER ENTRY: a formula taken in `f` before it is that many levels
     /// shallow.
     func record(_ values: [Int], in f: inout Frame, _ t: inout Table) throws -> Record {
         var r = empty
+        let every = Set(values.indices)
         for v in values {
             let at = try [r.variable, numerals.levels[r.length], v].map { try f.variable($0, in: &t) }
             let (b, s) = try f.open(try eliminated(try base.cite(.snocEX, in: &t), at: at, in: &t), in: &t)
-            r = try extend(r, value: v, record: b, snoc: s, in: &f, &t)
+            r = try extend(r, value: v, record: b, snoc: .hypothesis(s), needs: every, in: &f, &t)
         }
         return r
     }
 
+    /// `tuple(entries, r)` at the record's chain: the empty record, the numerals its indices, its prefixes the records.
     func tupled(_ r: Record, in s: Scope, _ t: inout Table) throws -> NodeID {
         var records = [r]
         while let link = records[0].link { records.insert(link.parent, at: 0) }
-        let n = r.length
-        var witnesses = [try s.variable(numerals.levels[0], in: &t)]
-        var constraints = [try s.hypothesis(numerals.zero, in: &t)]
-        for j in 1..<n {
-            guard let link = records[j].link else { throw ComprehensionError.noEntry(j) }
-            witnesses += [try s.variable(numerals.levels[j], in: &t), try s.variable(records[j].variable, in: &t)]
-            constraints += [try s.hypothesis(numerals.successors[j - 1], in: &t), try s.hypothesis(link.snoc, in: &t)]
-        }
         guard let last = r.link else { throw ComprehensionError.noEntry(0) }
-        let formula = try tuple(
-            try r.entries.map { try s.variable($0, in: &t) },
-            try s.variable(r.variable, in: &t),
-            in: &t,
+        let n = r.length
+        let chain = try TupleChain(
+            zero: (numerals.levels[0], .hypothesis(numerals.zero)),
+            indices: (1..<n).map { (numerals.levels[$0], .hypothesis(numerals.successors[$0 - 1])) },
+            prefixes: (1..<n).map { j in
+                guard let link = records[j].link else { throw ComprehensionError.noEntry(j) }
+                return (records[j].variable, link.snoc)
+            },
+            last: last.snoc,
         )
-        return try closing(formula, witnesses, constraints, try s.hypothesis(last.snoc, in: &t), in: &t)
+        return try universalTuple(r.entries, r.variable, chain, base: base, in: s, &t)
     }
 
     func entry(_ j: Int, of r: Record, in s: Scope, _ t: inout Table) throws -> NodeID {
         guard let link = r.link, j < r.length else { throw ComprehensionError.noEntry(j) }
-        if j == r.length - 1 { return try s.hypothesis(link.newest, in: &t) }
-        let kept = try entry(j, of: link.parent, in: s, &t)
-        return try eliminated(
-            try s.hypothesis(link.keep, in: &t),
-            at: [
-                try s.variable(numerals.levels[j], in: &t),
-                try s.variable(r.entries[j], in: &t),
-            ],
-            premises: [kept],
-            in: &t,
-        )
+        if j == r.length - 1, let newest = link.newest { return try s.hypothesis(newest, in: &t) }
+        guard let h = r.facts[j] else { throw ComprehensionError.noEntry(j) }
+        return try s.hypothesis(h, in: &t)
     }
 
+    /// `elem(r, A) ↔ φ`: the two walks, each discharged once.
     func read(_ phi: NodeID, _ b: Built, _ f: Frame, _ r: Record, _ env: Env, _ t: inout Table) throws -> NodeID {
-        let proof: NodeID
+        let member = try pred("elem", [r.variable, b.cls], at: f.scope, &t)
+        var there = Frame(f.scope)
+        let h = there.assume(member)
+        let forward = try there.close(try down(phi, b, there, r, env, try there.hypothesis(h, in: &t), &t), in: &t)
+        var back = Frame(f.scope)
+        let h2 = back.assume(phi)
+        let backward = try back.close(try up(phi, b, back, r, env, try back.hypothesis(h2, in: &t), &t), in: &t)
+        return try t.intern(.folIffIntro(forward, backward))
+    }
+
+    /// From `p`, `elem(r, A)` at `f`, the formula `φ` the class reads.
+    func down(_ phi: NodeID, _ b: Built, _ f: Frame, _ r: Record, _ env: Env, _ p: NodeID, _ t: inout Table) throws
+        -> NodeID
+    {
         switch b {
         case .connective(let c, let row, let children):
             let parts = try operands(c, phi, t)
-            var exact = [NodeID]()
-            for (x, child) in zip(parts, children) { exact.append(try read(x, child, f, r, env, &t)) }
-            let letters = try zip(exact, parts).flatMap { [try sides($0.0, t).left, $0.1] }
-            let congruence: BaseStatement =
-                switch c {
-                case .and: .congAnd
-                case .or: .congOr
-                case .iff: .congIff
-                case .not: .congNot
+            let q = try t.intern(.folIffElimL(try at(row, f, r, &t), p))
+            switch c {
+            case .and:
+                return try t.intern(.folAndIntro(
+                    try down(parts[0], children[0], f, r, env, try t.intern(.folAndElimL(q)), &t),
+                    try down(parts[1], children[1], f, r, env, try t.intern(.folAndElimR(q)), &t),
+                ))
+
+            case .or:
+                let branch = { (j: Int, t: inout Table) throws -> NodeID in
+                    var g = Frame(f.scope)
+                    let h = g.assume(try pred("elem", [r.variable, children[j].cls], at: g.scope, &t))
+                    let x = try down(parts[j], children[j], g, r, env, try g.hypothesis(h, in: &t), &t)
+                    return try g.close(
+                        try t.intern(j == 0 ? .folOrIntroL(x, parts[1]) : .folOrIntroR(parts[0], x)),
+                        in: &t,
+                    )
                 }
-            proof = try chained(try at(row, f, r, &t), try base.applied(congruence, letters, exact, in: &t), &t)
+                return try t.intern(.folOrElim(q, try branch(0, &t), try branch(1, &t)))
 
-        case .exists(let row, let child):
-            let atA = try at(row, f, r, &t)
-            guard
-                case .ifolEx(.i, let body) = t[phi],
-                case .ifolEx(.i, let extended) = t[try sides(atA, t).right]
-            else {
-                throw ComprehensionError.misread(phi)
-            }
-            let every = try extensions(body, child, 1, f, r, env, &t)
-            let moved = try base.applied(
-                .congExists,
-                [try t.intern(.folLetterAbs(body: extended)), try t.intern(.folLetterAbs(body: body))],
-                [every],
-                in: &t,
-            )
-            proof = try chained(atA, moved, &t)
+            case .iff:
+                let one = { (from: Int, to: Int, t: inout Table) throws -> NodeID in
+                    var g = Frame(f.scope)
+                    let h = g.assume(parts[from])
+                    let x = try up(parts[from], children[from], g, r, env, try g.hypothesis(h, in: &t), &t)
+                    let lq = try lifted(q, from: f.scope, to: g.scope, in: &t)
+                    let y = try t.intern(from == 0 ? .folIffElimL(lq, x) : .folIffElimR(lq, x))
+                    return try g.close(try down(parts[to], children[to], g, r, env, y, &t), in: &t)
+                }
+                return try t.intern(.folIffIntro(try one(0, 1, &t), try one(1, 0, &t)))
 
-        case .rewritten(let how, let inner):
-            let equivalent: NodeID
-            let conversion: NodeID
-            switch how {
-            case .forall:
-                guard case .ifolAll(.i, let body) = t[phi] else { throw ComprehensionError.misread(phi) }
-                equivalent = try t.intern(.folNot(try t.intern(.ifolEx(.i, body: try t.intern(.folNot(body))))))
-                conversion = try base.instance(.forallAsNexists, [try t.intern(.folLetterAbs(body: body))], in: &t)
+            case .not:
+                var g = Frame(f.scope)
+                let h = g.assume(parts[0])
+                let x = try up(parts[0], children[0], g, r, env, try g.hypothesis(h, in: &t), &t)
+                let absurd = try t.intern(.folNotElim(try lifted(q, from: f.scope, to: g.scope, in: &t), x))
+                return try t.intern(.folNotIntro(parts[0], body: absurd))
 
             case .implies:
-                guard case .folImplies(let x, let y) = t[phi] else { throw ComprehensionError.misread(phi) }
-                equivalent = try t.intern(.folNot(try t.intern(.folAnd(x, try t.intern(.folNot(y))))))
-                conversion = try base.instance(.impAsNand, [x, y], in: &t)
+                var g = Frame(f.scope)
+                let h = g.assume(parts[0])
+                let x = try up(parts[0], children[0], g, r, env, try g.hypothesis(h, in: &t), &t)
+                let y = try t.intern(.folImpliesElim(try lifted(q, from: f.scope, to: g.scope, in: &t), x))
+                return try g.close(try down(parts[1], children[1], g, r, env, y, &t), in: &t)
             }
-            proof = try chained(try read(equivalent, inner, f, r, env, &t), conversion, &t)
+
+        case .exists(let row, let child):
+            guard case .ifolEx(.i, _) = t[phi] else { throw ComprehensionError.misread(phi) }
+            var g = Frame(f.scope)
+            let (v, hv) = try g.open(try t.intern(.folIffElimL(try at(row, f, r, &t), p)), in: &t)
+            let (w, hw) = try g.open(try g.hypothesis(hv, in: &t), in: &t)
+            let longer = try extend(
+                r,
+                value: v,
+                record: w,
+                snoc: .left(.hypothesis(hw)),
+                needs: child.needs,
+                in: &g,
+                &t,
+            )
+            let some = try g.scope.lift(phi, from: f.scope.depth, in: &t)
+            guard case .ifolEx(.i, let body) = t[some] else { throw ComprehensionError.misread(phi) }
+            let x = try g.variable(v, in: &t)
+            let inner = try down(
+                try instantiate(body, with: x, in: &t),
+                child,
+                g,
+                longer,
+                env,
+                try g.proof(.right(.hypothesis(hw)), in: &t),
+                &t,
+            )
+            return try g.close(try t.intern(.isaExIntro(inner, x, body: body)), in: &t)
+
+        case .all(let row, let child):
+            guard case .ifolAll(.i, _) = t[phi] else { throw ComprehensionError.misread(phi) }
+            let q = try t.intern(.folIffElimL(try at(row, f, r, &t), p))
+            var g = Frame(f.scope)
+            let v = g.fix(.i)
+            let (w, hw) = try g.open(try snocExists(r, v, g, &t), in: &t)
+            let longer = try extend(r, value: v, record: w, snoc: .hypothesis(hw), needs: child.needs, in: &g, &t)
+            let lq = try lifted(q, from: f.scope, to: g.scope, in: &t)
+            let member = try t.intern(.folImpliesElim(
+                try t.intern(.isaAllElim(try t.intern(.isaAllElim(lq, try g.variable(v, in: &t))), try g.variable(
+                    w,
+                    in: &t,
+                ))),
+                try g.hypothesis(hw, in: &t),
+            ))
+            let every = try g.scope.lift(phi, from: f.scope.depth, in: &t)
+            guard case .ifolAll(.i, let body) = t[every] else { throw ComprehensionError.misread(phi) }
+            let at = try instantiate(body, with: try g.variable(v, in: &t), in: &t)
+            return try g.close(try down(at, child, g, longer, env, member, &t), in: &t)
 
         case .bottom:
-            proof = try bottom(f, r, &t)
+            return try t.intern(.folIffElimL(try bottom(f, r, &t), p))
 
         case .atom(let row, let es, let witness):
-            var p = try t.intern(.folForallElim(
-                try at(row, f, r, &t),
-                try f.variable(numerals.levels[r.length], in: &t),
-            ))
-            p = try t.intern(.folImpliesElim(p, try f.hypothesis(r.tuple, in: &t)))
-            for j in es {
-                guard j < r.length else { throw ComprehensionError.noEntry(j) }
-                p = try eliminated(
-                    p,
-                    at: [try f.variable(r.entries[j], in: &t)],
-                    premises: [try entry(j, of: r, in: f.scope, &t)],
-                    in: &t,
-                )
-            }
-            let values = try es.map { try f.variable(r.entries[$0], in: &t) }
-            switch witness {
-            case .fixed:
-                proof = p
-            case .property(let h):
-                proof = try chained(p, try eliminated(try f.hypothesis(h, in: &t), at: values, in: &t), &t)
-            case .opened(let m, let c, let T, let C):
-                guard let bound = env.binders[m] else { throw ComprehensionError.misread(phi) }
-                let fact = ConstantFact(constant: c, type: T, fact: .agreement)
-                let agree = try eliminated(
-                    try cited(fact, try statement(fact, in: &t), &t),
-                    at: [try f.variable(C.cls, in: &t), try f.variable(bound.variable, in: &t)],
-                    premises: [
-                        try f.hypothesis(C.hyp, in: &t),
-                        try f.hypothesis(bound.constraint, in: &t),
-                    ],
-                    in: &t,
-                )
-                proof = try chained(p, try eliminated(agree, at: values, in: &t), &t)
-            }
+            let (read, property) = try atomParts(row, es, witness, f, r, env, &t)
+            let w = try t.intern(.folIffElimL(read, p))
+            guard let property else { return w }
+            return try t.intern(.folIffElimL(property, w))
 
         case .unfolded(let def, let inner):
             guard case .folPred(_, let args) = t[phi] else { throw ComprehensionError.misread(phi) }
             let definition = try eliminated(try base.cite(def, in: &t), at: args, in: &t)
             let d = try sides(definition, t).right
-            proof = try chained(
-                try read(d, inner, f, r, env, &t),
-                try base.applied(.iffSymm, [phi, d], [definition], in: &t),
-                &t,
-            )
+            return try t.intern(.folIffElimR(definition, try down(d, inner, f, r, env, p, &t)))
 
         case .sectioned(let s, let inner):
-            guard
-                let approximation = env.sections[s],
-                case .folPred(_, let args) = t[phi]
-            else { throw ComprehensionError.misread(phi) }
-            let section = try eliminated(try f.hypothesis(approximation, in: &t), at: Array(args.dropLast()), in: &t)
+            let section = try sectionAt(s, phi, f, env, &t)
             let d = try sides(section, t).right
-            proof = try chained(
-                try read(d, inner, f, r, env, &t),
-                try base.applied(.iffSymm, [phi, d], [section], in: &t),
-                &t,
-            )
+            return try t.intern(.folIffElimR(section, try down(d, inner, f, r, env, p, &t)))
 
-        case .opened(let m, let C, let inner):
-            proof = try binder(phi, inner, Frame(f.scope), r, env, &t, bind: { _, c, hc, env, _ in
-                var bound = env
-                bound.binders[m] = Bound(variable: c, constraint: hc, approximation: nil, record: nil)
-                return bound
-            }, witness: { _, _ in (C.cls, C.hyp) })
+        case .opened(let m, _, let inner):
+            guard case .folForall(let all) = t[phi], case .folImplies(let c, let rest) = t[all] else {
+                throw ComprehensionError.misread(phi)
+            }
+            var g = Frame(f.scope)
+            let cv = g.fix(nil)
+            let hc = g.assume(c)
+            var bound = env
+            bound.binders[m] = Bound(variable: cv, constraint: hc, approximation: nil, record: nil)
+            let lp = try lifted(p, from: f.scope, to: g.scope, in: &t)
+            return try g.close(try down(rest, inner, g, r, bound, lp, &t), in: &t)
 
         case .lambda(let m, let lambda, let inner):
-            proof = try lambdaBinder(phi, m, lambda, inner, f, r, env, &t)
+            guard case .folForall(let all) = t[phi], case .folImplies(let definition, let rest) = t[all] else {
+                throw ComprehensionError.misread(phi)
+            }
+            let exact = try lambdaExactness(definition, lambda, f, r, env, &t)
+            var g = Frame(f.scope)
+            let K = g.fix(nil)
+            let hc = g.assume(definition)
+            let approximation = try joined(
+                try g.hypothesis(hc, in: &t),
+                try lifted(exact, from: f.scope, to: g.scope, in: &t),
+                lambda.outside,
+                g,
+                symmetric: true,
+                &t,
+            )
+            var bound = env
+            bound.binders[m] = Bound(
+                variable: K,
+                constraint: hc,
+                approximation: try g.have(approximation, in: &t),
+                record: nil,
+            )
+            let lp = try lifted(p, from: f.scope, to: g.scope, in: &t)
+            return try g.close(try down(rest, inner, g, r, bound, lp, &t), in: &t)
 
         case .lifted(let m, let lift, let inner):
-            proof = try liftedBinder(phi, m, lift, inner, f, r, env, &t)
+            guard case .folForall(let all) = t[phi], case .folImplies(let c, let rest) = t[all] else {
+                throw ComprehensionError.misread(phi)
+            }
+            var g = Frame(f.scope)
+            let C = g.fix(nil)
+            let hc = g.assume(c)
+            var bound = env
+            bound.binders[m] = try liftedBound(phi, lift, C, hc, &g, r, env, &t)
+            let lp = try lifted(p, from: f.scope, to: g.scope, in: &t)
+            return try g.close(try down(rest, inner, g, r, bound, lp, &t), in: &t)
 
         case .liftedAtom(let m, let U):
-            proof = try liftedAtom(phi, m, U, f, r, env, &t)
+            return try t.intern(.folIffElimL(try liftedAtom(phi, m, U, f, r, env, &t), p))
         }
-        guard try sides(proof, t).right == phi else { throw ComprehensionError.misread(phi) }
-        return proof
     }
 
+    /// From `p`, the formula `φ` at `f`, the membership `elem(r, A)`.
+    func up(_ phi: NodeID, _ b: Built, _ f: Frame, _ r: Record, _ env: Env, _ p: NodeID, _ t: inout Table) throws
+        -> NodeID
+    {
+        switch b {
+        case .connective(let c, let row, let children):
+            let parts = try operands(c, phi, t)
+            let member = { (j: Int, s: Scope, t: inout Table) throws -> NodeID in
+                try pred("elem", [r.variable, children[j].cls], at: s, &t)
+            }
+            let q: NodeID
+            switch c {
+            case .and:
+                q = try t.intern(.folAndIntro(
+                    try up(parts[0], children[0], f, r, env, try t.intern(.folAndElimL(p)), &t),
+                    try up(parts[1], children[1], f, r, env, try t.intern(.folAndElimR(p)), &t),
+                ))
+
+            case .or:
+                let branch = { (j: Int, t: inout Table) throws -> NodeID in
+                    var g = Frame(f.scope)
+                    let h = g.assume(parts[j])
+                    let x = try up(parts[j], children[j], g, r, env, try g.hypothesis(h, in: &t), &t)
+                    let other = try member(1 - j, g.scope, &t)
+                    return try g.close(
+                        try t.intern(j == 0 ? .folOrIntroL(x, other) : .folOrIntroR(other, x)),
+                        in: &t,
+                    )
+                }
+                q = try t.intern(.folOrElim(p, try branch(0, &t), try branch(1, &t)))
+
+            case .iff:
+                let one = { (from: Int, to: Int, t: inout Table) throws -> NodeID in
+                    var g = Frame(f.scope)
+                    let h = g.assume(try member(from, g.scope, &t))
+                    let x = try down(parts[from], children[from], g, r, env, try g.hypothesis(h, in: &t), &t)
+                    let lp = try lifted(p, from: f.scope, to: g.scope, in: &t)
+                    let y = try t.intern(from == 0 ? .folIffElimL(lp, x) : .folIffElimR(lp, x))
+                    return try g.close(try up(parts[to], children[to], g, r, env, y, &t), in: &t)
+                }
+                q = try t.intern(.folIffIntro(try one(0, 1, &t), try one(1, 0, &t)))
+
+            case .not:
+                var g = Frame(f.scope)
+                let held = try member(0, g.scope, &t)
+                let h = g.assume(held)
+                let x = try down(parts[0], children[0], g, r, env, try g.hypothesis(h, in: &t), &t)
+                let absurd = try t.intern(.folNotElim(try lifted(p, from: f.scope, to: g.scope, in: &t), x))
+                q = try t.intern(.folNotIntro(held, body: absurd))
+
+            case .implies:
+                var g = Frame(f.scope)
+                let h = g.assume(try member(0, g.scope, &t))
+                let x = try down(parts[0], children[0], g, r, env, try g.hypothesis(h, in: &t), &t)
+                let y = try t.intern(.folImpliesElim(try lifted(p, from: f.scope, to: g.scope, in: &t), x))
+                q = try g.close(try up(parts[1], children[1], g, r, env, y, &t), in: &t)
+            }
+            return try t.intern(.folIffElimR(try at(row, f, r, &t), q))
+
+        case .exists(let row, let child):
+            guard case .ifolEx(.i, _) = t[phi] else { throw ComprehensionError.misread(phi) }
+            let rowAt = try at(row, f, r, &t)
+            var g = Frame(f.scope)
+            let (x, hx) = try g.open(p, in: &t)
+            let (w, hw) = try g.open(try snocExists(r, x, g, &t), in: &t)
+            let longer = try extend(r, value: x, record: w, snoc: .hypothesis(hw), needs: child.needs, in: &g, &t)
+            let some = try g.scope.lift(phi, from: f.scope.depth, in: &t)
+            guard case .ifolEx(.i, let body) = t[some] else { throw ComprehensionError.misread(phi) }
+            let member = try up(
+                try instantiate(body, with: try g.variable(x, in: &t), in: &t),
+                child,
+                g,
+                longer,
+                env,
+                try g.hypothesis(hx, in: &t),
+                &t,
+            )
+            let target = try g.scope.lift(try sides(rowAt, t).right, from: f.scope.depth, in: &t)
+            guard case .ifolEx(.i, let outer) = t[target] else { throw ComprehensionError.misread(phi) }
+            let atX = try instantiate(outer, with: try g.variable(x, in: &t), in: &t)
+            guard case .ifolEx(.i, let inner) = t[atX] else { throw ComprehensionError.misread(phi) }
+            let both = try t.intern(.folAndIntro(try g.hypothesis(hw, in: &t), member))
+            let some2 = try t.intern(.isaExIntro(both, try g.variable(w, in: &t), body: inner))
+            let some1 = try t.intern(.isaExIntro(some2, try g.variable(x, in: &t), body: outer))
+            return try t.intern(.folIffElimR(rowAt, try g.close(some1, in: &t)))
+
+        case .all(let row, let child):
+            guard case .ifolAll(.i, _) = t[phi] else { throw ComprehensionError.misread(phi) }
+            let rowAt = try at(row, f, r, &t)
+            var g = Frame(f.scope)
+            let v = g.fix(.i)
+            let w = g.fix(.i)
+            let snoc = try [r.variable, numerals.levels[r.length], v, w].map { try g.variable($0, in: &t) }
+            let hs = g.assume(try t.intern(.folPred(.base("snoc"), args: snoc)))
+            let longer = try extend(r, value: v, record: w, snoc: .hypothesis(hs), needs: child.needs, in: &g, &t)
+            let every = try g.scope.lift(phi, from: f.scope.depth, in: &t)
+            guard case .ifolAll(.i, let body) = t[every] else { throw ComprehensionError.misread(phi) }
+            let x = try g.variable(v, in: &t)
+            let atV = try t.intern(.isaAllElim(try lifted(p, from: f.scope, to: g.scope, in: &t), x))
+            let member = try up(try instantiate(body, with: x, in: &t), child, g, longer, env, atV, &t)
+            return try t.intern(.folIffElimR(rowAt, try g.close(member, in: &t)))
+
+        case .bottom:
+            return try t.intern(.folIffElimR(try bottom(f, r, &t), p))
+
+        case .atom(let row, let es, let witness):
+            let (read, property) = try atomParts(row, es, witness, f, r, env, &t)
+            let w = try property.map { try t.intern(.folIffElimR($0, p)) } ?? p
+            return try t.intern(.folIffElimR(read, w))
+
+        case .unfolded(let def, let inner):
+            guard case .folPred(_, let args) = t[phi] else { throw ComprehensionError.misread(phi) }
+            let definition = try eliminated(try base.cite(def, in: &t), at: args, in: &t)
+            let d = try sides(definition, t).right
+            return try up(d, inner, f, r, env, try t.intern(.folIffElimL(definition, p)), &t)
+
+        case .sectioned(let s, let inner):
+            let section = try sectionAt(s, phi, f, env, &t)
+            let d = try sides(section, t).right
+            return try up(d, inner, f, r, env, try t.intern(.folIffElimL(section, p)), &t)
+
+        case .opened(let m, let C, let inner):
+            guard case .folForall(let all) = t[phi], case .folImplies(_, let rest) = t[all] else {
+                throw ComprehensionError.misread(phi)
+            }
+            let c0 = try f.variable(C.cls, in: &t)
+            let at = try t.intern(.folImpliesElim(
+                try t.intern(.folForallElim(p, c0)),
+                try f.hypothesis(C.hyp, in: &t),
+            ))
+            var bound = env
+            bound.binders[m] = Bound(variable: C.cls, constraint: C.hyp, approximation: nil, record: nil)
+            return try up(try instantiate(rest, with: c0, in: &t), inner, f, r, bound, at, &t)
+
+        case .lambda(let m, let lambda, let inner):
+            guard case .folForall(let all) = t[phi], case .folImplies(let definition, let rest) = t[all] else {
+                throw ComprehensionError.misread(phi)
+            }
+            let exact = try lambdaExactness(definition, lambda, f, r, env, &t)
+            var g = Frame(f.scope)
+            let n = numerals.levels[r.length]
+            let n1 = numerals.levels[r.length + 1]
+            let witnessAt = try (lambda.outside == 1 ? [n] : [n, n1]).map { try g.variable($0, in: &t) }
+                + [try g.variable(lambda.bundle.cls, in: &t), try g.variable(r.variable, in: &t)]
+            let (K0, hK0) = try g.open(
+                try eliminated(
+                    try base.cite(lambda.outside == 1 ? .lamPred : .lamClass, in: &t),
+                    at: witnessAt,
+                    in: &t,
+                ),
+                in: &t,
+            )
+            let k0 = try g.variable(K0, in: &t)
+            let defined = try joined(
+                try g.hypothesis(hK0, in: &t),
+                try lifted(exact, from: f.scope, to: g.scope, in: &t),
+                lambda.outside,
+                g,
+                symmetric: false,
+                &t,
+            )
+            let lp = try lifted(p, from: f.scope, to: g.scope, in: &t)
+            let at = try t.intern(.folImpliesElim(try t.intern(.folForallElim(lp, k0)), defined))
+            var bound = env
+            bound.binders[m] = Bound(variable: K0, constraint: hK0, approximation: hK0, record: nil)
+            let liftedRest = try g.scope.lift(try t.intern(.folForall(body: rest)), from: f.scope.depth, in: &t)
+            guard case .folForall(let restBody) = t[liftedRest] else { throw ComprehensionError.misread(phi) }
+            _ = definition
+            let member = try up(try instantiate(restBody, with: k0, in: &t), inner, g, r, bound, at, &t)
+            return try g.close(member, in: &t)
+
+        case .lifted(let m, let lift, let inner):
+            guard case .folForall(let all) = t[phi], case .folImplies(_, let rest) = t[all] else {
+                throw ComprehensionError.misread(phi)
+            }
+            let lambdas = try lift.lambdas.map { id -> Int in
+                guard let b = env.binders[id] else { throw ComprehensionError.misread(phi) }
+                return b.variable
+            }
+            var g = Frame(f.scope)
+            let fact = ConstantFact(constant: lift.constant, type: lift.type, fact: .classExists)
+            let (C0, hC0) = try g.open(
+                try eliminated(
+                    try cited(fact, try statement(fact, in: &t), &t),
+                    at: try lambdas.map { try g.variable($0, in: &t) },
+                    in: &t,
+                ),
+                in: &t,
+            )
+            let c0 = try g.variable(C0, in: &t)
+            var bound = env
+            bound.binders[m] = try liftedBound(phi, lift, C0, hC0, &g, r, env, &t)
+            let lp = try lifted(p, from: f.scope, to: g.scope, in: &t)
+            let at = try t.intern(.folImpliesElim(try t.intern(.folForallElim(lp, c0)), try g.hypothesis(hC0, in: &t)))
+            let liftedRest = try g.scope.lift(try t.intern(.folForall(body: rest)), from: f.scope.depth, in: &t)
+            guard case .folForall(let restBody) = t[liftedRest] else { throw ComprehensionError.misread(phi) }
+            let member = try up(try instantiate(restBody, with: c0, in: &t), inner, g, r, bound, at, &t)
+            return try g.close(member, in: &t)
+
+        case .liftedAtom(let m, let U):
+            return try t.intern(.folIffElimR(try liftedAtom(phi, m, U, f, r, env, &t), p))
+        }
+    }
+
+    /// `∀v⃗. (∃b⃗. snoc ∧ … ∧ elem(b, A)) ↔ ψ(v⃗)`: a λ's body exact at each extension of `r`, each direction a walk.
     func extensions(
         _ psi: NodeID,
         _ child: Built,
@@ -875,12 +1167,183 @@ struct Reading {
     ) throws -> NodeID {
         var each = Frame(f.scope)
         let values = (0..<outside).map { _ in each.fix(.i) }
-        return try each.close(try extended(psi, child, values, 0, each, r, env, &t), in: &t)
+        func chained(_ j: Int, _ prefix: Int, _ s: Scope, _ t: inout Table) throws -> NodeID {
+            var inner = s
+            let b = inner.fix(.i)
+            let snoc = try pred("snoc", [prefix, numerals.levels[r.length + j], values[j], b], at: inner, &t)
+            let rest = j == outside - 1
+                ? try pred("elem", [b, child.cls], at: inner, &t)
+                : try chained(j + 1, b, inner, &t)
+            return try t.intern(.ifolEx(.i, body: try t.intern(.folAnd(snoc, rest))))
+        }
+        let left = try chained(0, r.variable, each.scope, &t)
+        var forward = Frame(each.scope)
+        let h = forward.assume(left)
+        var current = Fact.hypothesis(h)
+        var longer = r
+        var opened = [Int]()
+        for j in 0..<outside {
+            let (w, hw) = try forward.open(try forward.proof(current, in: &t), in: &t)
+            opened.append(w)
+            longer = try extend(
+                longer,
+                value: values[j],
+                record: w,
+                snoc: .left(.hypothesis(hw)),
+                needs: child.needs,
+                in: &forward,
+                &t,
+            )
+            current = .right(.hypothesis(hw))
+        }
+        let psiForward = try forward.scope.lift(psi, from: each.scope.depth, in: &t)
+        let reached = try down(psiForward, child, forward, longer, env, try forward.proof(current, in: &t), &t)
+        let there = try forward.close(reached, in: &t)
+        var backward = Frame(each.scope)
+        let h2 = backward.assume(psi)
+        var built = r
+        var made = [(record: Int, snoc: Int)]()
+        for j in 0..<outside {
+            let prefix = j == 0 ? r.variable : made[j - 1].record
+            let at = try [prefix, numerals.levels[r.length + j], values[j]].map { try backward.variable($0, in: &t) }
+            let (w, hw) = try backward.open(try eliminated(try base.cite(.snocEX, in: &t), at: at, in: &t), in: &t)
+            made.append((w, hw))
+            built = try extend(
+                built,
+                value: values[j],
+                record: w,
+                snoc: .hypothesis(hw),
+                needs: child.needs,
+                in: &backward,
+                &t,
+            )
+        }
+        let psiBackward = try backward.scope.lift(psi, from: each.scope.depth, in: &t)
+        var proof = try up(psiBackward, child, backward, built, env, try backward.hypothesis(h2, in: &t), &t)
+        let target = try backward.scope.lift(left, from: each.scope.depth, in: &t)
+        var shapes = [NodeID]()
+        var level = target
+        for j in 0..<outside {
+            guard case .ifolEx(.i, let body) = t[level] else { throw ComprehensionError.misread(target) }
+            shapes.append(body)
+            let at = try instantiate(body, with: try backward.variable(made[j].record, in: &t), in: &t)
+            guard case .folAnd(_, let rest) = t[at] else { throw ComprehensionError.misread(target) }
+            level = rest
+        }
+        for j in (0..<outside).reversed() {
+            let both = try t.intern(.folAndIntro(try backward.hypothesis(made[j].snoc, in: &t), proof))
+            proof = try t.intern(.isaExIntro(both, try backward.variable(made[j].record, in: &t), body: shapes[j]))
+        }
+        let back = try backward.close(proof, in: &t)
+        return try each.close(try t.intern(.folIffIntro(there, back)), in: &t)
+    }
+
+    private func lambdaExactness(
+        _ definition: NodeID,
+        _ lambda: Lambda,
+        _ f: Frame,
+        _ r: Record,
+        _ env: Env,
+        _ t: inout Table,
+    ) throws -> NodeID {
+        var body = definition
+        for _ in 0..<lambda.outside {
+            guard case .ifolAll(.i, let b) = t[body] else { throw ComprehensionError.misread(definition) }
+            body = b
+        }
+        let psi = try dropping(try iff(body, t).right, lambda.outside, in: &t)
+        return try extensions(psi, lambda.bundle, lambda.outside, f, r, env, &t)
+    }
+
+    private func liftedBound(
+        _ phi: NodeID,
+        _ lift: Lift,
+        _ C: Int,
+        _ hc: Int,
+        _ g: inout Frame,
+        _ r: Record,
+        _ env: Env,
+        _ t: inout Table,
+    ) throws -> Bound {
+        let lambdas = try lift.lambdas.map { id -> (variable: Int, approximation: Int) in
+            guard let b = env.binders[id], let a = b.approximation else { throw ComprehensionError.misread(phi) }
+            return (b.variable, a)
+        }
+        var p = try t.intern(.isaAllElim(try g.hypothesis(lift.cls.hyp, in: &t), try g.variable(r.variable, in: &t)))
+        p = try t.intern(.folImpliesElim(p, try g.hypothesis(r.tuple, in: &t)))
+        p = try eliminated(
+            p,
+            at: try lambdas.map { try g.variable($0.variable, in: &t) },
+            premises: try lambdas.map { try g.hypothesis($0.approximation, in: &t) },
+            in: &t,
+        )
+        p = try eliminated(p, at: [try g.variable(C, in: &t)], premises: [try g.hypothesis(hc, in: &t)], in: &t)
+        return Bound(variable: C, constraint: hc, approximation: try g.have(p, in: &t), record: r)
+    }
+
+    private func sectionAt(_ s: Int, _ phi: NodeID, _ f: Frame, _ env: Env, _ t: inout Table) throws -> NodeID {
+        guard
+            let approximation = env.sections[s],
+            case .folPred(_, let args) = t[phi]
+        else { throw ComprehensionError.misread(phi) }
+        return try eliminated(try f.hypothesis(approximation, in: &t), at: Array(args.dropLast()), in: &t)
+    }
+
+    /// `snoc_EX` at the record, its next index and `v`: `∃b. snoc(r, n, v, b)`.
+    private func snocExists(_ r: Record, _ v: Int, _ f: Frame, _ t: inout Table) throws -> NodeID {
+        let at = try [r.variable, numerals.levels[r.length], v].map { try f.variable($0, in: &t) }
+        return try eliminated(try base.cite(.snocEX, in: &t), at: at, in: &t)
+    }
+
+    /// An atom's read row at the record, `elem(r, A) ↔ W(y⃗)`, and its witness's property, `W(y⃗) ↔ atom(y⃗)`, if the
+    /// witness is not the atom itself.
+    private func atomParts(
+        _ row: Row,
+        _ es: [Int],
+        _ witness: Witness,
+        _ f: Frame,
+        _ r: Record,
+        _ env: Env,
+        _ t: inout Table,
+    ) throws -> (NodeID, NodeID?) {
+        var p = try t.intern(.folForallElim(try at(row, f, r, &t), try f.variable(numerals.levels[r.length], in: &t)))
+        p = try t.intern(.folImpliesElim(p, try f.hypothesis(r.tuple, in: &t)))
+        for j in es {
+            guard j < r.length else { throw ComprehensionError.noEntry(j) }
+            p = try eliminated(
+                p,
+                at: [try f.variable(r.entries[j], in: &t)],
+                premises: [try entry(j, of: r, in: f.scope, &t)],
+                in: &t,
+            )
+        }
+        let values = try es.map { try f.variable(r.entries[$0], in: &t) }
+        switch witness {
+        case .fixed:
+            return (p, nil)
+        case .property(let h):
+            return (p, try eliminated(try f.hypothesis(h, in: &t), at: values, in: &t))
+        case .opened(let m, let c, let T, let C):
+            guard let bound = env.binders[m] else { throw ComprehensionError.noEntry(m) }
+            if bound.variable == C.cls { return (p, nil) }
+            let fact = ConstantFact(constant: c, type: T, fact: .agreement)
+            let agree = try eliminated(
+                try cited(fact, try statement(fact, in: &t), &t),
+                at: [try f.variable(C.cls, in: &t), try f.variable(bound.variable, in: &t)],
+                premises: [
+                    try f.hypothesis(C.hyp, in: &t),
+                    try f.hypothesis(bound.constraint, in: &t),
+                ],
+                in: &t,
+            )
+            return (p, try eliminated(agree, at: values, in: &t))
+        }
     }
 
     private func operands(_ c: Connective, _ phi: NodeID, _ t: Table) throws -> [NodeID] {
         switch (c, t[phi]) {
-        case (.and, .folAnd(let a, let b)), (.or, .folOr(let a, let b)), (.iff, .folIff(let a, let b)): return [a, b]
+        case (.and, .folAnd(let a, let b)), (.or, .folOr(let a, let b)), (.iff, .folIff(let a, let b)),
+             (.implies, .folImplies(let a, let b)): return [a, b]
         case (.not, .folNot(let a)): return [a]
         default: throw ComprehensionError.misread(phi)
         }
@@ -888,35 +1351,6 @@ struct Reading {
 
     private func at(_ row: Row, _ f: Frame, _ r: Record, _ t: inout Table) throws -> NodeID {
         try t.intern(.isaAllElim(try f.hypothesis(row.hyp, in: &t), try f.variable(r.variable, in: &t)))
-    }
-
-    private func extended(
-        _ psi: NodeID,
-        _ child: Built,
-        _ values: [Int],
-        _ j: Int,
-        _ g: Frame,
-        _ r: Record,
-        _ env: Env,
-        _ t: inout Table,
-    ) throws -> NodeID {
-        var h = Frame(g.scope)
-        let b = h.fix(.i)
-        let snoc = try [r.variable, numerals.levels[r.length], values[j], b].map { try h.variable($0, in: &t) }
-        let s = h.assume(try t.intern(.folPred(.base("snoc"), args: snoc)))
-        let longer = try extend(r, value: values[j], record: b, snoc: s, in: &h, &t)
-        let inside = try shift(psi, by: 1, in: &t)
-        let inner = j == values.count - 1
-            ? try read(inside, child, h, longer, env, &t)
-            : try extended(inside, child, values, j + 1, h, longer, env, &t)
-        let premise = try h.close(inner, in: &t)
-        let some = try base.instance(
-            .snocSome,
-            [try t.intern(.folLetterAbs(body: try sides(inner, t).left)), psi],
-            in: &t,
-        )
-        let at = try [r.variable, numerals.levels[r.length], values[j]].map { try g.variable($0, in: &t) }
-        return try eliminated(some, at: at, premises: [premise], in: &t)
     }
 
     private func bottom(_ f: Frame, _ r: Record, _ t: inout Table) throws -> NodeID {
@@ -939,148 +1373,10 @@ struct Reading {
         return try t.intern(.folIffIntro(try there.close(absurd, in: &t), try back.close(any, in: &t)))
     }
 
-    private func binder(
-        _ phi: NodeID,
-        _ inner: Built,
-        _ h: Frame,
-        _ r: Record,
-        _ env: Env,
-        _ t: inout Table,
-        bind: (inout Frame, Int, Int, Env, inout Table) throws -> Env,
-        witness: (inout Frame, inout Table) throws -> (Int, Int),
-    ) throws -> NodeID {
-        guard
-            case .folExists(let body) = t[phi],
-            case .folAnd(let constraint, let rest) = t[body]
-        else { throw ComprehensionError.misread(phi) }
-        var h = h
-        var g = Frame(h.scope)
-        let c = g.fix(nil)
-        let hc = g.assume(constraint)
-        let bound = try bind(&g, c, hc, env, &t)
-        let exact = try g.close(try read(rest, inner, g, r, bound, &t), in: &t)
-        let every = try h.have(exact, in: &t)
-        let member = try t.intern(.folPred(
-            .base("elem"),
-            args: [try h.variable(r.variable, in: &t), try h.variable(inner.cls, in: &t)],
-        ))
-        var there = Frame(h.scope)
-        let hm = there.assume(member)
-        let (w, holds) = try witness(&there, &t)
-        let atW = try eliminated(
-            try there.hypothesis(every, in: &t),
-            at: [try there.variable(w, in: &t)],
-            premises: [try there.hypothesis(holds, in: &t)],
-            in: &t,
-        )
-        let restAtW = try t.intern(.folIffElimL(atW, try there.hypothesis(hm, in: &t)))
-        let both = try t.intern(.folAndIntro(try there.hypothesis(holds, in: &t), restAtW))
-        let forward = try there.close(try t.intern(.folExistsIntro(both, try there.variable(w, in: &t))), in: &t)
-        var back = Frame(h.scope)
-        let hx = back.assume(phi)
-        let (v, hv) = try back.open(try back.hypothesis(hx, in: &t), in: &t)
-        let atV = try eliminated(
-            try back.hypothesis(every, in: &t),
-            at: [try back.variable(v, in: &t)],
-            premises: [try t.intern(.folAndElimL(try back.hypothesis(hv, in: &t)))],
-            in: &t,
-        )
-        let backward = try back.close(
-            try t.intern(.folIffElimR(atV, try t.intern(.folAndElimR(try back.hypothesis(hv, in: &t))))),
-            in: &t,
-        )
-        return try h.close(try t.intern(.folIffIntro(forward, backward)), in: &t)
-    }
-
-    private func lambdaBinder(
-        _ phi: NodeID,
-        _ m: Int,
-        _ lambda: Lambda,
-        _ inner: Built,
-        _ f: Frame,
-        _ r: Record,
-        _ env: Env,
-        _ t: inout Table,
-    ) throws -> NodeID {
-        guard
-            case .folExists(let body) = t[phi],
-            case .folAnd(let constraint, _) = t[body]
-        else { throw ComprehensionError.misread(phi) }
-        var definition = constraint
-        for _ in 0..<lambda.outside {
-            guard case .ifolAll(.i, let b) = t[definition] else { throw ComprehensionError.misread(phi) }
-            definition = b
-        }
-        let psi = try dropping(try iff(definition, t).right, lambda.outside, in: &t)
-        var h = Frame(f.scope)
-        let exact = try h.have(try extensions(psi, lambda.bundle, lambda.outside, f, r, env, &t), in: &t)
-        let outside = lambda.outside
-        let n = numerals.levels[r.length]
-        let n1 = numerals.levels[r.length + 1]
-        return try binder(phi, inner, h, r, env, &t, bind: { g, K, hc, env, t in
-            let approximation = try joined(hc, exact, outside, g, symmetric: true, &t)
-            var bound = env
-            bound.binders[m] = Bound(
-                variable: K,
-                constraint: hc,
-                approximation: try g.have(approximation, in: &t),
-                record: nil,
-            )
-            return bound
-        }, witness: { there, t in
-            let at = try (outside == 1 ? [n] : [n, n1]).map { try there.variable($0, in: &t) }
-                + [try there.variable(lambda.bundle.cls, in: &t), try there.variable(r.variable, in: &t)]
-            let (K0, hK0) = try there.open(
-                try eliminated(try base.cite(outside == 1 ? .lamPred : .lamClass, in: &t), at: at, in: &t),
-                in: &t,
-            )
-            return (K0, try there.have(try joined(hK0, exact, outside, there, symmetric: false, &t), in: &t))
-        })
-    }
-
-    private func liftedBinder(
-        _ phi: NodeID,
-        _ m: Int,
-        _ lift: Lift,
-        _ inner: Built,
-        _ f: Frame,
-        _ r: Record,
-        _ env: Env,
-        _ t: inout Table,
-    ) throws -> NodeID {
-        let lambdas = try lift.lambdas.map { id -> (variable: Int, approximation: Int) in
-            guard let b = env.binders[id], let a = b.approximation else { throw ComprehensionError.misread(phi) }
-            return (b.variable, a)
-        }
-        return try binder(phi, inner, Frame(f.scope), r, env, &t, bind: { g, C, hc, env, t in
-            var p = try t.intern(.isaAllElim(
-                try g.hypothesis(lift.cls.hyp, in: &t),
-                try g.variable(r.variable, in: &t),
-            ))
-            p = try t.intern(.folImpliesElim(p, try g.hypothesis(r.tuple, in: &t)))
-            p = try eliminated(
-                p,
-                at: try lambdas.map { try g.variable($0.variable, in: &t) },
-                premises: try lambdas.map { try g.hypothesis($0.approximation, in: &t) },
-                in: &t,
-            )
-            p = try eliminated(p, at: [try g.variable(C, in: &t)], premises: [try g.hypothesis(hc, in: &t)], in: &t)
-            var bound = env
-            bound.binders[m] = Bound(variable: C, constraint: hc, approximation: try g.have(p, in: &t), record: r)
-            return bound
-        }, witness: { there, t in
-            let fact = ConstantFact(constant: lift.constant, type: lift.type, fact: .classExists)
-            let at = try lambdas.map { try there.variable($0.variable, in: &t) }
-            return try there.open(
-                try eliminated(try cited(fact, try statement(fact, in: &t), &t), at: at, in: &t),
-                in: &t,
-            )
-        })
-    }
-
+    /// `∀t⃗. X(t⃗) ↔ Y(t⃗)` from `∀t⃗. X ↔ Z` and `∀t⃗. Z ↔ Y` — the second taken the other way round with `symmetric`.
     private func joined(
-        _ first: Int,
-        _ second: Int,
+        _ first: NodeID,
+        _ second: NodeID,
         _ outside: Int,
         _ f: Frame,
         symmetric: Bool,
@@ -1088,8 +1384,8 @@ struct Reading {
     ) throws -> NodeID {
         var each = Frame(f.scope)
         let values = try (0..<outside).map { _ in each.fix(.i) }.map { try each.variable($0, in: &t) }
-        let a = try eliminated(try each.hypothesis(first, in: &t), at: values, in: &t)
-        var b = try eliminated(try each.hypothesis(second, in: &t), at: values, in: &t)
+        let a = try eliminated(try lifted(first, from: f.scope, to: each.scope, in: &t), at: values, in: &t)
+        var b = try eliminated(try lifted(second, from: f.scope, to: each.scope, in: &t), at: values, in: &t)
         if symmetric { b = try base.applied(.iffSymm, [try sides(b, t).left, try sides(b, t).right], [b], in: &t) }
         return try each.close(try chained(a, b, &t), in: &t)
     }
@@ -1155,7 +1451,7 @@ struct Reading {
                 premises: [
                     try prefix(sc, &t),
                     refl,
-                    try sc.hypothesis(link.snoc, in: &t),
+                    try sc.proof(link.snoc, in: &t),
                     try sc.hypothesis(s, in: &t),
                 ],
                 in: &t,

@@ -541,22 +541,23 @@ private struct Unbuilt: Prover {
     }
 }
 
-/// The same, a registry answering class existence unbuilt: `Pow`'s class is refused at the registry, EX citing it
-/// falls, and the statement with it; the theorem it cites stays, and the lemmas only it cited leave the unit (DESIGN
-/// "Lazy proving").
+/// The same, a registry answering class existence unbuilt: `Pow`'s class is refused at the registry, EX and the
+/// meeting lemma citing it fall, and the statement with them; the theorem it cites stays, and the lemmas only it cited
+/// leave the unit (DESIGN "Lazy proving").
 @Test
 func aStatementFallsWithAnUnbuiltLemmaItsProofCites() throws {
     var t = Table()
     let b = try base(in: &t)
     let statements = try compoundElimination(&t)
     var unit = Unit(table: t, statements: statements)
-    let registry = Provers([ReifyProver(base: b), TupleProver(base: b), Unbuilt()])
+    let registry = Provers([ReifyProver(base: b), TupleProver(base: b), MeetingProver(base: b), Unbuilt()])
     try Pipeline(passes: plan(b), registry: registry, provingAfter: "logic").run(&unit)
     let refused = Dictionary(uniqueKeysWithValues: unit.refused.map { ($0.name, $0.refusal) })
     let ex = try #require(refused.keys.first { $0.hasPrefix("EX_") })
-    #expect(refused.count == 3)
+    #expect(refused.count == 4, "\(refused)")
     #expect(refused["ZF_Base.Pow_CLASS"] == .lemmaUnbuilt)
     #expect(refused[ex] == .cites("ZF_Base.Pow_CLASS"))
+    #expect(refused.contains { $0.key.hasPrefix("MEET_") && $0.value == .cites("ZF_Base.Pow_CLASS") })
     #expect(refused["thm"] == .cites(ex))
     #expect(unit.statements.map(\.name) == ["lem"])
     #expect(Set(unit.dropped).isSuperset(of: [

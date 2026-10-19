@@ -382,3 +382,55 @@ proof B_iff:
     _fa = forall_intro _z7
     _fb = forall_intro _fa
     qed _fb
+proof B_imp:
+    _b2 = use B2
+    _b3 = use B3
+    fix A
+    fix B
+    _hb = forall_elim _b3, B
+    _eb = exists_elim _hb, NB
+    _hi = forall_elim _b2, A
+    _hi2 = forall_elim _hi, NB
+    _ei = exists_elim _hi2, I
+    _hc = forall_elim _b3, I
+    _ec = exists_elim _hc, C
+    fix u
+    _su = assume set(u)
+    _ub = forall_elim _eb, u
+    _pb = implies_elim _ub, _su
+    _ui = forall_elim _ei, u
+    _pi = implies_elim _ui, _su
+    _uc = forall_elim _ec, u
+    _pc = implies_elim _uc, _su
+    _f0 = assume elem(u,C)
+    _f1 = iff_elim_l _pc, _f0
+    _f2 = assume elem(u,A)
+    _f3 = assume (~ elem(u,B))
+    _f4 = iff_elim_r _pb, _f3
+    _f5 = and_intro _f2, _f4
+    _f6 = iff_elim_r _pi, _f5
+    _f7 = not_elim _f1, _f6
+    _f8 = not_intro _f7
+    _f9 = double_neg_elim _f8
+    _f10 = implies_intro _f9
+    _fwd = implies_intro _f10
+    _k0 = assume (elem(u,A) -> elem(u,B))
+    _k1 = assume elem(u,I)
+    _k2 = iff_elim_l _pi, _k1
+    _k3 = and_elim_l _k2
+    _k4 = and_elim_r _k2
+    _k5 = iff_elim_l _pb, _k4
+    _k6 = implies_elim _k0, _k3
+    _k7 = not_elim _k5, _k6
+    _k8 = not_intro _k7
+    _k9 = iff_elim_r _pc, _k8
+    _bwd = implies_intro _k9
+    _iff = iff_intro _fwd, _bwd
+    _imp = implies_intro _iff
+    _all = forall_intro _imp
+    _e1 = exists_intro _all
+    _e2 = exists_intro _e1
+    _e3 = exists_intro _e2
+    _fa = forall_intro _e3
+    _fb = forall_intro _fa
+    qed _fb

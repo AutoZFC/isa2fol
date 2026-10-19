@@ -57,7 +57,7 @@ private func piece(_ p: Pattern) -> Piece? {
     case .ifolEx(let T, _): isObject(T) ? .exists(T) : nil
     case .isaAllIntro(let T, _): isObject(T) ? .intro(T) : nil
     case .isaAllElim(_, let T): T == .i ? .instance : nil
-    case .isaGuard(let T, _): isObject(T) ? .guardOf : nil
+    case .isaGuard(let T, _): isObject(objectType(T)) ? .guardOf : nil
     case .isaBound(let T): mentionsTypeVariable(T) || T == .o ? nil : isObject(objectType(T)) ? .variable : .unbuilt
     case .isaExIntro(_, let T, _): T == .i ? .existsIntro : nil
     case .isaExElim(let T, _, _): T == .i ? .existsElim : nil
@@ -69,7 +69,7 @@ private func piece(_ p: Pattern) -> Piece? {
          .folImpliesIntro, .folImpliesElim, .use, .folNot, .folBound, .folPred, .folForall, .folExists, .folAndIntro,
          .folAndElimL, .folAndElimR, .folOrIntroL, .folOrIntroR, .folOrElim, .folNotIntro, .folNotElim, .folIffIntro,
          .folIffElimL, .folIffElimR, .folForallIntro, .folForallElim, .folExistsIntro, .folExistsElim, .folBottomElim,
-         .folClassicalAbsurd, .folSchemaInst, .folLetterAll, .folLetter, .folLetterAbs:
+         .folClassicalAbsurd, .folSchemaInst, .folLetterAll, .folLetter, .folLetterAbs, .isaValue, .isaValueFact:
         nil
     }
 }

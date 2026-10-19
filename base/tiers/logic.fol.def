@@ -72,3 +72,7 @@ claim B_or: forall A. forall B. (exists C. (forall u. (set(u) -> (elem(u,C) <-> 
 # BICONDITIONAL, same move. `<->` expanded per use DUPLICATES both sides, so
 # everything inside it was paid twice; as a class it is `~(A n ~B) n ~(B n ~A)`.
 claim B_iff: forall A. forall B. (exists C. (forall u. (set(u) -> (elem(u,C) <-> (elem(u,A) <-> elem(u,B))))))
+
+# IMPLICATION, a row of its own: S1's naming is universal, so every named term is a `->`, and a row reading it directly
+# lets a formula's exactness be walked one way at a time, no subformula restated.
+claim B_imp: forall A. forall B. (exists C. (forall u. (set(u) -> (elem(u,C) <-> (elem(u,A) -> elem(u,B))))))

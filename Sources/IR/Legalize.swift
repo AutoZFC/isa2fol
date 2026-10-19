@@ -57,7 +57,7 @@ public func misplacedLetters(_ roots: [NodeID], in t: Table) -> Set<Pattern> {
              .folBottom, .folImpliesElim, .hyp, .isaGuard, .isaExIntro, .isaExElim, .folNot, .folBound,
              .folPred, .folExists, .folAndIntro, .folAndElimL, .folAndElimR, .folOrIntroL, .folOrIntroR, .folOrElim,
              .folNotIntro, .folNotElim, .folIffIntro, .folIffElimL, .folIffElimR, .folForallElim, .folExistsIntro,
-             .folExistsElim, .folBottomElim, .folClassicalAbsurd, .folLetter, .folLetterAbs:
+             .folExistsElim, .folBottomElim, .folClassicalAbsurd, .folLetter, .folLetterAbs, .isaValue, .isaValueFact:
             n.forEachChild { c, _ in pending.append(Place(id: c, spine: false)) }
         }
     }

@@ -42,29 +42,9 @@ public struct Reify {
              .folPred, .folForall, .folExists, .folAndIntro, .folAndElimL, .folAndElimR, .folOrIntroL, .folOrIntroR,
              .folOrElim, .folNotIntro, .folNotElim, .folIffIntro, .folIffElimL, .folIffElimR, .folForallIntro,
              .folForallElim, .folExistsIntro, .folExistsElim, .folBottomElim, .folClassicalAbsurd, .folSchemaInst,
-             .folLetterAll, .folLetter, .folLetterAbs:
+             .folLetterAll, .folLetter, .folLetterAbs, .isaValue, .isaValueFact:
             return nil
         }
-    }
-
-    func formula(_ n: Node, was id: NodeID, in t: inout Table) throws -> NodeID? {
-        names(Pattern(t[id], in: t)) ? try named(atom: n, in: &t) : nil
-    }
-
-    func after(_ n: Node, was id: NodeID, base: Base, in t: inout Table) throws -> NodeID? {
-        if let atom = try formula(n, was: id, in: &t) { return atom }
-        if case .isaAllElim = t[id] { return try instance(children(n)[0], was: id, base: base, in: &t) }
-        if case .isaDefinition = t[id] { return try unfolded(n, was: id, base: base, in: &t) }
-        if case .isaExIntro(_, let a, _) = t[id], owns(Pattern(t[a], in: t)) == .rule {
-            return try TermInstance(base: base).witnessed(children(n)[0], body: children(n)[2], was: id, in: &t)
-        }
-        return nil
-    }
-
-    func instance(_ p: NodeID, was id: NodeID, base: Base, in t: inout Table) throws -> NodeID {
-        guard case .isaAllElim(_, let a) = t[id] else { throw InstanceError.notAnInstance(id) }
-        guard owns(Pattern(t[a], in: t)) == .rule else { return try t.intern(.isaAllElim(p, a)) }
-        return try TermInstance(base: base).proof(p, was: id, in: &t)
     }
 
     func names(_ p: Pattern) -> Bool {
@@ -88,16 +68,79 @@ private func value(_ p: Pattern) -> IRType? {
          .folPred, .folForall, .folExists, .folAndIntro, .folAndElimL, .folAndElimR, .folOrIntroL, .folOrIntroR,
          .folOrElim, .folNotIntro, .folNotElim, .folIffIntro, .folIffElimL, .folIffElimR, .folForallIntro,
          .folForallElim, .folExistsIntro, .folExistsElim, .folBottomElim, .folClassicalAbsurd, .folSchemaInst,
-         .folLetterAll, .folLetter, .folLetterAbs:
+         .folLetterAll, .folLetter, .folLetterAbs, .isaValue, .isaValueFact:
         nil
     }
 }
 
 private let equality = IRType.fn(.i, .fn(.i, .o))
 
-func named(atom n: Node, in t: inout Table) throws -> NodeID {
-    var naming = Naming()
+/// Where a formula stands: a statement names every term (S1 at the site); a proof's formula, below `depth` binders of
+/// its own, holds the value of each term holding no variable it binds.
+/// `naming`: the proof's variables, counted from the formula's root, whose terms are named as the formula's own.
+enum Mode: Hashable {
+    case statement
+    case proof(Int, naming: Set<Int>)
+
+    static func proof(_ d: Int) -> Mode {
+        .proof(d, naming: [])
+    }
+
+    func deeper(_ k: Int) -> Mode {
+        switch self {
+        case .statement: .statement
+        case .proof(let d, let naming): .proof(d + k, naming: naming)
+        }
+    }
+
+    func valued(_ x: NodeID, in t: Table) -> Bool {
+        guard case .proof(let d, let naming) = self else { return false }
+        return looseIndices(x, in: t).allSatisfy { $0 >= d && !naming.contains($0 - d) }
+    }
+}
+
+func looseIndices(_ x: NodeID, in t: Table) -> Set<Int> {
+    var found = Set<Int>()
+    var seen = Set<At>()
+    var work = [(x, 0)]
+    while let (n, d) = work.popLast() {
+        guard t.looseBound(of: n) > d, seen.insert(At(node: n, depth: d)).inserted else { continue }
+        if let v = t[n].boundVariable, v.namespace == .term {
+            if v.index >= d { found.insert(v.index - d) }
+            continue
+        }
+        t[n].forEachChild { c, binds in work.append((c, d + binds.terms)) }
+    }
+    return found
+}
+
+func lowestLoose(_ x: NodeID, in t: Table) -> Int {
+    var lowest = Int.max
+    var seen = Set<At>()
+    var work = [(x, 0)]
+    while let (n, d) = work.popLast() {
+        guard t.looseBound(of: n) > d, seen.insert(At(node: n, depth: d)).inserted else { continue }
+        if let v = t[n].boundVariable, v.namespace == .term {
+            if v.index >= d { lowest = min(lowest, v.index - d) }
+            continue
+        }
+        t[n].forEachChild { c, binds in work.append((c, d + binds.terms)) }
+    }
+    return lowest
+}
+
+func named(atom n: Node, mode: Mode = .statement, in t: inout Table) throws -> NodeID {
+    var naming = Naming(mode: mode)
     let core = try naming.atom(n, in: &t)
+    return try naming.chain.formula(core, in: &t)
+}
+
+/// `⟦v = t⟧`: S1's naming of the equation at `t`'s own application, its arguments their values.
+func valueFact(_ v: NodeID, in t: inout Table) throws -> NodeID {
+    guard case .isaValue(let term) = t[v] else { throw ReifyError.notATerm(v) }
+    var naming = Naming(mode: .proof(0))
+    let r = try naming.applied(term, &t)
+    let core = try naming.chain.predicate(.base("eq"), [.outer(v), r], in: &t)
     return try naming.chain.formula(core, in: &t)
 }
 
@@ -116,42 +159,39 @@ enum NamedPiece: Hashable {
 }
 
 /// ⚠ ONE VARIABLE PER OCCURRENCE, NEVER PER DISTINCT TERM: shared per term, the instance of a translation differs from
-/// the translation of the instance.
+/// the translation of the instance. A proof's value is one per term; the meeting lemmas reconcile the two.
 struct Naming {
-    init(_ chain: Chain = Chain(), designated: [Int]? = nil, occurrences: Set<[Int]> = []) {
+    init(_ chain: Chain = Chain(), mode: Mode = .statement) {
         self.chain = chain
-        self.designated = designated
-        self.occurrences = occurrences
+        self.mode = mode
     }
 
     var chain: Chain
-    let designated: [Int]?
-    let occurrences: Set<[Int]>
-    private(set) var site: (binders: Range<Int>, value: Ref)?
-    private(set) var sites = [[Int]: (binders: Range<Int>, value: Ref)]()
+    let mode: Mode
     private(set) var pieces = [NamedPiece]()
+    private(set) var ranges = [(binders: Range<Int>, term: NodeID)]()
 
     mutating func atom(_ n: Node, in t: inout Table) throws -> NodeID {
         switch n {
         case .isaConst(.primitive(.zf(.mem)), _, let args):
-            let a = try name(args[0], [0], &t)
-            let b = try name(args[1], [1], &t)
+            let a = try name(args[0], &t)
+            let b = try name(args[1], &t)
             return try chain.predicate(.base("elem"), [a, b], in: &t)
 
         case .isaConst(.primitive(.ifol(.eq)), _, let args):
-            let a = try name(args[0], [0], &t)
-            let b = try name(args[1], [1], &t)
+            let a = try name(args[0], &t)
+            let b = try name(args[1], &t)
             return try chain.predicate(.base("eq"), [a, b], in: &t)
 
         case .isaConst(let c, let T, let args):
-            let (sets, classes) = try arguments(T, args, [], &t)
+            let (sets, classes) = try arguments(T, args, &t)
             let C = bind(.cls, .constantClass(c, T, classes: classes))
             chain.constrain(C, try chain.predicate(.constant(c), [C] + classes, in: &t))
             let tau = try tupled(sets, &t)
             return try chain.predicate(.base("elem"), [tau, C], in: &t)
 
         case .isaVarApp(let P, let args):
-            let sets = try entries(args, [], &t)
+            let sets = try entries(args, &t)
             let tau = try tupled(sets, &t)
             return try chain.predicate(.base("elem"), [tau, .outer(P)], in: &t)
 
@@ -163,44 +203,19 @@ struct Naming {
              .folBound, .folPred, .folForall, .folExists, .folAndIntro, .folAndElimL, .folAndElimR, .folOrIntroL,
              .folOrIntroR, .folOrElim, .folNotIntro, .folNotElim, .folIffIntro, .folIffElimL, .folIffElimR,
              .folForallIntro, .folForallElim, .folExistsIntro, .folExistsElim, .folBottomElim, .folClassicalAbsurd,
-             .folSchemaInst, .folLetterAll, .folLetter, .folLetterAbs:
+             .folSchemaInst, .folLetterAll, .folLetter, .folLetterAbs, .isaValue, .isaValueFact:
             throw ReifyError.notAnAtom(try t.intern(n))
         }
     }
 
-    mutating func name(_ x: NodeID, _ path: [Int], _ t: inout Table) throws -> Ref {
-        let start = chain.binders.count
-        let r = try value(x, path, &t)
-        if path == designated { site = (start..<chain.binders.count, r) }
-        if occurrences.contains(path) { sites[path] = (start..<chain.binders.count, r) }
-        return r
-    }
-
-    private mutating func value(_ x: NodeID, _ path: [Int], _ t: inout Table) throws -> Ref {
+    mutating func name(_ x: NodeID, _ t: inout Table) throws -> Ref {
         switch t[x] {
-        case .isaBound, .folBound:
+        case .isaBound, .folBound, .isaValue:
             return .outer(x)
 
-        case .isaConst(let c, .i, let args) where args.isEmpty:
-            let v = bind(.set, .setConstant(c))
-            chain.constrain(v, try chain.predicate(.constant(c), [v], in: &t))
-            return v
-
-        case .isaConst(let c, let T, let args):
-            let (sets, classes) = try arguments(T, args, path, &t)
-            let C = bind(.cls, .constantClass(c, T, classes: classes))
-            chain.constrain(C, try chain.predicate(.constant(c), [C] + classes, in: &t))
-            let tau = try tupled(sets, &t)
-            let r = bind(.set, .value(tuple: tau, cls: C))
-            chain.constrain(r, try chain.predicate(.base("pmem"), [tau, r, C], in: &t))
-            return r
-
-        case .isaVarApp(let f, let args):
-            let sets = try entries(args, path, &t)
-            let tau = try tupled(sets, &t)
-            let r = bind(.set, .applied(tuple: tau, function: f))
-            chain.constrain(r, try chain.predicate(.base("apply"), [tau, r, .outer(f)], in: &t))
-            return r
+        case .isaConst, .isaVarApp:
+            if mode.valued(x, in: t) { return .outer(try valueNode(x, in: &t)) }
+            return try applied(x, &t)
 
         case .ifolAll, .ifolEx, .isaFree, .isaAbs, .isaOfClass, .isaAllIntro, .isaAllElim, .isaReflexive,
              .isaSymmetric, .isaTransitive, .isaCombination, .isaAbstract, .isaClassical, .isaIffReflection,
@@ -210,51 +225,89 @@ struct Naming {
              .folPred, .folForall, .folExists, .folAndIntro, .folAndElimL, .folAndElimR, .folOrIntroL, .folOrIntroR,
              .folOrElim, .folNotIntro, .folNotElim, .folIffIntro, .folIffElimL, .folIffElimR, .folForallIntro,
              .folForallElim, .folExistsIntro, .folExistsElim, .folBottomElim, .folClassicalAbsurd, .folSchemaInst,
-             .folLetterAll, .folLetter, .folLetterAbs:
+             .folLetterAll, .folLetter, .folLetterAbs, .isaValueFact:
             throw ReifyError.notATerm(x)
         }
     }
 
-    private mutating func nameClass(_ lambda: NodeID, _ path: [Int], _ t: inout Table) throws -> Ref {
+    mutating func applied(_ x: NodeID, _ t: inout Table) throws -> Ref {
+        let start = chain.binders.count
+        let r = try application(x, &t)
+        ranges.append((start..<chain.binders.count, x))
+        return r
+    }
+
+    private mutating func application(_ x: NodeID, _ t: inout Table) throws -> Ref {
+        switch t[x] {
+        case .isaConst(let c, .i, let args) where args.isEmpty:
+            let v = bind(.set, .setConstant(c))
+            chain.constrain(v, try chain.predicate(.constant(c), [v], in: &t))
+            return v
+
+        case .isaConst(let c, let T, let args):
+            let (sets, classes) = try arguments(T, args, &t)
+            let C = bind(.cls, .constantClass(c, T, classes: classes))
+            chain.constrain(C, try chain.predicate(.constant(c), [C] + classes, in: &t))
+            let tau = try tupled(sets, &t)
+            let r = bind(.set, .value(tuple: tau, cls: C))
+            chain.constrain(r, try chain.predicate(.base("pmem"), [tau, r, C], in: &t))
+            return r
+
+        case .isaVarApp(let f, let args):
+            let sets = try entries(args, &t)
+            let tau = try tupled(sets, &t)
+            let r = bind(.set, .applied(tuple: tau, function: f))
+            chain.constrain(r, try chain.predicate(.base("apply"), [tau, r, .outer(f)], in: &t))
+            return r
+
+        case .ifolAll, .ifolEx, .isaFree, .isaBound, .isaAbs, .isaOfClass, .isaAllIntro, .isaAllElim, .isaReflexive,
+             .isaSymmetric, .isaTransitive, .isaCombination, .isaAbstract, .isaClassical, .isaIffReflection,
+             .isaDefinition, .isaPropAll, .isaPropIntro, .isaPropBound, .isaHidden, .folImplies, .folAnd, .folOr,
+             .folIff,
+             .folBottom, .folImpliesIntro, .folImpliesElim, .use, .hyp, .isaGuard, .isaExIntro, .isaExElim, .folNot,
+             .folBound, .folPred, .folForall, .folExists, .folAndIntro, .folAndElimL, .folAndElimR, .folOrIntroL,
+             .folOrIntroR, .folOrElim, .folNotIntro, .folNotElim, .folIffIntro, .folIffElimL, .folIffElimR,
+             .folForallIntro, .folForallElim, .folExistsIntro, .folExistsElim, .folBottomElim, .folClassicalAbsurd,
+             .folSchemaInst, .folLetterAll, .folLetter, .folLetterAbs, .isaValue, .isaValueFact:
+            throw ReifyError.notATerm(x)
+        }
+    }
+
+    private mutating func nameClass(_ lambda: NodeID, _ t: inout Table) throws -> Ref {
         let K = bind(.cls, .lambdaClass(lambda))
-        if path == designated { site = (chain.binders.count - 1..<chain.binders.count, K) }
         chain.constrain(
             K,
-            try classDefinition(try chain.here(.outer(lambda), in: &t), K: try chain.here(K, in: &t), in: &t),
+            try classDefinition(
+                try chain.here(.outer(lambda), in: &t),
+                K: try chain.here(K, in: &t),
+                mode: mode.deeper(chain.binders.count),
+                in: &t,
+            ),
         )
         return K
     }
 
-    private mutating func arguments(
-        _ T: IRType,
-        _ args: [NodeID],
-        _ path: [Int],
-        _ t: inout Table,
-    ) throws -> ([Ref], [Ref]) {
+    private mutating func arguments(_ T: IRType, _ args: [NodeID], _ t: inout Table) throws -> ([Ref], [Ref]) {
         let domains = T.domains
-        let sets = try args.indices.filter { isEntry(domains[$0]) }.map { k in
-            try entry(args[k], domains[k], path + [k], &t)
-        }
-        let classes = try args.indices.filter { !isEntry(domains[$0]) }.map { try nameClass(args[$0], path + [$0], &t) }
+        let sets = try args.indices.filter { isEntry(domains[$0]) }.map { k in try entry(args[k], domains[k], &t) }
+        let classes = try args.indices.filter { !isEntry(domains[$0]) }.map { try nameClass(args[$0], &t) }
         return (sets, classes)
     }
 
-    private mutating func entries(_ args: [NodeID], _ path: [Int], _ t: inout Table) throws -> [Ref] {
-        try args.indices.map { k in
-            guard let T = t.type(of: args[k]) else { throw ReifyError.notATerm(args[k]) }
-            return try entry(args[k], T, path + [k], &t)
+    private mutating func entries(_ args: [NodeID], _ t: inout Table) throws -> [Ref] {
+        try args.map { x in
+            guard let T = t.type(of: x) else { throw ReifyError.notATerm(x) }
+            return try entry(x, T, &t)
         }
     }
 
-    private mutating func entry(_ x: NodeID, _ T: IRType, _ path: [Int], _ t: inout Table) throws -> Ref {
-        guard T == .o else { return try name(x, path, &t) }
-        let start = chain.binders.count
-        let read = try walked(formula: x, in: &t)
+    private mutating func entry(_ x: NodeID, _ T: IRType, _ t: inout Table) throws -> Ref {
+        guard T == .o else { return try name(x, &t) }
+        let read = try formula(x, mode, in: &t)
         let E = bind(.set, .truthSet(x))
         let e = try chain.here(E, in: &t)
         let holding = try t.intern(.folIff(try holds(e, in: &t), try chain.here(.outer(read), in: &t)))
         chain.constrain(E, try t.intern(.folAnd(try truth(e, in: &t), holding)))
-        if path == designated { site = (start..<chain.binders.count, E) }
         return E
     }
 
@@ -273,8 +326,14 @@ struct Naming {
     }
 }
 
-func classDefinition(_ lambda: NodeID, K: NodeID, raw: Bool = false, in t: inout Table) throws -> NodeID {
-    let (outside, inside) = try classBody(lambda, raw: raw, in: &t)
+func classDefinition(
+    _ lambda: NodeID,
+    K: NodeID,
+    raw: Bool = false,
+    mode: Mode = .statement,
+    in t: inout Table,
+) throws -> NodeID {
+    let (outside, inside) = try classBody(lambda, raw: raw, mode: mode, in: &t)
     let k = try shift(K, by: outside, in: &t)
     let application = outside == 1
         ? try t.intern(.folPred(.base("elem"), args: [try t.intern(.isaBound(0, .i)), k]))
@@ -287,7 +346,12 @@ func classDefinition(_ lambda: NodeID, K: NodeID, raw: Bool = false, in t: inout
     return definition
 }
 
-func classBody(_ lambda: NodeID, raw: Bool, in t: inout Table) throws -> (outside: Int, body: NodeID) {
+func classBody(
+    _ lambda: NodeID,
+    raw: Bool,
+    mode: Mode = .statement,
+    in t: inout Table,
+) throws -> (outside: Int, body: NodeID) {
     var n = 0
     var inner = lambda
     while case .isaAbs(let T, let body) = t[inner] {
@@ -301,12 +365,13 @@ func classBody(_ lambda: NodeID, raw: Bool, in t: inout Table) throws -> (outsid
         guard case .isaAbs(_, let b) = t[body] else { throw ReifyError.notAClassArgument(lambda) }
         body = b
     }
+    let below = mode.deeper(outside + n)
     let member: NodeID
     if U == .o {
-        member = raw ? body : try walked(formula: body, in: &t)
+        member = raw ? body : try formula(body, below, in: &t)
     } else {
         let valued = try equation(try t.intern(.isaBound(n, .i)), body, in: &t)
-        member = raw ? valued : try named(atom: t[valued], in: &t)
+        member = raw ? valued : try named(atom: t[valued], mode: below, in: &t)
     }
     let xs = try (0..<n).map { try t.intern(.isaBound(n - 1 - $0, .i)) }
     var inside = try t.intern(.folAnd(try tuple(xs, try t.intern(.isaBound(n + outside - 1, .i)), in: &t), member))
@@ -323,7 +388,9 @@ public struct ReifyProver: Prover {
 
     public func owns(_ l: Lemma) -> Owned? {
         switch l.request {
-        case is Existence, is Uniqueness, is Unfolding: .rule
+        case is Existence, is Uniqueness: .rule
+
+        case is Unfolding: .rule
 
         case let f as ConstantFact:
             switch f.fact {

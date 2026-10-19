@@ -90,6 +90,10 @@ public enum Node: Hashable, Sendable {
     case isaGuard(NodeID, NodeID)
     case isaExIntro(NodeID, NodeID, body: NodeID)
     case isaExElim(IRType, NodeID, body: NodeID)
+    // Isa only, lowering's: a term's value standing in a proof's formula, and the step concluding its fact; Logic binds
+    // both where the term's innermost variable is fixed.
+    case isaValue(NodeID)
+    case isaValueFact(NodeID, NodeID)
 
     // Fol-zfc only: lowering produces these; the reader never does.
     case folNot(NodeID)
@@ -128,7 +132,8 @@ public enum Node: Hashable, Sendable {
              .folAndIntro, .folAndElimL, .folAndElimR, .folOrIntroL, .folOrIntroR, .folOrElim, .folNotIntro,
              .folNotElim,
              .folIffIntro, .folIffElimL, .folIffElimR, .folForallIntro, .folForallElim, .folExistsIntro, .folExistsElim,
-             .folBottomElim, .folClassicalAbsurd, .folSchemaInst, .folLetterAll, .folLetter, .folLetterAbs:
+             .folBottomElim, .folClassicalAbsurd, .folSchemaInst, .folLetterAll, .folLetter, .folLetterAbs, .isaValue,
+             .isaValueFact:
             nil
         }
     }
@@ -205,6 +210,10 @@ public enum Node: Hashable, Sendable {
         case .isaExIntro(let p, let v, let b): .isaExIntro(try f(p, .none), try f(v, .none), body: try f(b, .term))
 
         case .isaExElim(let T, let p, let b): .isaExElim(T, try f(p, .none), body: try f(b, .termAndHyp))
+
+        case .isaValue(let x): .isaValue(try f(x, .none))
+
+        case .isaValueFact(let v, let a): .isaValueFact(try f(v, .none), try f(a, .none))
 
         case .folPred(let n, let xs): .folPred(n, args: try xs.map { try f($0, .none) })
 

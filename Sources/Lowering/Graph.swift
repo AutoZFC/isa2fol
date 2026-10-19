@@ -101,6 +101,10 @@ struct GraphProofs {
         let m = f.type.domains.count - classes.count
         var fr = Frame()
         let ps = classes.map { fr.fix($0) }
+        var guards = [Int: Int]()
+        for (j, D) in classes.enumerated() where isFunctionClass(D) {
+            if let g = try guarded(try fr.variable(ps[j], in: &t), D, in: &t) { guards[ps[j]] = fr.assume(g) }
+        }
         let C = fr.fix(nil)
         let hc = fr.assume(try named(f.constant, C, ps, fr, &t))
         let xs = (0..<m).map { _ in fr.fix(.i) }
@@ -152,7 +156,7 @@ struct GraphProofs {
             let atX = try t.intern(.folImpliesElim(try t.intern(.isaAllElim(everyZ, x)), reflexive))
             return try fr.close(try introduced(try some(fr, &t), at: [x], from: atX, in: &t), in: &t)
         }
-        let (y, value) = try existence(kind, xs, &fr, &t)
+        let (y, value) = try existence(kind, xs, guards, &fr, &t)
         return try fr.close(
             try introduced(try some(fr, &t), at: [y], from: try valued(y, value, fr, &t), in: &t),
             in: &t,
@@ -162,6 +166,7 @@ struct GraphProofs {
     private func existence(
         _ kind: Member,
         _ xs: [Int],
+        _ guards: [Int: Int],
         _ fr: inout Frame,
         _ t: inout Table,
     ) throws -> (NodeID, NodeID) {
@@ -170,12 +175,13 @@ struct GraphProofs {
             let b = try body(fr.scope, try xs.map { try fr.variable($0, in: &t) }, &t)
             let r = try Lowering.existence(of: b, in: &t)
             let c = try closed(b, in: &t)
+            let guardOf = guardsOf(guards, fr)
             let ex = try instantiated(
                 try cited(r, try statement(r, in: &t), &t),
                 at: c.variables,
                 c.types,
-                guards: false,
-                guardOf: isaGuard,
+                guards: true,
+                guardOf: { x, _, t in try guardOf(x, &t) },
                 in: &t,
             )
             let (w, h) = try fr.open(ex, in: &t)
@@ -319,7 +325,6 @@ struct GraphProofs {
             )
 
         case .term, .primReplace:
-            guard let from = t.conclusion(of: source) else { throw TableError.expectedStep(source) }
             var rhs = try graphBody(
                 try eliminated(
                     try graph(f.scope, &t),
@@ -334,16 +339,20 @@ struct GraphProofs {
                 rhs = try instantiate(body, with: try f.variable(x, in: &t), in: &t)
             }
             guard case .folAnd(_, let to) = t[rhs] else { throw GraphError.unexpected("a graph definition's member") }
-            let walk = try Replacement(base: base) { phi, l, r, s, t in
-                guard case .folPred = t[phi], l != r else { return nil }
-                return try congruent(l, r, base, { a, b, t in
-                    for j in xs.indices where try s.variable(xs2[j], in: &t) == a && s.variable(xs[j], in: &t) == b {
-                        return try self.symmetric(try s.proof(projection(j), in: &t), &t)
+            guard let from = t.conclusion(of: source) else { throw TableError.expectedStep(source) }
+            return try Carry { p, target, s, t in
+                guard let have = t.conclusion(of: p) else { throw TableError.expectedStep(p) }
+                let moved = try congruent(have, target, base, { a, b, t in
+                    for j in xs.indices {
+                        let x2 = try s.variable(xs2[j], in: &t)
+                        let x = try s.variable(xs[j], in: &t)
+                        if x2 == a, x == b { return try symmetric(try s.proof(projection(j), in: &t), &t) }
+                        if x == a, x2 == b { return try s.proof(projection(j), in: &t) }
                     }
                     throw GraphError.unexpected("an atom moved at no entry")
                 }, &t)
-            }.proof(from, from, to, in: f.scope, &t)
-            return try t.intern(.folIffElimL(walk, source))
+                return try t.intern(.folIffElimL(moved, p))
+            }.proof(source, from: from, to: to, in: f.scope, &t)
         }
     }
 
@@ -371,48 +380,39 @@ struct GraphProofs {
                 )
             }
             var naming = Naming()
-            _ = try naming.name(b, [], &t)
-            let binders = naming.chain.binders
-            let o1 = try f.open(chain: mr, binders, in: &t)
-            let o2 = try f.open(chain: ms, binders, in: &t)
-            let rv = try f.variable(r, in: &t)
-            let sv = try f.variable(s, in: &t)
-            let request = try uniqueness(of: b, in: &t)
-            let c = try closed(try f.scope.lift(b, from: depth, in: &t), in: &t)
-            var p = try instantiated(
-                try cited(request, try statement(request, in: &t), &t),
-                at: c.variables,
-                c.types,
-                guards: true,
-                guardOf: { x, _, t in try guardOf(x, guards, f, &t) },
-                in: &t,
-            )
-            for o in [o1, o2] {
-                for k in binders.indices {
+            let top = try naming.name(b, &t)
+            let constraints = try naming.chain.stated()
+            var witnesses = [Int]()
+            var hypotheses = [Int]()
+            let terms = TermProofs(base: base)
+            for (j, piece) in naming.pieces.enumerated() {
+                let at = Refs(outer: depth, witnesses: witnesses, frame: f)
+                let guardOf = guardsOf(guards, f)
+                let (w, h) = try f.open(try terms.witness(piece, at, hypotheses, naming.pieces, guardOf, &t), in: &t)
+                let assumed = try f.hypothesis(h, in: &t)
+                guard t.conclusion(of: assumed) == constraints[j]
+                else { throw GraphError.unexpected("a piece's constraint") }
+                witnesses.append(w)
+                hypotheses.append(h)
+            }
+            let value = try Refs(outer: depth, witnesses: witnesses, frame: f).node(top, &t)
+            let opened = f
+            let atPieces = { (m: Fact, t: inout Table) throws -> NodeID in
+                var p = try opened.proof(m, in: &t)
+                for (w, h) in zip(witnesses, hypotheses) {
                     p = try eliminated(
                         p,
-                        at: [try f.variable(o.witnesses[k], in: &t)],
-                        premises: [try f.proof(o.constraints[k], in: &t)],
+                        at: [try opened.variable(w, in: &t)],
+                        premises: [try opened.hypothesis(h, in: &t)],
                         in: &t,
                     )
                 }
+                return p
             }
-            let core = try f.proof(o1.core, in: &t)
-            let core2 = try f.proof(o2.core, in: &t)
-            guard
-                case .folPred(_, let cores)? = t.conclusion(of: core).map({ t[$0] }), cores.count == 2,
-                case .folPred(_, let cores2)? = t.conclusion(of: core2).map({ t[$0] }), cores2.count == 2
-            else { throw GraphError.unexpected("a member's core") }
-            let toValue = try eliminated(
-                try base.cite(.eqTrans, in: &t),
-                at: [rv, cores[1], cores2[1]],
-                premises: [try f.proof(o1.core, in: &t), p],
-                in: &t,
-            )
             return try eliminated(
                 try base.cite(.eqTrans, in: &t),
-                at: [rv, cores2[1], sv],
-                premises: [toValue, try symmetric(try f.proof(o2.core, in: &t), &t)],
+                at: [try f.variable(r, in: &t), value, try f.variable(s, in: &t)],
+                premises: [try atPieces(mr, &t), try symmetric(try atPieces(ms, &t), &t)],
                 in: &t,
             )
 
@@ -560,35 +560,52 @@ struct GraphProofs {
             case .folIff(_, let phi)? = t.conclusion(of: e).map({ t[$0] }),
             case .folIff(_, let phi2)? = t.conclusion(of: e2).map({ t[$0] })
         else { throw GraphError.unexpected("a graph definition") }
-        let walk = try Replacement(base: base) { _, l, r, s, t in
+        let agreeing = Carry { p, target, s, t in
             guard
-                l != r, case .folPred(let p, let ls) = t[l], case .folPred(let p2, let rs) = t[r], p == p2,
-                ls.count == rs.count
-            else { return nil }
+                let have = t.conclusion(of: p), case .folPred(let q, let ls) = t[have],
+                case .folPred(let q2, let rs) = t[target], q == q2, ls.count == rs.count, let k = ls.indices.last,
+                ls.dropLast() == rs.dropLast()
+            else { throw GraphError.unexpected("an atom differing at no class parameter") }
             for j in classes.indices {
                 let P = try s.variable(ps[j], in: &t)
                 let P2 = try s.variable(ps2[j], in: &t)
-                guard let k = ls.indices.last, ls[k] == P, rs[k] == P2, ls.dropLast() == rs.dropLast() else { continue }
-                let given = try s.hypothesis(agrees[j], in: &t)
-                if p == .base("elem") || p == .base("pmem") { return try eliminated(
-                    given,
-                    at: Array(ls.dropLast()),
-                    in: &t,
-                ) }
-                if p == .base("apply") {
-                    let lifted = try eliminated(
+                let forward = ls[k] == P && rs[k] == P2
+                guard forward || ls[k] == P2 && rs[k] == P else { continue }
+                var given = try s.hypothesis(agrees[j], in: &t)
+                if q == .base("apply") {
+                    given = try eliminated(
                         try base.cite(.applyClassCong, in: &t),
                         at: [P, P2],
                         premises: [given],
                         in: &t,
                     )
-                    return try eliminated(lifted, at: Array(ls.dropLast()), in: &t)
+                } else if q != .base("elem"), q != .base("pmem") {
+                    continue
                 }
+                let iff = try eliminated(given, at: Array(ls.dropLast()), in: &t)
+                return try t.intern(forward ? .folIffElimL(iff, p) : .folIffElimR(iff, p))
             }
             throw GraphError.unexpected("an atom differing at no class parameter")
-        }.proof(phi, phi, phi2, in: sub.scope, &t)
-        let toPhi2 = try base.applied(.iffTrans, [try premiseLeft(e, &t), phi, phi2], [e, walk], in: &t)
-        return try fr.close(try sub.close(try iffThrough(toPhi2, e2, base, &t), in: &t), in: &t)
+        }
+        let leftC = try premiseLeft(e, &t)
+        let leftC2 = try premiseLeft(e2, &t)
+        let way = { (from: NodeID, out: NodeID, back: NodeID, source: NodeID, target: NodeID, t: inout Table) throws
+            -> NodeID in
+            var g = Frame(sub.scope)
+            let h = g.assume(from)
+            let inner = try t.intern(.folIffElimL(
+                try lifted(out, from: sub.scope, to: g.scope, in: &t),
+                try g.hypothesis(h, in: &t),
+            ))
+            let carried = try agreeing.proof(inner, from: source, to: target, in: g.scope, &t)
+            return try g.close(
+                try t.intern(.folIffElimR(try lifted(back, from: sub.scope, to: g.scope, in: &t), carried)),
+                in: &t,
+            )
+        }
+        let there = try way(leftC, e, e2, phi, phi2, &t)
+        let back = try way(leftC2, e2, e, phi2, phi, &t)
+        return try fr.close(try sub.close(try t.intern(.folIffIntro(there, back)), in: &t), in: &t)
     }
 
     private func setExistence(_ c: Constant, _ t: inout Table) throws -> NodeID {
@@ -653,5 +670,130 @@ struct GraphProofs {
         guard case .folIff(_, let b)? = t.conclusion(of: p).map({ t[$0] })
         else { throw TableError.principalConnective(p) }
         return b
+    }
+}
+
+/// From `p`, proving `from`, a proof of `to`: two formulas alike but at their atoms, each atom carried by `atom` — one
+/// walk in one direction, each connective by its own introduction and elimination, no subformula restated.
+struct Carry {
+    let atom: (NodeID, NodeID, Scope, inout Table) throws -> NodeID
+
+    func proof(_ p: NodeID, from a: NodeID, to b: NodeID, in s: Scope, _ t: inout Table) throws -> NodeID {
+        if a == b { return p }
+        let up = { (q: NodeID, g: Frame, t: inout Table) throws -> NodeID in
+            try lifted(q, from: s, to: g.scope, in: &t)
+        }
+        switch (t[a], t[b]) {
+        case (.folAnd(let a1, let a2), .folAnd(let b1, let b2)):
+            return try t.intern(.folAndIntro(
+                try proof(try t.intern(.folAndElimL(p)), from: a1, to: b1, in: s, &t),
+                try proof(try t.intern(.folAndElimR(p)), from: a2, to: b2, in: s, &t),
+            ))
+
+        case (.folOr(let a1, let a2), .folOr(let b1, let b2)):
+            var g1 = Frame(s)
+            let h1 = g1.assume(a1)
+            let left = try g1.close(try t.intern(.folOrIntroL(
+                try proof(try g1.hypothesis(h1, in: &t), from: a1, to: b1, in: g1.scope, &t),
+                b2,
+            )), in: &t)
+            var g2 = Frame(s)
+            let h2 = g2.assume(a2)
+            let right = try g2.close(try t.intern(.folOrIntroR(
+                b1,
+                try proof(try g2.hypothesis(h2, in: &t), from: a2, to: b2, in: g2.scope, &t),
+            )), in: &t)
+            return try t.intern(.folOrElim(p, left, right))
+
+        case (.folImplies(let a1, let a2), .folImplies(let b1, let b2)):
+            var g = Frame(s)
+            let h = g.assume(b1)
+            let back = try proof(try g.hypothesis(h, in: &t), from: b1, to: a1, in: g.scope, &t)
+            let applied = try t.intern(.folImpliesElim(try up(p, g, &t), back))
+            return try g.close(try proof(applied, from: a2, to: b2, in: g.scope, &t), in: &t)
+
+        case (.folNot(let a1), .folNot(let b1)):
+            var g = Frame(s)
+            let h = g.assume(b1)
+            let back = try proof(try g.hypothesis(h, in: &t), from: b1, to: a1, in: g.scope, &t)
+            return try t.intern(.folNotIntro(b1, body: try t.intern(.folNotElim(try up(p, g, &t), back))))
+
+        case (.folIff(let a1, let a2), .folIff(let b1, let b2)):
+            let one = { (x: NodeID, y: NodeID, x2: NodeID, y2: NodeID, left: Bool, t: inout Table) throws -> NodeID in
+                var g = Frame(s)
+                let h = g.assume(x2)
+                let back = try proof(try g.hypothesis(h, in: &t), from: x2, to: x, in: g.scope, &t)
+                let lifted = try up(p, g, &t)
+                let q = try t.intern(left ? .folIffElimL(lifted, back) : .folIffElimR(lifted, back))
+                return try g.close(try proof(q, from: y, to: y2, in: g.scope, &t), in: &t)
+            }
+            return try t.intern(.folIffIntro(
+                try one(a1, a2, b1, b2, true, &t),
+                try one(a2, a1, b2, b1, false, &t),
+            ))
+
+        case (.ifolAll(.i, let a1), .ifolAll(.i, let b1)):
+            var g = Frame(s)
+            let x = g.fix(.i)
+            let at = try t.intern(.isaAllElim(try up(p, g, &t), try g.variable(x, in: &t)))
+            return try g.close(try proof(at, from: a1, to: b1, in: g.scope, &t), in: &t)
+
+        case (.folForall(let a1), .folForall(let b1)):
+            var g = Frame(s)
+            let x = g.fix(nil)
+            let at = try t.intern(.folForallElim(try up(p, g, &t), try g.variable(x, in: &t)))
+            return try g.close(try proof(at, from: a1, to: b1, in: g.scope, &t), in: &t)
+
+        case (.ifolEx(.i, let a1), .ifolEx(.i, _)):
+            var g = Frame(s)
+            let (w, h) = try g.open(p, in: &t)
+            let q = try proof(
+                try g.hypothesis(h, in: &t),
+                from: try body(a, s, g, &t),
+                to: try body(b, s, g, &t),
+                in: g.scope,
+                &t,
+            )
+            let shape = try body(b, s, g, &t, under: true)
+            return try g.close(try t.intern(.isaExIntro(q, try g.variable(w, in: &t), body: shape)), in: &t)
+
+        case (.folExists(let a1), .folExists(_)):
+            var g = Frame(s)
+            let (w, h) = try g.open(p, in: &t)
+            let q = try proof(
+                try g.hypothesis(h, in: &t),
+                from: try body(a, s, g, &t),
+                to: try body(b, s, g, &t),
+                in: g.scope,
+                &t,
+            )
+            return try g.close(try t.intern(.folExistsIntro(q, try g.variable(w, in: &t))), in: &t)
+
+        case (.folPred, .folPred):
+            return try atom(p, b, s, &t)
+
+        default:
+            throw GraphError.unexpected("two formulas apart beyond their atoms")
+        }
+    }
+
+    /// The body of `b`, an existential at `s`, at `g`'s scope: its own variable `g`'s last, or kept bound (`under`).
+    private func body(_ b: NodeID, _ s: Scope, _ g: Frame, _ t: inout Table, under: Bool = false) throws -> NodeID {
+        let lifted = try lifted(b, from: s, to: g.scope, in: &t)
+        let inner: NodeID
+        switch t[lifted] {
+        case .ifolEx(.i, let x), .folExists(let x): inner = x
+        default: throw GraphError.unexpected("an existential")
+        }
+        if under { return inner }
+        return try instantiate(inner, with: try g.variable(g.scope.depth - 1, in: &t), in: &t)
+    }
+}
+
+/// The guard hypotheses `guards` of a frame's variables, keyed by level, as `f` holds them.
+private func guardsOf(_ guards: [Int: Int], _ f: Frame) -> (NodeID, inout Table) throws -> NodeID {
+    { x, t in
+        for (level, h) in guards where try f.variable(level, in: &t) == x { return try f.hypothesis(h, in: &t) }
+        throw GraphError.unexpected("the guard of \(x)")
     }
 }

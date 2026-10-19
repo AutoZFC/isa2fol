@@ -1,3 +1,5 @@
+import FolDialect
+import Foundation
 import IR
 import Testing
 @testable import Lowering
@@ -27,7 +29,7 @@ func aLambdasClassDefinitionIsItsBodyAsTheWalkRewritesIt() throws {
     let lambda = try r.lam(i, try r.n(.isaPropAll(body: try r.n(.folImplies(try r.n(.isaPropBound(0)), mem)))))
     let K = try r.n(.folBound(0))
     let stated = try classDefinition(lambda, K: K, in: &r.t)
-    let walkedLambda = try walked(lambda, base: try base(in: &r.t), in: &r.t)
+    let walkedLambda = try formula(lambda, .statement, in: &r.t)
     let fromWalked = try classDefinition(walkedLambda, K: K, in: &r.t)
     #expect(stated == fromWalked)
     #expect(!patterns(under: [stated], in: r.t).contains(.isaPropAll))
@@ -40,7 +42,7 @@ func theFormulaWalkRefusesAStepWhateverItsPiece() throws {
     var r = Terms()
     let mem = try r.n(.isaConst(.primitive(.zf(.mem)), fn(i, fn(i, o)), args: [try r.x(0), try r.x(1)]))
     let h = try r.n(.hyp(0, mem))
-    #expect(throws: LogicError.notAFormula(h)) { _ = try walked(formula: h, in: &r.t) }
+    #expect(throws: LogicError.notAFormula(h)) { _ = try formula(h, .statement, in: &r.t) }
 }
 
 /// `CLASS ⟨λx. x ∈ y⟩`: `∃` by `row_ex`, the tuple's atoms read through `cls_zero`'s and `cls_snoc4`'s classes, `x ∈ y`
@@ -68,7 +70,7 @@ func aFunctionVariablesApplicationIsReadThroughItsApplicationClass() throws {
 }
 
 /// `ZF_Base.Pow_CLASS` and `ZF_Base.Union_CLASS`, from base's definitions: `Pow(A, r)` and `Union(A, r)` read through
-/// `Pow_def` and `Union_def`, a `∀` as `¬∃¬`, `↔` by `B_iff`, `→` as `¬(A ∧ ¬B)`.
+/// `Pow_def` and `Union_def`, a `∀` by `row_all`, `↔` by `B_iff`, `→` by `B_imp`.
 @Test
 func thePrimitivesClassesAreBuiltFromBasesDefinitions() throws {
     var t = Table()
@@ -300,4 +302,76 @@ func aPrimitiveSetConstantsClassIsTheSingletonOfItsValue() throws {
     #expect(unbuilt.isEmpty)
     #expect(Set(proved.map(\.name)).isSuperset(of: ["ZF_Base.zero_CLASS", "ZF_Base.Inf_CLASS"]))
     try kernelChecks(proved, in: &r.t)
+}
+
+private func baseCited(_ proof: NodeID, _ t: Table) -> Set<String> {
+    var found = Set<String>()
+    var seen = Set<NodeID>()
+    var work = [proof]
+    while let id = work.popLast() {
+        guard seen.insert(id).inserted else { continue }
+        if case .use(.base(let name), _, _) = t[id] { found.insert(name) }
+        t[id].forEachChild { c, _ in work.append(c) }
+    }
+    return found
+}
+
+/// The bytes a unit of these claims writes, emitted.
+private func emittedBytes(_ claims: [(name: String, root: NodeID, proof: NodeID)], in t: inout Table) throws -> Int {
+    let fol = Fol(base: try base(in: &t))
+    var statements = [Statement]()
+    for c in claims {
+        let lowered = try fol.run([c.root, c.proof], [], in: &t)
+        statements.append(Statement(name: c.name, root: lowered[0], proof: lowered[1], theory: "Test"))
+    }
+    let dir = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("isa2fol-bytes-\(UUID().uuidString)")
+    defer { try? FileManager.default.removeItem(at: dir) }
+    let repo = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+        .deletingLastPathComponent()
+    let e = try emit(IR.Unit(table: t, statements: statements), to: dir, base: try baseTexts(
+        repo.appendingPathComponent("base")
+    ))
+    return e.parts.map(\.bytes).reduce(0, +)
+}
+
+/// `CLASS ⟨λx. ∀y. y ∈ x ⟶ y ∈ A⟩`: its exactness walked once each way, `∀` by `row_all` and `⟶` by `B_imp` — no
+/// `cong_*`, no `iff_trans`, no conversion restating the formula (DESIGN "Linear proof size", 4).
+@Test
+func aClassesExactnessIsWalkedOnceEachWayStatingNoSubformula() throws {
+    var r = Terms()
+    let mem = { (a: NodeID, b: NodeID, r: inout Terms) throws -> NodeID in
+        try r.n(.isaConst(.primitive(.zf(.mem)), fn(i, fn(i, o)), args: [a, b]))
+    }
+    let inside = try r.n(.folImplies(try mem(try r.x(0), try r.x(1), &r), try mem(try r.x(0), try r.x(2), &r)))
+    let lambda = try r.lam(i, try r.n(.ifolAll(i, body: inside)))
+    let (proved, unbuilt) = try proveAll(try classOf(lambda: lambda, in: &r.t), [], in: &r.t)
+    #expect(unbuilt.isEmpty)
+    #expect(proved.count == 1)
+    let cited = baseCited(proved[0].proof, r.t)
+    #expect(cited.isSuperset(of: ["row_all", "B_imp"]), "\(cited.sorted())")
+    #expect(!cited.contains { $0.hasPrefix("cong_") } && !cited.contains("iff_trans"), "\(cited.sorted())")
+    #expect(cited.isDisjoint(with: ["forall_as_nexists", "imp_as_nand", "snoc_some"]), "\(cited.sorted())")
+    try kernelChecks(proved, in: &r.t)
+}
+
+/// The exactness walk's size against the formula's: `λx. ∀y₁. y₁ ∈ x ⟶ ∀y₂. y₂ ∈ y₁ ⟶ … ⟶ y_n ∈ A`, nested `n` deep,
+/// grows by a bounded amount per level.
+@Test
+func aClassesExactnessGrowsLinearlyWithItsFormula() throws {
+    var sizes = [Int]()
+    for n in [2, 4, 8] {
+        var r = Terms()
+        let mem = { (a: NodeID, b: NodeID, r: inout Terms) throws -> NodeID in
+            try r.n(.isaConst(.primitive(.zf(.mem)), fn(i, fn(i, o)), args: [a, b]))
+        }
+        var body = try mem(try r.x(0), try r.x(n + 1), &r)
+        for _ in 1...n {
+            body = try r.n(.ifolAll(i, body: try r.n(.folImplies(try mem(try r.x(0), try r.x(1), &r), body))))
+        }
+        let (proved, unbuilt) = try proveAll(try classOf(lambda: try r.lam(i, body), in: &r.t), [], in: &r.t)
+        #expect(unbuilt.isEmpty)
+        sizes.append(try emittedBytes(proved, in: &r.t))
+        try kernelChecks(proved, in: &r.t)
+    }
+    #expect(sizes[2] - sizes[1] <= 3 * (sizes[1] - sizes[0]), "\(sizes)")
 }

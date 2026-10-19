@@ -457,21 +457,61 @@ Forced by §1. Not a preference.
 
 **S1 — Terms become variables plus constraints.** The signature has no function
 symbols, so the only terms are variables. `φ(f(x))` renders as
-`∃v.(F(x,v) ∧ φ(v))`. Writing `ι v. F(x,v)` *extends* the target language with a
-term-former; that extension is conservative only where the described object
-provably exists and is unique — i.e. only where S2 is discharged.
+`∀v.(set(v) → F(x,v) → φ(v))`: with EX and UNIQ (S2) `F` has exactly one value at
+`x`, so this is `∃v.(F(x,v) ∧ φ(v))` as well, and the universal form is the one
+written — used at a value it is `forall_elim` and `implies_elim`, which state
+nothing, where the existential's elimination and introduction state what lies
+under them, a chain of k pieces writing about k²/2. A tuple's formula is a naming
+of its pieces and is universal alike. Writing `ι v. F(x,v)` *extends* the target
+language with a term-former; that extension is conservative only where the
+described object provably exists and is unique — i.e. only where S2 is discharged.
 
-**S1 IS PAID WHERE THE TERM STANDS, NEVER WIDER.** `θ(f(x))` is stated with
-`∃r.(F(x,r) ∧ …)` AT THE ATOM where `f(x)` stood. A variable Isabelle binds
-locally stays local, and no statement names a compound term or a λ globally,
-which would close it over its locals and need a fresh name. Isabelle's
-proof treats `f(x)` as opaque and this one treats `r` as opaque, so the
-interiors correspond step for step. Where two forms of one term meet — a
-hypothesis's and a conclusion's, a λ's body unfolded at its argument — EX and
-UNIQ convert between them, and every function has both (S2). Where Isabelle
+**S1 IS PAID WHERE THE TERM STANDS IN A STATEMENT, NEVER WIDER.** `θ(f(x))` is
+stated with `∀r.(F(x,r) → …)` AT THE ATOM where `f(x)` stood. A variable Isabelle
+binds locally stays local, and no statement names a compound term or a λ
+globally, which would close it over its locals and need a fresh name.
+
+**IN A PROOF A TERM IS ITS VALUE.** A term at `i` whose variables the proof has fixed —
+a constant or a function variable applied — is fixed once, as a variable, where the
+last of those variables is fixed: at the
+proof's top for a closed term, after the `fix` of the `⋀` binding its innermost
+variable otherwise, by `exists_elim` over its piece's existence at its arguments'
+values, the piece's fact assumed. Every formula the proof passes between its
+steps holds the value where Isabelle holds the term, and names by S1 only a term
+holding a variable that formula binds itself. Isabelle's kernel treats `f(x)` as
+opaque and the proof treats its value as opaque, so the steps correspond one for
+one: an `AppT` at a compound term is `forall_elim` at its value, an equation
+between terms one between values. A formula meets the proof's values where a
+variable it holds becomes fixed or free — a cited statement at its variables, a
+`⋀` instantiated or concluded, a λ's body at its arguments, the statement at the
+proof's end — and there the terms holding that variable cross between their
+naming and their values by a lemma proved once per formula, closed over its free
+variables as a λ's class is: its premises the values' facts, its proof one walk
+over the formula, eliminating each naming at the value or introducing it and
+relating the two by UNIQ. Its citation states nothing. Where Isabelle
 instantiates at a COMPOUND term — `ZAppt` at `⟨a,b⟩`, which the signature cannot
-name — the recipe is `pair_ex`, `exists_elim` to a variable, instantiate at
-that. It also DELIVERS the R3 guard, the existential carrying `set(·)`.
+name — the value is already fixed: `forall_elim` at it. The value's fact DELIVERS
+the R3 guard.
+
+A constant's or a λ's class, a tuple and a truth set are never values: a class
+equals another only extensionally, so as a value it would owe an agreement at every
+conversion, where a term's value owes only `=`. They stay named, inside the atoms
+and inside the values' facts — `⟦v = t⟧` names `t`'s own application, its arguments
+valued. A term holding a proposition variable holds it as its truth, `holds(E)`, so
+that the value is one whether the variable is read where it stands or reached by
+instantiating a lemma's letter.
+
+> **⚠ THIS PARAGRAPH SAID A TUPLE, A CLASS AND A TRUTH SET ARE VALUES TOO.** A class
+> as a value needs an extensionality lemma per constant and an agreement at every
+> step that moves it; as a piece it needs nothing.
+
+> **⚠ THE PREVIOUS PARAGRAPH SAID S1 IS PAID AT EVERY STEP: each formula a step
+> passed named its terms at their atoms, and a step moving a term — an instance,
+> an equation, a definition's unfolding — opened and closed the naming of each
+> atom holding it.** Isabelle's kernel substitutes and writes nothing, so one of
+> its nodes cost the size of the formulas it touched: measured, a proof holding a
+> compound term wrote 1,000 to 340,000 bytes per Isabelle node where one of logic
+> alone wrote 12 to 50.
 
 > **⚠ THIS PARAGRAPH SAID S1 IS PAID AT THE STATEMENT: `θ(f(x))` STATED AS
 > `∀x r. F(x,r) → θ*(r)`, WITH `r` BOUND UP AT `x`'S BINDER.** That moves a
@@ -871,7 +911,11 @@ carries no arity, since a function is its pairs. Faithful: every single-valued `
 read through `apply` is a total function on sets, and every Isabelle function is
 such a `C`, so `∀C. function(C) → θ*(C)` holds iff `⋀f. θ(f)` does. Every
 application has a value with no guard (`apply_EX`), and only one under it
-(`apply_UNIQ`), both proved once in `base/tiers/metafun`. A constant's application
+(`apply_UNIQ`), both proved once in `base/tiers/metafun`. So a term's existence,
+`∃y. ⟦y = t⟧` with S1's universal naming, holds under the guard of every function
+variable `t` applies — `∃y. ∀v. apply(τ, v, C) → y = v` needs the value unique — and a
+constant's totality under the guards of its function-class parameters, as its
+single-valuedness already does. A constant's application
 stays plain membership, `pmem(t, r, C)`: a constant is total on its tuples by its
 definition, and so is a λ's class (S1).
 
@@ -1038,7 +1082,15 @@ once, at the top, by intersecting with the class of tuples on `k`.
 | `φ ∧ ψ` | intersection — B2 |
 | `¬φ` | complement — B3 |
 | `∃y. φ` | `y` came into scope last, so its index is `k`: `{a : ∃v. a ∪ {⟨k,v⟩} ∈ C_φ}`. It removes the LARGEST index, always — one fact, `(k+1) ∖ {k} = k`, covers every removal |
+| `∀y. φ` | `{a : ∀v. a ∪ {⟨k,v⟩} ∈ C_φ}` — complement, `∃`, complement, stated as a row of its own |
+| `φ → ψ` | `{a : a ∈ C_φ → a ∈ C_ψ}` — from B2 and B3, stated as a row of its own |
 | the domain | `{a : tuple(a,k)}`, intersected once |
+
+**`∀` and `→` have rows of their own** (decided 2026-10-19), though B2, B3 and `∃`
+give both: S1's naming is universal, so every named term is a `∀` and a `→`, and a
+row reading the connective directly makes a formula's exactness at a record one
+walk per direction, each row used at the record as it stands, no subformula
+restated.
 
 > **⚠ THIS TABLE PUT `dom(a) = k` IN EVERY ROW AND BUILT THE GRAPH ATOM AS
 > `⟨a∘ι, a(j)⟩ ∈ G`**, the assignment composed with an index map. A row exact over
@@ -1285,13 +1337,14 @@ specialisation at `kpair`.
 |---|---|
 | `AbsP` / `AppP` | `implies_intro` / `implies_elim` — one for one |
 | `AbsT` / `AppT` at a VARIABLE | `forall_intro` / `forall_elim`, **plus the R3 guard step** |
-| `AppT` at a compound term | the instance at the term's value — its EX's own value piece — then each atom holding it converted once: closed with the term's pieces at every occurrence where the atom is positive, opened by the term's UNIQ where negative, both under `↔` |
-| `AppT` at a λ, a class type | `forall_elim` at the λ's class at its arguments — proved once per λ — then β: at each atom, the class's against the body's, EX and UNIQ where the argument is compound (S1); at `iⁿ ⇒ i` the guard by the class's own `function` (S5) |
+| `AppT` at a compound term | `forall_elim` at the term's value, fixed once in the proof (S1); the terms the instance fixes meet their values by the instantiated formula's lemma |
+| `AppT` at a λ, a class type | `forall_elim` at the λ's class, a value fixed once in the proof (S1), then the instantiated formula's lemma, proved once per formula and λ: β at each atom the class stands in, the λ's body meeting the values at its arguments; at `iⁿ ⇒ i` the guard by the class's own `function` (S5) |
 | `Thm` | `use` |
 | Pure's `reflexive`, `symmetric`, `transitive` at a function type whose arguments are objects or propositions | the value type's — `iff_*` at `o`, `eq_*` at `i` — under the pointwise binders, a truth-set binder at a proposition |
-| Pure's `reflexive`, `symmetric`, `transitive` at `i`, and `combination` at an object argument | on the premises' values: their namings opened, the values chained by base's `eq_*` — a term named in both premises by its UNIQ — and the conclusion's naming closed with the premises' own pieces; no law instantiated at a compound term |
+| Pure's `reflexive`, `symmetric`, `transitive` at `i` | base's `eq_*` at the values (S1) |
+| Pure's `combination` at an object argument | the premise at the argument's value, then the argument's equation substituted by the formula's Leibniz lemma, proved once per formula |
 | Pure's `abstract_rule` | its premise: `⋀x. f x ≡ g x` and `f ≡ g` are one formula |
-| Pure's `combination` | the premise at the argument, then the argument's equation substituted into the function by the formula recursion, membership's congruence at its atoms; at a proposition, the premise's truth instance, then β |
+| Pure's `combination` | the premise at the argument, then the argument's equation substituted into the function by the formula's Leibniz lemma, membership's congruence at its atoms; at a proposition, the premise's truth instance, then the equivalence substituted by the formula's Leibniz lemma for a letter, `(P ↔ Q) → ψ(P) → ψ(Q)`; at a class, the premise at the λ's class and β, the two λs' classes having the same members by their definitions and the premise `a ≡ b`, the formula's Leibniz lemma for a class, `(∀z. z ∈ K ↔ z ∈ L) → ψ(K) → ψ(L)` — at a function class the same pairs, `∀t r. ⟨t, r⟩ ∈ K ↔ ⟨t, r⟩ ∈ L`, carrying `apply` too — then β at the other λ |
 | `Thm` of a theorem polymorphic in a type no class restricts, at a type binding no proposition on its spine | its proof at that type, in place: the target has no type |
 | `Thm` of a theorem polymorphic in a type no class restricts, at a type binding a proposition on its spine | its instance there, a schema of the unit named by its proof's content; `schema_inst` at the citation |
 | an application of a logical rule (`conjI`, `mp`, `spec`, `exE`, …) | the kernel's OWN step at its premises; never translated (S4) |

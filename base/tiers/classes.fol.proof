@@ -2404,6 +2404,88 @@ proof row_ex:
     _h122 = forall_intro _h121
     qed _h122
 
+proof row_all:
+    fix k
+    _h1 = assume set(k)
+    fix A
+    _b3 = use B3
+    _re = use row_ex
+    _x1 = forall_elim _b3, A
+    _e1 = exists_elim _x1, NA
+    _x2 = forall_elim _re, k
+    _x3 = implies_elim _x2, _h1
+    _x4 = forall_elim _x3, NA
+    _e2 = exists_elim _x4, E
+    _x5 = forall_elim _b3, E
+    _e3 = exists_elim _x5, C
+    fix a
+    _sa = assume set(a)
+    _y1 = forall_elim _e2, a
+    _pe = implies_elim _y1, _sa
+    _y2 = forall_elim _e3, a
+    _pc = implies_elim _y2, _sa
+    _f0 = assume elem(a,C)
+    _f1 = iff_elim_l _pc, _f0
+    fix v
+    _sv = assume set(v)
+    fix b
+    _sb = assume set(b)
+    _sn = assume snoc(a,k,v,b)
+    _f2 = assume (~ elem(b,A))
+    _y3 = forall_elim _e1, b
+    _pn = implies_elim _y3, _sb
+    _f3 = iff_elim_r _pn, _f2
+    _f4 = and_intro _sn, _f3
+    _f5 = and_intro _sb, _f4
+    _f6 = exists_intro _f5, b
+    _f7 = and_intro _sv, _f6
+    _f8 = exists_intro _f7, v
+    _f9 = iff_elim_r _pe, _f8
+    _f10 = not_elim _f1, _f9
+    _f11 = not_intro _f10
+    _f12 = double_neg_elim _f11
+    _f13 = implies_intro _f12
+    _f14 = implies_intro _f13
+    _f15 = forall_intro _f14
+    _f16 = implies_intro _f15
+    _f17 = forall_intro _f16
+    _fwd = implies_intro _f17
+    _k0 = assume (forall v. (set(v) -> (forall b. (set(b) -> (snoc(a,k,v,b) -> elem(b,A))))))
+    _k1 = assume elem(a,E)
+    _k2 = iff_elim_l _pe, _k1
+    _k3 = exists_elim _k2, v0
+    _k4 = and_elim_l _k3
+    _k5 = and_elim_r _k3
+    _k6 = exists_elim _k5, b0
+    _k7 = and_elim_l _k6
+    _k8 = and_elim_r _k6
+    _k9 = and_elim_l _k8
+    _k10 = and_elim_r _k8
+    _k11 = forall_elim _k0, v0
+    _k12 = implies_elim _k11, _k4
+    _k13 = forall_elim _k12, b0
+    _k14 = implies_elim _k13, _k7
+    _k15 = implies_elim _k14, _k9
+    _k16 = forall_elim _e1, b0
+    _k17 = implies_elim _k16, _k7
+    _k18 = iff_elim_l _k17, _k10
+    _k19 = not_elim _k18, _k15
+    _k20 = exists_intro _k19
+    _k21 = exists_intro _k20
+    _k22 = not_intro _k21
+    _k23 = iff_elim_r _pc, _k22
+    _bwd = implies_intro _k23
+    _iff = iff_intro _fwd, _bwd
+    _imp = implies_intro _iff
+    _all = forall_intro _imp
+    _z1 = exists_intro _all
+    _z2 = exists_intro _z1
+    _z3 = exists_intro _z2
+    _z4 = forall_intro _z3
+    _z5 = implies_intro _z4
+    _z6 = forall_intro _z5
+    qed _z6
+
 proof g5_tm:
     _h1 = use tmem_def
     _h2 = use pmem_def

@@ -54,6 +54,8 @@ claim row_eq: (forall i. (set(i) -> (forall j. (set(j) -> (exists C. (forall a. 
 claim row_class: (forall i. (set(i) -> (forall Y. (exists C. (forall a. (set(a) -> (elem(a,C) <-> (exists u. (set(u) & (pmem(i,u,a) & elem(u,Y)))))))))))
 claim row_class2: (forall i. (set(i) -> (forall j. (set(j) -> (forall G. (exists C. (forall a. (set(a) -> (elem(a,C) <-> (exists u. (set(u) & (pmem(i,u,a) & (exists v. (set(v) & (pmem(j,v,a) & pmem(u,v,G))))))))))))))))
 claim row_ex: (forall k. (set(k) -> (forall A. (exists C. (forall a. (set(a) -> (elem(a,C) <-> (exists v. (set(v) & (exists b. (set(b) & (snoc(a,k,v,b) & elem(b,A)))))))))))))
+# forall y, a row of its own: complement, row_ex, complement, read directly (S1's naming is universal).
+claim row_all: (forall k. (set(k) -> (forall A. (exists C. (forall a. (set(a) -> (elem(a,C) <-> (forall v. (set(v) -> (forall b. (set(b) -> (snoc(a,k,v,b) -> elem(b,A)))))))))))))
 claim tuples_class: (forall k. (set(k) -> (exists C. (forall a. (set(a) -> (elem(a,C) <-> tuple(a,k)))))))
 
 # Helpers, proved in this tier.

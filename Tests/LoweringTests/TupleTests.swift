@@ -12,7 +12,9 @@ func eachTupleFactIsProvedAtEveryArity() throws {
     let prover = TupleProver(base: base)
     var claims = [(name: String, root: NodeID, proof: NodeID)]()
     for n in 0...3 {
-        for fact in [TupleFact.Fact.existence, .uniqueness, .injectivity] where n > 0 || fact != .injectivity {
+        for fact in [TupleFact.Fact.existence, .uniqueness, .injectivity, .congruence]
+            where n > 0 || fact != .injectivity
+        {
             let f = TupleFact(arity: n, fact: fact)
             let root = try statement(f, in: &t)
             guard case .proof(let proof) = try prover.prove(Lemma(f), root, [], [:], in: &t) else {

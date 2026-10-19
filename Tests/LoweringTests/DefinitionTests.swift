@@ -183,3 +183,35 @@ func aDefinitionTakingTwoClassesIsItsUnfoldingLemma() throws {
     let unit = try lowered(l, [Statement(name: "T.two_def", root: stated, proof: proof, theory: "Test")], [two])
     try checked(unit, holding: ["T.two_def", "T.two_UNFOLD"])
 }
+
+/// `T.cmp ≡ λF A. ∀x. x ∈ A ⟶ F(Pow(x)) ∈ A` at its terms `λy. G(y)` and `B`, as `measure_def` applies `f` to `fst(p)`:
+/// `Pow(x)` holds the formula's own `x`, so β reads `F`'s application at its name, in the unfolding's read-back and in
+/// the instance at `G` (DESIGN "Linear proof size", 5).
+@Test
+func aDefinitionApplyingItsFunctionToACompoundArgumentIsItsUnfoldingAtItsTerms() throws {
+    var l = LogicTable()
+    let F = fn(i, i)
+    let type = fn(F, fn(i, o))
+    let x = try l.bound(0, i)
+    let body = { (f: NodeID, a: NodeID, l: inout LogicTable) throws -> NodeID in
+        try l.all(i, try l.imp(try l.mem(x, a), try l.mem(try applied(f, try pow(x, &l), &l), a)))
+    }
+    let cmp = try l.definition(
+        Defined(.zf, "T.cmp", .object),
+        type,
+        parameters: 2,
+        try l.lam(F, try l.lam(i, try body(try l.bound(2, F), try l.bound(1, i), &l))),
+    )
+    let eta = { (k: Int, l: inout LogicTable) throws -> NodeID in
+        try l.lam(i, try applied(try l.bound(k + 1, F), try l.bound(0, i), &l))
+    }
+    let atom = try l.const(.defined(cmp.constant), type, try eta(1, &l), try l.bound(0, i))
+    let pointwise = try l.equal(o, atom, try body(try l.bound(2, F), try l.bound(1, i), &l))
+    let stated = try l.all(F, try l.all(i, pointwise))
+    let proof = try l.t.intern(.isaAllIntro(F, body: try l.t.intern(.isaAllIntro(
+        i,
+        body: try cited(cmp, stated, [try eta(1, &l), try l.bound(0, i)], &l),
+    ))))
+    let unit = try lowered(l, [Statement(name: "T.cmp_def", root: stated, proof: proof, theory: "Test")], [cmp])
+    try checked(unit, holding: ["T.cmp_def", "T.cmp_UNFOLD"])
+}
