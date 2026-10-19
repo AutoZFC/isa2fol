@@ -33,6 +33,13 @@ func misscoped(_ proof: NodeID, in t: Table) throws -> [NodeID] {
         case .folClassicalAbsurd(let a, let body):
             try walk(body, assumed + [Assumed(formula: try t.intern(.folNot(a)), depth: depth)], depth, &t)
 
+        case .folCut(let p, let body):
+            try walk(p, assumed, depth, &t)
+            guard let c = t.conclusion(of: p) else { wrong.append(id)
+                return
+            }
+            try walk(body, assumed + [Assumed(formula: c, depth: depth)], depth, &t)
+
         case .isaExElim(_, let p, let body), .folExistsElim(let p, let body):
             try walk(p, assumed, depth, &t)
             guard let c = t.conclusion(of: p) else { wrong.append(id)

@@ -179,7 +179,7 @@ struct Frame {
 
     mutating func have(_ p: NodeID, in t: inout Table) throws -> Int {
         guard let c = t.conclusion(of: p) else { throw TableError.expectedStep(p) }
-        steps.append(.cut(c, p))
+        steps.append(.cut(p))
         return scope.assume(c)
     }
 
@@ -250,10 +250,7 @@ struct Frame {
                     ? .isaExElim(.i, p, body: proof)
                     : .folExistsElim(p, body: proof))
 
-            case .cut(let c, let p): proof = try t.intern(.folImpliesElim(
-                    try t.intern(.folImpliesIntro(c, body: proof)),
-                    p,
-                ))
+            case .cut(let p): proof = try t.intern(.folCut(p, body: proof))
             }
         }
         return proof
@@ -263,7 +260,7 @@ struct Frame {
         case forall(IRType?)
         case implies(NodeID)
         case exists(Binder, NodeID)
-        case cut(NodeID, NodeID)
+        case cut(NodeID)
     }
 
     private var steps = [Step]()

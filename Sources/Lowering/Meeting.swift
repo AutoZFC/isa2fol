@@ -558,7 +558,7 @@ struct Meet {
              .folOrIntroL, .folOrIntroR, .folOrElim, .folBottomElim, .isaGuard, .isaExIntro, .isaExElim, .folNot,
              .folBound, .folForall, .folExists, .folNotIntro, .folNotElim, .folIffElimR, .folForallIntro,
              .folForallElim,
-             .folExistsIntro, .folExistsElim, .folClassicalAbsurd, .folSchemaInst, .folLetterAll, .folLetter,
+             .folExistsIntro, .folExistsElim, .folCut, .folClassicalAbsurd, .folSchemaInst, .folLetterAll, .folLetter,
              .folLetterAbs, .isaValue, .isaValueFact:
             throw MeetingError.unmet(phi)
         }

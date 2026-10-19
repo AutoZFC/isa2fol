@@ -1,6 +1,6 @@
 # STATE — isa2fol
-HEAD "Class existence at a few steps a node: a tuple one atom, TUPLE_ROW_n; a level one fact, snoc_facts" (parent
-"Linear proof size: …") · primitives · 2026-10-19.  RUN §0 BEFORE TRUSTING ANY LINE BELOW.
+HEAD "A fact derived once, cited by name: a cut is a step, folCut; an exists-elim at i opens its two facts by cuts"
+(parent "Class existence at a few steps a node: …") · primitives · 2026-10-19.  RUN §0 BEFORE TRUSTING ANY LINE BELOW.
 
 ## 0. Staleness checks
 `$ZF` is `--skip ZF-AC,ZF-Coind,ZF-Constructible,ZF-IMP,ZF-Induct,ZF-Resid,ZF-ex`: every run is the ZF session alone
@@ -9,16 +9,16 @@ until it is fully translated (user). Lint before every run: `pre-commit run --al
 | command | expect |
 |---|---|
 | `git branch --show-current` | `primitives` |
-| `git log -2 --format=%s` | `Class existence at a few steps a node: …`, `Linear proof size: …` |
+| `git log -2 --format=%s` | `A fact derived once, cited by name: …`, `Class existence at a few steps a node: …` |
 | `git status --short \| wc -l` | `0` |
 | `git rev-parse --short kinds-proposal` | `21ca100f` |
-| `find Sources -name '*.swift' -exec cat {} + \| grep -cv '^\s*$'` | `16727` |
+| `find Sources -name '*.swift' -exec cat {} + \| grep -cv '^\s*$'` | `16740` |
 | `git -C ~/repos/fol-zfc-comb log -1 --format=%h` | `224d60e` (branch `libraries-and-streaming`) |
 | `grep -c '^axiom ' base/axioms.fol.def` | `18` — NBG with Regularity, and `elem_first_subst`; Choice unstated; the tiers admit none |
 | `pre-commit run --all-files` | `SwiftFormat ... Passed`, `SwiftLint ... Passed` |
-| `MEM=48G scripts/capped.sh swift test 2>&1 \| grep "Test run with"` | 14, 141, 121, 43 passed; Lowering 152 with 2 failing: `infinityReadsSuccByTheTheoremStatingItsMembers`, `anInstanceAtACompoundArgumentIsBetaAtItsValue` |
+| `MEM=48G scripts/capped.sh swift test 2>&1 \| grep "Test run with"` | 14, 141, 121, 44 passed; Lowering 152 with 2 failing: `infinityReadsSuccByTheTheoremStatingItsMembers`, `anInstanceAtACompoundArgumentIsBetaAtItsValue` |
 | `MEM=16G scripts/capped.sh scripts/check-base.sh` | 14 tiers, each `exit 0  stderr 0`; `tuples` Proved 27 of 27, `zf` 22 of 22 |
-| `swift build -c release`, then `MEM=80G scripts/capped.sh .build/release/isa2fol lower data/zf_export $ZF --emit DIR --threads 16` (13:48, 45.8 GB peak), then `MEM=32G scripts/capped.sh scripts/check-unit.sh DIR` | `lowered … 369`; `refused, named: 3247`: no owner 7, `logic, unbuilt: 1` (`AC.AC`), `cites a refused statement: 3239`, led by `ZF_Base.BOX_fe88880df9563825` 595, `FOL.int_ex_simps.2` 296; 35 parts, every one `exit 0  stderr 0`; claims 7969 of 7969, schemas 568 of 568; 272,542,148 bytes; `steps by kind` all 5,166,635 written |
+| `swift build -c release`, then `MEM=80G scripts/capped.sh .build/release/isa2fol lower data/zf_export $ZF --emit DIR --threads 16` (13:44, 45.8 GB peak), then `MEM=32G scripts/capped.sh scripts/check-unit.sh DIR` | `lowered … 369`; `refused, named: 3247`: no owner 7, `logic, unbuilt: 1` (`AC.AC`), `cites a refused statement: 3239`, led by `ZF_Base.BOX_fe88880df9563825` 595, `FOL.int_ex_simps.2` 296; 35 parts, every one `exit 0  stderr 0`; claims 7969 of 7969, schemas 568 of 568; 219,249,956 bytes; `steps by kind` all 4,264,966 written |
 If any row disagrees, THIS FILE IS STALE. Trust the code and fix this file first.
 
 ## 1. Where
@@ -26,8 +26,10 @@ If any row disagrees, THIS FILE IS STALE. Trust the code and fix this file first
 `bazel build -c opt`. `kinds-proposal` (`21ca100f`) is the REFERENCE.
 
 ## 2. Read these first-hand
-- `DESIGN.md` "Class existence at a few steps a node — a tuple one atom, a level one fact": decisions 1–2, Built,
-  Measured, and the paragraph naming the next decisions.
+- `DESIGN.md` "A fact derived once, cited by name — a cut, and an `∃`-elim at `i`": decisions 1–2, Built, Measured;
+  and "Class existence at a few steps a node", whose Measured names the next decisions.
+- `Sources/FolDialect/Render.swift` — `folCut`: `p`'s step, the body's hypothesis bound to its name.
+  `Sources/Lowering/Fol.swift` — the `∃`-elim at `i`, two cuts of its instance's projections.
 - `Sources/Lowering/Comprehension.swift` — `Raw` (a class body by its parts, or a formula as written), `built` and
   `tupled` (a tuple one `.tuple` atom, `TUPLE_ROW` at its entries' positions and the record's length), `Numerals`
   (`first`; no zero at symbolic positions), `Reading.extend` (`snoc_facts`, one cut), `tupleRead`.
@@ -44,6 +46,7 @@ If any row disagrees, THIS FILE IS STALE. Trust the code and fix this file first
 | a proof's formulas hold values, linear in Isabelle's steps | `ProofSizeTests` |
 | a tuple the class prover builds is one atom, read by `TUPLE_ROW_n`; no `cls_zero`, `cls_nsucc`, `cls_snoc4`, `read4` in a λ's class | `theIdentityClassReadsItsArgumentTupleByItsRow`, `aNamingsTupleIsReadByItsRow` |
 | `TUPLE_ROW_0`–`_2` kernel-checked | `theTupleFormulaIsOneRowOverRecordPositions` |
+| a cut is its proof's step, the body citing it, no `assume`; the kernel proves a cut and an `∃`-elim at `i` written so | `aCutIsWrittenAsItsProofsStepTheBodyCitingIt`; `theRealCheckerProvesWhatEmissionWrites` (`p_cut`, `p_exists_cut`) |
 | a ZF axiom cited is its lemma, proved from base's statement in the translator's words | `AxiomTests` (`replacementIsReadFromBasesStatement`) |
 | emission cites a step only inside the block that wrote it | `aStepWrittenInAClosedBlockIsDerivedAgain` |
 | every build, test, checker and lowering run is capped; lint before every run | `scripts/capped.sh`; `pre-commit run --all-files` |
@@ -67,19 +70,20 @@ If any row disagrees, THIS FILE IS STALE. Trust the code and fix this file first
 | claim | verified by |
 |---|---|
 | ZF (3,616 named): 369 lowered, the same set as before the step; 240 of them `X_def` | §0's complete run; its parts' `claim`/`schema` names diffed |
-| the unit: 7,969 claims (5 `TUPLE_ROW_n`), 568 schemas, 272.5 MB; class existence 67% of 5.17M steps | §0's complete run, its `steps by kind` |
-| `CLASS ⟨λx. x⟩` 365 steps; λ classes 123 steps a statement binder, growing as binders^1.35 | `theIdentityClassReadsItsArgumentTupleByItsRow`; the emitted `CLASS_*` proofs against their statements |
+| the unit: 7,969 claims (5 `TUPLE_ROW_n`), 568 schemas, 219.2 MB; class existence 65% of 4.26M steps | §0's complete run, its `steps by kind` |
+| `CLASS ⟨λx. x⟩` 284 steps | `theIdentityClassReadsItsArgumentTupleByItsRow` |
+| 342 cuts written as an implication remain, Isabelle's own redexes read as written | the emitted parts: an `implies_elim` whose first step is an `implies_intro` |
 | `infinity` and `λx. x = x` (a body naming its argument twice) refused unbuilt | the two failing tests of §0 |
-| comments 261/16727 = 1.6% of `Sources` | `CLAUDE.md` rule 9's script |
+| comments 261/16740 = 1.6% of `Sources` | `CLAUDE.md` rule 9's script |
 
 ## 5. Beliefs — NOT verified
-- Of the class lemmas' 3.55M steps, cuts and `∃`-elims (`assume`, `implies_intro`, assumptions used) are about 47%: an
-  attribution by each step's head, not by the walk's structure.
-- The memory peak is the table (119.1M nodes); not profiled.
+- Of the class lemmas' 2.83M steps, a record's bookkeeping — `snoc_facts`, its projections, the entries carried — is
+  38.6%: an attribution by each step's head, not by the walk's structure.
+- Emission took 167.7 s against 84.2 s the run before, the wall time the same: one run each, not traced.
+- The memory peak is the table (117.4M nodes); not profiled.
 
 ## 6. Open decisions
-- **The next size step**: Fol's `∃`-elim at `i` (about 10 steps each), the cuts the walk writes, the carrying of entries
-  per level, what the two walks repeat — which first, from DESIGN's numbers.
+- **The next size step**: a record's bookkeeping — the entries carried at each level, what the two walks repeat.
 - **Memory**: the complete run is above the CI's 32 GB.
 - **The two unit tests HEAD fails**: `infinity` needs `c_UNFOLD` at `Inf`; `λx. x = x` needs β to meet a body naming
   its argument twice.

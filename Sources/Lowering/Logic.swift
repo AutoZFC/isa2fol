@@ -185,7 +185,7 @@ private func piece(_ p: Pattern) -> Piece? {
          .folBound, .folPred,
          .folForall, .folExists, .folAndIntro, .folAndElimL, .folAndElimR, .folOrIntroL, .folOrIntroR, .folOrElim,
          .folNotIntro, .folNotElim, .folIffIntro, .folIffElimL, .folIffElimR, .folForallIntro, .folForallElim,
-         .folExistsIntro, .folExistsElim, .folBottomElim, .folClassicalAbsurd, .folSchemaInst, .folLetterAll,
+         .folExistsIntro, .folExistsElim, .folCut, .folBottomElim, .folClassicalAbsurd, .folSchemaInst, .folLetterAll,
          .folLetter,
          .folLetterAbs, .isaValue, .isaValueFact:
         return nil
@@ -505,8 +505,7 @@ struct Instances {
         var proof = body
         if own != assumed {
             let moved = try met(try t.intern(.hyp(0, own)), psi, moving: .variables([0]), toValues: true, in: &t)
-            let under = try t.intern(.folImpliesIntro(assumed, body: try transform(body, Inserting(), in: &t)))
-            proof = try t.intern(.folImpliesElim(under, moved))
+            proof = try t.intern(.folCut(moved, body: try transform(body, Inserting(), in: &t)))
         }
         let bound = try fixing(try scoped(proof, closed: false, in: &t), in: proof, by: .existence(base), in: &t)
         return try t.intern(.isaExElim(T, p, body: bound))
@@ -591,7 +590,7 @@ private func hiddenProposition(_ body: NodeID, _ base: Base, in t: inout Table) 
             try t.intern(.folBound(0)),
         )),
     ))
-    return try t.intern(.folImpliesElim(try t.intern(.folImpliesIntro(stated, body: opened)), general))
+    return try t.intern(.folCut(general, body: opened))
 }
 
 /// ⚠ BUILT CLOSED OVER `h`'S STATEMENT AND APPLIED TO `h`: built around `h` itself, a proof holding hypotheses would be
@@ -607,8 +606,7 @@ private func reductio(_ a: NodeID, _ h: NodeID, in t: inout Table) throws -> Nod
         try t.intern(.hyp(0, notA)),
         try t.intern(.folImpliesElim(try t.intern(.hyp(1, premise)), refuted)),
     ))
-    let closed = try t.intern(.folImpliesIntro(premise, body: try t.intern(.folClassicalAbsurd(a, body: absurd))))
-    return try t.intern(.folImpliesElim(closed, h))
+    return try t.intern(.folCut(h, body: try t.intern(.folClassicalAbsurd(a, body: absurd))))
 }
 
 private func sidesAtI(_ id: NodeID, _ t: Table) throws -> [NodeID] {

@@ -5929,6 +5929,112 @@ and `snoc_facts`, never `cls_zero`, `cls_nsucc`, `cls_snoc4` or `read4`, its ste
 `f` a function variable, its naming's `⟨x, x⟩` read by `TUPLE_ROW_2`, an entry twice. The ZF session: the complete run,
 emitted and kernel-checked, the class lemmas' steps against this section's, and no named theorem lost.
 
+### A fact derived once, cited by name — a cut, and an `∃`-elim at `i`  **[BUILT 2026-10-19 — `folCut` in `Sources/IR`, written by `Render.swift`; `Frame.have`, `Fol.swift`, `Logic.swift`]**
+
+**The step.** After "Class existence at a few steps a node", the unit writes 5.17M steps; class existence 67% of them.
+What a level costs beyond its rows and its fact is two constructions, counted in the emitted unit: 218,012 cuts — an
+`implies_elim` whose implication is an `implies_intro` — 185,956 of them in class lemmas, and 71,110 `∃`-elims at `i`,
+42,472 in class lemmas. `CLASS ⟨λx. x⟩`'s 365 steps hold nine cuts and eight `∃`-elims at `i`.
+
+**The problem, in target text.** A record's facts, `snoc_facts` at its extension, cited by the reads below it
+(`CLASS ⟨λx. x⟩`):
+```
+_62  = assume (tuple(f12, f2) & (pmem(f1, f10, f12) & (forall b13. forall b14. (pmem(b13, b14, f11) -> pmem(b13, b14, f12)))))
+       … the reads at the record f12, citing _62 …
+_284 = implies_intro _283
+_285 = use snoc_facts
+       …                                    snoc_facts at f11, f1, f2, f10, f12 and its premises
+_297 = implies_elim _296, _60
+_298 = implies_elim _284, _297
+```
+A numeral, `nsucc_EX` opened, its guard and its body each assumed, then discharged:
+```
+_8   = exists_elim _7, f1                   set(f1) & nsucc(f0, f1)
+_9   = assume set(f1)
+_10  = assume nsucc(f0, f1)
+       … the proof, citing _9 and _10 …
+_343 = implies_intro _342
+_344 = implies_intro _343
+_345 = and_elim_l _8
+_346 = implies_elim _344, _345
+_347 = and_elim_r _8
+_348 = implies_elim _346, _347
+_349 = exists_intro _348
+```
+
+**The root cause: the IR has no cut.** A fact derived once and cited by name below — what `Frame.have` makes — can only
+be an implication introduced and eliminated at once: `assume A` (its formula restated), the body, `implies_intro`, `A`'s
+proof, `implies_elim`; three steps and a formula for a name the checker gives every step already. Fol's `∃`-elim at `i`
+is two of them: fol-zfc's `∃` at `i` is `∃x. set(x) ∧ φ`, the body cites the guard and `φ` as hypotheses, so Fol
+assumes each and discharges it by a projection of the instance — 10 steps where the instance and its two projections
+are 4.
+
+**Decisions (AGREED, BUILT):**
+
+1. **A cut is a typed proof node, `folCut(p, body)`.** **AGREED 2026-10-19 (user).** The body's hypothesis 0 is `p`'s
+   conclusion, and the node concludes the body's conclusion. Written as `p`'s step and the body, citing that step's
+   name — no assumption, no discharge, no formula restated; the checker opens no scope for it. `Frame.have`, Fol's
+   `∃`-elim and Logic's cuts build it; an implication Isabelle's proof introduces and eliminates is read as written.
+   ```
+   before   assume A, the body citing it, implies_intro, A's proof, implies_elim
+   after    A's proof, the body citing its last step
+   ```
+2. **An `∃`-elim at `i` opens its instance's two facts by two cuts.** **AGREED 2026-10-19 (user).** `folExistsElim(p′,
+   folCut(and_elim_l(h), folCut(and_elim_r(h), body′)))`, `h` the instance, `set(x) ∧ φ`; the body cites the guard and
+   `φ` by name, as now, its hypotheses the same three in the same order.
+   ```
+   before   exists_elim, assume set(x), assume φ, …, implies_intro ×2, and_elim_l, implies_elim, and_elim_r, implies_elim, exists_intro
+   after    exists_elim, and_elim_l, and_elim_r, …, exists_intro
+   ```
+
+Rejected: the instance's projections cited at each use, with no cut. A projection is a node over the instance's
+hypothesis index, so at each depth it is another node, and the writer derives it again in every block that cites it —
+a record's guard is cited at every read at that record. Rejected too: the writer reading an `implies_elim` of an
+`implies_intro` as a cut. The cut is Lowering's, crossing to the writer: a typed value its owner builds, never a shape
+recognized (I1).
+
+Estimated before the build: three steps a cut and six an `∃`-elim at `i`, about 0.87M of 5.17M steps (a sixth), more
+in bytes — an `assume` restates its formula; `CLASS ⟨λx. x⟩` 365 to about 290.
+
+**Built.** `Node.folCut(p, body:)`, fol-zfc only, its body binding one hypothesis (`mapChildren`, `.hyp`); the table
+concludes the body's conclusion; legalize reads its children off the spine, as the implication it replaces. The writer
+writes `p`'s step and binds the body's hypothesis 0 to that step's name, in a block of its memo; a cut writes no line of
+its own. `Frame.have` closes as a cut; Fol's `∃`-elim at `i` writes `folExistsElim(p′, folCut(and_elim_l(h),
+folCut(and_elim_r(h), body′)))`; Logic's three cuts — an `∃`-elim's own assumption met, a hidden proposition, the
+reductio — are cuts.
+
+**Measured** (the complete run, emitted and kernel-checked — every part exit 0, stderr empty):
+
+| | before | after |
+|---|---|---|
+| steps written | 5,166,635 | 4,264,966 (−17.5%) |
+| λ classes, 596 | 1,824,613; median 1,400 | 1,448,251 (−21%); median 1,107 |
+| constant classes, 241 | 1,328,243; median 2,883 | 1,060,910 (−20%); median 2,320 |
+| lifts, 34 | 343,174; median 8,824 | 267,985 (−22%); median 6,874 |
+| everything else | 1,670,605 | 1,487,820 (−11%) |
+| cuts written as an implication | 218,012 | 342, Isabelle's own |
+| `CLASS ⟨λx. x⟩` | 365 | 284 |
+| the unit | 7,969 claims, 568 schemas, 272.5 MB | the same, all Proved, 219.2 MB (−20%) |
+| the run | 13:48, 45.8 GB; emission 84.2 s | 13:44, 45.8 GB; emission 167.7 s |
+| lowered | 369 | 369, the same set |
+
+Emission took twice as long in the one run measured, the run's wall time the same; not traced. Of the class lemmas'
+2.83M steps, a record's bookkeeping is now the largest part: `snoc_facts` at each extension, its projections at each
+read and each entry carried, 38.6% (an attribution by each step's head).
+
+**The contracts (D2):**
+
+| | provides | assumes |
+|---|---|---|
+| IR | `folCut(p, body)`: its conclusion the body's, hypothesis 0 in the body `p`'s conclusion; a fol-zfc proof node | — |
+| FolDialect | a cut written as `p`'s step, the body citing it, no line of its own | the IR's |
+| Lowering | `Frame.have`, Fol's `∃`-elim at `i` and Logic's cuts build `folCut`; Fol renumbers hypotheses across it as across any binder | the IR's |
+
+**Tests, written first.** `ProofEmissionTests`: a cut is written as its proof's step, the body citing it, no `assume`;
+`theRealCheckerProvesWhatEmissionWrites` gains a cut and an `∃`-elim at `i`. `FolTests`: an `∃`-elim at `i` writes
+`exists_elim`, `and_elim_l`, `and_elim_r`, its body, `exists_intro`. `ClassTests`: `CLASS ⟨λx. x⟩`'s bound lowered. The
+ZF session: the complete run, emitted and kernel-checked, and no named theorem lost.
+
 ### Fol — binders, guards and variables  **[BUILT 2026-09-28 as the guard; Fol's 2026-10-14; every object type and `∃` at `i` with "Reify — S1 at the site" — `Sources/Lowering/Fol.swift`]**
 
 **Every isa binder at an object type, its intro, its variable and the guard of its variable become fol-zfc's, with the

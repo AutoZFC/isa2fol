@@ -138,9 +138,9 @@ func aQuantifierAtAnObjectTypeTakesItsTypesGuard() throws {
     ])
 }
 
-/// `(∃y. P(y)) ⟹ ∃y. Q(y)` by `lem` at the witness: `∃`-elim at `i` opens `set(y) ∧ P(y)` to the guard and `P(y)`, so
-/// the instance at `y` is discharged by `y`'s guard; `∃`-intro at `i` is base's `ex_intro` at its body under the guard,
-/// then at the witness and the premise under its guard.
+/// `(∃y. P(y)) ⟹ ∃y. Q(y)` by `lem` at the witness: `∃`-elim at `i` opens `set(y) ∧ P(y)` to the guard and `P(y)` by
+/// two cuts of its projections, so the instance at `y` is discharged by `y`'s guard; `∃`-intro at `i` is base's
+/// `ex_intro` at its body under the guard, then at the witness and the premise under its guard.
 @Test
 func anExistentialAtIIsGuardedWhereItIsOpenedAndClosed() throws {
     var f = F()
@@ -169,9 +169,10 @@ func anExistentialAtIIsGuardedWhereItIsOpenedAndClosed() throws {
     let letter = try g.t.intern(.folLetterAbs(body: try g.t.intern(.folAnd(sv, qv))))
     let atV = try g.t.intern(.folForallElim(try g.t.intern(.folSchemaInst(exIntro, letter)), v))
     let intro = try g.mp(atV, try g.t.intern(.folAndIntro(try g.hyp(1, sv), discharged)))
-    let opened = try g.hyp(0, both)
-    let split = try g.assume(sv, try g.assume(pv, intro))
-    let body = try g.mp(try g.mp(split, try g.t.intern(.folAndElimL(opened))), try g.t.intern(.folAndElimR(opened)))
+    let body = try g.t.intern(.folCut(
+        try g.t.intern(.folAndElimL(try g.hyp(0, both))),
+        body: try g.t.intern(.folCut(try g.t.intern(.folAndElimR(try g.hyp(1, both))), body: intro)),
+    ))
     #expect(try statement(unit, "thm").proof == (try g.assume(
         guardedP,
         try g.t.intern(.folExistsElim(try g.hyp(0, guardedP), body: body)),

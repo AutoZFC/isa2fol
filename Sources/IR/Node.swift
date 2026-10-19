@@ -108,6 +108,7 @@ public enum Node: Hashable, Sendable {
     case folForallElim(NodeID, NodeID)
     case folExistsIntro(NodeID, NodeID)
     case folExistsElim(NodeID, body: NodeID)
+    case folCut(NodeID, body: NodeID)
     case folClassicalAbsurd(NodeID, body: NodeID)
     case folSchemaInst(NodeID, NodeID)
     // A base schema's letter with arguments: its binder, its application, its λ instance. Isa's binder at a class type
@@ -132,8 +133,8 @@ public enum Node: Hashable, Sendable {
              .folAndIntro, .folAndElimL, .folAndElimR, .folOrIntroL, .folOrIntroR, .folOrElim, .folNotIntro,
              .folNotElim,
              .folIffIntro, .folIffElimL, .folIffElimR, .folForallIntro, .folForallElim, .folExistsIntro, .folExistsElim,
-             .folBottomElim, .folClassicalAbsurd, .folSchemaInst, .folLetterAll, .folLetter, .folLetterAbs, .isaValue,
-             .isaValueFact:
+             .folCut, .folBottomElim, .folClassicalAbsurd, .folSchemaInst, .folLetterAll, .folLetter, .folLetterAbs,
+             .isaValue, .isaValueFact:
             nil
         }
     }
@@ -250,6 +251,8 @@ public enum Node: Hashable, Sendable {
         case .folExistsIntro(let p, let v): .folExistsIntro(try f(p, .none), try f(v, .none))
 
         case .folExistsElim(let p, let b): .folExistsElim(try f(p, .none), body: try f(b, .termAndHyp))
+
+        case .folCut(let p, let b): .folCut(try f(p, .none), body: try f(b, .hyp))
 
         case .folBottomElim(let p, let c): .folBottomElim(try f(p, .none), try f(c, .none))
 

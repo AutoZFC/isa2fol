@@ -66,6 +66,7 @@ public enum Pattern: Hashable, Sendable {
     case folForallElim(IRType, IRType)
     case folExistsIntro(IRType, IRType)
     case folExistsElim(IRType, body: IRType)
+    case folCut(IRType, body: IRType)
     case folClassicalAbsurd(IRType, body: IRType)
     case folSchemaInst(IRType, IRType)
     case folLetterAll(Int, body: IRType)
@@ -193,6 +194,8 @@ public enum Pattern: Hashable, Sendable {
 
         case .folExistsElim(let p, let b): self = .folExistsElim(T(p), body: T(b))
 
+        case .folCut(let p, let b): self = .folCut(T(p), body: T(b))
+
         case .folBottomElim(let p, let c): self = .folBottomElim(T(p), T(c))
 
         case .folClassicalAbsurd(let a, let b): self = .folClassicalAbsurd(T(a), body: T(b))
@@ -291,7 +294,8 @@ extension Pattern {
 
         case .folNot, .folBound, .folPred, .folForall, .folExists, .folNotIntro, .folNotElim, .folIffElimR,
              .folForallIntro,
-             .folForallElim, .folExistsIntro, .folExistsElim, .folClassicalAbsurd, .folSchemaInst, .folLetterAll,
+             .folForallElim, .folExistsIntro, .folExistsElim, .folCut, .folClassicalAbsurd, .folSchemaInst,
+             .folLetterAll,
              .folLetter,
              .folLetterAbs:
             [.fol]

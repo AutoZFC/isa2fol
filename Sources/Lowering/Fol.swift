@@ -68,7 +68,8 @@ private func piece(_ p: Pattern) -> Piece? {
          .isaPropBound, .folImplies, .folAnd, .folOr, .folIff, .folBottom,
          .folImpliesIntro, .folImpliesElim, .use, .folNot, .folBound, .folPred, .folForall, .folExists, .folAndIntro,
          .folAndElimL, .folAndElimR, .folOrIntroL, .folOrIntroR, .folOrElim, .folNotIntro, .folNotElim, .folIffIntro,
-         .folIffElimL, .folIffElimR, .folForallIntro, .folForallElim, .folExistsIntro, .folExistsElim, .folBottomElim,
+         .folIffElimL, .folIffElimR, .folForallIntro, .folForallElim, .folExistsIntro, .folExistsElim, .folCut,
+         .folBottomElim,
          .folClassicalAbsurd, .folSchemaInst, .folLetterAll, .folLetter, .folLetterAbs, .isaValue, .isaValueFact:
         nil
     }
@@ -160,15 +161,13 @@ private struct FolRule: Rule {
             guard
                 case .isaExElim(_, let p, let body) = n,
                 case .folExists(let both)? = t.conclusion(of: p).map({ t[$0] }),
-                case .folAnd(let g, let phi) = t[both]
+                case .folAnd = t[both]
             else { throw FolError.notGuardedExistential(id) }
-            let opened = try t.intern(.hyp(0, both))
-            let split = try t.intern(.folImpliesIntro(g, body: try t.intern(.folImpliesIntro(phi, body: body))))
-            let guarded = try t.intern(.folImpliesElim(split, try t.intern(.folAndElimL(opened))))
-            return try t.intern(.folExistsElim(
-                p,
-                body: try t.intern(.folImpliesElim(guarded, try t.intern(.folAndElimR(opened)))),
+            let opened = try t.intern(.folCut(
+                try t.intern(.folAndElimL(try t.intern(.hyp(0, both)))),
+                body: try t.intern(.folCut(try t.intern(.folAndElimR(try t.intern(.hyp(1, both)))), body: body)),
             ))
+            return try t.intern(.folExistsElim(p, body: opened))
 
         case .hidden(let T)?:
             return try t.intern(.folExistsElim(try base.cite(inhabited(T), in: &t), body: children(n)[0]))

@@ -41,7 +41,8 @@ public struct Reify {
              .folImpliesIntro, .folImpliesElim, .use, .hyp, .isaGuard, .isaExIntro, .isaExElim, .folNot, .folBound,
              .folPred, .folForall, .folExists, .folAndIntro, .folAndElimL, .folAndElimR, .folOrIntroL, .folOrIntroR,
              .folOrElim, .folNotIntro, .folNotElim, .folIffIntro, .folIffElimL, .folIffElimR, .folForallIntro,
-             .folForallElim, .folExistsIntro, .folExistsElim, .folBottomElim, .folClassicalAbsurd, .folSchemaInst,
+             .folForallElim, .folExistsIntro, .folExistsElim, .folCut, .folBottomElim, .folClassicalAbsurd,
+             .folSchemaInst,
              .folLetterAll, .folLetter, .folLetterAbs, .isaValue, .isaValueFact:
             return nil
         }
@@ -67,7 +68,7 @@ private func value(_ p: Pattern) -> IRType? {
          .folImpliesIntro, .folImpliesElim, .use, .hyp, .isaGuard, .isaExIntro, .isaExElim, .folNot, .folBound,
          .folPred, .folForall, .folExists, .folAndIntro, .folAndElimL, .folAndElimR, .folOrIntroL, .folOrIntroR,
          .folOrElim, .folNotIntro, .folNotElim, .folIffIntro, .folIffElimL, .folIffElimR, .folForallIntro,
-         .folForallElim, .folExistsIntro, .folExistsElim, .folBottomElim, .folClassicalAbsurd, .folSchemaInst,
+         .folForallElim, .folExistsIntro, .folExistsElim, .folCut, .folBottomElim, .folClassicalAbsurd, .folSchemaInst,
          .folLetterAll, .folLetter, .folLetterAbs, .isaValue, .isaValueFact:
         nil
     }
@@ -202,7 +203,8 @@ struct Naming {
              .folBottom, .folImpliesIntro, .folImpliesElim, .use, .hyp, .isaGuard, .isaExIntro, .isaExElim, .folNot,
              .folBound, .folPred, .folForall, .folExists, .folAndIntro, .folAndElimL, .folAndElimR, .folOrIntroL,
              .folOrIntroR, .folOrElim, .folNotIntro, .folNotElim, .folIffIntro, .folIffElimL, .folIffElimR,
-             .folForallIntro, .folForallElim, .folExistsIntro, .folExistsElim, .folBottomElim, .folClassicalAbsurd,
+             .folForallIntro, .folForallElim, .folExistsIntro, .folExistsElim, .folCut, .folBottomElim,
+             .folClassicalAbsurd,
              .folSchemaInst, .folLetterAll, .folLetter, .folLetterAbs, .isaValue, .isaValueFact:
             throw ReifyError.notAnAtom(try t.intern(n))
         }
@@ -224,7 +226,8 @@ struct Naming {
              .folBottom, .folImpliesIntro, .folImpliesElim, .use, .hyp, .isaGuard, .isaExIntro, .isaExElim, .folNot,
              .folPred, .folForall, .folExists, .folAndIntro, .folAndElimL, .folAndElimR, .folOrIntroL, .folOrIntroR,
              .folOrElim, .folNotIntro, .folNotElim, .folIffIntro, .folIffElimL, .folIffElimR, .folForallIntro,
-             .folForallElim, .folExistsIntro, .folExistsElim, .folBottomElim, .folClassicalAbsurd, .folSchemaInst,
+             .folForallElim, .folExistsIntro, .folExistsElim, .folCut, .folBottomElim, .folClassicalAbsurd,
+             .folSchemaInst,
              .folLetterAll, .folLetter, .folLetterAbs, .isaValueFact:
             throw ReifyError.notATerm(x)
         }
@@ -267,7 +270,8 @@ struct Naming {
              .folBottom, .folImpliesIntro, .folImpliesElim, .use, .hyp, .isaGuard, .isaExIntro, .isaExElim, .folNot,
              .folBound, .folPred, .folForall, .folExists, .folAndIntro, .folAndElimL, .folAndElimR, .folOrIntroL,
              .folOrIntroR, .folOrElim, .folNotIntro, .folNotElim, .folIffIntro, .folIffElimL, .folIffElimR,
-             .folForallIntro, .folForallElim, .folExistsIntro, .folExistsElim, .folBottomElim, .folClassicalAbsurd,
+             .folForallIntro, .folForallElim, .folExistsIntro, .folExistsElim, .folCut, .folBottomElim,
+             .folClassicalAbsurd,
              .folSchemaInst, .folLetterAll, .folLetter, .folLetterAbs, .isaValue, .isaValueFact:
             throw ReifyError.notATerm(x)
         }

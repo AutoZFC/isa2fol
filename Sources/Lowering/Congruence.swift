@@ -155,7 +155,7 @@ struct Replacement {
              .isaDefinition, .isaPropIntro, .isaPropBound, .isaHidden, .folBottom, .folImpliesIntro, .folImpliesElim,
              .use, .hyp, .folIffIntro, .folIffElimL, .isaGuard, .isaExIntro, .isaExElim, .folBound, .folPred,
              .folAndIntro, .folAndElimL, .folAndElimR, .folOrIntroL, .folOrIntroR, .folOrElim, .folNotIntro,
-             .folNotElim, .folIffElimR, .folForallIntro, .folForallElim, .folExistsIntro, .folExistsElim,
+             .folNotElim, .folIffElimR, .folForallIntro, .folForallElim, .folExistsIntro, .folExistsElim, .folCut,
              .folBottomElim,
              .folClassicalAbsurd, .folSchemaInst, .folLetterAll, .folLetter, .folLetterAbs, .isaValue, .isaValueFact:
             throw CongruenceError.noCongruence(phi)
@@ -201,6 +201,7 @@ private func connective(_ n: Node) -> (BaseStatement, NodeID, NodeID)? {
          .folPred, .folForall, .folExists, .folAndIntro, .folAndElimL, .folAndElimR, .folOrIntroL, .folOrIntroR,
          .folOrElim,
          .folNotIntro, .folNotElim, .folIffElimR, .folForallIntro, .folForallElim, .folExistsIntro, .folExistsElim,
+         .folCut,
          .folBottomElim, .folClassicalAbsurd, .folSchemaInst, .folLetterAll, .folLetter, .folLetterAbs, .isaValue,
          .isaValueFact:
         nil

@@ -368,6 +368,7 @@ private func inOrder(_ cites: [[Int]], _ partOf: [Int], parts: Int) -> [[Int]] {
 
 private func writesALine(_ id: NodeID, _ t: Table) -> Bool {
     if case .hyp = t[id] { return false }
+    if case .folCut = t[id] { return false }
     if case .isaAllIntro(.o, _) = t[id] { return false }
     return true
 }

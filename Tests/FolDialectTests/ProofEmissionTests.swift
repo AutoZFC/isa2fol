@@ -57,6 +57,26 @@ func aProofTreeIsEmittedAsTheCheckersStackProgram() throws {
         """)
 }
 
+/// A cut, `folCut(p, body)`, is `p`'s step and the body citing it: no `assume`, no discharge, no formula restated.
+@Test
+func aCutIsWrittenAsItsProofsStepTheBodyCitingIt() throws {
+    var f = Pf()
+    let aAndB = try f.n(.folAnd(try f.p("A"), try f.p("B")))
+    let swapped = try f.n(.folAndIntro(try f.hyp(0, try f.p("B")), try f.n(.folAndElimL(try f.hyp(1, aAndB)))))
+    let proof = try f.intro(aAndB, try f.n(.folCut(try f.n(.folAndElimR(try f.hyp(0, aAndB))), body: swapped)))
+    let claim = Declaration(kind: .claim, name: "probe", root: try #require(f.t.conclusion(of: proof)))
+    #expect(try render(proof: proof, of: claim, in: f.t) == """
+        proof probe:
+            _0 = assume (A & B)
+            _1 = and_elim_r _0
+            _2 = and_elim_l _0
+            _3 = and_intro _1, _2
+            _4 = implies_intro _3
+            qed _4
+
+        """)
+}
+
 /// An instance has no claim name yet: rendering it by its theorem's name would conflate its instances.
 @Test
 func aCitationOfAnInstanceIsNotRendered() throws {
@@ -225,6 +245,21 @@ func theRealCheckerProvesWhatEmissionWrites() throws {
     let bb = try f.intro(B, try f.hyp(0, B))
     let inside = try f.n(.folAndIntro(try f.n(.folImpliesElim(try f.hyp(1, fromNotA), try f.hyp(0, notA))), bb))
     proofs.append(("p_block", try f.intro(fromNotA, try f.n(.folAndIntro(try f.intro(notA, inside), bb)))))
+
+    let swapped = try f.n(.folAndIntro(try f.hyp(0, B), try f.n(.folAndElimL(try f.hyp(1, aAndB)))))
+    proofs.append(("p_cut", try f.intro(aAndB, try f.n(.folCut(try f.n(.folAndElimR(hAB)), body: swapped)))))
+
+    let both = try f.n(.folAnd(set0, elem01))
+    let someSet = try f.n(.folExists(body: both))
+    let again = try f.n(.folExistsIntro(try f.n(.folAndIntro(try f.hyp(1, set0), try f.hyp(0, elem01))), try f.b(0)))
+    let opened = try f.n(.folCut(
+        try f.n(.folAndElimL(try f.hyp(0, both))),
+        body: try f.n(.folCut(try f.n(.folAndElimR(try f.hyp(1, both))), body: again)),
+    ))
+    proofs.append(("p_exists_cut", try f.n(.folForallIntro(body: try f.intro(
+        someSet,
+        try f.n(.folExistsElim(try f.hyp(0, someSet), body: opened)),
+    )))))
 
     let elem10 = try f.p("elem", try f.b(1), try f.b(0))
     let membersAreSets = try f.n(.folForall(body: try f.n(.folForall(body: try f.imp(

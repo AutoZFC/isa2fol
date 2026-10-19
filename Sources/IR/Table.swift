@@ -62,8 +62,8 @@ public struct Table: Sendable {
              .isaGuard, .isaExIntro, .isaExElim, .folNot, .folBound, .folPred, .folForall, .folExists, .folAndIntro,
              .folAndElimL, .folAndElimR,
              .folOrIntroL, .folOrIntroR, .folOrElim, .folNotIntro, .folNotElim, .folIffElimR, .folForallIntro,
-             .folForallElim, .folExistsIntro, .folExistsElim, .folBottomElim, .folClassicalAbsurd, .folSchemaInst,
-             .folLetterAll, .folLetter, .folLetterAbs, .isaValue, .isaValueFact:
+             .folForallElim, .folExistsIntro, .folExistsElim, .folCut, .folBottomElim, .folClassicalAbsurd,
+             .folSchemaInst, .folLetterAll, .folLetter, .folLetterAbs, .isaValue, .isaValueFact:
             nil
         }
     }
@@ -259,6 +259,10 @@ public struct Table: Sendable {
         case .folExistsElim(let p, let body):
             guard case .folExists = self[try premise(p)] else { throw TableError.principalConnective(p) }
             return .step(concluding: try witnessed(body))
+
+        case .folCut(let p, let body):
+            _ = try premise(p)
+            return .step(concluding: try premise(body))
 
         case .isaExIntro(let p, let x, let body):
             let T = try value(x)

@@ -241,6 +241,10 @@ private struct Writer {
             let proved = try binding(term: witness, hyp: instance) { try $0.step(body) }
             return emit("exists_intro \(proved)")
 
+        case .folCut(let p, let body):
+            let fact = try step(p)
+            return .step(try binding(term: nil, hyp: fact) { try $0.step(body) })
+
         case .folBottomElim(let p, let c):
             let proved = try step(p)
             let target = line("let \(try formula(c))")
