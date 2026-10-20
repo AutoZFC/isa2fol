@@ -68,9 +68,9 @@ func reifysPiecesAreTheLogicPasss() throws {
 }
 
 /// DESIGN §4a, "Lowering's components" and "Logic": each of the reader's patterns has the owner the division gives it,
-/// and one at most. A pattern at a type variable, the hidden variable and a citation fol-zfc lacks have none yet; a
-/// binder, its intro and its variable at `o` are fol-zfc's schema letter, no pass's; Pure's `⋀` over a proposition is
-/// Logic's, a truth set.
+/// and one at most. A pattern at a type variable, a variable only the proof uses at a type the reader never binds one
+/// at — any but `i` and `o` — and a citation fol-zfc lacks have none; a binder, its intro and its variable at `o` are
+/// fol-zfc's schema letter, no pass's; Pure's `⋀` over a proposition is Logic's, a truth set.
 @Test
 func eachPatternHasTheOwnerTheDivisionGivesIt() throws {
     let expected: [(Pattern, String?, Owned?)] = [
@@ -167,8 +167,8 @@ func eachPatternHasTheOwnerTheDivisionGivesIt() throws {
         (.isaPropAll, "logic", .rule),
         (.isaPropIntro, "logic", .rule),
         (.isaPropBound, "logic", .rule),
-        (.isaBound(oo), "fol", .rule),
-        (.isaBound(fn(o, i)), "fol", .rule),
+        (.isaBound(oo), "fol", .unbuilt),
+        (.isaBound(fn(o, i)), "fol", .unbuilt),
         (.ifolEx(o, body: o), nil, nil),
         (.isaConst(.primitive(.zf(.mem)), fn(i, fn(i, o)), args: [i, i]), "logic", .rule),
         (.isaConst(.primitive(.ifol(.eq)), fn(i, fn(i, o)), args: [i, i]), "logic", .rule),
@@ -188,8 +188,8 @@ func eachPatternHasTheOwnerTheDivisionGivesIt() throws {
         (.isaConst(.declared, i, args: []), "logic", .unbuilt),
         (.isaVarApp(head: fn(i, o), args: [i]), "logic", .rule),
         (.isaVarApp(head: fn(i, i), args: [i]), "logic", .rule),
-        (.isaVarApp(head: fn(o, o), args: [o]), "logic", .rule),
-        (.isaVarApp(head: fn(o, i), args: [o]), "logic", .rule),
+        (.isaVarApp(head: fn(o, o), args: [o]), "logic", .unbuilt),
+        (.isaVarApp(head: fn(o, i), args: [o]), "logic", .unbuilt),
         (.isaAbs(i, body: o), "logic", .rule),
         (.isaAbs(i, body: fn(i, o)), "logic", .rule),
         (.isaAbs(i, body: i), "logic", .rule),
@@ -205,7 +205,7 @@ func eachPatternHasTheOwnerTheDivisionGivesIt() throws {
         (.isaBound(fn(i, o)), "fol", .rule),
         (.isaBound(fn(i, i)), "fol", .rule),
         (.isaBound(fn(fn(i, o), o)), "fol", .unbuilt),
-        (.isaBound(fn(o, o)), "fol", .rule),
+        (.isaBound(fn(o, o)), "fol", .unbuilt),
         (.isaGuard(i, o), "fol", .rule),
         (.isaGuard(fn(i, i), o), "fol", .rule),
         (.isaExIntro(o, i, body: o), "fol", .rule),
@@ -231,12 +231,12 @@ func eachPatternHasTheOwnerTheDivisionGivesIt() throws {
         (.folImpliesElim(o, o), nil, nil),
         (.isaFree(i), nil, nil),
         (.isaHidden(i, body: o), "fol", .rule),
-        (.isaHidden(fn(i, i), body: o), "fol", .rule),
-        (.isaHidden(fn(i, fn(i, o)), body: o), "fol", .rule),
+        (.isaHidden(fn(i, i), body: o), nil, nil),
+        (.isaHidden(fn(i, fn(i, o)), body: o), nil, nil),
         (.isaHidden(o, body: o), "logic", .rule),
-        (.isaHidden(oo, body: o), "fol", .rule),
-        (.isaHidden(fn(o, i), body: o), "fol", .rule),
-        (.isaHidden(fn(fn(i, o), fn(o, i)), body: o), "logic", .unbuilt),
+        (.isaHidden(oo, body: o), nil, nil),
+        (.isaHidden(fn(o, i), body: o), nil, nil),
+        (.isaHidden(fn(fn(i, o), fn(o, i)), body: o), nil, nil),
         (.isaHidden(a, body: o), nil, nil),
         (.use(.theorem, [i], o), nil, nil),
         (.use(.axiom(.zf(.replacement)), [], o), "logic", .rule),

@@ -177,8 +177,7 @@ private func piece(_ p: Pattern) -> Piece? {
         return .proposition(.variable)
 
     case .isaHidden(let T, _):
-        if T == .o { return .proposition(.hidden) }
-        return isObject(objectType(T)) || mentionsTypeVariable(T) ? nil : .unbuilt
+        return T == .o ? .proposition(.hidden) : nil
 
     case .isaConst, .isaFree, .isaBound, .isaVarApp, .isaOfClass, .isaDefinition, .folImplies, .folImpliesIntro,
          .folImpliesElim, .folAnd, .folOr, .folIff, .folBottom, .use, .hyp, .isaGuard, .isaExIntro, .isaExElim, .folNot,

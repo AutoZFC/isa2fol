@@ -226,27 +226,6 @@ func theUnfoldingOfAConstantTakingAPropositionIsPointwiseOverItsTruthSet() throw
     try kernelChecks(proved, definitions: [(selectConstant, try atDefinition(selectConstant, [d], in: &q.t))], in: &q.t)
 }
 
-/// `⋀Q. Q ⟶ (∃x. Q)`, its witness `f(Q)` and `f :: o ⇒ i` a variable only the proof uses: `f` the witness of
-/// `function_inhabited`, `f(Q)` its `apply` at `⟨E⟩`, `E` the truth set of `Q`. The kernel proves it.
-@Test
-func aVariableOnlyTheProofUsesTakingAPropositionIsAClassOfTruthSetTuples() throws {
-    var q = Q()
-    let b = try base(in: &q.t)
-    let root = try q.n(.ifolAll(o, body: try q.n(.folImplies(try q.v(0), try q.n(.ifolEx(i, body: try q.v(1)))))))
-    let letter = try q.v(1)
-    let witness = try q.n(.isaVarApp(head: try q.n(.isaBound(0, fn(o, i))), args: [letter]))
-    let introduced = try q.n(.isaExIntro(try q.n(.hyp(0, letter)), witness, body: try q.v(2)))
-    let proof = try q.n(.isaAllIntro(o, body: try q.n(.isaHidden(
-        fn(o, i),
-        body: try q.n(.folImpliesIntro(letter, body: introduced)),
-    ))))
-    #expect(q.t.conclusion(of: proof) == root)
-    var unit = Unit(table: q.t, statements: [Statement(name: "T.witness", root: root, proof: proof, theory: "Test")])
-    try pipeline(b).run(&unit)
-    #expect(unit.refused.isEmpty, "\(unit.refused)")
-    try kernelChecks(unit)
-}
-
 /// Pure's equality at `o ⇒ i ⇒ i`: pointwise over a truth set and an object, `reflexive` and `transitive` under the
 /// binders, and `combination` at the proposition its truth instance then β — `⋀A B. (A ↔ B) ⟹ T.pick(A) ≡ T.pick(B)`.
 /// The kernel proves the unit.

@@ -179,8 +179,9 @@ struct Terms {
             switch head {
             case .constant(let name, let types):
                 if case .hidden = try constants.reading(name) {
-                    let T = try irType(try constants.instantiate(name, types))
-                    if !found.contains(T) { found.append(T) }
+                    let R = result(try irType(try constants.instantiate(name, types)))
+                    if !found.contains(R) { found.append(R) }
+                    return
                 }
 
             case .abstraction(_, let inner):
@@ -389,9 +390,13 @@ struct Terms {
 
         case .hidden:
             let T = try irType(scheme)
-            guard let level = hidden?[T] else { throw MalformedExport.hiddenOutsideProof(T) }
+            let R = result(T)
+            guard let level = hidden?[R] else { throw MalformedExport.hiddenOutsideProof(T) }
+            guard arguments.count == T.domains.count else {
+                throw MalformedExport.applicationArity(name, expected: T.domains.count, found: arguments.count)
+            }
             let k = s.depth - 1 - level
-            return try variable(name, try t.intern(T == .o ? .isaPropBound(k) : .isaBound(k, T)), T, arguments, s, &t)
+            return try t.intern(R == .o ? .isaPropBound(k) : .isaBound(k, R))
 
         case .bottom:
             _ = try operands(name, [], arguments, s, &t)

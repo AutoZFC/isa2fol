@@ -1,6 +1,6 @@
 # STATE — isa2fol
-HEAD "A record's facts at fewer steps: a line written once in scope; an extension's lemma once per length" (parent
-"A fact derived once, cited by name: …") · primitives · 2026-10-19.  RUN §0 BEFORE TRUSTING ANY LINE BELOW.
+HEAD "A variable only the proof uses, constant in its arguments: one variable per result type, i or o" (parent "A
+record's facts at fewer steps: …") · primitives · 2026-10-19.  RUN §0 BEFORE TRUSTING ANY LINE BELOW.
 
 ## 0. Staleness checks
 `$ZF` is `--skip ZF-AC,ZF-Coind,ZF-Constructible,ZF-IMP,ZF-Induct,ZF-Resid,ZF-ex`: every run is the ZF session alone
@@ -9,16 +9,17 @@ until it is fully translated (user). Lint before every run: `pre-commit run --al
 | command | expect |
 |---|---|
 | `git branch --show-current` | `primitives` |
-| `git log -2 --format=%s` | `A record's facts at fewer steps: …`, `A fact derived once, cited by name: …` |
+| `git log -2 --format=%s` | `A variable only the proof uses, constant in its arguments: …`, `A record's facts at fewer steps: …` |
 | `git status --short \| wc -l` | `0` |
 | `git rev-parse --short kinds-proposal` | `21ca100f` |
-| `find Sources -name '*.swift' -exec cat {} + \| grep -cv '^\s*$'` | `16763` |
+| `find Sources -name '*.swift' -exec cat {} + \| grep -cv '^\s*$'` | `16777` |
 | `git -C ~/repos/fol-zfc-comb log -1 --format=%h` | `224d60e` (branch `libraries-and-streaming`) |
 | `grep -c '^axiom ' base/axioms.fol.def` | `18` — NBG with Regularity, and `elem_first_subst`; Choice unstated; the tiers admit none |
 | `pre-commit run --all-files` | `SwiftFormat ... Passed`, `SwiftLint ... Passed` |
-| `MEM=48G scripts/capped.sh swift test 2>&1 \| grep "Test run with"` | 14, 141, 121, 47 passed; Lowering 152 with 2 failing: `infinityReadsSuccByTheTheoremStatingItsMembers`, `anInstanceAtACompoundArgumentIsBetaAtItsValue` |
-| `MEM=16G scripts/capped.sh scripts/check-base.sh` | 14 tiers, each `exit 0  stderr 0`; `tuples` Proved 27 of 27, `zf` 22 of 22 |
-| `swift build -c release`, then `MEM=80G scripts/capped.sh .build/release/isa2fol lower data/zf_export $ZF --emit DIR --threads 16` (13:11, 45.8 GB peak), then `MEM=32G scripts/capped.sh scripts/check-unit.sh DIR` | `lowered … 369`; `refused, named: 3247`: no owner 7, `logic, unbuilt: 1` (`AC.AC`), `cites a refused statement: 3239`, led by `ZF_Base.BOX_fe88880df9563825` 595, `FOL.int_ex_simps.2` 296; 35 parts, every one `exit 0  stderr 0`; claims 7969 of 7969, schemas 568 of 568; 206,264,082 bytes; `steps by kind` all 3,863,075 written |
+| `MEM=48G scripts/capped.sh swift test 2>&1 \| grep "Test run with"` | 14, 142, 121, 47 passed; Lowering 153 with 2 failing: `infinityReadsSuccByTheTheoremStatingItsMembers`, `anInstanceAtACompoundArgumentIsBetaAtItsValue` |
+| `MEM=16G scripts/capped.sh scripts/check-base.sh` | 14 tiers, each `exit 0  stderr 0`; `metafun` 18 of 18 |
+| `MEM=48G scripts/capped.sh .build/release/isa2fol lower data/zf_export $ZF --theorem ZF.iterates_triv` | refused, citing `BETA_0e23d963c3fd01a7_2`, unbuilt |
+| `MEM=80G scripts/capped.sh .build/release/isa2fol lower data/zf_export $ZF --emit DIR --threads 16` | killed, still lowering, at 83.7 GB (20:05) |
 If any row disagrees, THIS FILE IS STALE. Trust the code and fix this file first.
 
 ## 1. Where
@@ -26,72 +27,46 @@ If any row disagrees, THIS FILE IS STALE. Trust the code and fix this file first
 `bazel build -c opt`. `kinds-proposal` (`21ca100f`) is the REFERENCE.
 
 ## 2. Read these first-hand
-- `DESIGN.md` "A record's facts at fewer steps": decisions 1–2, Built, Measured — what a record's bookkeeping still
-  costs; "A fact derived once, cited by name" before it.
-- `Sources/FolDialect/Render.swift` — `line` (a line an open block already said is cited) and `scoped` (a line opening
-  or closing a block, never shared); `folCut`: `p`'s step, the body's hypothesis bound to its name.
-  `Sources/Lowering/Fol.swift` — the `∃`-elim at `i`, two cuts of its instance's projections.
-- `Sources/Lowering/Comprehension.swift` — `Raw` (a class body by its parts, or a formula as written), `built` and
-  `tupled` (a tuple one `.tuple` atom, `TUPLE_ROW` at its entries' positions and the record's length), `Numerals`
-  (`first`; no zero at symbolic positions), `Reading.extend` (`snoc_facts`, one cut), `tupleRead`.
-- `Sources/Lowering/Classes.swift` — `ClassProofs.row`: `TUPLE_ROW_n` by the generator at symbolic positions, the record
-  given. `Sources/Lowering/Reify.swift` — `ClassBody`, `classBody`.
-- `base/tiers/tuples.fol.def` — `snoc_facts`, guarded where `tuple_snoc` is.
+- `DESIGN.md` "A variable only the proof uses, constant in its arguments": decisions 1–2, Built, the three decisions
+  made in the build, Measured — the complete run killed at `MEM=80G`.
+- `Sources/Reader/Terms.swift` — `hide` (one binder per result type, a dropped argument not scanned) and `.hidden` (an
+  application read as the variable at its result type, its arity checked).
+- `Sources/Lowering/Fol.swift` — `isaHidden(i)`, `exists_elim` over `set_inhabited`; `Logic.swift` — `isaHidden(o)`.
+- `Sources/Lowering/Meeting.swift` — `betaAtom`'s check that both forms name a shared argument first, `constrained`.
 
 ## 3. Invariants
 | invariant | enforced by |
 |---|---|
 | a unit is valid only when every part exits 0, stderr empty, every claim and schema Proved | `scripts/check-unit.sh`, `check-base.sh` |
 | nothing Isabelle states is admitted: base admits 18 axioms, NBG's with Regularity | §0's `grep`; `check-base.sh` |
-| each pattern has the owner the division gives it, one at most | `eachPatternHasTheOwnerTheDivisionGivesIt` |
-| a proof's formulas hold values, linear in Isabelle's steps | `ProofSizeTests` |
-| a tuple the class prover builds is one atom, read by `TUPLE_ROW_n`; no `cls_zero`, `cls_nsucc`, `cls_snoc4`, `read4` in a λ's class | `theIdentityClassReadsItsArgumentTupleByItsRow`, `aNamingsTupleIsReadByItsRow` |
-| `TUPLE_ROW_0`–`_2` kernel-checked | `theTupleFormulaIsOneRowOverRecordPositions` |
-| a cut is its proof's step, the body citing it, no `assume`; the kernel proves a cut and an `∃`-elim at `i` written so | `aCutIsWrittenAsItsProofsStepTheBodyCitingIt`; `theRealCheckerProvesWhatEmissionWrites` (`p_cut`, `p_exists_cut`) |
-| a line an open block already wrote is cited; a line opening or closing a block is never shared | `aLineWrittenInAnOpenBlockIsCitedNotWrittenAgain`, `aClosingLineIsNeverShared`, `anAssumptionIsNeverShared`; the kernel's `p_cited`, `p_closers`, `p_assume_twice` |
-| a ZF axiom cited is its lemma, proved from base's statement in the translator's words | `AxiomTests` (`replacementIsReadFromBasesStatement`) |
-| emission cites a step only inside the block that wrote it | `aStepWrittenInAClosedBlockIsDerivedAgain` |
+| each pattern has the owner the division gives it, one at most; `isaHidden` at `i` and `o` alone | `eachPatternHasTheOwnerTheDivisionGivesIt` |
+| a variable only the proof uses is constant in its arguments | `aVariableOnlyTheProofUsesIsConstantInItsArguments`, `aWitnessAppliedToTheStatementsClassAndLetterIsTheProofsVariableAtI` |
+| a shared argument a λ's body names below a connective is unbuilt, never a malformed step | `aSharedArgumentTheBodyNamesBelowAConnectiveIsUnbuilt` |
 | every build, test, checker and lowering run is capped; lint before every run | `scripts/capped.sh`; `pre-commit run --all-files` |
 
 **Standing warnings — each repeated silently otherwise:**
+- ⚠ **THE COMPLETE RUN DOES NOT FIT `MEM=80G`**: every node a walk builds stays for the run.
 - ⚠ **A PROVER'S ERROR OTHER THAN `MeetingError.unmet` IS FATAL TO THE RUN**: a shape the β walk cannot align is refused
-  unbuilt before the walk (`own`), never left to throw `misaligned` in it.
-- ⚠ **BASE'S `_NBG` STATEMENTS ARE THE TRANSLATOR'S WORDS, CHECKED ONLY BY THE KERNEL**: a change to the naming changes
-  them; `replacement_NBG` was left behind once and only the kernel saw it.
-- ⚠ **THE COMPLETE RUN NEEDS `MEM=80G`** (45.8 GB peak): the CI's 32 GB kills it.
+  unbuilt before the walk, never left to throw in it.
+- ⚠ **BASE'S `_NBG` STATEMENTS ARE THE TRANSLATOR'S WORDS, CHECKED ONLY BY THE KERNEL.**
 - ⚠ **A LOST THEOREM IS FOUND BY DIFFING NAMED SETS ACROSS RUNS, NEVER BY THE COUNT ALONE.**
-- ⚠ **THE CHECKER KEYS A DERIVED FACT BY ITS FORMULA**: never cite a step outside the block that wrote it.
-- ⚠ **A LINE THAT OPENS OR CLOSES A BLOCK IS NEVER SHARED**: its text does not say which block; a shared closer left
-  its block open (`aClosingLineIsNeverShared`).
-- ⚠ **A FORMULA BUILT AT ONE FRAME IS LIFTED BEFORE A DEEPER FRAME READS IT** (`Scope.lift`); ⚠ **`t[try instantiate(…)]`
-  READS A COPY TAKEN BEFORE THE MUTATION** (rule 13).
-- ⚠ **A STEP-COUNT ESTIMATE IS NOT A MEASUREMENT**: "under 250" for `CLASS ⟨λx. x⟩` measured 365; Fol's `∃`-elim at `i`,
-  cuts and carrying are per-level structure no row removes.
-- ⚠ **`pre-commit run --all-files` LINTS TRACKED FILES ONLY**; ⚠ **THE RELEASE BINARY IS NOT REBUILT BY `swift test`**;
-  ⚠ **STATE GOES IN ITS STEP'S COMMIT**.
+- ⚠ **THE CHECKER KEYS A DERIVED FACT BY ITS FORMULA**; ⚠ **A LINE THAT OPENS OR CLOSES A BLOCK IS NEVER SHARED**.
+- ⚠ **`t[try instantiate(…)]` READS A COPY TAKEN BEFORE THE MUTATION** (rule 13); ⚠ **`pre-commit run --all-files`
+  LINTS TRACKED FILES ONLY**; ⚠ **THE RELEASE BINARY IS NOT REBUILT BY `swift test`**; ⚠ **STATE GOES IN ITS STEP'S
+  COMMIT**.
 
 ## 4. State
 | claim | verified by |
 |---|---|
-| ZF (3,616 named): 369 lowered, the same set as before the step; 240 of them `X_def` | §0's complete run; its parts' `claim`/`schema` names diffed |
-| the unit: 7,969 claims (5 `TUPLE_ROW_n`), 568 schemas, 206.3 MB; class existence 61% of 3.86M steps | §0's complete run, its `steps by kind` |
-| `CLASS ⟨λx. x⟩` 271 steps | `theIdentityClassReadsItsArgumentTupleByItsRow` |
-| 342 cuts written as an implication remain, Isabelle's own redexes read as written | the emitted parts: an `implies_elim` whose first step is an `implies_intro` |
-| `infinity` and `λx. x = x` (a body naming its argument twice) refused unbuilt | the two failing tests of §0 |
-| comments 263/16763 = 1.6% of `Sources` | `CLAUDE.md` rule 9's script |
+| the complete run is killed at `MEM=80G`, 83.7 GB, still lowering: nothing emitted, the named theorems the step adds not counted | §0's last row |
+| `infinity` and `λx. x = x` refused unbuilt | the two failing tests of §0 |
+| comments 264/16777 = 1.6% of `Sources` | `CLAUDE.md` rule 9's script |
 
 ## 5. Beliefs — NOT verified
-- Of the class lemmas' 2.44M steps, the entries carried are 313K, the extensions 260K, the projections 146K: an
-  attribution by each step's head, not by the walk's structure.
-- Emission took 172.1 s, 167.7 s the run before and 84.2 s before that: not traced.
-- The memory peak is the table (117.5M nodes); not profiled.
+- The peak is the table: every node a walk interns stays for the run, though its results reach a fraction.
 
 ## 6. Open decisions
-- **The next size step**: the entries carried at each level (12.8% of class steps), what the two walks repeat.
-- **Memory**: the complete run is above the CI's 32 GB.
-- **The two unit tests HEAD fails**: `infinity` needs `c_UNFOLD` at `Inf`; `λx. x = x` needs β to meet a body naming
-  its argument twice.
+- **Memory**: the complete run no longer fits 80 GB.
 
 ## 7. Next action
-Get the user's choice among §6; write its section in `DESIGN.md` and agree it decision by decision before any code. Done
-when the user has agreed every decision of that section.
+Write the memory step's section in `DESIGN.md` and agree it decision by decision before any code.

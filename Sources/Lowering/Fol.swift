@@ -46,7 +46,7 @@ private enum Piece {
     case variable
     case existsIntro
     case existsElim
-    case hidden(IRType)
+    case hidden
     case unbuilt
     case renumber
 }
@@ -57,11 +57,11 @@ private func piece(_ p: Pattern) -> Piece? {
     case .ifolEx(let T, _): isObject(T) ? .exists(T) : nil
     case .isaAllIntro(let T, _): isObject(T) ? .intro(T) : nil
     case .isaAllElim(_, let T): T == .i ? .instance : nil
-    case .isaGuard(let T, _): isObject(objectType(T)) ? .guardOf : nil
-    case .isaBound(let T): mentionsTypeVariable(T) || T == .o ? nil : isObject(objectType(T)) ? .variable : .unbuilt
+    case .isaGuard(let T, _): isObject(T) ? .guardOf : nil
+    case .isaBound(let T): mentionsTypeVariable(T) || T == .o ? nil : isObject(T) ? .variable : .unbuilt
     case .isaExIntro(_, let T, _): T == .i ? .existsIntro : nil
     case .isaExElim(let T, _, _): T == .i ? .existsElim : nil
-    case .isaHidden(let T, _): isObject(objectType(T)) ? .hidden(T) : nil
+    case .isaHidden(let T, _): T == .i ? .hidden : nil
     case .hyp: .renumber
     case .isaConst, .isaFree, .isaVarApp, .isaAbs, .isaOfClass, .isaReflexive, .isaSymmetric, .isaTransitive,
          .isaCombination, .isaAbstract, .isaClassical, .isaIffReflection, .isaDefinition, .isaPropAll, .isaPropIntro,
@@ -93,7 +93,7 @@ private struct FolRule: Rule {
         case .intro(let T)?: c + [.fix(T)] + (guardPredicate(T) == nil ? [] : [.inserted(guard: true)])
         case .forall(let T)?, .exists(let T)?: c + [.fix(T)]
         case .existsElim?: c + [.fix(.i), .inserted(guard: false), .inserted(guard: true), .assume]
-        case .hidden(let T)?: c + [.fix(T), .inserted(guard: guardPredicate(T) != nil)]
+        case .hidden?: c + [.fix(.i), .inserted(guard: true)]
         case .instance?, .guardOf?, .variable?, .existsIntro?, .unbuilt?, .renumber?, nil:
             c + Array(repeating: .fix(nil), count: binds.terms) + Array(repeating: .assume, count: binds.hyps)
         }
@@ -169,8 +169,8 @@ private struct FolRule: Rule {
             ))
             return try t.intern(.folExistsElim(p, body: opened))
 
-        case .hidden(let T)?:
-            return try t.intern(.folExistsElim(try base.cite(inhabited(T), in: &t), body: children(n)[0]))
+        case .hidden?:
+            return try t.intern(.folExistsElim(try base.cite(.setInhabited, in: &t), body: children(n)[0]))
 
         case .renumber?:
             let h = n.boundVariable!
@@ -181,10 +181,6 @@ private struct FolRule: Rule {
             return nil
         }
     }
-}
-
-private func inhabited(_ T: IRType) -> BaseStatement {
-    T != .i && guardPredicate(T) != nil ? .functionInhabited : .setInhabited
 }
 
 private func guardOfBound0(_ T: IRType, _ t: inout Table) throws -> NodeID? {

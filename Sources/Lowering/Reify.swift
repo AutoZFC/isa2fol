@@ -26,7 +26,7 @@ public struct Reify {
             }
 
         case .isaVarApp(head: let T, _):
-            return mentionsTypeVariable(T) ? nil : isObject(objectType(T)) ? .rule : .unbuilt
+            return mentionsTypeVariable(T) ? nil : isObject(T) ? .rule : .unbuilt
 
         case .isaAbs(let T, body: let U):
             return isObject(.fn(T, U)) ? .rule : nil

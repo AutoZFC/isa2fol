@@ -54,6 +54,8 @@ private let typeB = tfree("'b")
 ///   T.vacAx      axiom (⋀h::'a. Q) ⟹ Q;          T.hidden  Q ⟹ Q   λH. vacAx[dummy] % Q %% (⋀h::dummy. H)
 ///   T.hiddenTerm (⋀x::i. ⋀R::o. Q) ⟹ Q        λH. H % dummy_pattern::i % dummy_pattern::o   variables only the proof
 ///                uses
+///   T.hiddenFunctions  (⋀x y::i. ⋀R::o. Q) ⟹ P(a) ⟹ Q   λH K. H % F(λx. P x, Q) % g(c) % C(c), each of F, g, c, C
+///                a dummy_pattern, at (i ⇒ o) ⇒ o ⇒ i, i ⇒ i, i and i ⇒ o
 ///   IFOL.not_def_raw  a definition;  T.useNotDef cites it.   IFOL.bogus  an unlisted IFOL axiom;  T.useBogus cites it
 ///   Pure.prop_def  an applied definition;  T.useProp  PROP Q ≡ Q   prop_def % Q
 ///   IFOL.term_class_def  OFCLASS('a, term) ≡ (⋀P. P ⟹ P);  T.useClassDef  its statement at i   term_class_def[i]
@@ -207,6 +209,28 @@ private func miniReader() throws -> Reader {
                 "H",
                 all("x", i, all("R", o, Q)),
                 pappt(pappt(pbound(0), const("Pure.dummy_pattern", i)), const("Pure.dummy_pattern", o)),
+            ),
+        )),
+        ("T.hiddenFunctions", 138, proofFile(
+            frees: [("Q", o), ("P", fn(i, o)), ("a", i)],
+            prop: imp(all("x", i, all("y", i, all("R", o, Q))), imp(trueprop(app(free("P"), free("a"))), Q)),
+            proof: pabsp(
+                "H",
+                all("x", i, all("y", i, all("R", o, Q))),
+                pabsp("K", trueprop(app(free("P"), free("a"))), pappt(
+                    pappt(
+                        pappt(
+                            pbound(1),
+                            app(
+                                const("Pure.dummy_pattern", fn(fn(i, o), fn(o, i))),
+                                lam("x", i, app(free("P"), bound(0))),
+                                free("Q"),
+                            ),
+                        ),
+                        app(const("Pure.dummy_pattern", fn(i, i)), const("Pure.dummy_pattern", i)),
+                    ),
+                    app(const("Pure.dummy_pattern", fn(i, o)), const("Pure.dummy_pattern", i)),
+                )),
             ),
         )),
         ("T.useNotDef", 129, proofFile(frees: [], prop: notDef, proof: paxiom("IFOL.not_def_raw"))),
@@ -686,6 +710,35 @@ func aVariableOnlyTheProofUsesIsBoundAtItsProofsTop() throws {
     #expect(proof == (try t.intern(.isaAllIntro(.o, body: bound))))
 }
 
+/// A variable only the proof uses is constant in its arguments: the reader binds one per result type at its proof's
+/// top,
+/// and reads each application as that variable — `F(λx. P x, Q)`, `g(c)` and `c` the one at `i`, `C(c)` the one at `o`
+/// (DESIGN "A variable only the proof uses, constant in its arguments").
+@Test
+func aVariableOnlyTheProofUsesIsConstantInItsArguments() throws {
+    var r = try miniReader()
+    guard let (_, proof) = try proved(&r, "T.hiddenFunctions") else { return }
+    var t = r.table
+    var top = proof
+    while case .isaAllIntro(_, let body) = t[top] { top = body }
+    guard case .isaHidden(.i, let inner) = t[top], case .isaHidden(.o, let body) = t[inner] else {
+        Issue.record("not bound at i, then at o: \(t[top])")
+        return
+    }
+    guard
+        case .folImpliesIntro(_, let k) = t[body], case .folImpliesIntro(_, let atR) = t[k],
+        case .isaAllElim(let atY, let R) = t[atR], case .isaAllElim(let atX, let y) = t[atY],
+        case .isaAllElim(_, let x) = t[atX]
+    else {
+        Issue.record("not H at three instances: \(t[body])")
+        return
+    }
+    let h = try t.intern(.isaBound(1, .i))
+    #expect(x == h)
+    #expect(y == h)
+    #expect(R == (try t.intern(.isaPropBound(0))))
+}
+
 /// A cited axiom is typed by what it is: an axiom of the foundation, a definition, or a theory's own axiom.
 @Test
 func aCitedAxiomIsTypedByWhatItIs() throws {
@@ -789,7 +842,7 @@ func theReaderEmitsOnlyTheIsaDialect() throws {
     for theorem in r.population {
         if case .proved(let statement, let proof)? = try? r.read(theorem) { roots += [statement, proof] }
     }
-    #expect(roots.count == 56)
+    #expect(roots.count == 58)
     var seen = Set<NodeID>()
     var work = roots
     while let n = work.popLast() {

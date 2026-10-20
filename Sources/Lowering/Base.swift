@@ -30,7 +30,6 @@ public enum BaseStatement: String, CaseIterable, Hashable, Sendable {
     case congPowL = "cong_Pow_l"
     case zeroEX = "zero_EX"
     case setInhabited = "set_inhabited"
-    case functionInhabited = "function_inhabited"
     case truthInhabited = "truth_inhabited"
     case zeroUNIQ = "zero_UNIQ"
     case zeroDef = "zero_def"

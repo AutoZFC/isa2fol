@@ -72,8 +72,10 @@ statement's own variables, `isaPropAll`, `isaPropIntro`, `isaPropBound`, and Log
 tier (`holds`, `truth`, `truth_EX`, `weaken`). **An ∃-intro states its body** (`DESIGN.md` "An ∃-intro carrying its
 body"): `isaExIntro(p, x, body: P)`, the reader's `exI` and every closing lowering builds, written through base's
 `ex_intro` — fol-zfc's `exists_intro` binds every occurrence of its witness. **A variable only the proof uses is bound at
-its proof's top** (`DESIGN.md` "Step 7"): `isaHidden(T, body)`, `exists_elim` over its type's inhabitation, base's
-`set_inhabited`, `function_inhabited`, `truth_inhabited`. **A box binding a proposition is a schema of the unit**
+its proof's top, constant in its arguments** (`DESIGN.md` "Step 7", "A variable only the proof uses, constant in its
+arguments"): `isaHidden(i)` or `isaHidden(o)`, one per result type, `exists_elim` over base's `set_inhabited` or
+`truth_inhabited`, and each application of one, at any type — iprover's witness at `(i ⇒ o) ⇒ o ⇒ i` too — that
+variable. **A box binding a proposition is a schema of the unit**
 (`DESIGN.md` "Boxes binding a proposition, read as schemas"): an unnamed theorem a proof cites, named
 `<theory>.BOX_<fingerprint of its proof>` — never its serial — and cited by `schema_inst`, unless it binds a variable
 step 9 substitutes; any other box is inlined.
@@ -85,7 +87,7 @@ side is, a constant or a class's membership (`Definiendum`), and Expand states `
 own rewrite of the instance (`walked`), truth sets rendered. The logic's facts reach
 the kernel through theirs (`IFOL.conjunct1`, `TrueI`, `refl`, `spec`, `subst`, `FOL.ccontr`, `Pure.protectD`,
 `conjunctionI`, `not_def`, `iff_def`, `notI`, `iffD1`, `iffD2`, …), and with them 51 `mutual_induct`s;
-`FOL.IFOL_simps.32` and `int_all_simps.3` stop at a variable only the proof uses, at `o ⇒ i` and `(i ⇒ o) ⇒ o ⇒ i`. **EX and UNIQ have their prover** (`DESIGN.md` "EX and UNIQ — their
+**EX and UNIQ have their prover** (`DESIGN.md` "EX and UNIQ — their
 prover"): a term's naming walked binder by binder, one fact per piece, per constant, per closed λ and per arity, a
 constant's from its `@def` and a primitive's from base. **Class existence has its prover** (`DESIGN.md` "Class existence
 — its prover", FOUNDATION §3, R5, R4): a formula's class of records built from base's rows and read back exact, named by
@@ -137,8 +139,9 @@ MEM=32G scripts/capped.sh scripts/check-unit.sh DIR        # each part, against 
 MEM=16G scripts/capped.sh scripts/check-base.sh [LIBDIR]   # base alone, each tier once
 ```
 
-⚠ **THE COMPLETE RUN PEAKS AT 45.8 GB** (2026-10-19, `--threads 16`, 13:11): `MEM=32G` kills it. Run it with
-`MEM=80G` until its memory is brought back under the CI's 32 GB.
+⚠ **THE COMPLETE RUN DOES NOT FIT `MEM=80G`** (2026-10-19, `--threads 16`): with the four boxes read it is killed at
+83.7 GB, still lowering — every node a walk builds stays for the run (`DESIGN.md` "A variable only the proof uses,
+constant in its arguments", Measured); it peaked at 45.8 GB before them. Memory is the next step.
 
 The checker is at **`~/repos/fol-zfc-comb/bazel-bin/src/tools/proof_checker`**
 and its source at `~/repos/fol-zfc-comb` (C++, Bazel). Tests find it via
@@ -288,7 +291,7 @@ determinism R1–R3 (§4.6).
    print(f'{c}/{t} = {100*c/t:.1f}%')"
    ```
 
-   ✓ **CURRENTLY 263/16763 = 1.6%, under the cap.** Keep it there: a breach is
+   ✓ **CURRENTLY 264/16777 = 1.6%, under the cap.** Keep it there: a breach is
    fixed by deleting prose, never by raising the cap.
 
    Does not apply to `base/**/*.fol.def` headers: those record provenance of

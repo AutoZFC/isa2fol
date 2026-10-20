@@ -84,6 +84,41 @@ func anInstanceAtACompoundArgumentIsBetaAtItsValue() throws {
     try kernelChecks(unit)
 }
 
+/// `⋀P. (∀x. P(Pow(x))) ⟶ (∀x. P(Pow(x)))` at `λy. c = c ⟶ y ∈ A`: `Pow(x)` holds the formula's own `x`, so both forms
+/// name it, and the λ's body names it below its implication, where the β walk does not align the two — its lemma is
+/// unbuilt and the user falls with it, never a malformed step.
+@Test
+func aSharedArgumentTheBodyNamesBelowAConnectiveIsUnbuilt() throws {
+    var l = LogicTable()
+    let stated = try l.all(
+        i,
+        try l.t.intern(.isaVarApp(head: try l.bound(1, P), args: [try pow(try l.bound(0, i), &l)])),
+    )
+    let root = try l.all(P, try l.imp(stated, stated))
+    let thmProof = try l.t.intern(.isaAllIntro(P, body: try l.t.intern(.folImpliesIntro(
+        stated,
+        body: try l.t.intern(.hyp(0, stated)),
+    ))))
+    let thm = Statement(name: "T.thm", root: root, proof: thmProof, theory: "Test")
+    let lambda = try l.lam(i, try l.imp(try l.equal(i, try l.bound(2, i), try l.bound(2, i)), try l.mem(
+        try l.bound(0, i),
+        try l.bound(1, i),
+    )))
+    let phi = try l.all(i, try l.imp(try l.equal(i, try l.bound(2, i), try l.bound(2, i)), try l.mem(
+        try pow(try l.bound(0, i), &l),
+        try l.bound(1, i),
+    )))
+    let instance = try l.t.intern(.isaAllElim(try l.t.intern(.use(.theorem("T.thm"), [], root)), lambda))
+    let useRoot = try l.all(i, try l.all(i, try l.imp(phi, phi)))
+    let useProof = try l.t.intern(.isaAllIntro(i, body: try l.t.intern(.isaAllIntro(i, body: instance))))
+    #expect(l.t.conclusion(of: useProof) == useRoot)
+    let unit = try lowered(l, [thm, Statement(name: "T.use", root: useRoot, proof: useProof, theory: "Test")])
+    let beta = unit.refused.first { $0.name.hasPrefix("BETA_") }
+    #expect(beta?.refusal == .lemmaUnbuilt)
+    #expect(unit.refused.contains { $0.name == "T.use" && $0.refusal == .cites(beta?.name ?? "") })
+    #expect(unit.statements.contains { $0.name == "T.thm" })
+}
+
 /// `⋀F a⃗ B. t ∈ B ⟶ t ∈ B`, `t` built from `F` and `a⃗`, proved by its hypothesis; and its use at `λ`, concluding `used`
 /// under `⋀a⃗ B`.
 private func functional(

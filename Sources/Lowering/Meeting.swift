@@ -595,7 +595,8 @@ struct Meet {
     }
 
     /// `P(t⃗)` against the λ's body at `t⃗`: the λ's class at its arguments (`ARGS`), then the body's own lemma moving
-    /// its arguments to `t⃗`'s values; an argument both forms name is first fixed by its pieces.
+    /// its arguments to `t⃗`'s values; an argument both forms name is first fixed by its pieces, where both forms name
+    /// it first — a body naming it below a connective is unbuilt.
     private func betaAtom(
         _ phi: NodeID,
         _ args: [NodeID],
@@ -623,6 +624,14 @@ struct Meet {
         let m = a.chain.binders.count - 1
         var g = Frame(s)
         var rest = forward ? try formula(try reduced(phi, s, &t), valued, in: &t) : try formula(phi, named, in: &t)
+        guard var source = t.conclusion(of: p) else { throw TableError.expectedStep(p) }
+        var target = rest
+        for _ in 0..<m {
+            guard let a = constrained(source, t), let b = constrained(target, t), a.constraint == b.constraint else {
+                throw MeetingError.unmet(phi)
+            }
+            (source, target) = (a.after, b.after)
+        }
         var held = p
         var heldScope = s
         var levels = [Int]()
@@ -2051,6 +2060,16 @@ func betaCited(
 /// A term at `i` both forms name: the pieces naming it are the same on both sides.
 private func shared(_ x: NodeID, _ named: Mode, _ valued: Mode, _ t: Table) -> Bool {
     isValued(x, t) && !named.valued(x, in: t) && !valued.valued(x, in: t)
+}
+
+private func constrained(_ x: NodeID, _ t: Table) -> (constraint: NodeID, after: NodeID)? {
+    let body: NodeID
+    switch t[x] {
+    case .ifolAll(.i, let b), .folForall(let b): body = b
+    default: return nil
+    }
+    guard case .folImplies(let c, let after) = t[body] else { return nil }
+    return (c, after)
 }
 
 /// How often the loose variable `k` stands in `x`.

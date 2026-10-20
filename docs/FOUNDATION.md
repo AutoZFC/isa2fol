@@ -828,8 +828,7 @@ writes both as formulas, `Trueprop` the crossing, so both kinds hold at either t
 - A proposition as a constant's argument (`If(φ, a, b)`) or a constant's value
   (`AC1 :: o`) is its truth set, a set entry of the argument tuple (R7): named where it
   stands, `E ⊆ {∅}` and `∅ ∈ E ↔ φ`, unique by extensionality, and the constant's class
-  reads its parameter `∅ ∈ E`. A variable taking a proposition — one only a proof uses at
-  `o ⇒ i` — is a class variable over such tuples, single-valued as at `i ⇒ i`.
+  reads its parameter `∅ ∈ E`.
 - A function of propositions, `o ⇒ …`, is a class of tuples of truth sets; an equation
   between two, `f ≡ g` at `o ⇒ o`, renders `∀E. E ⊆ {∅} → (f*(E) ↔ g*(E))`. Applied to
   truth sets, a function of propositions is its body with each argument read `∅ ∈ Eᵢ`,
@@ -882,8 +881,8 @@ propositions, `o ⇒ o` — takes no letter: no letter takes a proposition as it
 argument. It has a proposition's two kinds. Instantiated by substitution — a box
 applied to a term, as the `definition` command's stand-in for a connective is at
 once — it is substituted, the box's proof at the term (§3b). Bound and never
-instantiated — a variable only the proof uses — it is a class of tuples of truth
-sets (S4's first paragraphs), a class variable as at arity ≥ 1.
+instantiated — a variable only the proof uses — it is constant in its arguments
+(§3b).
 
 > **⚠ THIS SAID "THE CORPUS BINDS NONE AT A STATEMENT'S TOP".** It held of the named
 > theorems. An unnamed theorem a proof cites is a statement too when it binds a
@@ -1364,7 +1363,7 @@ specialisation at `kpair`.
 | an application of a definition whose constant is named, `AppT` at its parameters | its pointwise definition, proved once per constant from the `@def`, then `forall_elim` at the terms — at a compound term or a λ, as `AppT` there (S1) |
 | `⋀P` over a proposition, `o` or `prop`, at a statement's top, `AppT` at it | a schema letter, `schema_inst` (S4) |
 | `⋀P` over a proposition anywhere else, `AppT` at it | a truth-set variable; `forall_elim` at `E(φ)`, then β (S4) |
-| a variable only the proof uses (`dummy_pattern`) | the witness of an `exists_elim` at the proof's top, below its letters, over its type's inhabitation |
+| a variable only the proof uses (`dummy_pattern`) | constant in its arguments: the witness of an `exists_elim` at the proof's top, below its letters, over its result type's inhabitation, `i` or `o`, each application that witness |
 | `AppT` at a term, of a box's `AbsT` at a type taking a function or a proposition | the box's proof at the term: no binder and no schema, as Isabelle substitutes |
 | Pure's equality rules at a type with an argument taking a function or a proposition, concluding `t ≡ t` | `reflexive t`; any other conclusion there has no reading |
 | `Axm` of ZF — `extension`, `Union_iff`, `Pow_iff`, `replacement`, `foundation`, `infinity` | the base's statement of it in NBG's words, read back into Isabelle's form (S3) |
@@ -1381,12 +1380,12 @@ Nothing is admitted (R1).
 its conclusion never mentions: every type is inhabited, so the proof proves the statement at any value of it. The
 exporter writes each such variable as `dummy_pattern`, one per type, which is a substitution, and a proof stays a proof
 under substitution. The target has no free variable: every variable a step uses is bound by a `forall_intro` or an
-`exists_elim`. A `∀` over the proof concludes `∀h. φ`, not `φ`; what the proof needs is an element. So the variable is
-the witness of an `exists_elim` over its type's inhabitation, at the top of its proof and below its letters, and the
-conclusion, which does not mention it, stands. One witness serves every type: Empty gives `∅`, which is a set,
-single-valued (it has no pairs), a class, and a truth set (`∅ ⊆ {∅}`), so each guard — R3's, S5's, S4's — is inhabited,
-proved once in base from Empty, and nothing is admitted. A variable at a type beyond objects and propositions has no
-reading as a variable, and so no binder.
+`exists_elim`. A `∀` over the proof concludes `∀h. φ`, not `φ`; what the proof needs is an element. So the variable
+takes a value the proof binds, constant in its arguments: at `T₁ ⇒ … ⇒ Tₙ ⇒ R` it is `λx⃗. v`, `v` the witness of an
+`exists_elim` over `R`'s inhabitation at the top of its proof and below its letters, and β — which Isabelle's kernel
+equates — reads each application as `v`; the conclusion, which does not mention it, stands. The witness is a set (R3)
+or a truth set (S4), `∅` either, proved once in base from Empty, and nothing is admitted; a function of a class, which
+no class of classes could bind, is read so like every other type.
 
 **A VARIABLE WHOSE TYPE TAKES A FUNCTION IS SUBSTITUTED WHERE ISABELLE INSTANTIATES IT.** A constant taking a class,
 `Ball :: i ⇒ (i ⇒ o) ⇒ o`, is a predicate whose class argument is a parameter, `∃C. Ball(C, P) ∧ ⟨A⟩ ∈ C`: the class

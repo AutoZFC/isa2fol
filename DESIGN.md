@@ -4091,7 +4091,7 @@ its in-place proof. `ReaderRefusal.letterLeft`: a citation leaving a letter unin
   at `o⃗ ⇒ o`, two IFOL boxes ("Functions of propositions …", 4), 1,704; the class prover's 134 unbuilt lemmas 1,444;
   `IFOL.exI`, an ∃-intro carrying its body ("The logic's rules read as steps", 4), 1,382.
 
-### Step 7 — the hidden variable, bound at its proof's top  **[AGREED 2026-10-17 (user), the two decisions one by one; BUILT 2026-10-17, its decisions in the build for the user's review — `Sources/IR/Node.swift`, `Table.swift`, `Pattern.swift`, `Legalize.swift`, `Sources/Reader/Terms.swift`, `Reader.swift`, `MalformedExport.swift`, `Sources/Lowering/Fol.swift`, `Logic.swift`, `Reify.swift`, `Terms.swift`, `Plan.swift`, `Base.swift`, `base/tiers/primitives`, `metafun`, `truth`, `docs/FOUNDATION.md`]**
+### Step 7 — the hidden variable, bound at its proof's top  **[AGREED 2026-10-17 (user), the two decisions one by one; BUILT 2026-10-17, its decisions in the build for the user's review — `Sources/IR/Node.swift`, `Table.swift`, `Pattern.swift`, `Legalize.swift`, `Sources/Reader/Terms.swift`, `Reader.swift`, `MalformedExport.swift`, `Sources/Lowering/Fol.swift`, `Logic.swift`, `Reify.swift`, `Terms.swift`, `Plan.swift`, `Base.swift`, `base/tiers/primitives`, `metafun`, `truth`, `docs/FOUNDATION.md`; its binder at a function type REMOVED 2026-10-19, "A variable only the proof uses, constant in its arguments"]**
 
 **The step.** The reader reads `Pure.dummy_pattern` as what it encodes, a variable only the proof uses,
 `isaFree(.hidden, T)` (§4.3b), and no pass owns it. Through logic it leads what no pass owns: `isaFree(i)` 731 named
@@ -5263,7 +5263,7 @@ lemmas left out (7,018); 8 refused unbuilt. `scripts/check-unit.sh`: 33 parts, e
 2,331 of 2,331, schemas 352 of 352; 264.2 MB, 2,884,207 steps written. The step's reach is step 6's: the 668 wait on
 `If`, and the memory they bring is paid now.
 
-### Step 6 — a proposition as an argument: `If`, `bool_of_o`, and a variable only the proof uses at `o ⇒ i`  **[AGREED 2026-10-18 (user), the two decisions one by one]**
+### Step 6 — a proposition as an argument: `If`, `bool_of_o`, and a variable only the proof uses at `o ⇒ i`  **[AGREED 2026-10-18 (user), the two decisions one by one; BUILT 2026-10-19; its variable at `o ⇒ i` REMOVED 2026-10-19, "A variable only the proof uses, constant in its arguments"]**
 
 **The step.** ZF's `If :: o ⇒ i ⇒ i ⇒ i` and Bool's `bool_of_o :: o ⇒ i` take a proposition, and IFOL's eight
 `quant_simps` hold or cite a variable only the proof uses at `o ⇒ i`, applied to a proposition: iprover's unknown witness,
@@ -6134,6 +6134,156 @@ extensions, 260K (10.7%) — 6 steps each and 5 per numeral; the projections, 14
 `assume A` nested in `assume A` is written twice; the real checker proves a proof whose second derivation is cited.
 `EmissionTests`: `aStepWrittenInAClosedBlockIsDerivedAgain` unchanged. `ClassTests`: `CLASS ⟨λx. x⟩`'s bound lowered.
 Base: `snoc_facts` kernel-checked. The ZF session: the complete run, emitted and kernel-checked, no named theorem lost.
+
+### A variable only the proof uses, constant in its arguments  **[AGREED 2026-10-19 (user), the two decisions one by one]**
+
+**The step.** Four boxes of FOL — `FOL.BOX_1cd4667e985779e8`, `BOX_2f42c9282ade2332`, `BOX_c0ebd548d5631834`,
+`BOX_df3e01c320bd00e9`, the proofs `int_all_simps.3`, `.4` and `int_ex_simps.1`, `.2` cite — bind a variable only the
+proof uses at `(i ⇒ o) ⇒ o ⇒ i` and one at `o ⇒ (i ⇒ o) ⇒ i`: iprover's unknown witness, lifted over the goal's class
+`P` and proposition `Q`. `int_all_simps.3`'s box holds `iprover+`'s one proof of the lemma's four goals and takes its
+own from it. Logic leaves both variables unbuilt (step 7: "beyond objects: unbuilt"), and with the four boxes 3,098 of
+the ZF session's 3,247 refused named theorems fall, 3,055 for nothing else; `FOL.int_ex_simps.2`, the simplifier's
+`(∃x. P ∧ Q(x)) ⟷ P ∧ (∃x. Q(x))`, is cited by 404 refused statements directly. In a trace of every refusal down to the
+statements refused for their own reason (not kept), the other roots are the class prover's `CLASS ⟨λ⟩` for a λ closing
+over a proposition (141), `AC.AC` (44, 43 of them also here) and an unrestricted type variable (7).
+
+The reader's output over the ZF unit (a throwaway walk, not kept) binds 1,542 variables only a proof uses: at `i` in
+1,132 statements, at `o` in 81, at a function of objects in 313 (`i ⇒ i` 80, `i ⇒ o` 55, `i ⇒ i ⇒ o` 52, `i ⇒ i ⇒ i`
+47, …), at `o ⇒ i` in 8, and at the two types taking a class in the four boxes. None at a function type stands in a
+statement the complete run keeps: step 7's binder at a function of objects and step 6's at `o ⇒ i` have met no
+statement that stands. Every occurrence at a function type is applied — the reader's terms are η-long — 610 in all,
+296 under a λ, 159 of those a predicate's (`i ⇒ o`, `i ⇒ i ⇒ o`).
+
+**The problem, in target text.**
+
+```
+Isabelle   lemma int_all_simps:  ⋀P Q. (∀x. P(x) ∧ Q) ⟷ (∀x. P(x)) ∧ Q     … and three goals more     by iprover+
+           its first goal, ⟹:  from ∀x. P(x) ∧ Q, Q — allE at an x the goal never fixes
+export     allE · (λx. P(x) ∧ Q) · dummy_pattern(λx. P(x), Q) · Q          dummy_pattern :: (i ⇒ o) ⇒ o ⇒ i
+read       isaHidden((i ⇒ o) ⇒ o ⇒ i, … isaAllElim(allE·Q·(λx. P(x) ∧ Q), isaVarApp(f, [λx. P(x), Q])) …)
+                                                              the binder Logic's, unbuilt; the application Reify's, unbuilt
+fol-zfc    —      exists_elim over its type's inhabitation: no guard ranges over a function of a class
+```
+
+FOUNDATION §3b says why there is nothing to bind — "a variable at a type beyond objects and propositions has no reading
+as a variable, and so no binder" — and what the variable is: "some value, not every value … a proof stays a proof under
+substitution". The step chooses the value.
+
+**1. A variable only the proof uses is constant in its arguments: at `T₁ ⇒ … ⇒ Tₙ ⇒ R` it is `λx⃗. v`, `v` one only
+the proof uses at `R`, `i` or `o`, and each application is `v`.** **AGREED 2026-10-19 (user).** Isabelle's proof
+proves its statement at every value of the variable; `λx⃗. v` is one, and the proof at it is Isabelle's own instance, β
+— which Isabelle's kernel equates — turning each `f(a⃗)` into `v`. One reading for every type, a base type the one with
+no arguments: `v` is bound as step 7 binds one at `i` (`set_inhabited`) and at `o` (`truth_inhabited`, read
+`holds(E)`), and no type is left without one.
+
+| `allE` at the witness | |
+|---|---|
+| now | `isaHidden((i ⇒ o) ⇒ o ⇒ i, … isaAllElim(…, isaVarApp(f, [λx. P(x), Q])) …)`, Logic unbuilt |
+| constant | `isaHidden(i, … isaAllElim(…, h) …)`, Fol's as at `i` |
+
+```
+fol-zfc    _0 = use set_inhabited                       exists x. set(x)
+           _1 = exists_elim _0, h                       set(h)                  the proof's one witness at i
+           …                                                                    allE at Q, at P(·) ∧ Q's class, then:
+           _k = forall_elim _j, h                       set(h) -> …             its guard discharged by _1's
+```
+
+Every variable only a proof uses at a function type changes reading, though none stands today: an application at
+`iⁿ ⇒ i` (step 7's function variable, its value fixed by its EX, `apply` at its tuple) is `h`; at `iⁿ ⇒ o` (a class
+variable) `holds(E)`; at `o ⇒ i` (step 6's class over truth-set tuples) `h`. A predicate's application under a λ — the
+159 — gives a λ closing over a proposition, `λx. holds(E)`, whose class is the class prover's next gap, as `λx. P` at a
+letter is.
+
+Not the binder kept at the types that have a reading and the constant only at a type taking a class: two readings of
+one variable, chosen by its type, where one serves every type (one route per rule) — and the binder costs each
+application its value's EX, the constant nothing. Not a class of classes for the function of a class: NBG has none,
+and the variable needs none. Not `0` or `⊥` substituted: step 7 decided against a value the proof never chose, which S1
+names at every site (`0`); `v` is a variable, bound once.
+
+**2. The reader reads it so: at the proof's top, one variable per result type, in the order the proof first uses
+them, and each `dummy_pattern(a⃗)` that variable, its arguments not read.** **AGREED 2026-10-19 (user).** Step 7 put the binder in the
+reader because only the reader sees every occurrence and where the proof's scope begins (its decision 1); the value is
+chosen where the variable is bound. The passes then meet `isaHidden(i)` and `isaHidden(o)` alone, each rule as built,
+and what only the function types used goes: Fol's binder at a function type, base's `function_inhabited`, Logic's
+`isaHidden` unbuilt beyond objects. Two variables of one result type are one: `f := λP Q. h` and `g := λQ P. h` are a
+value of each.
+
+| the box's proof | |
+|---|---|
+| now | `isaHidden((i ⇒ o) ⇒ o ⇒ i, isaHidden(o ⇒ (i ⇒ o) ⇒ i, …))`, each witness its variable's application |
+| read | `isaHidden(i, …)`, both witnesses `h` |
+
+Not Logic's rule substituting at the binder, `isaHidden(T)` instantiated at `λx⃗. #0`: the application `isaVarApp(f, a⃗)`
+at a head taking a class is Reify's, unbuilt, so the statement is refused before Logic runs, and a rule reading it as
+the variable at its result type would be right only under a hidden binder — a shape around the piece (D1).
+
+**FOUNDATION first.**
+- §3b's table: "a variable only the proof uses (`dummy_pattern`) | the witness of an `exists_elim` at the proof's top,
+  below its letters, over its type's inhabitation" becomes "… over its result type's inhabitation, `i` or `o`: constant
+  in its arguments, each application that witness".
+- §3b's "A VARIABLE ONLY THE PROOF USES IS SOME VALUE, NOT EVERY VALUE": its last two sentences — one witness, `∅`,
+  inhabiting every guard; "a variable at a type beyond objects and propositions has no reading as a variable, and so no
+  binder" — become: the value chosen is `λx⃗. v`, constant in the variable's arguments, `v` the witness at its result
+  type, a set (R3) or a truth set (S4), `∅` either, proved once in base; a function of a class needs no reading.
+- S4's consequences: "A variable taking a proposition — one only a proof uses at `o ⇒ i` — is a class variable over such
+  tuples, single-valued as at `i ⇒ i`" goes; at arity 0, "Bound and never instantiated — a variable only the proof uses
+  — it is a class of tuples of truth sets (S4's first paragraphs), a class variable as at arity ≥ 1" becomes "… it is
+  constant in its arguments (§3b)".
+
+**The contracts (D2):**
+
+| | provides | assumes |
+|---|---|---|
+| Reader | each proof's variables only it uses bound at its top, below its closure, one per result type: `isaHidden(i)`, `isaHidden(o)`; each `dummy_pattern(a⃗)` that variable | — |
+| Fol | `isaHidden(i)`: `exists_elim` over `set_inhabited`, as built | base's `set_inhabited` |
+| Logic | `isaHidden(o)`: `exists_elim` over `truth_inhabited`, the variable `holds(E)`, as built | base's `truth_inhabited` |
+| Base | `function_inhabited` removed: no statement cites it | — |
+
+**Tests, written first.**
+- `ProofReaderTests`: `dummy_pattern` at `(i ⇒ o) ⇒ o ⇒ i` applied to a class and a proposition reads `isaHidden(i, …)`,
+  its application `isaBound(k, i)`; at `i ⇒ i` and at `i ⇒ o` the same at `i` and at `o` (`isaPropBound`); at `i` and at
+  `i ⇒ i` together, one binder; the reader's output holds no `isaHidden` at another type.
+- `HiddenTests`: `isaHidden` at `i ⇒ i` and `i ⇒ o` leave, inputs no reader writes; `int_all_simps`'s first goal in
+  miniature, `(∀x. P(x) ∧ Q) → Q` by `allE` at a witness applied to `P` and `Q`, lowered and kernel-checked.
+- `PlanTests`: `isaHidden` owned at `i` by Fol and at `o` by Logic, at no other type.
+- `check-base.sh`: base without `function_inhabited`.
+- The ZF session: the four boxes and `FOL.int_all_simps.3`, `.4`, `int_ex_simps.1`, `.2` lowered; the complete run,
+  emitted and kernel-checked, none of the 369 named theorems lost; the named theorems it adds, and the refusals that now
+  lead.
+
+**Not in this step.** `CLASS ⟨λ⟩` for a λ closing over a proposition, the next root (141 named theorems, and a predicate
+only a proof uses applied under a λ). Memory: the 45.8 GB peak is the lowering's — a run without `--emit` peaks at it
+too — and the lemmas proved for what comes back add to it; the step measures it under `MEM=80G`, and a run killed there
+makes memory the next step. `AC.AC`; an unrestricted type variable.
+
+**Built.** The reader (`Terms.swift`): `hide` collects each `dummy_pattern`'s result type, one binder per result type in
+the order the proof first uses them, and an application of one reads as the variable at its result type, `isaBound(k,
+i)` or `isaPropBound(k)`, its arity checked and its arguments not read. Fol: `isaHidden(i)` alone, `exists_elim` over
+`set_inhabited`; Logic: `isaHidden(o)` alone; no pass owns `isaHidden` at another type. Base: `function_inhabited`
+removed, `metafun` 18 of 18. FOUNDATION §3b's table and paragraph, and S4's two sentences, as agreed.
+
+**Decisions made in the build**, for the user's review:
+1. **A dropped argument is not scanned for binders**: a `dummy_pattern` inside another's arguments occurs nowhere in the
+   output, so `hide` binds no variable for it.
+2. **The reading of a variable at a type taking a proposition goes with its only producer**: step 6's class over
+   truth-set tuples — Reify's application at such a head, Fol's variable and guard at such a type, IR's `objectType` —
+   read only a variable only the proof uses, and none is read so now. A variable at such a type is unbuilt, as one
+   beyond objects is; a constant taking a proposition (`If`) keeps its truth-set entry, which never used `objectType`.
+3. **A shared argument the λ's body names below a connective is unbuilt, refused before the walk** (`Meeting.swift`,
+   `betaAtom`). The β walk fixes an argument both forms name (a compound term holding the formula's own variable) by
+   its pieces at both forms' top, which holds when the λ's body is an atom. With the four boxes read, the theorems behind
+   them reach it: `ZF.iterates_triv`'s induction at `λn. F(x) = x ⟶ F^n(x) = x` names `succ(n)` below the implication,
+   and the walk stopped the complete run on a malformed step (`principalConnective`), a prover error other than
+   `MeetingError.unmet`. Both forms are now checked to hold the argument's naming first, constraint for constraint,
+   before any step; otherwise the lemma is unbuilt and its user falls
+   (`LambdaTests.aSharedArgumentTheBodyNamesBelowAConnectiveIsUnbuilt`). Building that shape is not in this step.
+
+**Measured** (the ZF session, the release build, the lint first): `check-base.sh`, 14 tiers each exit 0 and empty
+stderr, `metafun` 18 of 18. The tests: 14, 142, 121 and 47 passed, Lowering 153 with HEAD's two failing (`infinity`,
+`λx. x = x`). `ZF.iterates_triv` alone (`--theorem`): refused, citing `BETA_0e23d963c3fd01a7_2`, unbuilt (decision 3).
+**The complete run is killed at `MEM=80G`**: 20:05 in, still lowering, at 83.7 GB — HEAD's peaked at 45.8 GB, 13:11;
+the first run, before decision 3, stopped at 7:02 on the β walk's malformed step, at 24.9 GB. Nothing is emitted, so
+the named theorems the step adds are neither counted nor kernel-checked: memory is the next step ("Not in this step").
 
 ### Fol — binders, guards and variables  **[BUILT 2026-09-28 as the guard; Fol's 2026-10-14; every object type and `∃` at `i` with "Reify — S1 at the site" — `Sources/Lowering/Fol.swift`]**
 
