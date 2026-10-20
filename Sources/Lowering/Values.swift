@@ -122,7 +122,12 @@ private struct Abstracting {
 
 /// EX of a value's term over its skeleton — its arguments, and each fixed term inside its λs, variables — instantiated
 /// at their values: `∃r. ⟦r = t⟧`, `t`'s arguments valued.
-func existence(ofValue v: NodeID, base _: Base, in t: inout Table) throws -> NodeID {
+func existence(
+    ofValue v: NodeID,
+    base _: Base,
+    guardOf: (NodeID, IRType, inout Table) throws -> NodeID = isaGuard,
+    in t: inout Table,
+) throws -> NodeID {
     guard case .isaValue(let held) = t[v] else { throw ValuesError.notAValue(v) }
     let term = try transform(held, TruthUnread(), in: &t)
     let s = try skeleton(
@@ -141,7 +146,7 @@ func existence(ofValue v: NodeID, base _: Base, in t: inout Table) throws -> Nod
         at: at,
         c.types,
         guards: true,
-        guardOf: isaGuard,
+        guardOf: guardOf,
         in: &t,
     )
 }
@@ -217,7 +222,13 @@ enum Fixing {
 /// `body` under one binder per value of `ordered`, outermost first, each value its variable and its fact its
 /// hypothesis: `exists_elim` over its EX in a proof, `∀v. fact → …` in a statement, `fix` and `assume` in a lemma's
 /// proof.
-func fixing(_ ordered: [NodeID], in body: NodeID, by how: Fixing, in t: inout Table) throws -> NodeID {
+func fixing(
+    _ ordered: [NodeID],
+    in body: NodeID,
+    by how: Fixing,
+    guardOf: (NodeID, IRType, inout Table) throws -> NodeID = isaGuard,
+    in t: inout Table,
+) throws -> NodeID {
     let k = ordered.count
     guard k > 0 else { return body }
     let index = Dictionary(uniqueKeysWithValues: ordered.enumerated().map { ($1, $0) })
@@ -228,7 +239,7 @@ func fixing(_ ordered: [NodeID], in body: NodeID, by how: Fixing, in t: inout Ta
         let v = ordered[j]
         switch how {
         case .existence(let base):
-            let existence = try existence(ofValue: v, base: base, in: &t)
+            let existence = try existence(ofValue: v, base: base, guardOf: guardOf, in: &t)
             let premise = try transform(
                 existence,
                 Rebind(index: index, count: j, holding: closed.isEmpty ? [] : containing(closed, in: existence, t)),

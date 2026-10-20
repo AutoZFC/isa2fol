@@ -304,6 +304,7 @@ struct MeetingProofs {
             ),
             guards: guards,
             root: outer.scope,
+            premised: Set(crossing),
         )
         let p = try walk.convert(
             m.formula,
@@ -367,6 +368,7 @@ struct Meet {
     var beta: Beta?
     var guards = [Int: Int]()
     var root = Scope()
+    var premised = Set<NodeID>()
 
     /// ⚠ A LEMMA'S OWN VARIABLE HAS ITS GUARD AS A HYPOTHESIS OF ITS PROOF, NEVER `isaGuard`: Fol finds no guarded
     /// binder for it.
@@ -417,13 +419,11 @@ struct Meet {
             forward ? try formula(x, named, in: &t) : try formula(try reduced(x, s, &t), valued, in: &t)
         }
         if Reify().names(Pattern(t[phi], in: t)) {
-            if
-                let beta, case .isaVarApp(let head, let args) = t[phi], case .isaBound(let k, _) = t[head],
-                k == beta.variable + s.depth - beta.root.depth
-            {
-                return try betaAtom(phi, args, named: named, valued: valued, forward: forward, p, s, &t)
+            if try applies(phi, named, s, &t) {
+                return try atValues(phi, named: named, valued: valued, forward: forward, p, s, &t)
             }
-            return try Atom(meet: self, named: named, valued: valued).convert(phi, forward: forward, p, s, &t)
+            return try Atom(meet: self, named: named, valued: valued)
+                .convert(phi, to: try reduced(phi, s, &t), forward: forward, p, s, &t)
         }
         if
             case .isaConst(.primitive(.pure(.eq)), .fn(let F, _), let args) = t[phi], args.count == 2,
@@ -599,12 +599,24 @@ struct Meet {
         return lemma
     }
 
-    /// `P(t⃗)` against the λ's body at `t⃗`: the λ's class at its arguments (`ARGS`), then the body's own lemma moving
-    /// its arguments to `t⃗`'s values; an argument both forms name is first fixed by its pieces, where both forms name
-    /// it first — a body naming it below a connective is unbuilt.
-    private func betaAtom(
+    /// Whether the atom applies the class variable at its own level: `P(t⃗)`, or a term `F(t⃗)` its naming holds.
+    private func applies(_ phi: NodeID, _ named: Mode, _ s: Scope, _ t: inout Table) throws -> Bool {
+        guard beta != nil else { return false }
+        if case .isaVarApp(let head, _) = t[phi], holdsP(head, s, t) { return true }
+        var a = Naming(mode: named)
+        _ = try a.atom(t[phi], in: &t)
+        return a.ranges.contains { r in
+            guard case .isaVarApp(let head, _) = t[r.term] else { return false }
+            return holdsP(head, s, t)
+        }
+    }
+
+    /// An atom applying the class variable, against its reduced form: through the reduced form's value form at `s`,
+    /// each term at its level a value, met to the reduced form's names by its own lemma. The values fixed at the atom
+    /// are those only its conversion holds: the lemma premises the others, or the atom's premise or conclusion holds
+    /// them, an enclosing atom fixing those.
+    private func atValues(
         _ phi: NodeID,
-        _ args: [NodeID],
         named: Mode,
         valued: Mode,
         forward: Bool,
@@ -612,97 +624,59 @@ struct Meet {
         _ s: Scope,
         _ t: inout Table,
     ) throws -> NodeID {
-        for a in args where !(isVariable(a, t) || isValued(a, t) && named.valued(a, in: t) || shared(
-            a,
-            named,
-            valued,
-            t,
-        )) {
-            throw MeetingError.unmet(a)
+        let target = try reduced(phi, s, &t)
+        let moving: Moving = if case .statement = valued { .closed } else { .variables(Array(0..<depth(of: valued))) }
+        let guards = { (x: NodeID, T: IRType, t: inout Table) throws -> NodeID in try guardOf(x, T, s, &t) }
+        let proof: NodeID
+        if forward {
+            let q = try crossed(phi, named, forward: true, p, s, &t)
+            proof = try met(q, target, moving: moving, toValues: false, guardOf: guards, in: &t)
+        } else {
+            let q = try met(p, target, moving: moving, toValues: true, guardOf: guards, in: &t)
+            proof = try crossed(phi, named, forward: false, q, s, &t)
         }
-        guard args.contains(where: { shared($0, named, valued, t) }) else {
-            let refs = try args.map { try value(of: $0, in: &t) }
-            return try betaCore(refs, sites: args, named: named, valued: valued, forward: forward, p, s, &t)
+        guard let given = t.conclusion(of: p), let concluded = t.conclusion(of: proof) else {
+            throw TableError.expectedStep(proof)
         }
-        var a = Naming(mode: named)
-        _ = try a.atom(t[phi], in: &t)
-        let m = a.chain.binders.count - 1
-        var g = Frame(s)
-        var rest = forward ? try formula(try reduced(phi, s, &t), valued, in: &t) : try formula(phi, named, in: &t)
-        guard var source = t.conclusion(of: p) else { throw TableError.expectedStep(p) }
-        var target = rest
-        for _ in 0..<m {
-            guard let a = constrained(source, t), let b = constrained(target, t), a.constraint == b.constraint else {
-                throw MeetingError.unmet(phi)
-            }
-            (source, target) = (a.after, b.after)
+        let outside = Set(try ordered(try values(in: given, &t) + values(in: concluded, &t), &t))
+        let depth = s.depth - root.depth
+        let here = try ordered(try values(in: proof, &t), &t).filter { v in
+            guard !outside.contains(v) else { return false }
+            return try lowestLoose(v, in: t) < depth || !premised.contains(try shift(v, by: -depth, in: &t))
         }
-        var held = p
-        var heldScope = s
-        var levels = [Int]()
-        for _ in 0..<m {
-            let body: NodeID
-            switch t[rest] {
-            case .ifolAll(.i, let b): (body, levels) = (b, levels + [g.fix(.i)])
-            case .folForall(let b): (body, levels) = (b, levels + [g.fix(nil)])
-            default: throw MeetingError.misaligned(phi)
-            }
-            guard case .folImplies(let c, let after) = t[body] else { throw MeetingError.misaligned(phi) }
-            let h = g.assume(c)
-            let at = try eliminated(
-                try lifted(held, from: heldScope, to: g.scope, in: &t),
-                at: try g.variable(levels.last!, in: &t),
-                in: &t,
-            )
-            held = try t.intern(.folImpliesElim(at, try g.hypothesis(h, in: &t)))
-            (heldScope, rest) = (g.scope, after)
-        }
-        let tops = a.ranges
-            .filter { r in
-                !a.ranges
-                    .contains {
-                        $0.binders != r.binders && $0.binders.contains(r.binders.lowerBound) && $0.binders
-                            .contains(r.binders.upperBound - 1)
-                    }
-            }
-        var top = tops.makeIterator()
-        var refs = [NodeID]()
-        var sites = [NodeID]()
-        for x in args {
-            let here = try lifted(x, from: s, to: g.scope, in: &t)
-            guard shared(x, named, valued, t) else {
-                refs.append(try value(of: here, in: &t))
-                sites.append(here)
-                continue
-            }
-            guard let r = top.next(), r.term == x else { throw MeetingError.misaligned(x) }
-            let v = try g.variable(levels[r.binders.upperBound - 1], in: &t)
-            refs.append(v)
-            sites.append(v)
-        }
-        guard let beta else { throw MeetingError.unmet(phi) }
-        let lambda = try lifted(beta.lambda, from: beta.root, to: g.scope, in: &t)
-        let body = try formula(try IR.beta(lambda, refs, in: &t), valued.deeper(m), in: &t)
-        guard body == (forward ? rest : t.conclusion(of: held)) else { throw MeetingError.unmet(phi) }
-        let core = try betaCore(
-            refs,
-            sites: sites,
-            named: named.deeper(m),
-            valued: valued.deeper(m),
-            forward: forward,
-            held,
-            g.scope,
-            &t,
-        )
-        return try g.close(core, in: &t)
+        return try fixing(here, in: proof, by: .existence(base), guardOf: guards, in: &t)
     }
 
-    /// `P(refs)` against the λ's body there, `sites` the terms the refs hold.
+    /// The atom against its reduced form's value form at `s`: `P(t⃗)` by β at its arguments' values, any other atom by
+    /// its terms' values.
+    private func crossed(
+        _ phi: NodeID,
+        _ named: Mode,
+        forward: Bool,
+        _ p: NodeID,
+        _ s: Scope,
+        _ t: inout Table,
+    ) throws -> NodeID {
+        let atom = Atom(meet: self, named: named, valued: .proof(0))
+        guard case .isaVarApp(let head, let args) = t[phi], holdsP(head, s, t) else {
+            return try atom.convert(phi, to: try reduced(phi, s, &t), forward: forward, p, s, &t)
+        }
+        let sites = try args.map { try reduced($0, s, &t) }
+        let refs = try sites.map { try value(of: $0, in: &t) }
+        let atValues = try t.intern(.isaVarApp(head: head, args: sites))
+        if forward {
+            let q = try atom.convert(phi, to: atValues, forward: true, p, s, &t)
+            return try betaCore(refs, sites: sites, forward: true, q, s, &t)
+        }
+        let q = try betaCore(refs, sites: sites, forward: false, p, s, &t)
+        return try atom.convert(phi, to: atValues, forward: false, q, s, &t)
+    }
+
+    /// `P(refs)` against the λ's body there, `sites` the terms the refs hold: the λ's class at its arguments (`ARGS`),
+    /// then the body's own lemma moving them to their values.
     private func betaCore(
         _ refs: [NodeID],
         sites args: [NodeID],
-        named _: Mode,
-        valued: Mode,
         forward: Bool,
         _ p: NodeID,
         _ s: Scope,
@@ -713,47 +687,18 @@ struct Meet {
         let P = try t.intern(.isaBound(beta.variable + s.depth - beta.root.depth, t.type(of: beta.lambda)!))
         let definition = try lifted(beta.definition, from: beta.root, to: s, in: &t)
         let at = try arguments(lambda, P, definition, refs, s, &t)
-        if case .statement = valued {
-            return try t.intern(forward ? .folIffElimL(at, p) : .folIffElimR(at, p))
-        }
         let n = args.count
         let xs = try (0..<n).map { try t.intern(.isaBound(n - 1 - $0, .i)) }
         let body = try IR.beta(try shift(lambda, by: n, in: &t), xs, in: &t)
-        let bound = depth(of: valued)
         var sites = [Int: NodeID]()
-        var moving = [Int]()
-        var keep = Set(n..<(n + bound))
-        for j in 0..<n {
-            sites[n - 1 - j] = args[j]
-            if looseIndices(args[j], in: t).contains(where: { $0 < bound }) { keep.insert(n - 1 - j) } else {
-                moving.append(n - 1 - j)
-            }
-        }
+        for j in 0..<n { sites[n - 1 - j] = args[j] }
+        let moving = Moving.variables(Array(0..<n))
+        let guards = { (x: NodeID, T: IRType, t: inout Table) throws -> NodeID in try guardOf(x, T, s, &t) }
         if forward {
             let named = try t.intern(.folIffElimL(at, p))
-            return try met(
-                named,
-                body,
-                moving: .variables(moving),
-                at: sites,
-                drop: n,
-                keep: keep,
-                toValues: true,
-                guardOf: { x, T, t in try guardOf(x, T, s, &t) },
-                in: &t,
-            )
+            return try met(named, body, moving: moving, at: sites, drop: n, toValues: true, guardOf: guards, in: &t)
         }
-        let back = try met(
-            p,
-            body,
-            moving: .variables(moving),
-            at: sites,
-            drop: n,
-            keep: keep,
-            toValues: false,
-            guardOf: { x, T, t in try guardOf(x, T, s, &t) },
-            in: &t,
-        )
+        let back = try met(p, body, moving: moving, at: sites, drop: n, toValues: false, guardOf: guards, in: &t)
         return try t.intern(.folIffElimR(at, back))
     }
 
@@ -772,23 +717,26 @@ private struct Atom {
         meet.base
     }
 
-    func convert(_ phi: NodeID, forward: Bool, _ p: NodeID, _ s: Scope, _ t: inout Table) throws -> NodeID {
+    /// `p` proving `phi`'s named form, or `target`'s valued form: the other. `target` is `phi` as the valued form holds
+    /// it, the class variable reduced.
+    func convert(_ phi: NodeID, to target: NodeID, forward: Bool, _ p: NodeID, _ s: Scope, _ t: inout Table) throws
+        -> NodeID
+    {
         var a = Naming(mode: named)
         let coreA = try a.atom(t[phi], in: &t)
         var b = Naming(mode: valued)
-        let reducedAtom = try meet.reduced(phi, s, &t)
-        let coreB = try b.atom(t[reducedAtom], in: &t)
+        let coreB = try b.atom(t[target], in: &t)
+        let formA = try a.chain.formula(coreA, in: &t)
+        let formB = try b.chain.formula(coreB, in: &t)
+        if formA == formB { return p }
         var crossing = [(binders: Range<Int>, term: NodeID)]()
-        var blocks = [(binders: Range<Int>, term: NodeID, reduced: NodeID)]()
         for r in a.ranges {
             let reduced = try meet.reduced(r.term, s, &t)
-            if case .isaVarApp(let head, _) = t[r.term], meet.holdsP(head, s, t) {
-                if isVariable(reduced, t) || valued.valued(reduced, in: t) { crossing.append(r) } else {
-                    blocks.append(((r.binders.upperBound - 2)..<r.binders.upperBound, r.term, reduced))
-                }
-                continue
+            if isVariable(reduced, t) || valued.valued(reduced, in: t) {
+                crossing.append(r)
+            } else if case .isaVarApp(let head, _) = t[r.term], meet.holdsP(head, s, t) {
+                throw MeetingError.misaligned(r.term)
             }
-            if valued.valued(reduced, in: t) { crossing.append(r) }
         }
         var owner = [Int?](repeating: nil, count: a.chain.binders.count)
         for (j, r) in crossing.enumerated() {
@@ -796,19 +744,7 @@ private struct Atom {
                 owner[k] = j
             }
         }
-        var inBlock = [Int?](repeating: nil, count: a.chain.binders.count)
-        var bOnly = 0
-        for (j, block) in blocks.enumerated() {
-            for k in block.binders { inBlock[k] = j }
-            guard let r = b.ranges.first(where: { $0.term == block.reduced }) else {
-                throw MeetingError.misaligned(block.term)
-            }
-            bOnly += try own(block.term, r.binders, b, s, &t).count
-        }
-        guard
-            a.chain.binders.indices.count(where: { owner[$0] == nil && inBlock[$0] == nil }) + bOnly
-            == b.chain.binders.count
-        else {
+        guard a.chain.binders.indices.count(where: { owner[$0] == nil }) == b.chain.binders.count else {
             throw MeetingError.unmet(phi)
         }
         var st = State(
@@ -818,39 +754,9 @@ private struct Atom {
         )
         var held = p
         var heldScope = s
-        var rest = try (forward ? b : a).chain.formula(forward ? coreB : coreA, in: &t)
+        var rest = forward ? formB : formA
         var restScope = s
-        var bLevels = [Int?](repeating: nil, count: b.chain.binders.count)
-        var bNext = 0
         for k in a.chain.binders.indices {
-            if let j = inBlock[k] {
-                guard k == blocks[j].binders.lowerBound else { continue }
-                var bRange: Range<Int>?
-                for r in b.ranges where r.term == blocks[j].reduced {
-                    let mine = try own(blocks[j].term, r.binders, b, s, &t)
-                    guard mine.lowerBound == bNext else { continue }
-                    bRange = mine
-                    break
-                }
-                guard let bRange else { throw MeetingError.unmet(blocks[j].term) }
-                bNext = bRange.upperBound
-                try betaBlock(
-                    blocks[j],
-                    bRange,
-                    a,
-                    b,
-                    forward: forward,
-                    &st,
-                    &bLevels,
-                    &held,
-                    &heldScope,
-                    &rest,
-                    &restScope,
-                    s,
-                    &t,
-                )
-                continue
-            }
             if let j = owner[k] {
                 if forward {
                     let (w, h) = try st.f.open(try opening(a.pieces, k, st, s, &t), in: &t)
@@ -877,8 +783,6 @@ private struct Atom {
                 continue
             }
             (st.levels[k], st.facts[k]) = try fixAssume(&rest, &restScope, &st.f, &t)
-            guard bNext < bLevels.count else { throw MeetingError.misaligned(phi) }
-            (bLevels[bNext], bNext) = (st.levels[k], bNext + 1)
             let at = try eliminate(try lifted(held, from: heldScope, to: st.f.scope, in: &t), try st.ref(k, &t), &t)
             guard case .folImplies(let wanted, _)? = t.conclusion(of: at).map({ t[$0] }) else {
                 throw MeetingError.misaligned(phi)
@@ -918,36 +822,6 @@ private struct Atom {
         }
     }
 
-    /// The valued form's own binders for `P(t⃗)`'s body: its range past the namings of the arguments, which both forms
-    /// hold first and in order. A body naming a compound argument elsewhere, twice or not at all is unbuilt.
-    private func own(
-        _ term: NodeID,
-        _ whole: Range<Int>,
-        _ b: Naming,
-        _ s: Scope,
-        _ t: inout Table,
-    ) throws -> Range<Int> {
-        guard case .isaVarApp(_, let args) = t[term], var body = meet.beta?.lambda else {
-            throw MeetingError.misaligned(term)
-        }
-        var n = 0
-        while case .isaAbs(_, let below) = t[body] { (body, n) = (below, n + 1) }
-        guard n == args.count else { throw MeetingError.unmet(term) }
-        var start = whole.lowerBound
-        for (j, x) in args.enumerated() where !isVariable(x, t) && !(isValued(x, t) && named.valued(x, in: t)) {
-            guard occurrences(body, n - 1 - j, t) == 1 else { throw MeetingError.unmet(term) }
-            let reduced = try meet.reduced(x, s, &t)
-            if isVariable(reduced, t) || valued.valued(reduced, in: t) { continue }
-            guard
-                let first = b.ranges.first(where: {
-                    $0.term == reduced && $0.binders.lowerBound == start && $0.binders.upperBound < whole.upperBound
-                })
-            else { throw MeetingError.unmet(term) }
-            start = first.binders.upperBound
-        }
-        return start..<whole.upperBound
-    }
-
     /// `⟦r = body(t⃗)⟧`'s valued form, `r` the named form's value of `P(t⃗)` at `τ`: the λ's class at the arguments,
     /// then the body's lemma moving them to their values.
     private func applied(
@@ -982,7 +856,6 @@ private struct Atom {
         at = try t.intern(.folImpliesElim(try t.intern(.isaAllElim(at, tau)), atRefs))
         at = try t.intern(.isaAllElim(at, r))
         let named = try t.intern(.folIffElimL(at, rFact))
-        if case .statement = valued { return named }
         let n = args.count
         let xs = try (0..<n).map { try t.intern(.isaBound(n - 1 - $0, .i)) }
         let equation = try Lowering.equation(
@@ -1047,86 +920,6 @@ private struct Atom {
             &t,
         )
         return try base.claimed(.eqSymm, [r, v], [equal], in: &t)
-    }
-
-    /// A function variable's application the valued form names as the λ's body: the named form's `τ` and `r` and the
-    /// valued form's pieces of the body, one side fixed and the other opened by its facts, their values equal by the
-    /// λ's class at its arguments.
-    private func betaBlock(
-        _ block: (binders: Range<Int>, term: NodeID, reduced: NodeID),
-        _ bRange: Range<Int>,
-        _ a: Naming,
-        _ b: Naming,
-        forward: Bool,
-        _ st: inout State,
-        _ walked: inout [Int?],
-        _ held: inout NodeID,
-        _ heldScope: inout Scope,
-        _ rest: inout NodeID,
-        _ restScope: inout Scope,
-        _ s: Scope,
-        _ t: inout Table,
-    ) throws {
-        let tauLevel = block.binders.upperBound - 2
-        let rLevel = block.binders.upperBound - 1
-        var bLevels = [Int]()
-        var bFacts = [Int]()
-        if forward {
-            for k in [tauLevel, rLevel] {
-                let (w, h) = try st.f.open(try opening(a.pieces, k, st, s, mode: named, &t), in: &t)
-                (st.levels[k], st.facts[k]) = (w, h)
-                let at = try eliminate(try lifted(held, from: heldScope, to: st.f.scope, in: &t), try st.ref(k, &t), &t)
-                held = try t.intern(.folImpliesElim(at, try st.fact(k, &t)))
-                heldScope = st.f.scope
-            }
-            for k in bRange {
-                let (w, h) = try fixAssume(&rest, &restScope, &st.f, &t)
-                bLevels.append(w)
-                bFacts.append(h)
-                walked[k] = w
-            }
-        } else {
-            for k in [tauLevel, rLevel] { (st.levels[k], st.facts[k]) = try fixAssume(&rest, &restScope, &st.f, &t) }
-            var bState = State(
-                f: st.f,
-                levels: walked,
-                facts: Array(repeating: nil, count: b.chain.binders.count),
-            )
-            for k in bRange {
-                let (w, h) = try bState.f.open(try opening(b.pieces, k, bState, s, mode: valued, &t), in: &t)
-                (bState.levels[k], bState.facts[k]) = (w, h)
-                let at = try eliminate(
-                    try lifted(held, from: heldScope, to: bState.f.scope, in: &t),
-                    try bState.ref(k, &t),
-                    &t,
-                )
-                held = try t.intern(.folImpliesElim(at, try bState.fact(k, &t)))
-                heldScope = bState.f.scope
-                bLevels.append(w)
-                bFacts.append(h)
-                walked[k] = w
-            }
-            st.f = bState.f
-        }
-        let r = try st.ref(rLevel, &t)
-        var equal = try applied(
-            block.term,
-            try st.ref(tauLevel, &t),
-            try st.fact(tauLevel, &t),
-            r,
-            try st.fact(rLevel, &t),
-            st,
-            s,
-            &t,
-        )
-        for (w, h) in zip(bLevels, bFacts) {
-            equal = try eliminate(equal, try st.f.variable(w, in: &t), &t)
-            equal = try t.intern(.folImpliesElim(equal, try st.f.hypothesis(h, in: &t)))
-        }
-        guard case .folPred(.base("eq"), let ends)? = t.conclusion(of: equal).map({ t[$0] }) else {
-            throw MeetingError.misaligned(block.term)
-        }
-        st.equal[rLevel] = (ends[1], try base.claimed(.eqSymm, [ends[0], ends[1]], [equal], in: &t), st.f.scope)
     }
 
     /// `eq(l, r)` at the state's scope: by a crossing value's fact, in either direction, or reflexivity.
@@ -2080,27 +1873,4 @@ func betaCited(
         lemma = try t.intern(.folImpliesElim(try t.intern(.isaAllElim(lemma, site)), try fact(of: site, in: &t)))
     }
     return lemma
-}
-
-/// A term at `i` both forms name: the pieces naming it are the same on both sides.
-private func shared(_ x: NodeID, _ named: Mode, _ valued: Mode, _ t: Table) -> Bool {
-    isValued(x, t) && !named.valued(x, in: t) && !valued.valued(x, in: t)
-}
-
-private func constrained(_ x: NodeID, _ t: Table) -> (constraint: NodeID, after: NodeID)? {
-    let body: NodeID
-    switch t[x] {
-    case .ifolAll(.i, let b), .folForall(let b): body = b
-    default: return nil
-    }
-    guard case .folImplies(let c, let after) = t[body] else { return nil }
-    return (c, after)
-}
-
-/// How often the loose variable `k` stands in `x`.
-private func occurrences(_ x: NodeID, _ k: Int, _ t: Table) -> Int {
-    if case .isaBound(let i, _) = t[x] { return i == k ? 1 : 0 }
-    var n = 0
-    t[x].forEachChild { c, binds in n += occurrences(c, k + binds.terms, t) }
-    return n
 }

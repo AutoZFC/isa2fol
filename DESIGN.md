@@ -6571,6 +6571,166 @@ and schemas 3,637 of 3,637 Proved, 1,413,876,020 bytes. Refused, named: 1,716 �
 statement 1,708, led by `Arith.natify_non_succ` (366), `Arith.add_0_natify` (34), `Arith.natify_in_nat` (26);
 425 lemmas refused unbuilt, 21,636 left out.
 
+### β at values — an application of the class variable meets its arguments' values  **[AGREED 2026-10-20 (user: "Agree, build it"); BUILT 2026-10-20, its decisions in the build for the user's review — `Sources/Lowering/Meeting.swift`, `Values.swift`]**
+
+**The step.** A dump of every refusal down to the statements refused for their own reason (a throwaway build at
+`264d743b`, not kept) puts the ZF session's 1,716 refused named theorems on two roots: 424 `BETA_<fp>` refused unbuilt,
+under 1,615 of them, 320 under nothing else; and `infinity`'s axiom lemma, under 1,345, 50 alone — 1,295 under both.
+`AC.AC` (44) and a type variable no class restricts (7) are the rest. Every `BETA_<fp>` refused stops at one of five
+checks of its walk (`Sources/Lowering/Meeting.swift`), 415 forward and 9 back (`_N`), none in statement form:
+
+| check | lemmas | the argument, as the λ's body holds it |
+|---|---:|---|
+| `betaAtom`: the two forms' first binders differ | 223 | below a connective, a binder or a λ, or nowhere: `rtrancl_induct`'s `λz. ∀y. z = ⟨a,y⟩ ⟶ P(y)` at `⟨x,x⟩` |
+| `betaAtom`: the body at the arguments against the target's rest | 92 | named again: `nat_induct` at `λn. natify(n) = n`, at `succ(x)` |
+| `own`: the λ's variable held once | 53 | at a function λ, twice or not at all: `case`'s `λy z. cond(y, d(z), c(z))` |
+| `own`: the argument's naming first | 45 | at a function λ, past other pieces or inside a λ: `def_transrec`'s `H` at `λx∈i. f(x)`, for `Vfrom`, `rank`, `nat_rec`, `recursor`, `natify` |
+| `betaAtom`: the arguments' reading | 11 | holding the class variable: `theI`'s `P(THE x. P(x))` |
+
+**The problem, in target text.** `thm : ⋀P a. P(Pow(a)) ⟹ P(Pow(a))` at `λy. y = y` — its β lemma's formula
+`∀a. P(Pow(a)) → P(Pow(a))`, the walk at the atom `P(Pow(a))`, `a` fixed
+(`LambdaTests.anInstanceAtACompoundArgumentIsBetaAtItsValue`, failing):
+
+```
+Isabelle   thm · (λy. y = y)                       ⋀a. Pow(a) = Pow(a) ⟹ Pow(a) = Pow(a)
+named      ∀C. Pow(C) → ∀τ. ⟨a⟩ = τ → ∀r. pmem(τ, r, C) → ∀σ. ⟨r⟩ = σ → σ ∈ P                       P(Pow(a))
+target     ∀C₁. Pow(C₁) → ∀τ₁. ⟨a⟩ = τ₁ → ∀r₁. pmem(τ₁, r₁, C₁) →
+             ∀C₂. Pow(C₂) → ∀τ₂. ⟨a⟩ = τ₂ → ∀r₂. pmem(τ₂, r₂, C₂) → r₁ = r₂                         Pow(a) = Pow(a)
+now        C, τ, r fixed once from both forms' first binders, constraint for constraint; β to be at r, the body there
+           r = r, against the target's rest, which names Pow(a) again: ∀C₂ τ₂ r₂. … → r = r₂. Unmet, the lemma refused
+```
+
+**The root cause.** β reads each argument as the named form holds it — a variable, a value, or its names — and the body
+must hold it the same way. A variable and a value are one in both forms; names are not: the atom names an argument once,
+at its top, and the λ's body names it wherever the λ's variable stands — zero, one or several times, below a connective,
+a binder or a λ. The walk shares the atom's names with the body's binder for binder ("Linear proof size": the losses'
+decision 5, decision 8 in the build), which holds only where the body names the argument once, first: four checks refuse
+every other body. An argument the two forms hold differently — named in one, a value in the other, as one holding the
+class variable is — has no reading (the fifth). The reading by names rests on one premise, decision 5's: a compound
+argument holding a variable the formula binds "has no value". At the atom it has one: the walk is a proof, it fixes the
+formula's variables as it descends, and in a proof a term whose variables are fixed is its value (FOUNDATION S1).
+
+**1. β is at values: at an application of the class variable, each argument is its value, fixed where the application
+stands.** **AGREED 2026-10-20 (user).** The atom crosses to its reduced form's value form, each term at its level a
+value — one the lemma holds already, or one fixed at the atom by `exists_elim` over its EX, its fact assumed: a term
+over the formula's binders the walk has fixed, and in statement form (`BETA_S`, where the lemma holds no value) every
+term, as a proof fixes a term once its variables are. The named form's names of the arguments are eliminated at the
+values, as Atom eliminates a term the target holds the value of — an argument holding the class variable alike, its
+slot's class kept and its definition converted (Step 3, 6); β is at the values, `ARGS` at them by ID and the body met to
+the values at its arguments (`betaCore`), at a function λ the application's value the body's (`applied`), each as for a
+value now; and the target's names are introduced from the value form by the reduced atom's own `MEET_<fp>`, moving the
+terms the target names. The values fixed at the atom are its own: the target it concludes holds none.
+
+```
+after      v, Pow(a)'s value, by EX ⟨Pow(a)⟩ at the atom:  ∀C. Pow(C) → ∀τ. ⟨a⟩ = τ → ∀r. pmem(τ, r, C) → v = r
+           the named form at v: C, τ, r opened by Pow_CLASS, TUPLE_EX_1 and Pow_TOTAL, the fact there v = r;  ⟨v⟩ ∈ P
+           β at v: ARGS, v = v
+           the target from v = v: the MEET of Pow(a) = Pow(a), each naming's top related to v by the fact
+```
+
+| the walk, at | now | after |
+|---|---|---|
+| `P(t⃗)`, an argument over the walk's variables | `betaAtom`: both forms' first binders fixed once, β at the named form's variable, the body against the target's rest by ID | the argument's value at the atom, the named form's names eliminated there (Atom's crossing), `betaCore` at the values |
+| `P(t⃗)`, an argument holding the class variable | refused | crossing to its reduced form's value, the slot's definition converted |
+| `F(t⃗)` in an atom, its reduced form named by the target | a block: the reduced form's binders past its arguments' (`own`, `betaBlock`) | crossing: the reduced form a value at the atom, `applied` at the arguments' values |
+| the target's names | aligned with the named form's | the reduced atom's `MEET_<fp>`, from its value form |
+
+A MEET aligns one formula's two forms — the same atom, a term named in one and a value in the other — and the walk
+aligns nothing else: `betaAtom`'s shared binders, `own`, `betaBlock` and Atom's blocks go, the five checks with them.
+One route: an argument the body names once, first, takes it too. An atom holding the class variable only inside a slot
+is no application at its level: the slot's definition is walked as now, the application an atom of it.
+
+Not the names shared, as now: they exist only where the body names the argument once, first. Not a rule per shape of
+the body — an argument named twice related by UNIQ, one below a connective walked down to: each reads the body's shape
+around the atom (D1). Not the values fixed at the binder that fixes their variables, as Logic fixes a proof's: which
+values a binder owes would be read from the atoms below it, or each binder would meet its body twice; at the atom they
+are the atom's own, and no formula the walk passes holds them.
+
+**Cost.** An atom at a compound argument over the walk's variables pays EX per value, its crossing's openings and the
+reduced atom's `MEET_<fp>` citation, where the shared binders paid the pieces once: more steps where those held; each
+lemma proved once per formula. The build measures the unit (1.41 GB) and the run (31:05) against HEAD's.
+
+**FOUNDATION first.** No change: S1 lists a λ's body at its arguments among the places a formula meets the proof's
+values, its lemma's proof "one walk over the formula, eliminating each naming at the value or introducing it", and §3b
+reads β as "the λ's body meeting the values at its arguments". The walk departed from both below the formula's own
+binders.
+
+**The contracts (D2):**
+
+| | provides | assumes |
+|---|---|---|
+| Registry: the meeting prover | `BETA_<fp>`, stated as now, for every formula and λ: β at its arguments' values, each fixed at its atom | EX per term (Reify's prover); `MEET_<fp>` and `ARGS` (its own); `TUPLE_*` (Tuple's) |
+| Lambda, Logic, Unfolding, Functions, the axioms' readings | unchanged: they cite `BETA_<fp>` | — |
+
+**Superseded.** "Linear proof size": the losses' decision 5 (the application read at its arguments' names) and decision
+8 in the build (an argument both forms name fixed by its pieces); "A variable only the proof uses", decision 3 in the
+build (a shared argument named below a connective refused before the walk).
+
+**Tests, written first.**
+- `LambdaTests.anInstanceAtACompoundArgumentIsBetaAtItsValue`, failing now: `λy. y = y` at `Pow(a)`, lowered and
+  kernel-checked.
+- `LambdaTests.aSharedArgumentTheBodyNamesBelowAConnectiveIsUnbuilt` becomes `…IsBetaAtItsValue`: `λy. c = c ⟶ y ∈ A`
+  at `Pow(x)`, lowered and kernel-checked.
+- `LambdaTests`, new, each at `Pow(a)` below the formula's `∀a`, lowered and kernel-checked, one per check: a
+  predicate λ naming its variable again inside another term (`λy. Pow(y) = y`) and inside a λ
+  (`λy. PrimReplace(A, λu v. v = y) = B`); a function λ holding its variable twice, once inside a λ
+  (`λy. PrimReplace(y, λu v. v = y)`), and not at all (`λy z. Pow(z)`, at `Pow(a)` and `a`); an argument holding the
+  class variable (a constant at `λx. P(x)`, as `theI`'s `THE x. P(x)`).
+- Every test of β as now, `BETA` in statement form among them (`DefinitionTests`, `AxiomTests`), passing.
+- The ZF session: the complete run, emitted and kernel-checked; the named set diffed against the last run's, none lost;
+  the 424 lemmas proved, or refused for another reason, named. The trace's belief: 320 named theorems more, the 1,295
+  under `infinity` too not yet.
+
+**Not in this step.** `infinity`'s lemma, at `∀y∈Inf` — the axiom reading unfolds a defined predicate only at
+variables (`Sources/Lowering/Axioms.swift`), its own step; `AC.AC`; a type variable no class restricts.
+
+**Built.** `Sources/Lowering/Meeting.swift`: the walk finds an atom applying the class variable at its own level by the
+atom's naming (`applies`) and takes it through its reduced form's value form (`atValues`): crossed to it — `P(t⃗)` by
+Atom to `P(v⃗)`, then `betaCore` at the values; any other atom by Atom, every term crossing (`crossed`) — and met to the
+target's names by `met`, moving the walk's variables, at a statement every term; the values only that conversion holds
+fixed there by `fixing` over their EX. `Atom.convert` takes the atom the other form holds (`to:`).
+`betaAtom`'s shared binders, `own`, `betaBlock`, Atom's blocks and the statement-form branches of `betaCore` and
+`applied` are gone, with `shared`, `constrained` and `occurrences`. `Sources/Lowering/Values.swift`: `fixing` and EX of a
+value take the guards of the lemma they stand in. `Sources` 16,865 lines, from 17,081.
+
+**Decisions made in the build**, for the user's review:
+1. **The values fixed at the atom are those only its conversion holds**: the lemma premises none of them (`Meet.premised`,
+   its crossing values), and neither the atom's premise nor its conclusion holds them, nor the values their facts hold —
+   an enclosing atom fixes those. Decision 1 named the terms over the walk's variables, and in statement form every
+   term; the build met two cases more. A value over the lemma's own variables that only the named form holds — an
+   argument holding the class variable that the body drops — is premised nowhere: fixed only over the walk's variables,
+   it survived the registry unbound (`anArgumentHoldingTheClassVariableTheBodyDropsIsFixedAtItsAtom`). An atom in a slot
+   of another atom applying the class variable holds the outer atom's values in its premise or conclusion: fixed again
+   inside, a witness escaped — the complete run stopped on `witnessEscapes` — or a hypothesis named the outer value
+   where the proof named the inner one, which only the kernel saw
+   (`anApplicationInASlotOfAnAtomApplyingTheClassVariableMeetsTheAtomsValues`).
+2. **EX at the atom takes the walk's guards**: `fixing` and `existence(ofValue:)` take `guardOf`, as every lemma the
+   walk cites does ("Linear proof size", decision 6 in the build).
+3. **An atom applies the class variable where its own naming holds the application**: `P(t⃗)`, or a term `F(t⃗)` among
+   its ranges. Inside a slot the application is an atom of the slot's definition, walked there.
+4. **A β term the value form names is `misaligned`, fatal**: at the value form every term at the atom's level is a
+   value, and an atom that applies no class variable holds no β term; the contract is checked, never worked around.
+5. **`Atom.convert` returns `p` where the two forms are one**: `P(x)` at a variable crosses nothing.
+
+**Measured** (the ZF session, the release build, the lint first; base unchanged): the tests: 14, 142, 132, 47 pass;
+Lowering 164 of 165, `infinity`'s the one failing. Under `MEM=32G`, `--threads 16`, the complete run was killed at
+26:22, at the cap; under `MEM=64G`: 42:49, peak 46.9 GB, inside Fol (sampled every 15 s: 23 GB at 25 minutes, 35 GB two
+minutes later); lowered 1,660.5 s — Expand 6.7 s, Logic 426.7 s, the registry 709.3 s, Fol 471.4 s; emitted 857.4 s;
+109,639,662 nodes. **2,220 of the 3,616 named theorems lowered, against 1,900**: the 1,900 all kept, each proof byte for
+byte, and 320 added — the trace's 320 — led by `OrderType` 89, `CardinalArith` 44, `Cardinal` 44, `OrderArith` 30.
+Lemmas refused unbuilt: 1, `infinity`'s, against 425. The unit: 71 parts, every one exit 0 with empty stderr, claims
+32,732 of 32,732 and schemas 4,544 of 4,544 Proved (`check-unit.sh`, 10:53, peak 8.0 GB); 2,999,413,673 bytes, against
+1,413,876,020. Refused, named: 1,396 — no owner 7, `AC.AC` 1, citing a refused statement 1,388, led by
+`Arith.natify_non_succ` (366), `List.list.recursor_eqns.1` (46), `Arith.add_0_natify` (34).
+
+⚠ **THE COMPLETE RUN NO LONGER FITS THE CI'S 32 GB, AND THE UNIT DOUBLES**, by the 320 theorems' own proofs, 1,335 MB:
+100 write 1 MB or more, 13 write 20 MB or more (848 MB), `OrderArith.sum_prod_distrib_ord_iso` first, 200 MB in 2.8M
+steps. Their bytes are Logic's: Pure's equality at `o` by its walks — in that one proof `cong_iff` 19,146 instances,
+`cong_imp` 16,530, `iff_trans` 11,898, `cong_and` 10,297, `iff_reflection` 9,605: the `iff_*` walks "Linear proof size"
+left for a step of its own — and an instance at a λ per rewrite, 33,791 `BETA` and 19,513 `CLASS` citations there. The
+lemmas and boxes grew 211 MB with the instances they serve: `CLASS` 168 → 249 MB, `MEET` 69 → 130, `BETA` 74 → 117
+(7,557 against 6,018), `ARGS` 22 → 31, `SUBST` 19 → 28.
+
 ### Fol — binders, guards and variables  **[BUILT 2026-09-28 as the guard; Fol's 2026-10-14; every object type and `∃` at `i` with "Reify — S1 at the site" — `Sources/Lowering/Fol.swift`]**
 
 **Every isa binder at an object type, its intro, its variable and the guard of its variable become fol-zfc's, with the

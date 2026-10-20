@@ -22,6 +22,11 @@ private func pow(_ x: NodeID, _ l: inout LogicTable) throws -> NodeID {
     try l.const(.primitive(.zf(.pow)), fn(i, i), x)
 }
 
+/// `PrimReplace(A, R)`, `R` a relation λ.
+private func replaced(_ a: NodeID, _ relation: NodeID, _ l: inout LogicTable) throws -> NodeID {
+    try l.const(.primitive(.zf(.primReplace)), fn(i, fn(fn(i, fn(i, o)), i)), a, relation)
+}
+
 /// `⋀P a. P(t(a)) ⟶ P(t(a))`, proved by its hypothesis; `t` gives the class variable's argument under `⋀P a`.
 private func theorem(
     _ name: String,
@@ -106,11 +111,10 @@ func anInstanceAtACompoundArgumentIsBetaAtItsValue() throws {
     try kernelChecks(unit)
 }
 
-/// `⋀P. (∀x. P(Pow(x))) ⟶ (∀x. P(Pow(x)))` at `λy. c = c ⟶ y ∈ A`: `Pow(x)` holds the formula's own `x`, so both forms
-/// name it, and the λ's body names it below its implication, where the β walk does not align the two — its lemma is
-/// unbuilt and the user falls with it, never a malformed step.
+/// `⋀P. (∀x. P(Pow(x))) ⟶ (∀x. P(Pow(x)))` at `λy. c = c ⟶ y ∈ A`: `Pow(x)` holds the formula's own `x`, and the λ's
+/// body names it below its implication; β is at its value, fixed at the atom (DESIGN "β at values").
 @Test
-func aSharedArgumentTheBodyNamesBelowAConnectiveIsUnbuilt() throws {
+func aSharedArgumentTheBodyNamesBelowAConnectiveIsBetaAtItsValue() throws {
     var l = LogicTable()
     let stated = try l.all(
         i,
@@ -135,10 +139,8 @@ func aSharedArgumentTheBodyNamesBelowAConnectiveIsUnbuilt() throws {
     let useProof = try l.t.intern(.isaAllIntro(i, body: try l.t.intern(.isaAllIntro(i, body: instance))))
     #expect(l.t.conclusion(of: useProof) == useRoot)
     let unit = try lowered(l, [thm, Statement(name: "T.use", root: useRoot, proof: useProof, theory: "Test")])
-    let beta = unit.refused.first { $0.name.hasPrefix("BETA_") }
-    #expect(beta?.refusal == .lemmaUnbuilt)
-    #expect(unit.refused.contains { $0.name == "T.use" && $0.refusal == .cites(beta?.name ?? "") })
-    #expect(unit.statements.contains { $0.name == "T.thm" })
+    #expect(unit.refused.isEmpty, "\(unit.refused)")
+    try kernelChecks(unit)
 }
 
 /// `⋀F a⃗ B. t ∈ B ⟶ t ∈ B`, `t` built from `F` and `a⃗`, proved by its hypothesis; and its use at `λ`, concluding `used`
@@ -224,15 +226,137 @@ func aNestedApplicationOfAFunctionLambdaIsBetaAtEachValue() throws {
     try kernelChecks(unit)
 }
 
-/// `F(Pow(a)) ∈ B` at `λx. Pow(x)`: `Pow(a)` holds the formula's own `a`, so it has no value; β takes `F`'s
-/// application at the variable naming `Pow(a)`, which both forms name alike (DESIGN "Linear proof size", 5).
+/// `F(Pow(a)) ∈ B` at `λx. Pow(x)`: `Pow(a)` holds the formula's own `a`; β is at its value, fixed at the atom, and
+/// `Pow(Pow(a))` is the value of `F`'s application there (DESIGN "β at values").
 @Test
-func anApplicationAtACompoundArgumentOverABoundVariableIsBetaAtItsName() throws {
+func anApplicationAtACompoundArgumentOverABoundVariableIsBetaAtItsValue() throws {
     var l = LogicTable()
     let lambda = try l.lam(i, try pow(try l.bound(0, i), &l))
     let used = try l.mem(try pow(try pow(try l.bound(1, i), &l), &l), try l.bound(0, i))
     let statements = try functional(F, 1, lambda, used, &l) { F, a, l in
         try l.t.intern(.isaVarApp(head: F, args: [try pow(a[0], &l)]))
+    }
+    let unit = try lowered(l, statements)
+    #expect(unit.refused.isEmpty, "\(unit.refused)")
+    try kernelChecks(unit)
+}
+
+/// `⋀P a. P(Pow(a)) ⟶ …` at `λy. Pow(y) = y`: the body names `Pow(a)` again, inside `Pow(Pow(a))`; β is at its value.
+@Test
+func aBodyNamingItsArgumentAgainInsideAnotherTermIsBetaAtItsValue() throws {
+    var l = LogicTable()
+    let thm = try theorem("T.thm", &l) { x, l in try pow(x, &l) }
+    let lambda = try l.lam(i, try l.equal(i, try pow(try l.bound(0, i), &l), try l.bound(0, i)))
+    let powB = try pow(try l.bound(0, i), &l)
+    let use = try user("T.use", thm, lambda, try l.equal(i, try pow(powB, &l), powB), &l)
+    let unit = try lowered(l, [thm, use])
+    #expect(unit.refused.isEmpty, "\(unit.refused)")
+    try kernelChecks(unit)
+}
+
+/// `⋀P a. P(Pow(a)) ⟶ …` at `λy. PrimReplace(A, λu v. v = y) ∈ A`: the body names `Pow(a)` inside a λ, its slot's
+/// class definition; β is at its value.
+@Test
+func aBodyNamingItsArgumentInsideALambdaIsBetaAtItsValue() throws {
+    var l = LogicTable()
+    let thm = try theorem("T.thm", &l) { x, l in try pow(x, &l) }
+    let slot = try l.lam(i, try l.lam(i, try l.equal(i, try l.bound(0, i), try l.bound(2, i))))
+    let lambda = try l.lam(i, try l.mem(try replaced(try l.bound(2, i), slot, &l), try l.bound(2, i)))
+    let reduced = try l.lam(i, try l.lam(i, try l.equal(i, try l.bound(0, i), try pow(try l.bound(2, i), &l))))
+    let phi = try l.mem(try replaced(try l.bound(1, i), reduced, &l), try l.bound(1, i))
+    let use = try user("T.use", thm, lambda, phi, &l)
+    let unit = try lowered(l, [thm, use])
+    #expect(unit.refused.isEmpty, "\(unit.refused)")
+    try kernelChecks(unit)
+}
+
+/// `F(Pow(a)) ∈ B` at `λy. PrimReplace(y, λu v. v = y)`: the body holds its variable twice, once inside a λ; β is at
+/// `Pow(a)`'s value, and the application's value the body's there.
+@Test
+func aFunctionLambdaHoldingItsVariableTwiceIsBetaAtItsValue() throws {
+    var l = LogicTable()
+    let slot = try l.lam(i, try l.lam(i, try l.equal(i, try l.bound(0, i), try l.bound(2, i))))
+    let lambda = try l.lam(i, try replaced(try l.bound(0, i), slot, &l))
+    let reduced = try l.lam(i, try l.lam(i, try l.equal(i, try l.bound(0, i), try pow(try l.bound(3, i), &l))))
+    let used = try l.mem(try replaced(try pow(try l.bound(1, i), &l), reduced, &l), try l.bound(0, i))
+    let statements = try functional(F, 1, lambda, used, &l) { F, a, l in
+        try l.t.intern(.isaVarApp(head: F, args: [try pow(a[0], &l)]))
+    }
+    let unit = try lowered(l, statements)
+    #expect(unit.refused.isEmpty, "\(unit.refused)")
+    try kernelChecks(unit)
+}
+
+/// `F(Pow(a), b) ∈ B` at `λy z. Pow(z)`: the body does not hold `y`, so `Pow(a)` stands in no form of the target; β is
+/// at the arguments' values all the same.
+@Test
+func aFunctionLambdaDroppingAnArgumentIsBetaAtItsValues() throws {
+    var l = LogicTable()
+    let lambda = try l.lam(i, try l.lam(i, try pow(try l.bound(0, i), &l)))
+    let used = try l.mem(try pow(try l.bound(1, i), &l), try l.bound(0, i))
+    let statements = try functional(fn(i, fn(i, i)), 2, lambda, used, &l) { F, ab, l in
+        try l.t.intern(.isaVarApp(head: F, args: [try pow(ab[0], &l), ab[1]]))
+    }
+    let unit = try lowered(l, statements)
+    #expect(unit.refused.isEmpty, "\(unit.refused)")
+    try kernelChecks(unit)
+}
+
+/// `⋀P a. P(PrimReplace(0, λu v. P(v))) ⟶ …` at `λy. y ∈ A`: the argument holds the class variable, named in one form
+/// and its reduced form's value in the other; β is at that value, the slot's class kept and its definition converted.
+@Test
+func anArgumentHoldingTheClassVariableIsBetaAtItsReducedValue() throws {
+    var l = LogicTable()
+    let thm = try theorem("T.thm", &l) { _, l in
+        let slot = try l.lam(i, try l.lam(i, try l.t.intern(.isaVarApp(
+            head: try l.bound(3, P),
+            args: [try l.bound(0, i)],
+        ))))
+        return try replaced(try l.const(.primitive(.zf(.zero)), i), slot, &l)
+    }
+    let lambda = try l.lam(i, try l.mem(try l.bound(0, i), try l.bound(2, i)))
+    let reduced = try l.lam(i, try l.lam(i, try l.mem(try l.bound(0, i), try l.bound(3, i))))
+    let phi = try l.mem(try replaced(try l.const(.primitive(.zf(.zero)), i), reduced, &l), try l.bound(1, i))
+    let use = try user("T.use", thm, lambda, phi, &l)
+    let unit = try lowered(l, [thm, use])
+    #expect(unit.refused.isEmpty, "\(unit.refused)")
+    try kernelChecks(unit)
+}
+
+/// `⋀P a. P(PrimReplace(0, λu v. P(v))) ⟶ …` at `λy. A ∈ A`: the body drops the argument, so its reduced form's value
+/// stands in no form the lemma premises; it is fixed at the atom.
+@Test
+func anArgumentHoldingTheClassVariableTheBodyDropsIsFixedAtItsAtom() throws {
+    var l = LogicTable()
+    let thm = try theorem("T.thm", &l) { _, l in
+        let slot = try l.lam(i, try l.lam(i, try l.t.intern(.isaVarApp(
+            head: try l.bound(3, P),
+            args: [try l.bound(0, i)],
+        ))))
+        return try replaced(try l.const(.primitive(.zf(.zero)), i), slot, &l)
+    }
+    let lambda = try l.lam(i, try l.mem(try l.bound(2, i), try l.bound(2, i)))
+    let use = try user("T.use", thm, lambda, try l.mem(try l.bound(1, i), try l.bound(1, i)), &l)
+    let unit = try lowered(l, [thm, use])
+    #expect(unit.refused.isEmpty, "\(unit.refused)")
+    try kernelChecks(unit)
+}
+
+/// `PrimReplace(F(a), λu v. v = F(Pow(a))) ∈ B` at `λy. Pow(y)`: the atom applies `F`, and so does the slot inside it,
+/// at a term over the walk's `a`; the slot's atom meets the values the outer atom fixes, and fixes none of them again.
+@Test
+func anApplicationInASlotOfAnAtomApplyingTheClassVariableMeetsTheAtomsValues() throws {
+    var l = LogicTable()
+    let lambda = try l.lam(i, try pow(try l.bound(0, i), &l))
+    let reduced = try l.lam(
+        i,
+        try l.lam(i, try l.equal(i, try l.bound(0, i), try pow(try pow(try l.bound(3, i), &l), &l))),
+    )
+    let used = try l.mem(try replaced(try pow(try l.bound(1, i), &l), reduced, &l), try l.bound(0, i))
+    let statements = try functional(F, 1, lambda, used, &l) { head, a, l in
+        let inner = try l.t.intern(.isaVarApp(head: try l.bound(4, F), args: [try pow(try l.bound(3, i), &l)]))
+        let slot = try l.lam(i, try l.lam(i, try l.equal(i, try l.bound(0, i), inner)))
+        return try replaced(try l.t.intern(.isaVarApp(head: head, args: a)), slot, &l)
     }
     let unit = try lowered(l, statements)
     #expect(unit.refused.isEmpty, "\(unit.refused)")
