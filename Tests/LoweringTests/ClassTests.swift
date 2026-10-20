@@ -57,6 +57,37 @@ func aLambdasClassIsItsRecordsSectionAtItsFreeVariables() throws {
     try kernelChecks(proved, in: &r.t)
 }
 
+/// `CLASS ⟨λx. P⟩`, `P` a proposition the λ closes over: the letter is an atom, read by base's `row_letter` at it, and
+/// the class a schema at its letter (DESIGN "The class of a λ holding a proposition").
+@Test
+func aLambdaHoldingALetterHasItsClassReadingTheLetterByItsRow() throws {
+    var r = Terms()
+    let (proved, unbuilt) = try proveAll(
+        try classOf(lambda: try r.lam(i, try r.n(.isaBound(1, o))), in: &r.t),
+        [],
+        in: &r.t,
+    )
+    #expect(unbuilt.isEmpty)
+    let name = try #require(proved.first { $0.name.hasPrefix("CLASS_") }).name
+    #expect(baseCited(try #require(proved.first { $0.name == name }).proof, r.t).contains("row_letter"))
+    try kernelChecks(proved, in: &r.t)
+}
+
+/// `CLASS ⟨λx. x ∈ a ⟶ P⟩` and `CLASS ⟨λx. P ∧ Q(x)⟩`: the letter an atom among the others, under `B_imp` and `B2`.
+@Test
+func aLetterIsAnAtomOfAClassBodyAmongTheOthers() throws {
+    var r = Terms()
+    let member = try r.n(.isaConst(.primitive(.zf(.mem)), fn(i, fn(i, o)), args: [try r.x(0), try r.x(1)]))
+    let implied = try r.lam(i, try r.n(.folImplies(member, try r.n(.isaBound(2, o)))))
+    let applied = try r.n(.isaVarApp(head: try r.n(.isaBound(1, fn(i, o))), args: [try r.x(0)]))
+    let conjoined = try r.lam(i, try r.n(.folAnd(try r.n(.isaBound(2, o)), applied)))
+    let requests = try classOf(lambda: implied, in: &r.t) + (try classOf(lambda: conjoined, in: &r.t))
+    let (proved, unbuilt) = try proveAll(requests, [], in: &r.t)
+    #expect(unbuilt.isEmpty)
+    #expect(proved.count(where: { $0.name.hasPrefix("CLASS_") }) == 2)
+    try kernelChecks(proved, in: &r.t)
+}
+
 /// `CLASS ⟨λx. f(x)⟩`, `f` a function variable: `apply(τ, r, f)` read through `cls_apply`'s class, the graph named by
 /// `graph_class` at the empty record.
 @Test

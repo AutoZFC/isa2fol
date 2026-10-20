@@ -6428,6 +6428,57 @@ proof tuple_first:
     _q91 = forall_intro _q90
     qed _q91
 
+proof row_letter:
+    _em0 = use empty
+    _b3 = use B3
+    _eo = exists_elim _em0, e
+    _ne = and_elim_r _eo
+    _a = let A
+    _xm = excluded_middle _a
+    _ha = assume A
+    _c1 = forall_elim _b3, e
+    _co = exists_elim _c1, c
+    fix a
+    _sa = assume set(a)
+    _ca = forall_elim _co, a
+    _ca2 = implies_elim _ca, _sa
+    _h1 = assume elem(a,c)
+    _f1 = implies_intro _ha
+    _h2 = assume A
+    _ne1 = forall_elim _ne, a
+    _ne2 = implies_elim _ne1, _sa
+    _r = iff_elim_r _ca2, _ne2
+    _f2 = implies_intro _r
+    _iff = iff_intro _f1, _f2
+    _i = implies_intro _iff
+    _fa = forall_intro _i
+    _ex = exists_intro _fa, c
+    _cl = exists_intro _ex
+    _caseA = implies_intro _cl
+    _hn = assume ~ A
+    fix a2
+    _sa2 = assume set(a2)
+    _h3 = assume elem(a2,e)
+    _ne3 = forall_elim _ne, a2
+    _ne4 = implies_elim _ne3, _sa2
+    _bot = not_elim _ne4, _h3
+    _al = let A
+    _a1 = bottom_elim _bot, _al
+    _g1 = implies_intro _a1
+    _h4 = assume A
+    _bot2 = not_elim _hn, _h4
+    _el = let elem(a2,e)
+    _e1 = bottom_elim _bot2, _el
+    _g2 = implies_intro _e1
+    _iff2 = iff_intro _g1, _g2
+    _i2 = implies_intro _iff2
+    _fa2 = forall_intro _i2
+    _ex2 = exists_intro _fa2, e
+    _caseN = implies_intro _ex2
+    _goal = or_elim _xm, _caseA, _caseN
+    _done = exists_intro _goal
+    qed _done
+
 proof read1:
     _q0 = use row_class
     _q1 = use lookup1

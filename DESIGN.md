@@ -6470,6 +6470,107 @@ refused unbuilt, 37,854 left out — and keep none. Logic stays a quarter over H
 HEAD's one walk did, and the rest is the layers' own work — a node looked up in the layer and then below it, 15% of
 Logic's samples, and the import of what units keep.
 
+### The class of a λ holding a proposition — a letter, an atom of a class body  **[AGREED 2026-10-19 (user: "Go ahead"); BUILT 2026-10-20 — `base/tiers/classes`, `Sources/Lowering/Comprehension.swift`, `Classes.swift`, `Base.swift`, `docs/FOUNDATION.md`]**
+
+**The step.** A dump of every refusal down to the statements refused for their own reason (a throwaway build, not kept)
+puts 3,195 of the ZF session's 3,247 refused named theorems on a λ's class the class prover refuses, 1,531 of them on
+nothing else: 172 `CLASS_<fp>` refused unbuilt, 170 of them under a named theorem, each the class of a λ closing over a
+proposition — a statement's letter, a box's, or a truth-set variable, which a lemma closes over as a letter (Step 3,
+decision 7 in the build). `ClassProver.owns` answers unbuilt for every such λ: the class prover reads no letter. The
+other roots: β at a λ whose body names a shared argument below a connective (424 `BETA_<fp>`, under 1,615 theorems, none
+alone), `infinity`'s axiom lemma (1,345, 1 alone), `AC.AC` (44) and a type variable no class restricts (7).
+
+The leading λ is `λx. P` (`CLASS_892432a26805251a`, under 3,176 theorems): IFOL's `quant_simps` take `allE` and `allI`
+at it, and FOL's simpset holds them, so a proof by `simp` or `auto` reaches it. The next are `λx. P ⟶ Q(x)` and
+`λx. P ∧ Q(x)`, the four boxes behind `int_all_simps`, and the λs an elimination rule carries its goal `P` through —
+`λx. x ∈ a ⟶ P`, `λx. (x = a ⟶ P) ⟶ (x = b ⟶ P) ⟶ P`. Each closes over one proposition, then objects and classes.
+
+**The problem, in target text.**
+
+```
+Isabelle   lemma quant_simps(1):  ⋀P. (∀x. P) ⟷ P                                         by iprover
+           ⟶: from ∀x. P, P — allE at the predicate λx. P, at the witness only the proof uses
+read       isaAllElim(…allE…, λx. P): an instance at a class type, Lambda's, citing the λ's class
+fol-zfc    schema CLASS_892432a26805251a [A0(0)]: exists b0. forall b1. (set(b1) -> (elem(b1, b0) <->
+               (exists b2. (set(b2) & ((forall b3. (set(b3) -> (zero(b3) -> snoc(b3, b3, b2, b1)))) & A0)))))
+           the class prover: unbuilt
+```
+
+The class prover builds a formula's class of records atom by atom (FOUNDATION §3) — a membership, an equation, a class
+parameter, the tuple formula, `⊥` — each by a row of base, and the connectives and quantifiers over them by theirs. A
+letter is an atom with no row.
+
+**1. A letter is an atom of a class body: its class of records is every record if the letter holds and none if not —
+base's `row_letter`, a schema proved once by excluded middle; the class prover reads a letter by it, as it reads `⊥` by
+the empty set.** **AGREED 2026-10-19 (user).**
+
+```
+base       schema row_letter [A(0)]: exists C. (forall a. (set(a) -> (elem(a,C) <-> A)))
+           A or not A: if A, C the complement of 0 (B3); if not, C = 0
+fol-zfc    CLASS ⟨λx. P⟩: the tuple's row and row_letter's at A0, their intersection (B2); read back exact, A0 at
+           the letter
+```
+
+A letter takes no argument, so it varies with no entry of a record: `{a : A}` is every set or none, which excluded
+middle chooses, as it chooses S4's truth set. No class `{x : A(x)}` of an uninterpreted predicate is formed, and the
+schema is proved with its letter uninterpreted (R2). It holds of every formula, one quantifying over classes too, which
+NBG's class existence theorem would not take: none of its instances is a comprehension. Every letter the class prover
+meets is at arity 0 — a statement's or a box's `⋀P :: o`, and a truth-set variable the lemma closes over as a letter,
+instantiated at `holds(E)` where cited.
+
+Not the letter read as its truth set inside the class — `holds(E)`, the lemma closed over `E`, cited at `A`'s truth set:
+each citation would owe `holds(E)` replaced by `A` under the λ's connectives, a walk per use, where the row is proved
+once. Not each class lemma split on its letter, its body built at `⊤` and at `⊥`: that replacement again, per lemma and
+per letter, and two classes for one. Not the letter substituted before the class is named: the class would be named per
+instance, where a letter's class is one lemma and its instance one `schema_inst` (S4).
+
+**FOUNDATION first.** §3's table gains the row — a proposition letter `A` (S4, arity 0): `{a : A}`, every record if
+`A`, none if not, excluded middle as S4's truth set, a schema of base proved with its letter uninterpreted (R2) — and
+"Every row is a THEOREM" a sentence: the letter's row is no instance of the class existence theorem, and holds of every
+`A`, since `A` mentions no entry.
+
+**The contracts (D2):**
+
+| | provides | assumes |
+|---|---|---|
+| Base, `classes` | `row_letter`, kernel-checked | §1's B3 and the empty set |
+| the class prover | `CLASS ⟨λ⟩` of a λ closed over letters, a schema of the unit, a letter read by `row_letter` at it | base's `row_letter` |
+| Lambda, Reify, the registry | unchanged: a λ's class cited, its letters instantiated by `schema_inst` | — |
+
+**Tests, written first.**
+- `check-base.sh`: `row_letter` proved in `classes`.
+- `ClassTests`: the classes of `λx. P`, `λx. x ∈ a ⟶ P` and `λx. P ∧ Q(x)`, proved by the class prover and
+  kernel-checked, each a schema at its letter.
+- `LambdaTests`: `⋀Q b. Q ⟶ Q` by a theorem at `λx. Q` and `b`, as `quant_simps` takes `allE` at `λx. P`, lowered
+  and kernel-checked.
+- The ZF session: the complete run, emitted and kernel-checked; the named set diffed against the last run's, none lost;
+  the theorems the step adds, and the refusals that lead then.
+
+**Not in this step.** β at a λ whose body names a shared argument below a connective (424 `BETA_<fp>`); `infinity`'s
+axiom lemma, waiting on `succ_iff`; `AC.AC`; a type variable no class restricts.
+
+**Built.** Base: `row_letter` in `classes`, its proof by cases, kernel-checked first try (`classes` 66 claims and 1
+schema). The class prover owns a λ's class whatever its closure's types; `Comprehension.build` reads a letter, a
+`.fixed` role at `o`, as `Built.letter`, its row opened once a proof at the letter (`row_letter`'s `schema_inst`), and
+the reading takes the row at the record each way. FOUNDATION §3: the row in the table, the sentence on why it is no
+instance of the class existence theorem.
+
+**Decisions made in the build**, for the user's review:
+1. **Step 3's two tests of a λ holding a letter now prove it**: `aLambdaHoldingALetterIsASchemaInIt` and
+   `aLambdaHoldingATruthSetVariableIsASchemaCitedAtItsTruth` stated the gap — `CLASS_<fp>` refused, the use with it —
+   and now state the step: the use lowered, the kernel proving the unit, a truth-set variable's class cited at
+   `holds(E)`.
+
+**Measured** (the ZF session, the release build, the lint first): `check-base.sh`, 14 tiers each exit 0 with empty
+stderr, `classes` 66 of 66 and its one schema. The tests: 14, 142, 132, 47 pass; Lowering 156 of 158, the two that
+failed before. The complete run under `MEM=32G`, `--threads 16`: 31:05, peak 26.1 GB; lowered 1,608.0 s — Expand 6.8 s,
+Logic 446.8 s, the registry 724.0 s, Fol 391.1 s. **1,900 of the 3,616 named theorems lowered, against 369**: the 369
+all kept and 1,531 added, 241 of the 1,900 a definition's `X_def`; of the 1,531, `equalities` 278, `upair` 211,
+`Ordinal` 135, `func` 123, `Perm` 80, `Order` 77 lead. The unit: 50 parts, every one exit 0 with empty stderr, claims 23,094 of 23,094
+and schemas 3,637 of 3,637 Proved, 1,413,876,020 bytes. Refused, named: 1,716 — no owner 7, `AC.AC` 1, citing a refused
+statement 1,708, led by `Arith.natify_non_succ` (366), `Arith.add_0_natify` (34), `Arith.natify_in_nat` (26);
+425 lemmas refused unbuilt, 21,636 left out.
+
 ### Fol — binders, guards and variables  **[BUILT 2026-09-28 as the guard; Fol's 2026-10-14; every object type and `∃` at `i` with "Reify — S1 at the site" — `Sources/Lowering/Fol.swift`]**
 
 **Every isa binder at an object type, its intro, its variable and the guard of its variable become fol-zfc's, with the

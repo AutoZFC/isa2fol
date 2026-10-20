@@ -87,6 +87,7 @@ indirect enum Built {
     case exists(Row, Built)
     case all(Row, Built)
     case bottom(Int)
+    case letter(Row)
     case atom(Row, [Int], Witness)
     case tuple(Row, [Int])
     case unfolded(BaseStatement, Built)
@@ -99,7 +100,7 @@ indirect enum Built {
     var cls: Int {
         switch self {
         case .connective(_, let row, _), .exists(let row, _), .all(let row, _), .atom(let row, _, _),
-             .tuple(let row, _):
+             .tuple(let row, _), .letter(let row):
             row.cls
         case .unfolded(_, let inner), .sectioned(_, let inner), .opened(_, _, let inner), .lambda(_, _, let inner),
              .lifted(_, _, let inner):
@@ -117,7 +118,7 @@ indirect enum Built {
             inner.needs
         case .lambda(_, let l, let inner): inner.needs.union(l.bundle.needs)
         case .atom(_, let es, _), .tuple(_, let es): Set(es)
-        case .bottom, .liftedAtom: []
+        case .bottom, .liftedAtom, .letter: []
         }
     }
 }
@@ -172,6 +173,7 @@ private enum Key: Hashable {
     case exists(Int, Int)
     case all(Int, Int)
     case witness(BaseStatement)
+    case letter(Int)
     case applied(Int)
     case setConstant(Constant)
     case constantClass(Constant, IRType)
@@ -326,6 +328,13 @@ struct Comprehension {
 
         case .folPred(let p, let args):
             return try atom(phi, p, args, roles, k, &t)
+
+        case .isaBound(_, .o):
+            guard case .fixed(let v) = try role(phi, roles, t) else { throw ComprehensionError.unread(phi) }
+            let base = base
+            return .letter(try open(.letter(v), &t) { top, t in
+                try base.instance(.rowLetter, [try top.variable(v, in: &t)], in: &t)
+            })
 
         case .isaConst, .isaVarApp:
             var naming = Naming()
@@ -936,6 +945,9 @@ struct Reading {
         case .bottom:
             return try t.intern(.folIffElimL(try bottom(f, r, &t), p))
 
+        case .letter(let row):
+            return try t.intern(.folIffElimL(try at(row, f, r, &t), p))
+
         case .atom(let row, let es, let witness):
             let (read, property) = try atomParts(row, es, witness, f, r, env, &t)
             let w = try t.intern(.folIffElimL(read, p))
@@ -1115,6 +1127,9 @@ struct Reading {
 
         case .bottom:
             return try t.intern(.folIffElimR(try bottom(f, r, &t), p))
+
+        case .letter(let row):
+            return try t.intern(.folIffElimR(try at(row, f, r, &t), p))
 
         case .atom(let row, let es, let witness):
             let (read, property) = try atomParts(row, es, witness, f, r, env, &t)

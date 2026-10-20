@@ -88,6 +88,7 @@ public enum BaseStatement: String, CaseIterable, Hashable, Sendable {
     case bIff = "B_iff"
     case rowEx = "row_ex"
     case rowAll = "row_all"
+    case rowLetter = "row_letter"
     case bImp = "B_imp"
     case nsuccEq = "nsucc_eq"
     case clsZero = "cls_zero"

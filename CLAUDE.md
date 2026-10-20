@@ -47,10 +47,9 @@ variables the proof has fixed is fixed once, by `exists_elim` over its EX, and e
 value; a statement keeps S1's naming, universal (`∀v. ⟦v = t⟧ → φ(v)`); where a formula meets the proof's values, a lemma
 proved once per formula crosses them — `MEET_<fp>`, `BETA_<fp>` at a λ (its class variable's application read at its
 arguments' names), `SUBST_<fp>` Leibniz, `ARGS_<fp>` — below a statement's letters, which stay on its spine. Of the ZF
-session's 3,616 named theorems (`--skip` the other seven), `lower` lowers 369 to fol-zfc: 7 stop at no owner, 1 at logic
-(`AC.AC`, Choice), and 3,239 cite a refused statement, led by `Arith.natify_non_succ` (366), a box of `ZF_Base` (181)
-and `FOL.IFOL_simps.32` (146); 597 lemmas they reach are refused unbuilt, not yet traced. **ZF's axioms are theorems of
-base read back into Isabelle's form**
+session's 3,616 named theorems (`--skip` the other seven), `lower` lowers 1,900 to fol-zfc: 7 stop at no owner, 1 at
+logic (`AC.AC`, Choice), and 1,708 cite a refused statement, led by `Arith.natify_non_succ` (366); 425 lemmas they reach
+are refused unbuilt. **ZF's axioms are theorems of base read back into Isabelle's form**
 (`DESIGN.md` "Step 8 — ZF's axioms, derived from NBG"): base states each in NBG's words — a primitive by its relation,
 a predicate Isabelle defines by its definition — and proves it, Regularity pinned for `foundation`; a lemma per axiom,
 `ZF_Base.a_AXIOM`, reads the words back, a named predicate by its `c_UNFOLD`, a primitive's application by its class at
@@ -94,12 +93,13 @@ constant's from its `@def` and a primitive's from base. **Class existence has it
 `member_class` or `graph_class`; a class binder a hypothesis of what lies under it; one lift per class-taking constant,
 uniform in the record's length, re-keyed by `REKEY`; S1's tuple formula one atom, `TUPLE_ROW_n`, proved once per arity
 at symbolic positions, and a level one fact, base's `snoc_facts` (`DESIGN.md` "Class existence at a few steps a node");
-the class prover does not read yet the classes of λs holding a proposition. **A lemma is proved once a statement that stands cites it** (`DESIGN.md` "Lazy proving"): the link closes
-before the registry proves, and the unit keeps only what a kept statement cites — 37,854 lemmas of the
+a letter an atom of a class body, read by base's `row_letter`, every record if it holds and none if not (`DESIGN.md`
+"The class of a λ holding a proposition"). **A lemma is proved once a statement that stands cites it** (`DESIGN.md` "Lazy proving"): the link closes
+before the registry proves, and the unit keeps only what a kept statement cites — 21,636 lemmas of the
 ZF session left out, never proved; a request set aside comes back when a proof the registry makes cites it. **Emission
 is built** (`DESIGN.md` "Emission"): `isa2fol lower data/zf_export --emit DIR` writes the unit as parts — a theory's
 theorems, a lemma in its first citer's part — and `scripts/check-unit.sh DIR` kernel-checks each against the libraries
-of base and of the parts it cites: all 7,969 claims and 568 schemas of the ZF session's unit Proved, 206.3 MB; a step
+of base and of the parts it cites: all 23,094 claims and 3,637 schemas of the ZF session's unit Proved, 50 parts, 1.41 GB; a step
 is cited only inside the block that wrote it, the checker keying a fact by its formula; a cut, `folCut`, is its proof's
 step, the body citing it by name — `Frame.have`, Fol's `∃`-elim at `i` and Logic's cuts build it (`DESIGN.md` "A fact
 derived once, cited by name"); a line already written in an open block is cited, never written again, a line opening or
@@ -140,8 +140,8 @@ MEM=16G scripts/capped.sh scripts/check-base.sh [LIBDIR]   # base alone, each ti
 ```
 
 ⚠ **EACH UNIT OF WORK INTERNS INTO A LAYER OVER THE UNIT'S TABLE, WHICH TAKES ONLY WHAT ITS RESULTS REACH** (`DESIGN.md`
-"Memory — a unit of work's nodes leave with it"): the complete run peaks at 25.5 GB under `MEM=32G` (2026-10-19,
-`--threads 16`, 27:33); every node a walk built once stayed, and it peaked at 45.8 GB. A pass's walk is built once a run,
+"Memory — a unit of work's nodes leave with it"): the complete run peaks at 26.1 GB under `MEM=32G` (2026-10-20,
+`--threads 16`, 31:05); every node a walk built once stayed, and it peaked at 45.8 GB. A pass's walk is built once a run,
 and lowers a node two of its units share once, its form kept in the unit's table.
 
 The checker is at **`~/repos/fol-zfc-comb/bazel-bin/src/tools/proof_checker`**
@@ -292,7 +292,7 @@ determinism R1–R3 (§4.6).
    print(f'{c}/{t} = {100*c/t:.1f}%')"
    ```
 
-   ✓ **CURRENTLY 275/17070 = 1.6%, under the cap.** Keep it there: a breach is
+   ✓ **CURRENTLY 274/17081 = 1.6%, under the cap.** Keep it there: a breach is
    fixed by deleting prose, never by raising the cap.
 
    Does not apply to `base/**/*.fol.def` headers: those record provenance of

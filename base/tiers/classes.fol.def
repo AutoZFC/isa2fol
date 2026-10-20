@@ -17,6 +17,9 @@
 #   ~ phi       B3           complement, as admitted
 #   exists y    row_ex       y came into scope last, index k: a u {<k,v>}
 #   the domain  tuples_class intersected ONCE, at the top: the rows are exact over EVERY set
+#   A           row_letter   a proposition letter, arity 0 (S4): every set if A, none if not. No
+#                            instance of the theorem above -- A mentions no entry -- it holds of every A
+#                            by excluded middle, the complement of 0 or 0, its letter uninterpreted (R2)
 #
 # set(x) has no row and needs none: a set quantifier's guard is part of row_ex's construct.
 #
@@ -57,6 +60,7 @@ claim row_ex: (forall k. (set(k) -> (forall A. (exists C. (forall a. (set(a) -> 
 # forall y, a row of its own: complement, row_ex, complement, read directly (S1's naming is universal).
 claim row_all: (forall k. (set(k) -> (forall A. (exists C. (forall a. (set(a) -> (elem(a,C) <-> (forall v. (set(v) -> (forall b. (set(b) -> (snoc(a,k,v,b) -> elem(b,A)))))))))))))
 claim tuples_class: (forall k. (set(k) -> (exists C. (forall a. (set(a) -> (elem(a,C) <-> tuple(a,k)))))))
+schema row_letter [A(0)]: exists C. (forall a. (set(a) -> (elem(a,C) <-> A)))
 
 # Helpers, proved in this tier.
 claim g1_pmem_cong: (forall X. (forall a. (set(a) -> (forall b. (set(b) -> (forall c. (set(c) -> (forall d. (set(d) -> (eq(a,b) -> (eq(c,d) -> (pmem(a,c,X) -> pmem(b,d,X)))))))))))))

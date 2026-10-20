@@ -1077,6 +1077,7 @@ once, at the top, by intersecting with the class of tuples on `k`.
 | `x ∈ y` | `{a : a(i) ∈ a(j)}` — `i`, `j` the indices of `x`, `y` |
 | `x = y` | `{a : a(i) = a(j)}` |
 | `x ∈ Y`, `Y` a class parameter | `{a : a(i) ∈ Y}` — S4's `P(x)`, with `a(i)` the argument tuple |
+| a proposition letter `A` (S4, arity 0) | `{a : A}` — every record if `A`, none if not: excluded middle, as S4's truth set; a schema, proved with its letter uninterpreted (R2) |
 | a graph atom `G(x⃗, y)` | `{a : ⟨a(i), a(j)⟩ ∈ G}`, `a(i)` the ARGUMENT TUPLE — a variable the formula binds by its own tuple formation, `∃t. t = ⟨x⃗⟩ ∧ ⟨t,y⟩ ∈ G` (R7, §1a); ONE row at every arity |
 | `φ ∧ ψ` | intersection — B2 |
 | `¬φ` | complement — B3 |
@@ -1132,7 +1133,10 @@ atom carries its own.
 instance of NBG's class existence theorem (its right side quantifies over sets
 only), so NBG proves it and nothing is added to what NBG says; that is why the
 base stays standard (§1a). Gödel's triples appear in B6/B7 and inside these
-proofs, and nowhere above them.
+proofs, and nowhere above them. The letter's row is no such instance: `A` mentions
+no entry of the record, so `{a : A}` is the complement of `∅` or `∅`, and it holds
+of every `A`, one quantifying over classes too — no class `{x : A(x)}` of an
+uninterpreted predicate is formed.
 
 The rows are the operations of a **cylindric set algebra** (Henkin, Monk, Tarski,
 *Cylindric Algebras* I 1971, II 1985) — a formula as the set of assignments that

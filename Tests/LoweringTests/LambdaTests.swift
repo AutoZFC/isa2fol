@@ -68,6 +68,28 @@ func anInstanceAtALambdaIsItsClassThenBeta() throws {
     try kernelChecks(unit)
 }
 
+/// `⋀Q b. Q ⟶ Q` by `thm · (λx. Q) · b`: the λ closes over the letter `Q`, as iprover's `allE` at `λx. P` in
+/// `quant_simps` does; its class a schema at the letter, read by base's `row_letter` (DESIGN "The class of a λ
+/// holding a proposition"). The kernel proves the unit.
+@Test
+func anInstanceAtALambdaHoldingALetterIsItsClassThenBeta() throws {
+    var l = LogicTable()
+    let thm = try theorem("T.thm", &l) { x, _ in x }
+    let q = try l.bound(1, o)
+    let atLambda = try l.t.intern(.isaAllElim(
+        try l.t.intern(.use(.theorem(thm.name), [], thm.root)),
+        try l.lam(i, try l.bound(2, o)),
+    ))
+    let proof = try l.t.intern(.isaAllElim(atLambda, try l.bound(0, i)))
+    let root = try l.all(o, try l.all(i, try l.imp(q, q)))
+    let closed = try l.t.intern(.isaAllIntro(o, body: try l.t.intern(.isaAllIntro(i, body: proof))))
+    #expect(l.t.conclusion(of: closed) == root)
+    let unit = try lowered(l, [thm, Statement(name: "T.use", root: root, proof: closed, theory: "Test")])
+    #expect(unit.refused.isEmpty, "\(unit.refused)")
+    #expect(unit.statements.contains { $0.name.hasPrefix("CLASS_") })
+    try kernelChecks(unit)
+}
+
 /// `⋀P a. P(Pow(a)) ⟶ …` at `λx. x ∈ A`: β at `Pow(b)`'s value, under its naming, is Isabelle's `Pow(b) ∈ A` by ID. At
 /// `λx. x = x` the body names `Pow(b)` twice, and EX and UNIQ of `Pow(b)` convert.
 @Test
@@ -336,9 +358,7 @@ func anEtaExpandedClassVariableIsAnInstanceLikeAnyOther() throws {
 }
 
 /// `⋀Q A b. (b ∈ A ∧ Q) ⟶ …` by `thm · (λx. x ∈ A ∧ Q)`: the λ holds the statement's letter `Q`, so its lemmas are
-/// schemas
-/// in it, cited by `schema_inst` at `Q`. The class prover reads no letter yet: `CLASS_<fp>` falls there, and the use
-/// with it.
+/// schemas in it, cited by `schema_inst` at `Q`, its class read by base's `row_letter`. The kernel proves the unit.
 @Test
 func aLambdaHoldingALetterIsASchemaInIt() throws {
     var l = LogicTable()
@@ -354,12 +374,12 @@ func aLambdaHoldingALetterIsASchemaInIt() throws {
         theory: "Test",
     )
     let unit = try lowered(l, [thm, schematic])
-    #expect(unit.refused.contains { $0.name.hasPrefix("CLASS_") && $0.refusal == .lemmaUnbuilt })
-    #expect(unit.refused.contains { $0.name == "T.use" })
+    #expect(unit.refused.isEmpty, "\(unit.refused)")
+    try kernelChecks(unit)
 }
 
 /// `⋀A b. ⋀P::prop. (b ∈ A ∧ P) ⟶ …` by `thm · (λx. x ∈ A ∧ P)`, `P` bound below the statement's top: a truth-set
-/// variable, which the λ's lemma takes as a letter, cited at `holds(E)`; it falls at the class prover as a letter does.
+/// variable, which the λ's lemma takes as a letter, cited at `holds(E)`. The kernel proves the unit.
 @Test
 func aLambdaHoldingATruthSetVariableIsASchemaCitedAtItsTruth() throws {
     var l = LogicTable()
@@ -377,8 +397,8 @@ func aLambdaHoldingATruthSetVariableIsASchemaCitedAtItsTruth() throws {
         body: try l.t.intern(.isaAllIntro(i, body: try l.t.intern(.isaPropIntro(body: instance)))),
     ))
     let unit = try lowered(l, [thm, Statement(name: "T.use", root: root, proof: proof, theory: "Test")])
-    #expect(unit.refused.contains { $0.name.hasPrefix("CLASS_") && $0.refusal == .lemmaUnbuilt })
-    #expect(unit.refused.contains { $0.name == "T.use" })
+    #expect(unit.refused.isEmpty, "\(unit.refused)")
+    try kernelChecks(unit)
 }
 
 /// `⋀P Q::o a. (P(a) ∧ Q) ⟶ …` at `λx. x ∈ A`, then at `Q`: the formula the λ meets binds the letter `Q` below its
