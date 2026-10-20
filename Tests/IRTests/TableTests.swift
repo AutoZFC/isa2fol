@@ -394,3 +394,84 @@ func folsForallEliminationTakesAnIsaClassBinderAsFolWritesIt() throws {
     ))
     #expect(t.conclusion(of: atF) == guarded)
 }
+
+/// A layer reads the table below it: a node already there is found at its ID, its own are numbered past it, and the
+/// table below is unchanged (DESIGN "Memory — a unit of work's nodes leave with it").
+@Test
+func aLayerFindsTheTableBelowAndNumbersItsOwnPastIt() throws {
+    var t = Table()
+    let a = try t.intern(.isaFree("a", i))
+    let b = try t.intern(.isaFree("b", i))
+    var layer = Table(over: t)
+    #expect(try layer.intern(.isaFree("a", i)) == a)
+    let q = try layer.intern(.isaConst(qpair, fn(i, fn(i, i)), args: [a, b]))
+    #expect(layer.count == t.count + 1)
+    #expect(layer[q] == .isaConst(qpair, fn(i, fn(i, i)), args: [a, b]))
+    #expect(layer[b] == .isaFree("b", i))
+    #expect(layer.type(of: q) == i)
+    #expect(t.count == 2)
+}
+
+/// An import adds to the table exactly the nodes a layer's results reach that it lacks, children first, and finds the
+/// rest; the layer's other nodes leave with it.
+@Test
+func anImportAddsExactlyTheNewNodesItsResultsReach() throws {
+    var t = Table()
+    let a = try t.intern(.isaFree("a", i))
+    let b = try t.intern(.isaFree("b", i))
+    var layer = Table(over: t)
+    _ = try layer.intern(.isaConst(qpair, fn(i, fn(i, i)), args: [b, a]))
+    let ab = try layer.intern(.isaConst(qpair, fn(i, fn(i, i)), args: [a, b]))
+    let m = try layer.intern(.isaConst(mem, fn(i, fn(i, o)), args: [ab, a]))
+    let before = t.count
+    let out = try t.imported([m, a], from: &layer)
+    #expect(t.count == before + 2)
+    #expect(out[1] == a)
+    let q = try t.intern(.isaConst(qpair, fn(i, fn(i, i)), args: [a, b]))
+    #expect(t.count == before + 2)
+    #expect(t[out[0]] == .isaConst(mem, fn(i, fn(i, o)), args: [q, a]))
+}
+
+/// An imported step concludes what its layer derived, the conclusion imported with it: `∧`-intro of two hypotheses
+/// concludes their conjunction, which the table lacked.
+@Test
+func anImportedStepConcludesWhatItsLayerDerivedItsConclusionImportedWithIt() throws {
+    var t = Table()
+    let p = try t.intern(.isaConst(.declared("P"), o, args: []))
+    let q = try t.intern(.isaConst(.declared("Q"), o, args: []))
+    var layer = Table(over: t)
+    let both = try layer.intern(.folAndIntro(try layer.intern(.hyp(0, p)), try layer.intern(.hyp(1, q))))
+    let before = t.count
+    let out = try t.imported([both], from: &layer)
+    #expect(t.count == before + 4)
+    #expect(t.conclusion(of: out[0]) == (try t.intern(.folAnd(p, q))))
+    #expect(t.count == before + 4)
+}
+
+private struct Holding: Request {
+    let name: String
+    let formula: NodeID
+
+    func remapped(_ f: (NodeID) throws -> NodeID) rethrows -> Holding {
+        Holding(name: name, formula: try f(formula))
+    }
+}
+
+/// A lemma's citation imported carries its request remapped by the request itself: the ID it holds is the table's, and
+/// what it reaches is imported with it, though the citation's children do not reach it.
+@Test
+func anImportedLemmaCitationHasItsRequestsIDsInTheTable() throws {
+    var t = Table()
+    let a = try t.intern(.isaFree("a", i))
+    let b = try t.intern(.isaFree("b", i))
+    var layer = Table(over: t)
+    let held = try layer.intern(.isaConst(mem, fn(i, fn(i, o)), args: [a, a]))
+    let root = try layer.intern(.isaConst(mem, fn(i, fn(i, o)), args: [a, b]))
+    let cited = try layer.intern(.use(.lemma(Lemma(Holding(name: "L", formula: held))), [], root))
+    let out = try t.imported([cited], from: &layer)
+    let count = t.count
+    let aa = try t.intern(.isaConst(mem, fn(i, fn(i, o)), args: [a, a]))
+    let ab = try t.intern(.isaConst(mem, fn(i, fn(i, o)), args: [a, b]))
+    #expect(t.count == count)
+    #expect(t[out[0]] == .use(.lemma(Lemma(Holding(name: "L", formula: aa))), [], ab))
+}

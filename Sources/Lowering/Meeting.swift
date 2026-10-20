@@ -34,6 +34,11 @@ struct Meeting: Request {
     var valued: Mode {
         .proof(0, naming: Set(keep.map { types.count - 1 - $0 }))
     }
+
+    func remapped(_ f: (NodeID) throws -> NodeID) rethrows -> Meeting {
+        Meeting(formula: try f(formula), types: types, moving: moving, keep: keep, toValues: toValues, name: name)
+    }
+
 }
 
 func statement(_ m: Meeting, in t: inout Table) throws -> NodeID {
@@ -1432,6 +1437,18 @@ struct Instantiation: Request {
     let stated: Bool
     let forward: Bool
     let name: String
+
+    func remapped(_ f: (NodeID) throws -> NodeID) rethrows -> Instantiation {
+        Instantiation(
+            formula: try f(formula),
+            lambda: try f(lambda),
+            types: types,
+            variable: variable,
+            stated: stated,
+            forward: forward,
+            name: name,
+        )
+    }
 }
 
 /// The binders a mode treats as the formula's own, counted from where it stands.
@@ -1447,6 +1464,10 @@ struct Arguments: Request {
     let lambda: NodeID
     let types: [IRType]
     let name: String
+
+    func remapped(_ f: (NodeID) throws -> NodeID) rethrows -> Arguments {
+        Arguments(lambda: try f(lambda), types: types, name: name)
+    }
 }
 
 func statement(_ a: Arguments, base: Base, in t: inout Table) throws -> NodeID {
@@ -1681,6 +1702,10 @@ struct Leibniz: Request {
     let types: [IRType]
     let variable: Int
     let name: String
+
+    func remapped(_ f: (NodeID) throws -> NodeID) rethrows -> Leibniz {
+        Leibniz(formula: try f(formula), types: types, variable: variable, name: name)
+    }
 }
 
 func statement(_ l: Leibniz, in t: inout Table) throws -> NodeID {

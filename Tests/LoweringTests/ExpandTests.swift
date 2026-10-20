@@ -11,7 +11,7 @@ private func fn(_ a: IRType, _ b: IRType) -> IRType {
 /// Expand alone, each proof checked to conclude its statement BY ID, as the pipeline checks it.
 private func expanded(_ l: LogicTable, _ statements: [Statement], _ definitions: [Definition]) throws -> Unit {
     var t = l.t
-    let out = try Expand().run(statements.flatMap { [$0.root, $0.proof!] }, definitions, in: &t)
+    let out = try run(Expand(), statements.flatMap { [$0.root, $0.proof!] }, definitions, in: &t)
     let expanded = statements.indices.map { k in Statement(
         name: statements[k].name,
         root: out[2 * k],
@@ -49,7 +49,7 @@ func anArgumentAtAFunctionTypeReducesIntoTheBodyAndAConstantOfNoArgumentsIsItsDe
     let inA = try l.lam(i, try l.mem(try l.bound(0, i), a))
     let unique = try l.const(.defined(ex1.constant), fn(fn(i, o), o), inA)
     let isTrue = try l.const(.defined(truth.constant), o)
-    let out = try Expand().run([unique, isTrue], [ex1, truth], in: &l.t)
+    let out = try run(Expand(), [unique, isTrue], [ex1, truth], in: &l.t)
     let x = try l.bound(1, i)
     let y = try l.bound(0, i)
     let only = try l.all(i, try l.imp(try l.mem(y, a), try l.equal(i, y, x)))
@@ -68,7 +68,10 @@ func aDefinitionUsingAnotherUnfoldsThroughBoth() throws {
     let nand = try l.definition(nandConstant, fn(o, fn(o, o)), try l.lam(o, try l.lam(o, body)))
     let c = try l.const(.declared("C"), o)
     let used = try l.const(.defined(nandConstant), fn(o, fn(o, o)), c, c)
-    #expect(try Expand().run([used], [nand, not], in: &l.t) == [try l.imp(try l.and(c, c), try l.bottom())])
+    #expect(try run(Expand(), [used], [nand, not], in: &l.t) == [try l.imp(
+        try l.and(c, c),
+        try l.bottom(),
+    )])
 }
 
 /// `Not ≡ λP. P ⟶ ⊥`, cited at no terms: unfolded it says `(λP. P ⟶ ⊥) ≡ (λP. P ⟶ ⊥)`, Pure's `reflexive` step at the
@@ -183,7 +186,7 @@ func aConstantWithNoDefinitionStopsTheRun() throws {
     let not = Constant.defined(Defined(.ifol, "IFOL.Not", .object))
     let notC = try l.const(not, fn(o, o), c)
     #expect(throws: ExpandError.noDefinition(.isaConst(not, fn(o, o), args: [c]))) {
-        _ = try Expand().run([notC], [], in: &l.t)
+        _ = try run(Expand(), [notC], in: &l.t)
     }
 }
 
@@ -211,7 +214,7 @@ func aZFDefinitionAtTheMetaLevelUnfoldsAsTheLogicsDo() throws {
         a,
         try l.lam(i, try l.mem(try l.bound(0, i), a)),
     )
-    #expect(try Expand().run([used, ball], [split], in: &l.t) == [try l.mem(a, a), ball])
+    #expect(try run(Expand(), [used, ball], [split], in: &l.t) == [try l.mem(a, a), ball])
 
     let c = try l.t.intern(.isaVarApp(head: try l.bound(3, F), args: [try l.bound(1, i), try l.bound(0, i)]))
     let eta = try l.lam(
@@ -281,7 +284,7 @@ private func congruenceIsReflexivityOnly(
     #expect(unit.statements[0].proof == (try m.t.intern(.folImpliesIntro(cc, body: try m.t.intern(.isaReflexive(cd))))))
     let ce = try l.equal(T, c, e)
     let (inner, apart) = try rewritten(ce, in: &l)
-    #expect(throws: ExpandError.noReading(l.t[inner])) { _ = try Expand().run([apart], [], in: &l.t) }
+    #expect(throws: ExpandError.noReading(l.t[inner])) { _ = try run(Expand(), [apart], in: &l.t) }
 }
 
 /// At a type taking a function, `T = (i ⇒ o) ⇒ o`.

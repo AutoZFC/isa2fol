@@ -10,7 +10,7 @@ public enum FolError: Error, Equatable {
     case notGuardedExistential(NodeID)
 }
 
-public struct Fol: Pass {
+public struct Fol: Pass, Walk {
     public init(base: Base) {
         self.base = base
     }
@@ -30,8 +30,14 @@ public struct Fol: Pass {
     /// built
     /// the instances at a class type. Per statement the cache lives for one; the outputs are interned, the unit the
     /// same.
-    public func run(_ roots: [NodeID], _: [Definition], in t: inout Table) throws -> [NodeID] {
-        try roots.map { try transform($0, FolRule(base: base), in: &t) }
+    public func run(_ roots: [NodeID], citing _: [NodeID: NodeID], sharing memo: inout Memo, in t: inout Table) throws
+        -> [NodeID]
+    {
+        try roots.map { try transform([$0], FolRule(base: base), sharing: &memo, in: &t)[0] }
+    }
+
+    public func walk(_: [Definition], in _: inout Table) throws -> any Walk {
+        self
     }
 
     let base: Base

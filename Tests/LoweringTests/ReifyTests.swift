@@ -108,8 +108,8 @@ private struct R {
         try name(try single(a + 1, 0), try name(try p("pmem", try x(1), try x(0), try c(S + 2)), core))
     }
 
-    mutating func logic(_ roots: [NodeID]) throws -> [NodeID] {
-        try Logic(base: base).run(roots, [], in: &t)
+    mutating func logic(_ roots: [NodeID], citing forms: [NodeID: NodeID] = [:]) throws -> [NodeID] {
+        try run(Logic(base: base), roots, citing: forms, in: &t)
     }
 }
 
@@ -277,10 +277,10 @@ private func instance(
         root = try r.n(.ifolAll(T, body: root))
         proof = try r.n(.isaAllIntro(T, body: proof))
     }
-    let lowered = try r.logic([root, proof])
+    let lowered = try r.logic([root, proof], citing: [lemRoot: try r.logic([lemRoot])[0]])
     #expect(r.t.conclusion(of: lowered[1]) == lowered[0])
     #expect(patterns(under: lowered, in: r.t).allSatisfy { Logic(base: r.base).owns($0) == nil })
-    let fol = try Fol(base: r.base).run(lowered, [], in: &r.t)
+    let fol = try run(Fol(base: r.base), lowered, in: &r.t)
     #expect(r.t.conclusion(of: fol[1]) == fol[0])
     var cited = [NodeID]()
     var seen = Set<NodeID>()

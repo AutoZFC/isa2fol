@@ -4,10 +4,18 @@ import Testing
 
 private struct Ask: Request {
     let name: String
+
+    func remapped(_: (NodeID) throws -> NodeID) rethrows -> Ask {
+        self
+    }
 }
 
 private struct Tell: Request {
     let name: String
+
+    func remapped(_: (NodeID) throws -> NodeID) rethrows -> Tell {
+        self
+    }
 }
 
 private struct Answering<R: Request>: Prover {

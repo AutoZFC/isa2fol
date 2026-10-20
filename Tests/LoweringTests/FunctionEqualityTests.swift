@@ -90,9 +90,9 @@ func anEquationBetweenFunctionsIsItsPointwiseFormula() throws {
         try applied(try l.bound(1, P), try l.bound(0, i), &l),
     ))
     let pointwiseClasses = try l.all(i, try l.all(P, try iff(body, body, &l)))
-    let out = try Logic(base: b).run(
+    let out = try run(
+        Logic(base: b),
         [predicates, pointwisePredicates, powers, pointwisePowers, classes, pointwiseClasses],
-        [],
         in: &l.t,
     )
     #expect(out[0] == out[1])
@@ -165,7 +165,8 @@ func abstractRuleConcludesItsPremise() throws {
         body: rule,
     )), &l)
     var logic = l
-    let out = try Logic(base: try base(in: &logic.t)).run([rule, premise], [], in: &logic.t)
+    let b = try base(in: &logic.t)
+    let out = try run(Logic(base: b), [rule, premise], in: &logic.t)
     #expect(out[0] == (try logic.t.intern(.hyp(0, out[1]))))
     let unit = try lowered(l, [statement("T.abstract", proof)])
     #expect(unit.refused.isEmpty, "\(unit.refused)")

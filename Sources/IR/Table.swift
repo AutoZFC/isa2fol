@@ -16,26 +16,33 @@ public enum TableError: Error, Equatable, Sendable {
     case witnessEscapes(NodeID)
     case notAFunctionType(IRType)
     case letterArity(NodeID)
+    case notALayerOver(Int)
 }
 
 public struct Table: Sendable {
     public init() { }
 
+    public init(over table: Table) {
+        layer = (Below(table), table.count)
+    }
+
     public var count: Int {
-        nodes.count
+        base + nodes.count
     }
 
     public subscript(_ id: NodeID) -> Node {
-        nodes[Int(id.raw)]
+        let k = Int(id.raw)
+        if let layer, k < layer.base { return layer.below.table[id] }
+        return nodes[k - base]
     }
 
     public func type(of id: NodeID) -> IRType? {
-        if case .value(let T) = sorts[Int(id.raw)] { return T }
+        if case .value(let T) = sort(id) { return T }
         return nil
     }
 
     public func conclusion(of id: NodeID) -> NodeID? {
-        if case .step(let c) = sorts[Int(id.raw)] { return c }
+        if case .step(let c) = sort(id) { return c }
         return nil
     }
 
@@ -69,17 +76,21 @@ public struct Table: Sendable {
     }
 
     public func looseBound(of id: NodeID) -> Int {
-        looseTerms[Int(id.raw)]
+        let k = Int(id.raw)
+        if let layer, k < layer.base { return layer.below.table.looseBound(of: id) }
+        return looseTerms[k - base]
     }
 
     public func looseHyps(of id: NodeID) -> Int {
-        looseHypotheses[Int(id.raw)]
+        let k = Int(id.raw)
+        if let layer, k < layer.base { return layer.below.table.looseHyps(of: id) }
+        return looseHypotheses[k - base]
     }
 
     public mutating func intern(_ n: Node) throws -> NodeID {
-        if let id = index[n] { return id }
+        if let id = existing(n) { return id }
         try n.forEachChild { c, _ in
-            guard Int(c.raw) < nodes.count else { throw TableError.unknownNode(c) }
+            guard Int(c.raw) < count else { throw TableError.unknownNode(c) }
         }
         let sort = try sortOf(n)
         var terms = 0
@@ -95,13 +106,7 @@ public struct Table: Sendable {
             terms = max(terms, looseBound(of: c) - binds.terms)
             hyps = max(hyps, looseHyps(of: c) - binds.hyps)
         }
-        let id = NodeID(raw: UInt32(nodes.count))
-        nodes.append(n)
-        sorts.append(sort)
-        looseTerms.append(terms)
-        looseHypotheses.append(hyps)
-        index[n] = id
-        return id
+        return added(n, sort, terms, hyps)
     }
 
     /// ⚠ NOT SWIFT'S `Hasher`: it is seeded per process, and a name made from it changes from run to run, silently.
@@ -110,8 +115,55 @@ public struct Table: Sendable {
         return fingerprint(id, &known)
     }
 
+    /// ⚠ THE LAYER RELEASES THIS TABLE BEFORE THE FIRST NODE IS ADDED, AND NO LOCAL HOLDS ITS BOX: held, this table's
+    /// arrays are copied whole at its first change — once per unit of work, silently.
+    public mutating func imported(_ ids: [NodeID], from layer: inout Table) throws -> [NodeID] {
+        guard let base = layer.layer?.base, base == count else { throw TableError.notALayerOver(count) }
+        layer.layer = nil
+        let own = layer.nodes
+        var reached = [Bool](repeating: false, count: own.count)
+        var work = ids
+        while let id = work.popLast() {
+            let k = Int(id.raw) - base
+            guard k >= 0, !reached[k] else { continue }
+            reached[k] = true
+            own[k].forEachChild { c, _ in work.append(c) }
+            if case .step(let c) = layer.sorts[k] { work.append(c) }
+            if case .use(.lemma(let l), _, _) = own[k] {
+                _ = l.request.remapped { x in
+                    work.append(x)
+                    return x
+                }
+            }
+        }
+        var moved = [NodeID?](repeating: nil, count: own.count)
+        let here = { (x: NodeID) throws -> NodeID in
+            let k = Int(x.raw) - base
+            guard k >= 0 else { return x }
+            guard let y = moved[k] else { throw TableError.unknownNode(x) }
+            return y
+        }
+        for k in own.indices where reached[k] {
+            var n = try own[k].mapChildren { c, _ in try here(c) }
+            if case .use(.lemma(let l), let types, let root) = n {
+                n = .use(.lemma(Lemma(try l.request.remapped(here))), types, root)
+            }
+            if let id = existing(n) {
+                moved[k] = id
+                continue
+            }
+            let sort: Sort =
+                switch layer.sorts[k] {
+                case .value(let T): .value(T)
+                case .step(let c): .step(concluding: try here(c))
+                }
+            moved[k] = added(n, sort, layer.looseTerms[k], layer.looseHypotheses[k])
+        }
+        return try ids.map(here)
+    }
+
     func patternType(of id: NodeID) -> IRType {
-        switch sorts[Int(id.raw)] {
+        switch sort(id) {
         case .value(let T): T
         case .step: .o
         }
@@ -122,11 +174,43 @@ public struct Table: Sendable {
         case step(concluding: NodeID)
     }
 
+    private var layer: (below: Below, base: Int)?
     private var nodes = [Node]()
     private var sorts = [Sort]()
     private var looseTerms = [Int]()
     private var looseHypotheses = [Int]()
     private var index = [Node: NodeID]()
+
+    private var base: Int {
+        layer?.base ?? 0
+    }
+
+    private func sort(_ id: NodeID) -> Sort {
+        let k = Int(id.raw)
+        if let layer, k < layer.base { return layer.below.table.sort(id) }
+        return sorts[k - base]
+    }
+
+    private func found(_ n: Node) -> NodeID? {
+        if let id = index[n] { return id }
+        return layer?.below.table.found(n)
+    }
+
+    private func existing(_ n: Node) -> NodeID? {
+        if let id = index[n] { return id }
+        guard let layer, !n.holdsAChild(from: layer.base) else { return nil }
+        return layer.below.table.found(n)
+    }
+
+    private mutating func added(_ n: Node, _ sort: Sort, _ terms: Int, _ hyps: Int) -> NodeID {
+        let id = NodeID(raw: UInt32(count))
+        nodes.append(n)
+        sorts.append(sort)
+        looseTerms.append(terms)
+        looseHypotheses.append(hyps)
+        index[n] = id
+        return id
+    }
 
     private mutating func sortOf(_ n: Node) throws -> Sort {
         switch n {
@@ -504,4 +588,20 @@ public struct Table: Sendable {
 public func fingerprint(_ x: NodeID, _ t: Table) -> String {
     let hex = String(t.fingerprint(of: x), radix: 16)
     return String(repeating: "0", count: 16 - hex.count) + hex
+}
+
+private final class Below: Sendable {
+    init(_ table: Table) {
+        self.table = table
+    }
+
+    let table: Table
+}
+
+extension Node {
+    fileprivate func holdsAChild(from base: Int) -> Bool {
+        var holds = false
+        forEachChild { c, _ in if Int(c.raw) >= base { holds = true } }
+        return holds
+    }
 }

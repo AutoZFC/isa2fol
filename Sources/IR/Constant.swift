@@ -221,6 +221,8 @@ public enum Cited: Hashable, Sendable {
 
 public protocol Request: Hashable, Sendable {
     var name: String { get }
+
+    func remapped(_ f: (NodeID) throws -> NodeID) rethrows -> Self
 }
 
 public struct Lemma: Hashable, Sendable, CustomStringConvertible {

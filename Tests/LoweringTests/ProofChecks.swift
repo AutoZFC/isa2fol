@@ -103,10 +103,10 @@ func kernelChecks(
     var statements = [Statement]()
     let fol = Fol(base: try base(in: &t))
     for (c, root) in definitions {
-        statements.append(Statement(defining: c, root: try fol.run([root], [], in: &t)[0]))
+        statements.append(Statement(defining: c, root: try run(fol, [root], in: &t)[0]))
     }
     for c in claims {
-        let lowered = try fol.run([c.root, c.proof], [], in: &t)
+        let lowered = try run(fol, [c.root, c.proof], in: &t)
         statements.append(Statement(name: c.name, root: lowered[0], proof: lowered[1], theory: "Test"))
     }
     try kernelChecks(IR.Unit(table: t, statements: statements))

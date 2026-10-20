@@ -8,7 +8,12 @@ public protocol Pass {
     var name: String { get }
 
     func owns(_ p: Pattern) -> Owned?
-    func run(_ roots: [NodeID], _ definitions: [Definition], in t: inout Table) throws -> [NodeID]
+    func walk(_ definitions: [Definition], in t: inout Table) throws -> any Walk
+}
+
+public protocol Walk {
+    func run(_ roots: [NodeID], citing forms: [NodeID: NodeID], sharing memo: inout Memo, in t: inout Table) throws
+        -> [NodeID]
 }
 
 @frozen
@@ -309,18 +314,27 @@ private struct Run {
                 }
             }
             reached += handed
-            let out = try pass.run(
-                ready.flatMap(\.statement.walked) + passing.map(\.definition.definiens),
-                handed,
-                in: &unit.table,
-            )
-            var next = out.makeIterator()
+            let walk = try pass.walk(handed, in: &unit.table)
+            var memo = Memo(ready.map(\.statement.walked) + passing.map { [$0.definition.definiens] }, in: unit.table)
             var cited = [(Lemma, NodeID)]()
-            live = []
-            for var l in ready {
+            var forms = [NodeID: NodeID]()
+            var done = [Live?](repeating: nil, count: ready.count)
+            var gone = Set(unit.refused.map(\.name))
+            for j in try citationOrder(ready) {
+                var l = ready[j]
                 let before = l.statement
-                l.statement.root = next.next()!
-                if before.proof != nil { l.statement.proof = next.next()! }
+                let citing = before.proof.map { citations(under: $0, unit.table) } ?? []
+                if let c = citing.map(\.0.name).filter(gone.contains).min() {
+                    unit.refuse(before.name, .cites(c))
+                    gone.insert(before.name)
+                    continue
+                }
+                var handedForms = [NodeID: NodeID]()
+                for (_, root) in citing { if let form = forms[root] { handedForms[root] = form } }
+                let out = try lowered(before.walked, by: walk, citing: handedForms, &memo)
+                l.statement.root = out[0]
+                if before.proof != nil { l.statement.proof = out[1] }
+                forms[before.root] = l.statement.root
                 if let proof = l.statement.proof {
                     let concluded = unit.table.conclusion(of: proof)
                     guard concluded == l.statement.root else {
@@ -342,11 +356,12 @@ private struct Run {
                     pass: pass.name,
                     pattern: p,
                 ) }
-                live.append(l)
+                done[j] = l
             }
+            live = done.compactMap(\.self)
             lowering = []
             for var d in passing {
-                let definiens = next.next()!
+                let definiens = try lowered([d.definition.definiens], by: walk, citing: [:], &memo)[0]
                 if
                     definiens != d.definition
                         .definiens { d.held = try check(patterns(under: [definiens], in: unit.table)) }
@@ -368,6 +383,52 @@ private struct Run {
             }
         }
         return true
+    }
+
+    /// `roots` lowered by `walk` in a layer over the unit's table, which takes what the outputs and the forms the walk
+    /// recorded reach.
+    mutating func lowered(
+        _ roots: [NodeID],
+        by walk: any Walk,
+        citing forms: [NodeID: NodeID],
+        _ memo: inout Memo,
+    ) throws -> [NodeID] {
+        var layer = Table(over: unit.table)
+        let out = try walk.run(roots, citing: forms, sharing: &memo, in: &layer)
+        let moved = try unit.table.imported(out + memo.recorded.map(\.form), from: &layer)
+        memo.settle(Array(moved[out.count...]))
+        return Array(moved[..<out.count])
+    }
+
+    /// The statements in citation order, a cited one before its citer; the order given where none cites another.
+    func citationOrder(_ ready: [Live]) throws -> [Int] {
+        var at = [Cited: Int]()
+        for (j, l) in ready.enumerated() { at[l.statement.cited] = j }
+        let cites = ready.map { l in
+            (l.statement.proof.map { citations(under: $0, unit.table) } ?? []).compactMap { at[$0.0] }
+        }
+        var state = [UInt8](repeating: 0, count: ready.count)
+        var order = [Int]()
+        for start in ready.indices where state[start] == 0 {
+            var stack = [(start, 0)]
+            state[start] = 1
+            while let (v, e) = stack.last {
+                guard e < cites[v].count else {
+                    state[v] = 2
+                    order.append(v)
+                    stack.removeLast()
+                    continue
+                }
+                stack[stack.count - 1].1 += 1
+                let w = cites[v][e]
+                if state[w] == 1 { throw PipelineError.citationCycle(ready[w].statement.name) }
+                if state[w] == 0 {
+                    state[w] = 1
+                    stack.append((w, 0))
+                }
+            }
+        }
+        return order
     }
 
     func partial() -> Unit {
@@ -453,12 +514,14 @@ private struct Run {
                 definitionsRefused.insert(c)
                 continue
             }
-            switch try registry.define(c, reached, in: &unit.table) {
+            var layer = Table(over: unit.table)
+            switch try registry.define(c, reached, in: &layer) {
             case .unbuilt:
                 unit.refuse(name, .lemmaUnbuilt)
                 definitionsRefused.insert(c)
 
-            case .statement(let root):
+            case .statement(let stated):
+                let root = try unit.table.imported([stated], from: &layer)[0]
                 let held = try check(patterns(under: [root], in: unit.table))
                 if let p = misstated(held, through: r) { throw PipelineError.misstatedLemma(name: name, pattern: p) }
                 guard isDefinition(root, of: c, in: unit.table) else { throw PipelineError.notADefinition(name) }
@@ -486,7 +549,8 @@ private struct Run {
                     unbuilt.insert(next)
                     continue
                 }
-                switch try registry.prove(l, root, reached, theorems, in: &unit.table) {
+                var layer = Table(over: unit.table)
+                switch try registry.prove(l, root, reached, theorems, in: &layer) {
                 case .unbuilt:
                     unit.refuse(l.name, .lemmaUnbuilt)
                     unbuilt.insert(next)
@@ -497,7 +561,8 @@ private struct Run {
                     unbuilt.insert(next)
                     continue
 
-                case .proof(let p):
+                case .proof(let proved):
+                    let p = try unit.table.imported([proved], from: &layer)[0]
                     let concluded = unit.table.conclusion(of: p)
                     guard concluded == root else {
                         throw PipelineError.unproved(

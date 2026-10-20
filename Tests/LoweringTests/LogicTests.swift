@@ -59,7 +59,7 @@ func pureAllIntroducedInAProofAndInstantiatedIsTheTruthInstance() throws {
     let p = try k.n(.isaPropBound(0))
     let c = try k.c("C")
     let inner = try k.n(.isaPropIntro(body: try k.assume(p, try k.hyp(0, p))))
-    let out = try Logic(base: b).run([try k.n(.isaAllElim(inner, c))], [], in: &k.t)
+    let out = try run(Logic(base: b), [try k.n(.isaAllElim(inner, c))], in: &k.t)
     #expect(k.t.conclusion(of: out[0]) == (try k.imp(c, c)))
     #expect(misplacedLetters(out, in: k.t).isEmpty)
 }
@@ -72,7 +72,7 @@ func pureAllOverAPropositionIsATruthSet() throws {
     let c = try k.c("C")
     let bound = try k.n(.isaPropBound(0))
     let premise = try k.n(.isaPropAll(body: try k.imp(bound, bound)))
-    let out = try Logic(base: b).run([try k.imp(premise, c)], [], in: &k.t)
+    let out = try run(Logic(base: b), [try k.imp(premise, c)], in: &k.t)
     let holds = try k.n(.folPred(.base("holds"), args: [try k.n(.folBound(0))]))
     let truth = try k.n(.folPred(.base("truth"), args: [try k.n(.folBound(0))]))
     let read = try k.n(.folForall(body: try k.imp(truth, try k.imp(holds, holds))))
@@ -91,11 +91,7 @@ func anEquationBetweenFunctionsOfPropositionsIsPointwiseOverTruthSets() throws {
     let reflexive = try k.n(.isaReflexive(identity))
     let q = try k.hyp(0, try k.iff(A, B))
     let stated = try k.t.equation(.fn(o, o), identity, identity)
-    let out = try Logic(base: b).run(
-        [reflexive, try k.n(.isaCombination(.fn(o, o), reflexive, q)), stated],
-        [],
-        in: &k.t,
-    )
+    let out = try run(Logic(base: b), [reflexive, try k.n(.isaCombination(.fn(o, o), reflexive, q)), stated], in: &k.t)
     let holds = try k.n(.folPred(.base("holds"), args: [try k.n(.folBound(0))]))
     let truth = try k.n(.folPred(.base("truth"), args: [try k.n(.folBound(0))]))
     let pointwise = try k.n(.folForall(body: try k.imp(truth, try k.iff(holds, holds))))
@@ -117,7 +113,7 @@ func aSectionOfAConnectiveRewritesThroughTwoCombinations() throws {
     let and = try k.n(.isaAbs(o, body: try k.n(.isaAbs(o, body: try k.n(.folAnd(try k.v(1), try k.v(0)))))))
     let first = try k.n(.isaCombination(.fn(o, .fn(o, o)), try k.n(.isaReflexive(and)), try k.hyp(1, try k.iff(A, A2))))
     let both = try k.n(.isaCombination(.fn(o, o), first, try k.hyp(0, try k.iff(B, B2))))
-    let out = try Logic(base: b).run([both], [], in: &k.t)
+    let out = try run(Logic(base: b), [both], in: &k.t)
     #expect(k.t.conclusion(of: out[0]) == (try k.iff(try k.n(.folAnd(A, B)), try k.n(.folAnd(A2, B2)))))
 }
 
@@ -133,8 +129,21 @@ func transitiveAtAFunctionOfPropositionsIsPointwise() throws {
     let fg = try k.t.equation(.fn(o, o), f, g)
     let gh = try k.t.equation(.fn(o, o), g, h)
     let both = try k.n(.isaTransitive(.fn(o, o), try k.hyp(1, fg), try k.hyp(0, gh)))
-    let out = try Logic(base: b).run([both, try k.t.equation(.fn(o, o), f, h)], [], in: &k.t)
+    let out = try run(Logic(base: b), [both, try k.t.equation(.fn(o, o), f, h)], in: &k.t)
     #expect(k.t.conclusion(of: out[0]) == out[1])
+}
+
+/// A citation of a statement of the unit holds the form it is handed, the cited statement's at this pass; handed none,
+/// Logic stops rather than build it (DESIGN "Memory — a unit of work's nodes leave with it", 1).
+@Test
+func aCitationReadsTheFormItIsHanded() throws {
+    var k = K()
+    let b = try base(in: &k.t)
+    let c = try k.c("C")
+    let root = try k.imp(c, c)
+    let cited = try k.n(.use(.theorem("T"), [], root))
+    #expect(try run(Logic(base: b), [cited], citing: [root: root], in: &k.t) == [cited])
+    #expect(throws: LogicError.uncited(root)) { _ = try run(Logic(base: b), [cited], in: &k.t) }
 }
 
 /// A cited theorem binding a proposition at its top is a schema: its elimination at `C` is `schema_inst`, and the
@@ -148,7 +157,7 @@ func aCitedSchemaIsInstantiatedAndItsOwnProofKeepsItsLetter() throws {
     let root = try k.letters(1, try k.imp(p, p))
     let proof = try k.n(.isaAllIntro(o, body: try k.assume(p, try k.hyp(0, p))))
     let cited = try k.n(.use(.theorem("id"), [], root))
-    let out = try Logic(base: b).run([root, proof, try k.n(.isaAllElim(cited, c))], [], in: &k.t)
+    let out = try run(Logic(base: b), [root, proof, try k.n(.isaAllElim(cited, c))], citing: [root: root], in: &k.t)
     #expect(out == [root, proof, try k.n(.folSchemaInst(cited, c))])
     #expect(misplacedLetters(out, in: k.t).isEmpty)
 }
@@ -165,7 +174,7 @@ func equalityAtOIsBasesIffSchemas() throws {
     let ab = try k.hyp(1, try k.iff(A, B))
     let bc = try k.hyp(0, try k.iff(B, C))
     let steps = [try k.n(.isaReflexive(A)), try k.n(.isaSymmetric(o, ab)), try k.n(.isaTransitive(o, ab, bc))]
-    let out = try Logic(base: b).run(steps, [], in: &k.t)
+    let out = try run(Logic(base: b), steps, in: &k.t)
     let symmetric = try k.n(.folImpliesElim(try k.schema(b, .iffSymm, A, B), ab))
     let transitive = try k.n(.folImpliesElim(try k.n(.folImpliesElim(try k.schema(b, .iffTrans, A, B, C), ab)), bc))
     #expect(out == [try k.schema(b, .iffRefl, A), symmetric, transitive])
@@ -184,7 +193,7 @@ func classicalAndIffReflectionAreTheKernelsStepsAfterExpand() throws {
     let both = try k.n(.folAnd(try k.imp(A, B), try k.imp(B, A)))
     let classical = try k.n(.isaClassical(A, try k.hyp(0, premise)))
     let reflection = try k.n(.isaIffReflection(A, B, try k.hyp(0, both)))
-    let out = try Logic(base: b).run([classical, reflection], [], in: &k.t)
+    let out = try run(Logic(base: b), [classical, reflection], in: &k.t)
     #expect(k.t.conclusion(of: out[0]) == A)
     #expect(k.t.conclusion(of: out[1]) == (try k.iff(A, B)))
     #expect(patterns(under: out, in: k.t).allSatisfy { $0.dialects == [.fol] || $0.dialects == [.isa, .fol] })

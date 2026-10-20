@@ -321,7 +321,7 @@ private func emitted(_ claims: [(name: String, root: NodeID, proof: NodeID)], in
     let fol = Fol(base: try base(in: &t))
     var statements = [Statement]()
     for c in claims {
-        let lowered = try fol.run([c.root, c.proof], [], in: &t)
+        let lowered = try run(fol, [c.root, c.proof], in: &t)
         statements.append(Statement(name: c.name, root: lowered[0], proof: lowered[1], theory: "Test"))
     }
     let dir = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("isa2fol-bytes-\(UUID().uuidString)")

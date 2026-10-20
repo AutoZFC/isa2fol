@@ -13,3 +13,15 @@ func base(in t: inout Table) throws -> Base {
         in: &t,
     ))
 }
+
+/// `roots` lowered by `pass` as the one unit of its own run: built at `definitions`, nothing shared.
+func run(
+    _ pass: some Pass,
+    _ roots: [NodeID],
+    _ definitions: [Definition] = [],
+    citing forms: [NodeID: NodeID] = [:],
+    in t: inout Table,
+) throws -> [NodeID] {
+    var memo = Memo()
+    return try pass.walk(definitions, in: &t).run(roots, citing: forms, sharing: &memo, in: &t)
+}

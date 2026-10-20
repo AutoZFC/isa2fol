@@ -18,9 +18,8 @@ public struct Expand: Pass {
         }
     }
 
-    public func run(_ roots: [NodeID], _ definitions: [Definition], in t: inout Table) throws -> [NodeID] {
-        let rule = try Unfold(definitions, in: &t)
-        return try transform(roots, rule, in: &t)
+    public func walk(_ definitions: [Definition], in t: inout Table) throws -> any Walk {
+        try Unfold(definitions, in: &t)
     }
 }
 
@@ -68,7 +67,7 @@ private struct Typed: Hashable {
     let type: IRType
 }
 
-private struct Unfold: Rule {
+private struct Unfold: Rule, Walk {
     init(_ given: [Definition], in t: inout Table) throws {
         for d in given {
             if case .constant(let c) = d.defines { typed[Typed(constant: c, type: d.type)] = Instance(
@@ -90,6 +89,12 @@ private struct Unfold: Rule {
 
     var start: Anywhere {
         Anywhere()
+    }
+
+    func run(_ roots: [NodeID], citing _: [NodeID: NodeID], sharing memo: inout Memo, in t: inout Table) throws
+        -> [NodeID]
+    {
+        try transform(roots, self, sharing: &memo, in: &t)
     }
 
     func enter(_ c: Anywhere, _: Node, _: Binds, in _: Table) -> Anywhere {

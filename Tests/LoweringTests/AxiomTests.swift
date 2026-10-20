@@ -223,7 +223,7 @@ func infinityReadsSuccByTheTheoremStatingItsMembers() throws {
     }
     #expect(t.conclusion(of: p) == statement)
     #expect(try misscoped(p, in: t).isEmpty)
-    let lowered = try Fol(base: b).run([statement, p], [], in: &t)
+    let lowered = try run(Fol(base: b), [statement, p], in: &t)
     #expect(t.conclusion(of: lowered[1]) == lowered[0])
     try legalize(lowered[1], in: t)
     var requests = [(Lemma, NodeID)]()
@@ -315,7 +315,7 @@ func infinityWithItsBoundedForallWrittenOutReadsSuccByItsMembers() throws {
     }
     #expect(t.conclusion(of: p) == statement)
     #expect(try misscoped(p, in: t).isEmpty)
-    let lowered = try Fol(base: b).run([statement, p], [], in: &t)
+    let lowered = try run(Fol(base: b), [statement, p], in: &t)
     #expect(t.conclusion(of: lowered[1]) == lowered[0])
     try legalize(lowered[1], in: t)
     var requests = [(Lemma, NodeID)]()

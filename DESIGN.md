@@ -6285,6 +6285,191 @@ stderr, `metafun` 18 of 18. The tests: 14, 142, 121 and 47 passed, Lowering 153 
 the first run, before decision 3, stopped at 7:02 on the β walk's malformed step, at 24.9 GB. Nothing is emitted, so
 the named theorems the step adds are neither counted nor kernel-checked: memory is the next step ("Not in this step").
 
+### Memory — a unit of work's nodes leave with it  **[AGREED 2026-10-19 (user), the two decisions one by one, and decision 3 ("Go ahead"); BUILT 2026-10-19, its decisions in the build for the user's review — `Sources/IR/Table.swift`, `Pass.swift`, `Traversal.swift`, `Constant.swift`, `Sources/Lowering/Expand.swift`, `Logic.swift`, `Fol.swift`, the requests' owners]**
+
+**The step.** With the four boxes read ("A variable only the proof uses, constant in its arguments"), the complete run is
+killed at `MEM=80G`, 83.7 GB, still lowering. A probe of the same run (a throwaway build, not kept) counts at each stage, and
+at every 2,000th lemma, the table's nodes, those the pipeline's statements, definitions and set-aside lemmas reach, and
+the resident set:
+
+| | the table | reached | resident |
+|---|---|---|---|
+| read | 2.0M | 0.6M | 0.6 GB |
+| expand | 2.8M | 0.6M | 1.4 GB |
+| logic | 85.0M | 12.2M (14%) | 22.4 GB |
+| the registry, its 50,000th of 50,484 | 173.7M | 22.0M (12.7%) | 44.5 GB |
+| after it — the registry's last 484, or Fol | — | — | killed at 83.7 GB |
+
+The table is the unit's one store, and it only grows: every node a walk interns stays for the run. Logic interns 82.2M
+nodes and its results reach 11.6M; the registry interns 88.7M and its proofs reach 9.8M. What is left behind is mostly
+formulas — `folImplies` and `ifolAll` lead each stage's new nodes — a walk rebuilding a formula at a mode, a depth, an
+instance. A node costs ~123 bytes while the arrays and the index have room (38.9 → 44.5 GB over 45.4M nodes in the
+registry), more at each doubling: the node, its sort, its two loose counts, and the node again as its key in the intern
+index.
+
+**1. A unit of work interns into a scratch layer over the unit's table; the unit's table takes only what its result
+reaches, and is what units share — a citation reads the cited statement's form there, never builds it again.**
+**AGREED 2026-10-19 (user), amended to keep what is shared shared.** A unit of work is a pass's run over one statement or
+one definiens, a prover's proof of one lemma, its definition of one constant. The layer reads the table below it, finds a
+node already there before adding one, and numbers its own past it. When the unit returns, the pipeline imports its
+results — the nodes they reach, children first, each found in the unit's table or added — and drops the layer with
+everything else it holds. Between units the pipeline holds only the unit's IDs; a pass or a prover keeps none past its
+call, as now (each a stateless value, `Base`'s statements interned before the pipeline).
+
+| the unit's table: shared, every layer reads it | a layer: dropped after its unit |
+|---|---|
+| each statement lowered once, its statement and its proof | the unit's own proof steps |
+| each lemma, by its typed request, named and proved once and cited by ID — a constant's class, function and unfolding, a term's EX and UNIQ, a λ's class, the meeting lemmas | the formulas its walks rebuild on the way |
+| the `@def`s; base's statements | its walk's memo |
+
+| | interned | kept |
+|---|---|---|
+| now | every node every walk builds — 173.7M at the registry's end | all of them |
+| a layer per unit | the same, each in its unit's layer | what results reach — 22.0M at the registry's end — and the earlier stages' results |
+
+What Logic's one memo across all proofs (`transform(proofs, …)`) shares between statements is mainly the citation: at
+`use(T)` it builds `T`'s statement form, `formula(root, .statement)`, once for every citer. That stays shared as a
+result, not a memo: the pipeline runs each pass over the statements in citation order, cited before citer — the graph is
+acyclic (`acyclic`) — and hands a unit, beside the definitions, the forms at this pass of the statements it cites, which
+their own units left in the unit's table; a citation reads its cited statement's form there. What else two statements
+share is rebuilt in each layer and found in the unit's table on import. Units over one table that none of them changes
+can run side by side — not in this step.
+
+Not the one table compacted — what the pipeline holds marked, renumbered, every held ID remapped: the same remap of the
+requests, and of every statement, definition and set-aside lemma besides, while a pass running over every statement in
+one call keeps Logic's 82M nodes until it returns. Not a node's cost halved, the index holding IDs instead of node
+copies: it keeps the 87% no result reaches.
+
+**2. A lemma's citation enters the unit's table with its request remapped: `Request` gains `remapped`, each request
+mapping the IDs it holds.** **AGREED 2026-10-19 (user).** `use(.lemma(L), types, root)` is the one node holding IDs beyond its children:
+`L`'s request — a formula, a λ, a term, its variables (`Meeting`, `Instantiation`, `Arguments`, `Leibniz`, `Existence`,
+`Uniqueness`, `ConstantFact`, `Unfolding`, `LambdaFact`, `RekeyFact`, `TupleFact`, `AxiomFact`). Built in a layer, they
+point into it; the import maps them with the node, importing what they reach, so a lemma two statements ask for is one
+request of the unit, named and proved once, as now. The request is its owner's typed value (I1): the owner maps its
+fields, and the import never reads them.
+
+Not the import reading a request's IDs through reflection or a field list IR keeps: it would parse the owner's value
+(I1). Not a request left pointing into its layer, the layer kept until the lemma is proved: a layer would live as long
+as the run.
+
+**What the layers cost, measured.** Built on decisions 1–2, the complete run lowers the same unit, 25.6 GB under `MEM=32G`,
+in 2,386 s against HEAD's 571 s. Expand takes 12.8 s and Logic 1,266.6 s over the statements HEAD's took 3.8–4.1 s and
+321–337 s; the registry's and Fol's work grew with the four boxes and is not compared. What HEAD did once a run, the
+layers do once a unit:
+- Expand builds its unfolding of the definitions it owns, a fixpoint over all of them, at each call: once a statement.
+- Logic lowers what statements share once a statement. The 4,283 statements' DAGs sum to 6.44M nodes and their union is
+  0.61M: a box inlined into each of its citers, a citation, a formula many proofs hold. HEAD's one walk over every proof
+  lowered each once. Sampled, Logic's time is its walk's own work — rewriting, interning, `met`, fingerprints — and the
+  layer's lookup below it 12% of it.
+
+**3. A pass is built once a run, at the definitions it owns; its walk keeps one memo across the run's units: a node two
+units reach is lowered by the first, its form kept in the unit's table where a unit enters what it shares, and read by
+the rest.** **AGREED 2026-10-19 (user: "Go ahead").** Before a pass's run the pipeline builds the pass's walk in the
+unit's table — Expand's unfolding of its definitions; Logic and Fol hold none — and counts, over the run's units (each
+statement's statement and proof, each definiens), the units reaching each node. A node two reach is shared where a unit
+enters what it shares: a unit's root, or a node below one no other unit reaches. The walk reads a shared node met at its
+start — its context narrowed to the walk's first, so its form does not depend on where it stands — from the memo, or
+lowers it and records its form there. The import takes the forms a unit recorded with its results, kept though no
+result holds them. The memo lives for the pass's run; its forms stay in the unit's table, as the results do.
+
+| the unit's table: shared | a layer: dropped after its unit |
+|---|---|
+| a pass's walk of one run; each shared node's form at the pass | a node one unit reaches, or every unit below a shared one: its form unless a result holds it |
+
+Not one memo keeping every node's form: Logic's form of a proof below a binder is built again where the binder fixes its
+values (`fixing`), so its walk's forms are a copy of the proofs no later unit reads. Not the form of every node two units
+reach: a unit reads a shared box where it enters it, never below, and the forms below are such copies — kept, they took
+the unit's table through Logic from 41.3M nodes to 44.3M. Not a form kept only where the unit's result holds it, which
+needs no count: a box holding a closed value is built again at its citer's top, which fixes the closed values, so no
+result holds its form and every citer would lower the box again.
+
+**The contracts (D2):**
+
+| | provides | assumes |
+|---|---|---|
+| IR, the table | a layer over a table: reads below it, a node found below before one is added; the import of what given nodes reach, children first, a lemma's request remapped by its owner, each node's sort carried and a step's conclusion imported with it | the table below unchanged while a layer over it lives |
+| IR, the pipeline | each pass run over one statement or definiens, each lemma proved, each constant defined, in a layer; its results imported, the layer dropped; only the unit's IDs held between units; each pass over the statements in citation order, a unit handed the forms at this pass of what it cites; each pass's walk built once a run, a node two of its units reach shared, the forms a unit records imported with its results | a pass and a prover keep no ID past their call, a pass's walk none but those it built |
+| IR, the walk (`transform`) | with a memo: a shared node met at the walk's start read from it, or lowered and its form recorded | a node's form at the walk's start depends on the node alone |
+| Logic | a citation's statement form read from what the unit is handed | the cited statement's form at this pass in the unit's table |
+| Lowering, each request | `remapped`: the request with each ID it holds mapped | — |
+| Passes | `walk`: the pass at the definitions it owns, once a run; its `run` over one unit, the memo handed to its walk | — |
+| Provers | unchanged: a table to intern into, results returned | — |
+
+**Tests, written first.**
+- `TableTests`: a layer finds a node of the table below at its ID and numbers its own past it; an import adds exactly the
+  new nodes its results reach, children first, and finds the rest; an imported `use` of a lemma has its request's IDs in
+  the unit's table; an imported step concludes what its layer derived, its conclusion imported with it.
+- `PipelineTests`: a pass interning scratch nodes for each statement leaves the unit's table holding the results alone;
+  a lemma two statements request in their layers is one statement of the unit; a pass meets a cited statement before
+  its citer and is handed its form. Decision 3: a node two statements hold is lowered once a pass, both reading its
+  form; a shared node's form stays in the unit's table though the result of the unit that lowered it drops it; a node
+  every unit reaches below another shared node leaves its form with its layer; a pass is built once a run.
+- `LogicTests`: a citation reads the form it is handed, building none.
+- `LoweringTests`: each request's `remapped` maps every ID it holds — a shift, then its inverse, gives the request back.
+- The ZF session: the complete run, emitted and kernel-checked, under `MEM=32G`, the CI's cap, with the four boxes read;
+  the named set diffed against HEAD's. Decision 3: the same unit, Expand and Logic back to HEAD's times.
+
+**Not in this step.** Units side by side; a node's cost (the intern index's node copies); dropping a stage's results once
+the next has replaced them — Expand's forms after Logic, Logic's after Fol.
+
+**Built.** IR: `Table(over:)`, a layer — its reads below it, a node found below before one is added (`found`), its own
+numbered past; `imported(_:from:)` marks what the results reach, children and a lemma's request (`remapped`), and adds
+it children first, the layer's hold on the table released before the first. `Request` gains `remapped`. The pipeline
+runs each pass over each statement and each definiens in a layer (`lowered`), the statements in citation order
+(`citationOrder`, a cited one before its citer, the unit's order kept), handing each the forms of what it cites; the
+registry proves each lemma and states each definition in one. `Pass.run` takes the forms (`citing:`). Lowering: the
+twelve requests map their IDs; Logic reads a theorem's citation from the forms it is handed (`LogicError.uncited`), Expand
+and Fol take them unread.
+
+**Decisions made in the build**, for the user's review:
+1. **A citer of a refused statement is refused before the pass runs over it**, naming the least refused citation, as the
+   link's closure does: the form it would read does not exist, and the link would refuse it after. A lemma it would
+   request is never requested (`aLemmaRequestedByAStatementCitingARefusedOneIsNeverProved`).
+2. **Logic reads only a theorem's citation**: an axiom, a theory axiom, base and a definition are no statements whose
+   own unit lowered them, and a lemma's citation reaches Logic built by Logic; each keeps building its form.
+3. **The import holds no reference to the layer's box**: bound to a local, it kept the table referenced, and each import
+   copied the table whole — the first complete run sat at 1.5 GB, its table barely growing, its memory swinging at each
+   statement; the warning on `imported`.
+
+**Built, decision 3.** IR: `Pass.walk(definitions, in:)` builds the pass's `Walk` once a run, in the unit's table;
+`Walk.run(roots, citing:, sharing:, in:)` lowers one unit. `Memo(units, in:)` counts the units reaching each node, a
+node descended at most twice — once by the first unit to reach it, once by the second, which marks it and everything
+below it reached twice — then walks each unit again down to the first node reached twice on each path: those are
+shared. `transform(_:_:sharing:in:)` reads a shared node met at the rule's `start` from the memo, or lowers it and
+records its form; the pipeline's `lowered` imports a unit's recorded forms with its results and settles the memo at
+their IDs. Lowering: Expand's walk is its `Unfold`, built once a run; Logic and Fol are their own walks.
+
+**Decisions made in the build**, for the user's review:
+4. **The count is over every unit the run starts with**, a statement the run then refuses for citing a refused one
+   among them: a node it shares with one other unit alone is kept, never read again.
+5. **Fol shares too**, one memo across its units, its walk still a cache per root (the warning on `Fol.run`): Fol's
+   start is the empty context, so it shares a closed node — a cited statement, a lemma's — which it lowered once a
+   citer.
+6. **The import carries each node's sort and loose counts, a step's conclusion imported with it**, deriving none
+   again: sampled through Logic, 148 of the import's 183 samples derived a step's conclusion a second time — an
+   instance, a witness — and the import was a fifth of the stage.
+
+**Measured.** The complete run of the ZF session under `MEM=32G`, the CI's cap, `--threads 16`: 27:33, peak 25.5 GB.
+The unit is the one before the step: the same 369 named, 7,969 claims and 568 schemas Proved, every one of the 35 parts
+`exit 0  stderr 0`, 206,264,082 bytes, byte-identical to the run on decisions 1–2 alone; the same refusals — 3,239 cite
+a refused statement, led by `Arith.natify_non_succ` (366), `ZF_Base.BOX_190a994237a728ec` (181) and `FOL.IFOL_simps.32`
+(146).
+
+| | HEAD | decisions 1–2 | 1–3 |
+|---|---|---|---|
+| Expand | 3.8–4.1 s | 12.8 s | 6.6 s |
+| Logic | 321–337 s | 1,266.6 s | 417.6 s |
+| the registry | 166 s | 707.5 s | 654.4 s |
+| Fol | 73 s | 369.2 s | 333.0 s |
+| lowered | 571 s | 2,385.6 s | 1,441.4 s |
+| the table at the end | 117.5M nodes | 90.5M | 91.6M |
+| peak | 45.8 GB (`MEM=80G`) | 25.6 GB | 25.5 GB |
+
+HEAD's registry and Fol lowered fewer statements: the four boxes read bring 3,000 more theorems' lemmas to them — 597
+refused unbuilt, 37,854 left out — and keep none. Logic stays a quarter over HEAD's: what it shares it lowers once, as
+HEAD's one walk did, and the rest is the layers' own work — a node looked up in the layer and then below it, 15% of
+Logic's samples, and the import of what units keep.
+
 ### Fol — binders, guards and variables  **[BUILT 2026-09-28 as the guard; Fol's 2026-10-14; every object type and `∃` at `i` with "Reify — S1 at the site" — `Sources/Lowering/Fol.swift`]**
 
 **Every isa binder at an object type, its intro, its variable and the guard of its variable become fol-zfc's, with the

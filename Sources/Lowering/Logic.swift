@@ -5,9 +5,10 @@ public enum LogicError: Error, Equatable, Sendable {
     case notCongruence(NodeID)
     case notTheRule(NodeID)
     case notAFormula(NodeID)
+    case uncited(NodeID)
 }
 
-public struct Logic: Pass {
+public struct Logic: Pass, Walk {
     public init(base: Base) {
         self.base = base
     }
@@ -23,9 +24,15 @@ public struct Logic: Pass {
         }
     }
 
-    public func run(_ roots: [NodeID], _: [Definition], in t: inout Table) throws -> [NodeID] {
+    public func walk(_: [Definition], in _: inout Table) throws -> any Walk {
+        self
+    }
+
+    public func run(_ roots: [NodeID], citing forms: [NodeID: NodeID], sharing memo: inout Memo, in t: inout Table)
+        throws -> [NodeID]
+    {
         let proofs = roots.filter { t.conclusion(of: $0) != nil }
-        let lowered = try transform(proofs, Steps(base: base), in: &t)
+        let lowered = try transform(proofs, Steps(base: base, forms: forms), sharing: &memo, in: &t)
         var byRoot = [NodeID: NodeID]()
         for (p, q) in zip(proofs, lowered) {
             guard let c = t.conclusion(of: p) else { throw LogicError.notTheRule(p) }
@@ -266,13 +273,15 @@ private enum Place: Hashable {
 /// ⚠ A FORMULA A STEP HOLDS IS VALUED AT THE STEP, NEVER WALKED BELOW IT: under a binder of its own, as an `∃`-intro's
 /// body, its variable would read as the proof's.
 private struct Steps: Rule {
-    init(base: Base) {
+    init(base: Base, forms: [NodeID: NodeID]) {
         self.base = base
+        self.forms = forms
         equalities = Equalities(base: base)
         truths = Truths(base: base)
     }
 
     let base: Base
+    let forms: [NodeID: NodeID]
     let equalities: Equalities
     let truths: Truths
 
@@ -290,7 +299,13 @@ private struct Steps: Rule {
         guard t.conclusion(of: id) != nil else { return t.type(of: id) == .o ? try valued(id, in: &t) : id }
         switch t[id] {
         case .use(let cited, let types, let root):
-            let stated = try formula(root, .statement, in: &t)
+            let stated: NodeID
+            if case .theorem = cited {
+                guard let form = forms[root] else { throw LogicError.uncited(root) }
+                stated = form
+            } else {
+                stated = try formula(root, .statement, in: &t)
+            }
             let citation: NodeID =
                 switch piece(Pattern(t[id], in: t)) {
                 case .claimed(let s)?: try claimed(s, stated, was: id, in: &t)

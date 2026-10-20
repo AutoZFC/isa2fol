@@ -126,7 +126,7 @@ func aPropositionArgumentIsNamedByItsTruthSetAnEntryOfItsTuple() throws {
     var q = Q()
     let b = try base(in: &q.t)
     let term = try q.applied(selectConstant, fn(o, fn(i, i)), try q.mem(try q.x(0), try q.x(0)), try q.x(0))
-    let out = try Logic(base: b).run([try q.mem(try q.x(1), term)], [], in: &q.t)
+    let out = try run(Logic(base: b), [try q.mem(try q.x(1), term)], in: &q.t)
     let truthSet = try q.and(
         try q.p("truth", try q.x(0)),
         try q.iff(try q.p("holds", try q.x(0)), try q.p("elem", try q.x(1), try q.x(1))),
@@ -237,7 +237,7 @@ func pureEqualityAtAFunctionTakingAPropositionAndAnObjectIsPointwise() throws {
     let F = fn(o, fn(i, i))
     let eta = try q.eta(pick, i)
     let same = try q.t.equation(F, eta, eta)
-    let read = try Logic(base: b).run([same], [], in: &q.t)[0]
+    let read = try run(Logic(base: b), [same], in: &q.t)[0]
     guard
         case .folForall(let guarded) = q.t[read], case .folImplies(let premise, let rest) = q.t[guarded],
         case .ifolAll(.i, _) = q.t[rest]

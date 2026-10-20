@@ -48,6 +48,10 @@ private func unitChecks(_ dir: URL) throws -> String {
 
 private struct Named: Request {
     let name: String
+
+    func remapped(_: (NodeID) throws -> NodeID) rethrows -> Named {
+        self
+    }
 }
 
 extension Pf {

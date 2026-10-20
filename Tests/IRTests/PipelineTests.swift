@@ -8,7 +8,7 @@ private let free = Pattern.isaFree(i)
 private let memAtom = Pattern.isaConst(.primitive(.zf(.mem)), memT, args: [i, i])
 private let axiomCited = Pattern.use(.theoryAxiom, [], o)
 
-private struct Owning<R: Rule>: Pass {
+private struct Owning<R: Rule>: Pass, Walk {
     let name: String
     let owned: [Pattern: Owned]
     let rule: R
@@ -17,12 +17,18 @@ private struct Owning<R: Rule>: Pass {
         owned[p]
     }
 
-    func run(_ roots: [NodeID], _: [Definition], in t: inout Table) throws -> [NodeID] {
-        try transform(roots, rule, in: &t)
+    func walk(_: [Definition], in _: inout Table) throws -> any Walk {
+        self
+    }
+
+    func run(_ roots: [NodeID], citing _: [NodeID: NodeID], sharing memo: inout Memo, in t: inout Table) throws
+        -> [NodeID]
+    {
+        try transform(roots, rule, sharing: &memo, in: &t)
     }
 }
 
-private final class Reading: Pass {
+private final class Reading: Pass, Walk {
     init(owned: [Pattern: Owned]) {
         self.owned = owned
     }
@@ -35,14 +41,33 @@ private final class Reading: Pass {
         owned[p]
     }
 
-    func run(_ roots: [NodeID], _ definitions: [Definition], in _: inout Table) throws -> [NodeID] {
+    func walk(_ definitions: [Definition], in _: inout Table) throws -> any Walk {
         received += definitions
-        return roots
+        return self
+    }
+
+    func run(_ roots: [NodeID], citing _: [NodeID: NodeID], sharing _: inout Memo, in _: inout Table) throws
+        -> [NodeID]
+    {
+        roots
     }
 }
 
 private struct Named: Request {
     let name: String
+
+    func remapped(_: (NodeID) throws -> NodeID) rethrows -> Named {
+        self
+    }
+}
+
+private struct Holding: Request {
+    let name: String
+    let formula: NodeID
+
+    func remapped(_ f: (NodeID) throws -> NodeID) rethrows -> Holding {
+        Holding(name: name, formula: try f(formula))
+    }
 }
 
 private func lemma(_ name: String) -> Lemma {
@@ -132,6 +157,63 @@ private struct CiteLemma: Rule {
     func after(_ n: Node, was _: NodeID, context _: Depth, in t: inout Table) throws -> NodeID? {
         guard case .use(.theoryAxiom(let name), [], let root) = n else { return nil }
         return try t.intern(.use(.lemma(lemma(name)), [], root))
+    }
+}
+
+/// Every citation of a theory axiom becomes a citation of a lemma whose request holds a node built where it stands.
+private struct CiteHolding: Rule {
+    func after(_ n: Node, was _: NodeID, context _: Depth, in t: inout Table) throws -> NodeID? {
+        guard case .use(.theoryAxiom(let name), [], let root) = n else { return nil }
+        let held = try t.intern(.isaConst(.declared("F"), o, args: []))
+        return try t.intern(.use(.lemma(Lemma(Holding(name: name, formula: held))), [], root))
+    }
+}
+
+/// Interns a scratch node at every node it visits, and changes none.
+private struct Scratch: Rule {
+    func before(_ id: NodeID, context _: Depth, in t: inout Table) throws -> NodeID? {
+        _ = try t.intern(.isaFree("scratch \(id)", i))
+        return nil
+    }
+}
+
+/// `elem`, recording each run's roots and the forms it is handed.
+private final class Recording: Pass, Walk {
+    let name = "recording"
+    var runs = [[NodeID]]()
+    var handed = [[NodeID: NodeID]]()
+
+    func owns(_ p: Pattern) -> Owned? {
+        p == memAtom ? .rule : nil
+    }
+
+    func walk(_: [Definition], in _: inout Table) throws -> any Walk {
+        self
+    }
+
+    func run(_ roots: [NodeID], citing forms: [NodeID: NodeID], sharing memo: inout Memo, in t: inout Table) throws
+        -> [NodeID]
+    {
+        runs.append(roots)
+        handed.append(forms)
+        return try transform(roots, Elem(), sharing: &memo, in: &t)
+    }
+}
+
+/// `elem`, and a conjunction its first conjunct, counting the nodes it visits.
+private final class FirstConjunct: Rule {
+    var visits = [NodeID: Int]()
+
+    func before(_ id: NodeID, context _: Depth, in _: inout Table) throws -> NodeID? {
+        visits[id, default: 0] += 1
+        return nil
+    }
+
+    func after(_ n: Node, was _: NodeID, context _: Depth, in t: inout Table) throws -> NodeID? {
+        if case .folAnd(let a, _) = n { return a }
+        if case .folAndIntro(let p, _) = n { return p }
+        guard case .isaConst(.primitive(.zf(.mem)), _, let xs) = n else { return nil }
+        return try t.intern(.folPred(.base("elem"), args: xs))
     }
 }
 
@@ -396,8 +478,9 @@ func aLemmaItsProverHasNotBuiltIsRefusedThereAndItsCitersFall() throws {
     #expect(refusals(unit) == ["L": .lemmaUnbuilt, "S": .cites("L")])
 }
 
-/// `S` cites `C`, which no pass owns a piece of, and requests `L`: the link closes before the registry proves, so `L`
-/// is never asked and leaves the unit, reported (DESIGN "Lazy proving").
+/// `S` cites `C`, which no pass owns a piece of, and would request `L`: it falls with `C` before the pass that would
+/// request `L` runs over it, so `L` is never requested and never asked (DESIGN "Lazy proving"; "Memory — a unit of
+/// work's nodes leave with it").
 @Test
 func aLemmaRequestedByAStatementCitingARefusedOneIsNeverProved() throws {
     var t = Table()
@@ -419,7 +502,7 @@ func aLemmaRequestedByAStatementCitingARefusedOneIsNeverProved() throws {
     #expect(registry.asked.isEmpty)
     #expect(unit.statements.isEmpty)
     #expect(refusals(unit) == ["C": .noOwner([free]), "S": .cites("C")])
-    #expect(unit.dropped == ["L"])
+    #expect(unit.dropped.isEmpty)
 }
 
 /// `S` holds a piece `elem`, after the registry, has not built: it is refused before the registry proves, and `L`,
@@ -520,17 +603,19 @@ func aLemmaCitingAStatementTheUnitLacksIsRefusedCitingIt() throws {
     #expect(unit.statements.isEmpty)
 }
 
-/// `T.d ≡ λx. K(x ∈ x)`: `elem` lowers it before `reading`, which owns `T.d`, reads it; nothing lowers it after.
+/// `T.d ≡ λx. K(x ∈ x)`: `elem` lowers it before `reading`, which owns `T.d`, reads it with the statement it lowers;
+/// nothing lowers it after.
 @Test
 func aPassReadsTheDefinitionsOfTheConstantsItOwnsAsTheyStandAtItsInput() throws {
     var t = Table()
+    let statement = try identity("s", try t.intern(.folBottom), &t)
     let x = try t.intern(.isaBound(0, i))
     let k = { (a: NodeID, t: inout Table) in try t.intern(.isaConst(.declared("K"), .fn(o, i), args: [a])) }
     let m = try t.intern(.isaConst(.primitive(.zf(.mem)), memT, args: [x, x]))
     let definiens = try t.intern(.isaAbs(i, body: try k(m, &t)))
     let d = Defined(.zf, "T.d", .object)
     let read = Definition(defines: .constant(d), type: .fn(i, i), axiomTypes: [], parameters: 0, definiens: definiens)
-    var unit = Unit(table: t, statements: [], definitions: [read])
+    var unit = Unit(table: t, statements: [statement], definitions: [read])
     let reading = Reading(owned: [
         .isaConst(.defined(.zf, .object), .fn(i, i), args: [i]): .unbuilt,
         .isaAbs(i, body: i): .unbuilt,
@@ -849,4 +934,137 @@ func aLemmaNamingARefusedDefinitionIsRefusedUnasked() throws {
     #expect(registry.asked == ["T.d_DEF"])
     #expect(refusals(unit) == ["T.d_DEF": .lemmaUnbuilt, "S": .cites("T.d_DEF")])
     #expect(unit.dropped == ["L"])
+}
+
+/// A pass's scratch leaves with its unit's layer: after the run the unit's table holds what it held, the statement
+/// unchanged (DESIGN "Memory — a unit of work's nodes leave with it").
+@Test
+func aPassesScratchLeavesWithItsLayer() throws {
+    var t = Table()
+    let s = try identity("s", try t.intern(.folBottom), &t)
+    let before = t.count
+    var unit = Unit(table: t, statements: [s])
+    try Pipeline(passes: [Owning(name: "scratch", owned: [:], rule: Scratch())]).run(&unit)
+    #expect(unit.table.count == before)
+    #expect(unit.statements.map(\.root) == [s.root])
+}
+
+/// A lemma two statements request, each in its own layer and holding a node the unit's table lacked: imported with each
+/// citation, the two requests are one, and the registry is asked once.
+@Test
+func aLemmaTwoStatementsRequestInTheirLayersIsOneStatementOfTheUnit() throws {
+    var t = Table()
+    let (r, proof) = try reflexiveMem(&t)
+    let s1 = try citing("L", "S1", r, &t)
+    let p = try t.intern(.use(.theoryAxiom("L"), [], r))
+    let s2 = Statement(name: "S2", root: try t.intern(.folAnd(r, r)), proof: try t.intern(.folAndIntro(p, p)))
+    var unit = Unit(table: t, statements: [s1, s2])
+    let registry = Proving { _, _, _ in .proof(proof) }
+    let holding = Owning(name: "cite", owned: [axiomCited: .rule], rule: CiteHolding())
+    try Pipeline(passes: [holding, elem], registry: registry, provingAfter: "cite").run(&unit)
+    #expect(registry.asked == ["L"])
+    #expect(unit.statements.map(\.name) == ["S1", "S2", "L"])
+}
+
+/// A pass meets a cited statement before its citer, though the unit lists the citer first, and hands the citer the form
+/// the cited statement took at the pass; the unit keeps its order.
+@Test
+func aPassMeetsACitedStatementBeforeItsCiterAndIsHandedItsForm() throws {
+    var t = Table()
+    let (r, proof) = try reflexiveMem(&t)
+    let b = Statement(name: "B", root: r, proof: proof)
+    let a = Statement(name: "A", root: r, proof: try t.intern(.use(.theorem("B"), [], r)))
+    var unit = Unit(table: t, statements: [a, b])
+    let recording = Recording()
+    try Pipeline(passes: [recording]).run(&unit)
+    #expect(recording.runs.map { $0[1] } == [proof, try #require(a.proof)])
+    let lowered = try #require(unit.statements.first { $0.name == "B" }).root
+    #expect(recording.handed == [[:], [r: lowered]])
+    #expect(unit.statements.map(\.name) == ["A", "B"])
+}
+
+/// A node two statements hold is lowered once a pass, by the first statement's unit, and the second reads its form
+/// (DESIGN "Memory — a unit of work's nodes leave with it", 3).
+@Test
+func aNodeTwoStatementsHoldIsLoweredOnceAPassBothReadingItsForm() throws {
+    var t = Table()
+    let (r, proof) = try reflexiveMem(&t)
+    let s1 = Statement(name: "S1", root: r, proof: proof)
+    let s2 = Statement(name: "S2", root: try t.intern(.folAnd(r, r)), proof: try t.intern(.folAndIntro(proof, proof)))
+    var unit = Unit(table: t, statements: [s1, s2])
+    let first = FirstConjunct()
+    try Pipeline(passes: [Owning(name: "first", owned: [memAtom: .rule], rule: first)]).run(&unit)
+    #expect(first.visits[r] == 1)
+    #expect(first.visits[proof] == 1)
+    #expect(Set(unit.statements.map(\.root)).count == 1)
+}
+
+/// The first statement's result drops the form of the node both statements hold; the form stays in the unit's table,
+/// the second statement's.
+@Test
+func aSharedNodesFormStaysInTheUnitsTableThoughTheResultOfTheUnitThatLoweredItDropsIt() throws {
+    var t = Table()
+    let (r, proof) = try reflexiveMem(&t)
+    let bottom = try t.intern(.folBottom)
+    let a = try t.intern(.folImplies(bottom, bottom))
+    let pa = try t.intern(.folImpliesIntro(bottom, body: try t.intern(.hyp(0, bottom))))
+    let s1 = Statement(name: "S1", root: try t.intern(.folAnd(a, r)), proof: try t.intern(.folAndIntro(pa, proof)))
+    var unit = Unit(table: t, statements: [s1, Statement(name: "S2", root: r, proof: proof)])
+    let first = FirstConjunct()
+    try Pipeline(passes: [Owning(name: "first", owned: [memAtom: .rule], rule: first)]).run(&unit)
+    #expect(first.visits[r] == 1)
+    let x = try unit.table.intern(.folBound(0))
+    let e = try unit.table.intern(.folPred(.base("elem"), args: [x, x]))
+    let lowered = try unit.table.intern(.folForall(body: try unit.table.intern(.folImplies(e, e))))
+    #expect(unit.statements.map(\.root) == [a, lowered])
+}
+
+/// A pass is built once a run, at the definitions it owns, however many units the run lowers.
+@Test
+func aPassIsBuiltOnceARun() throws {
+    var t = Table()
+    let bottom = try t.intern(.folBottom)
+    let s1 = try identity("s1", bottom, &t)
+    let s2 = try identity("s2", try t.intern(.folImplies(bottom, bottom)), &t)
+    let definiens = try t.intern(.isaAbs(i, body: try t.intern(.isaBound(0, i))))
+    let d = Definition(
+        defines: .constant(Defined(.zf, "T.d", .object)),
+        type: .fn(i, i),
+        axiomTypes: [],
+        parameters: 0,
+        definiens: definiens,
+    )
+    var unit = Unit(table: t, statements: [s1, s2], definitions: [d])
+    let reading = Reading(owned: [
+        .isaConst(.defined(.zf, .object), .fn(i, i), args: [i]): .unbuilt,
+        .isaAbs(i, body: i): .unbuilt,
+        .isaBound(i): .unbuilt,
+    ])
+    try Pipeline(passes: [reading]).run(&unit)
+    #expect(reading.received == [d])
+}
+
+/// Both statements reach `r` only below the node they share, whose form drops `r`'s: a unit reads the shared node where
+/// it enters what it shares, and `r`'s form leaves with its layer.
+@Test
+func aNodeEveryUnitReachesBelowAnotherSharedNodeLeavesItsFormWithItsLayer() throws {
+    var t = Table()
+    let (r, proof) = try reflexiveMem(&t)
+    let bottom = try t.intern(.folBottom)
+    let a = try t.intern(.folImplies(bottom, bottom))
+    let pa = try t.intern(.folImpliesIntro(bottom, body: try t.intern(.hyp(0, bottom))))
+    let x = try t.intern(.folAnd(a, r))
+    let px = try t.intern(.folAndIntro(pa, proof))
+    let s1 = Statement(name: "S1", root: x, proof: px)
+    let s2 = Statement(name: "S2", root: try t.intern(.folAnd(x, a)), proof: try t.intern(.folAndIntro(px, pa)))
+    var unit = Unit(table: t, statements: [s1, s2])
+    let first = FirstConjunct()
+    try Pipeline(passes: [Owning(name: "first", owned: [memAtom: .rule], rule: first)]).run(&unit)
+    #expect(first.visits[x] == 1)
+    #expect(unit.statements.map(\.root) == [a, a])
+    let before = unit.table.count
+    let v = try unit.table.intern(.folBound(0))
+    let e = try unit.table.intern(.folPred(.base("elem"), args: [v, v]))
+    _ = try unit.table.intern(.folForall(body: try unit.table.intern(.folImplies(e, e))))
+    #expect(unit.table.count == before + 3)
 }

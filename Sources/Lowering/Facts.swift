@@ -45,6 +45,10 @@ struct Existence: Request {
     let term: NodeID
     let types: [IRType]
     let name: String
+
+    func remapped(_ f: (NodeID) throws -> NodeID) rethrows -> Existence {
+        Existence(term: try f(term), types: types, name: name)
+    }
 }
 
 /// ⚠ A NAMING IS NEVER CLOSED AGAIN AROUND ITS OWN VALUE: `exists_intro` abstracts every occurrence of its witness, so
@@ -53,6 +57,10 @@ struct Uniqueness: Request {
     let term: NodeID
     let types: [IRType]
     let name: String
+
+    func remapped(_ f: (NodeID) throws -> NodeID) rethrows -> Uniqueness {
+        Uniqueness(term: try f(term), types: types, name: name)
+    }
 }
 
 struct ConstantFact: Request {
@@ -81,6 +89,11 @@ struct ConstantFact: Request {
         case .function: constant.name + "_FUNC"
         }
     }
+
+    func remapped(_: (NodeID) throws -> NodeID) rethrows -> ConstantFact {
+        self
+    }
+
 }
 
 struct Unfolding: Request {
@@ -90,6 +103,11 @@ struct Unfolding: Request {
     var name: String {
         constant.name + "_UNFOLD"
     }
+
+    func remapped(_ f: (NodeID) throws -> NodeID) rethrows -> Unfolding {
+        Unfolding(constant: constant, statement: try f(statement))
+    }
+
 }
 
 struct LambdaFact: Request {
@@ -104,6 +122,10 @@ struct LambdaFact: Request {
     let fact: Fact
     let name: String
 
+    func remapped(_ f: (NodeID) throws -> NodeID) rethrows -> LambdaFact {
+        LambdaFact(lambda: try f(lambda), types: types, fact: fact, name: name)
+    }
+
 }
 
 struct RekeyFact: Request {
@@ -112,6 +134,11 @@ struct RekeyFact: Request {
     var name: String {
         "REKEY_\(width)"
     }
+
+    func remapped(_: (NodeID) throws -> NodeID) rethrows -> RekeyFact {
+        self
+    }
+
 }
 
 struct TupleFact: Request {
@@ -135,6 +162,11 @@ struct TupleFact: Request {
         case .row: "TUPLE_ROW_\(arity)"
         }
     }
+
+    func remapped(_: (NodeID) throws -> NodeID) rethrows -> TupleFact {
+        self
+    }
+
 }
 
 public func kind(of lemma: Lemma) -> String {

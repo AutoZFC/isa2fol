@@ -94,7 +94,7 @@ private struct F {
 private func lowered(_ f: F, _ statements: [Statement]) throws -> Unit {
     var t = f.t
     let fol = Fol(base: try base(in: &t))
-    let out = try fol.run(statements.flatMap { [$0.root, $0.proof!] }, [], in: &t)
+    let out = try run(fol, statements.flatMap { [$0.root, $0.proof!] }, in: &t)
     let lowered = statements.indices.map { k in Statement(
         name: statements[k].name,
         root: out[2 * k],
@@ -123,7 +123,7 @@ func aQuantifierAtAnObjectTypeTakesItsTypesGuard() throws {
     let atFunction = try f.t.intern(.ifolAll(fn(i, i), body: try q(try f.t.intern(.isaBound(0, fn(i, i))), &f)))
     let atVariable = try f.t.intern(.ifolAll(.variable("'a"), body: try f.t.intern(.folBottom)))
     let fol = Fol(base: try base(in: &f.t))
-    let out = try fol.run([allAtI, exAtI, atO, atPredicate, atFunction, atVariable], [], in: &f.t)
+    let out = try run(fol, [allAtI, exAtI, atO, atPredicate, atFunction, atVariable], in: &f.t)
     let v = try f.v(0)
     let pv = try f.pred("P", v)
     let guardedEx = try f.t.intern(.folExists(body: try f.t.intern(.folAnd(try f.set(v), pv))))
@@ -298,11 +298,11 @@ func aGuardOfAVariableItsBinderDoesNotBringIsMalformed() throws {
     let unguarded = try f.t.intern(.folForallIntro(body: try f.t.intern(.isaGuard(x, sx))))
     let v0 = try f.v(0)
     let fol = Fol(base: try base(in: &f.t))
-    #expect(throws: FolError.unguardedBinder(v0)) { _ = try fol.run([unguarded], [], in: &f.t) }
+    #expect(throws: FolError.unguardedBinder(v0)) { _ = try run(fol, [unguarded], in: &f.t) }
     let px = try f.pred("P", x)
     let other = try f.fix(try f.t.intern(.folImpliesIntro(px, body: try f.t.intern(.isaGuard(x, px)))))
     let wrong = try f.pred("P", v0)
-    #expect(throws: FolError.notItsGuard(wrong)) { _ = try fol.run([other], [], in: &f.t) }
+    #expect(throws: FolError.notItsGuard(wrong)) { _ = try run(fol, [other], in: &f.t) }
 }
 
 /// Base's guarded quantifiers parse as set binders, and Fol writes each guard back: a parsed claim lowered is its text.
@@ -314,7 +314,7 @@ func aParsedBaseClaimLoweredByFolIsItsText() throws {
         in: &f.t,
     )
     let fol = Fol(base: try base(in: &f.t))
-    let lowered = try fol.run([root], [], in: &f.t)[0]
+    let lowered = try run(fol, [root], in: &f.t)[0]
     let apply = try f.t.intern(.folPred(.base("apply"), args: [try f.v(1), try f.v(0), try f.v(2)]))
     let witness = try f.t.intern(.folExists(body: try f.t.intern(.folAnd(try f.set(try f.v(0)), apply))))
     #expect(lowered == (try f.t.intern(.folForall(body: try f.guardedAll(witness)))))

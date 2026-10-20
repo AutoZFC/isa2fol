@@ -15,6 +15,11 @@ struct AxiomFact: Request {
     var name: String {
         axiom.rawValue + "_AXIOM"
     }
+
+    func remapped(_ f: (NodeID) throws -> NodeID) rethrows -> AxiomFact {
+        AxiomFact(axiom: axiom, stated: try f(stated), statement: try f(statement))
+    }
+
 }
 
 func axiomCited(_ n: Node, was id: NodeID, in t: inout Table) throws -> NodeID {

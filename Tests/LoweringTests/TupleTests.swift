@@ -23,7 +23,7 @@ func eachTupleFactIsProvedAtEveryArity() throws {
             }
             #expect(t.conclusion(of: proof) == root, "\(f.name)")
             #expect(try misscoped(proof, in: t).isEmpty, "\(f.name): a hypothesis is not its binder's")
-            let lowered = try Fol(base: base).run([root, proof], [], in: &t)
+            let lowered = try run(Fol(base: base), [root, proof], in: &t)
             #expect(t.conclusion(of: lowered[1]) == lowered[0], "\(f.name) through Fol")
             try legalize(lowered[1], in: t)
             if n > 0 { claims.append((f.name, root, proof)) }
