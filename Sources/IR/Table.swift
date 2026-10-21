@@ -88,7 +88,8 @@ public struct Table: Sendable {
     }
 
     public mutating func intern(_ n: Node) throws -> NodeID {
-        if let id = existing(n) { return id }
+        let hash = n.hashValue
+        if let id = existing(n, hash) { return id }
         try n.forEachChild { c, _ in
             guard Int(c.raw) < count else { throw TableError.unknownNode(c) }
         }
@@ -106,7 +107,7 @@ public struct Table: Sendable {
             terms = max(terms, looseBound(of: c) - binds.terms)
             hyps = max(hyps, looseHyps(of: c) - binds.hyps)
         }
-        return added(n, sort, terms, hyps)
+        return added(n, sort, terms, hyps, hash)
     }
 
     /// ⚠ NOT SWIFT'S `Hasher`: it is seeded per process, and a name made from it changes from run to run, silently.
@@ -148,7 +149,8 @@ public struct Table: Sendable {
             if case .use(.lemma(let l), let types, let root) = n {
                 n = .use(.lemma(Lemma(try l.request.remapped(here))), types, root)
             }
-            if let id = existing(n) {
+            let hash = n.hashValue
+            if let id = existing(n, hash) {
                 moved[k] = id
                 continue
             }
@@ -157,7 +159,7 @@ public struct Table: Sendable {
                 case .value(let T): .value(T)
                 case .step(let c): .step(concluding: try here(c))
                 }
-            moved[k] = added(n, sort, layer.looseTerms[k], layer.looseHypotheses[k])
+            moved[k] = added(n, sort, layer.looseTerms[k], layer.looseHypotheses[k], hash)
         }
         return try ids.map(here)
     }
@@ -179,7 +181,8 @@ public struct Table: Sendable {
     private var sorts = [Sort]()
     private var looseTerms = [Int]()
     private var looseHypotheses = [Int]()
-    private var index = [Node: NodeID]()
+    private var slots = [UInt32]()
+    private var indexed = 0
 
     private var base: Int {
         layer?.base ?? 0
@@ -191,25 +194,50 @@ public struct Table: Sendable {
         return sorts[k - base]
     }
 
-    private func found(_ n: Node) -> NodeID? {
-        if let id = index[n] { return id }
-        return layer?.below.table.found(n)
+    private func found(_ n: Node, _ hash: Int) -> NodeID? {
+        if let id = own(n, hash) { return id }
+        return layer?.below.table.found(n, hash)
     }
 
-    private func existing(_ n: Node) -> NodeID? {
-        if let id = index[n] { return id }
+    private func existing(_ n: Node, _ hash: Int) -> NodeID? {
+        if let id = own(n, hash) { return id }
         guard let layer, !n.holdsAChild(from: layer.base) else { return nil }
-        return layer.below.table.found(n)
+        return layer.below.table.found(n, hash)
     }
 
-    private mutating func added(_ n: Node, _ sort: Sort, _ terms: Int, _ hyps: Int) -> NodeID {
+    private func own(_ n: Node, _ hash: Int) -> NodeID? {
+        guard !slots.isEmpty else { return nil }
+        let mask = slots.count - 1
+        var k = hash & mask
+        while slots[k] != 0 {
+            let raw = slots[k] - 1
+            if nodes[Int(raw) - base] == n { return NodeID(raw: raw) }
+            k = (k + 1) & mask
+        }
+        return nil
+    }
+
+    private mutating func added(_ n: Node, _ sort: Sort, _ terms: Int, _ hyps: Int, _ hash: Int) -> NodeID {
         let id = NodeID(raw: UInt32(count))
         nodes.append(n)
         sorts.append(sort)
         looseTerms.append(terms)
         looseHypotheses.append(hyps)
-        index[n] = id
+        if 2 * (indexed + 1) > slots.count {
+            let old = slots
+            slots = [UInt32](repeating: 0, count: max(1 << 10, 2 * old.count))
+            for s in old where s != 0 { place(s, nodes[Int(s - 1) - base].hashValue) }
+        }
+        place(id.raw + 1, hash)
+        indexed += 1
         return id
+    }
+
+    private mutating func place(_ slot: UInt32, _ hash: Int) {
+        let mask = slots.count - 1
+        var k = hash & mask
+        while slots[k] != 0 { k = (k + 1) & mask }
+        slots[k] = slot
     }
 
     private mutating func sortOf(_ n: Node) throws -> Sort {

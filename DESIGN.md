@@ -2621,7 +2621,7 @@ Verified with the new binary: the checker's 30 tests, base's 13 tiers and this r
 by `--lib`, each tier checked against the libraries below it. ⚠ **THE FORMULA ARENA STILL GROWS WITH EVERY DISTINCT
 FORMULA OF A PART**: streaming bounds the text and the parse, the part bounds the arena.
 
-**2. A subproof is written once while its step is in scope.** **AGREED 2026-10-15 (user).** Emission only: the table
+**2. A subproof is written once while its step is in scope.** **AGREED 2026-10-15 (user); SUPERSEDED 2026-10-20 by "A step written once a proof"**: a step is written once a proof. Emission only: the table
 and the passes are unchanged, and a step is cited by its local handle (`_1`), never a new claim. `render` writes the proof's tree: a node the table shares
 is written at each use, k uses k copies, and nesting multiplies. The renderer keeps each step it writes, keyed by its
 node and by the names its loose indices resolve to (⚠ a node is not a fact: `hyp(0, set(#0))` under two `fix`es is two
@@ -6730,6 +6730,180 @@ steps. Their bytes are Logic's: Pure's equality at `o` by its walks — in that 
 left for a step of its own — and an instance at a λ per rewrite, 33,791 `BETA` and 19,513 `CLASS` citations there. The
 lemmas and boxes grew 211 MB with the instances they serve: `CLASS` 168 → 249 MB, `MEET` 69 → 130, `BETA` 74 → 117
 (7,557 against 6,018), `ARGS` 22 → 31, `SUBST` 19 → 28.
+
+### A step written once a proof — closed over the names its uses differ in; the table's index holds IDs  **[AGREED 2026-10-20 (user: "Agree, build it"); BUILT 2026-10-20, its decisions in the build for the user's review — `Sources/FolDialect/Render.swift`, `Sharing.swift`, `Sources/IR/Table.swift`]**
+
+**The step.** "β at values" lowers 320 named theorems more; the unit doubles, 1.41 → 3.00 GB, and the complete run
+peaks at 46.9 GB, past the CI's 32 GB. Measured against Isabelle's size (throwaway traces, not kept: Isabelle's proof
+per statement from the read unit, ours from the emitted unit's proofs, 2,869 statements):
+
+| ours, a statement's proof bytes, against Isabelle's | exponent | R² |
+|---|---:|---:|
+| proof DAG — its distinct steps | 1.22 | 0.88 |
+| proof tree — a step counted at each use | 0.98 | 0.89 |
+
+The text is linear in Isabelle's proof tree, not its DAG. The largest proof, through the passes:
+
+| `OrderArith.sum_prod_distrib_ord_iso` | distinct steps | as a tree |
+|---|---:|---:|
+| Isabelle, read | 11,481 | 2,352,949 |
+| after Logic | 107,688 | 5,576,819 |
+| after Fol | 193,586 | 7,380,888 |
+| written: 2,743,596 lines, 200 MB | 2,362,338 facts | — |
+
+A fact is what the writer keys a step by: its node and the names its loose indices resolve to. Logic and Fol keep
+Isabelle's sharing — Fol visits 271,468 nodes and contexts on this proof, its DAG's order — and the writer writes a fact
+about once (1.08–1.19 lines a fact over the 20 largest proofs); the facts are 12 times the steps. Over the unit's
+theorems, 31.2M lines are written for 7.37M distinct steps.
+
+**The problem, in target text.** A step `S` deriving from its branch's hypothesis, under either branch of a case split:
+
+```
+Isabelle   disjE · h · (λa. … S …) · (λb. … S …)       S one node: its hypothesis, PBound 0, is a in one branch, b in the other
+now        _3 = assume P                      branch a
+           … S's lines, at _3 …
+           _9 = assume P                      branch b
+           … S's lines again, at _9 …         under k nested splits, at each of 2^k hypotheses
+```
+
+**The root cause.** A node of the table is one fact only under one set of names. Isabelle's proof shares a step across
+its binders — `S` above, at whichever hypothesis or variable stands at its indices — and the table keeps that sharing,
+Logic and Fol lowering a node once. The writer keys a step by its node and its indices' names, writes it where it first
+meets it, and cites it while that block is open (Emission, decision 2): a step met under other names is another fact,
+written again. Decision 2 is linear in the DAG per scope; across scopes a node is as many facts as the name sets it is
+met under, and the text is Isabelle's tree.
+
+**1. Each step is written once a proof: in the block binding the innermost name its uses share, closed over the names
+they differ in where that writes fewer lines.** **AGREED 2026-10-20 (user).** The writer first walks the proof as it will write it and
+gathers, for each node, the names its loose indices resolve to at each use. A node every use resolves alike is written
+in the block binding the innermost of its names — the outermost its names allow — and every use cites it there. A node
+its uses resolve differently is written once, closed over the indices whose names differ — a `fix` per term, an
+`assume` per hypothesis, its formula the hypothesis node's — in the block binding the innermost name they share, and
+each use cites it at its own names: `forall_elim` at its terms, `implies_elim` at its hypotheses. A closure is taken
+where its proof once, its binders and each use's instantiations write fewer lines than its proof at each use: a
+one-line step stays a line at each use.
+
+```
+after      _3 = assume P;  … S's lines, at _3 …;  _8 = implies_intro _7       P → C, once, in the block above the split
+           branch a: implies_elim _8, a             branch b: implies_elim _8, b
+```
+
+| the writer, at a step | now | after |
+|---|---|---|
+| its key | its node and its indices' names, kept while the block that wrote it is open | the same, gathered over the proof before writing |
+| a step its uses resolve alike | written where first met, and again once that block has closed | written once, in the block binding its innermost name |
+| a step its uses resolve differently | written once per set of names | written once, closed over the names that differ; each use instantiates it |
+
+The text is then each step of the table's DAG once, and an instantiation per use of a closed step: linear in the DAG
+and in its closed steps' uses.
+
+Not the closure in the IR, before Fol: Logic and Fol walk the DAG once per node and context, and the IR has no names —
+only the text multiplies. Not every shared step closed: a step shorter than its instantiations — a hypothesis's
+`forall_elim`, one line — grows by its binders. Not a lemma of the unit per closed step: closed over every name, it
+takes as instantiations the names its uses share too.
+
+**The memory.** Not the text. The resident set, sampled every 15 s through the complete run: 24.8 GB at 1,501 s, inside
+Fol; 46.9 GB at 1,516 s; 37.7 GB at 1,531 s; 36.1 GB at 1,546 s. A node is held twice — in the table's array, and again
+as the key of its intern index, `[Node: NodeID]`, 80 bytes each (`MemoryLayout<Node>.stride`; "Memory" counted the two)
+— and the index doubles its buckets at 3/4 full, holding both while it rehashes. 2^27 buckets of 84 bytes, 11.3 GB, hold
+100.6M nodes: the run before this step held 98.5M and peaked at 26.1 GB; this one passed 100.6M inside Fol, 109.6M at
+its end, and its index went to 2^28 buckets, 22.5 GB, the old 11.3 GB held through the rehash — 22 GB more for fifteen
+seconds, 11 GB after.
+
+**2. The table's index holds IDs: a node is held once, in the table's array.** **AGREED 2026-10-20 (user).** The index is an
+open-addressed array of node IDs, probed by the node's hash and compared with the node at the probed ID: 4 bytes a
+bucket, against 84. A layer's index over its own nodes likewise.
+
+| the table | now | after |
+|---|---|---|
+| a node | in the array, and again as the index's key | in the array |
+| the index at 109.6M nodes | 2^28 buckets of 84 bytes, 22.5 GB; 11.3 GB more while doubling | 2^28 buckets of 4 bytes, 1.1 GB |
+
+Not fewer threads or a larger cap: the run fits by holding each node once. Not a smaller node: held once, it is what
+the array costs now.
+
+**Cost.** Decision 1: the writer walks each proof's facts before writing, at most the facts it writes now; a closed
+step adds its binders and an instantiation per use. Decision 2: a probe hashes the node it looks for and compares it
+with the node at each probed ID, as the dictionary does with its own key.
+
+**FOUNDATION first.** No change: a closed step is `∀`-intro and `→`-intro over its proof, cited by their eliminations;
+neither decision touches the mathematics.
+
+**The contracts (D2):**
+
+| | provides | assumes |
+|---|---|---|
+| IR: the table | interning and reading as now, each node held once | — |
+| FolDialect: the writer | each part's text, every step once a proof, closed where that writes fewer lines; its counts (written, as a tree, distinct) as now | the table's proofs, as now |
+| the passes, the registry | unchanged | — |
+
+**Superseded.** Emission's decision 2 ("A subproof is written once while its step is in scope"), its "a repeat in two
+sibling scopes … stays": a step is written once a proof. "β at values"' Measured read the 320 theorems' bytes as Pure's
+equality at `o`, its walks: they are 29% of the largest proof's bytes, each written once per name set like every step.
+
+**Tests, written first.**
+- `ProofEmissionTests`: a step under the hypothesis of each branch of a case split, longer than its instantiation:
+  written once, closed over the hypothesis, `implies_elim` at each branch's — kernel-checked; a step under two fixed
+  variables: closed over the variable; a one-line step under two hypotheses: written at each; a step met alike in two
+  sibling blocks: written once, in the block above them.
+- `TableTests`: interning finds a node in the table, and in the table below a layer, as now, through the index of IDs.
+- The ZF session: the complete run under `MEM=32G`, the CI's, emitted and kernel-checked; the named set as now, 2,220;
+  the unit's bytes against 3.00 GB, the largest proofs against now, the peak against 46.9 GB.
+
+**Not in this step.** Logic's growth per Isabelle step, 3–17 distinct steps after Fol for one of Isabelle's
+(`trans_on_rvimage` 3,307 → 10,963, `sum_bij` 4,443 → 24,605, `sum_prod_distrib_ord_iso` 11,481 → 193,586): the
+instances and walks each of Isabelle's steps lowers to, measured once the text is linear in the DAG. `infinity`'s
+lemma; `AC.AC`; a type variable no class restricts.
+
+**Built.** `Sources/FolDialect/Sharing.swift`: before a proof is written, `Sharing` walks it as the writer will — the
+steps each rule cites, `premises` — in citation order, a node after every node citing it, and gives each step its keys:
+its node and the binder each of its loose indices names, a binder being the key that opens it and which of its
+binders. A key is placed in the innermost block holding its uses; a node met under two keys or more is closed when the
+lines that depend on the indices they differ in, written again under each key, outnumber the closure's binders and
+instantiations, and its uses then meet one key, the closure's, whose binders are its own. `Render.swift`: the writer
+writes into a tree of blocks, a line at its block's cursor, before the child block open there; it reaches a step's
+block by setting the blocks below it aside, writes there, and takes them back; a step is written once a proof, by its
+key, and cited from every use; a closed node is written once, in its own block — a `fix` per term, an `assume` per
+hypothesis, its formula the hypothesis node's, the node at the closure's names, the intros — and each use instantiates
+it. Lines cite each other by reference and are numbered in reading order at the end. `Sources/IR/Table.swift`: the
+index is an array of IDs, probed linearly from the node's hash, compared with the node in the table's array.
+`Sources` 17,478 lines, from 16,865.
+
+**Decisions made in the build**, for the user's review:
+1. **A key is placed in the innermost block holding its uses, not the block binding its innermost name**: the same
+   sharing, and a step used once stays where it is — the text keeps its order, and the tests of emission that wrote a
+   step once keep their text.
+2. **A key names the binders of the indices its step uses, not every index below its bound**: two uses differing only
+   at an index the step never names are one fact, and a closure binds only what the step names — an `assume` needs its
+   hypothesis's formula, found at a hypothesis node of the step's proof.
+3. **The closure's rule counts text, estimated, not lines**: closed when (keys − 1) × the text depending on the
+   differing indices > its binders — a `fix` and a `forall_intro` per term, an `assume` stating the hypothesis's
+   formula and an `implies_intro` per hypothesis — and an instantiation per index per key; a line 32 bytes, a `fix` 12,
+   a formula 7 a node of its tree, wherever a line states one (`assume`, `let`, `schema_inst`); none for a hypothesis,
+   a cut, a letter; counted only up to the threshold. Counted in lines, as decision 1 put it, the build's first
+   complete run closed steps that restate a hypothesis of 2 KB to save a dozen lines: 82 proofs grew, all of them
+   `BETA_<fp>` lemmas, 27,772 bytes in all. A closure decided below a closed node is not counted against it.
+4. **A closure's variables are named past the depth of its first use**: names are levels, and the closure stands in an
+   enclosing block, where a level its first use had is free and names nothing in scope.
+5. **Lines are numbered in reading order**: a step placed before the block that first needed it is written after the
+   block's lines in time; numbered as written, the text would cite `_9` before `_2`. The checker takes any name.
+6. **The index probes at half full**: a probe compares the node at the ID it finds, a read of the table's array, so the
+   index stays sparse; the ID plus one in a slot, zero empty; the hash Swift's, seeded per process — an ID is the order
+   of interning, so the table is the same every run.
+
+**Measured** (the ZF session, the release build, the lint first; base unchanged): the tests: 14, 142, 133, 51 pass;
+Lowering 164 of 165, `infinity`'s the one failing. **Under `MEM=32G`, the CI's**, `--threads 16`, the complete run:
+24:01, peak 17.9 GB, at emission (sampled every 15 s: 15.6 GB at the highest inside Fol, where the index's doubling
+had taken it to 46.9 GB); lowered 1,362.3 s — Expand 5.7 s, Logic 344.4 s, the registry 574.4 s, Fol 395.1 s;
+emitted 33.8 s, against 857.4 s; the table 109,639,662 nodes, as before. The named set as before, 2,220, name for
+name; claims 32,732 and schemas 4,544. **The unit: 48 parts, 1,292,735,372 bytes, against 71 and 2,999,413,673**; its
+proofs 1.19 GB against 2.89 GB, none of the 37,276 longer — the theorems' 556 MB against 2,212 (the 320 of "β at
+values" 222 against 1,335, the 1,900 before them 334 against 876), the lemmas' 629 against 679; the theorems' lines
+9.39M written for 7.37M distinct steps, against 31.2M. The largest proof, `OrderArith.sum_assoc_ord_iso`, 23.3 MB
+against 183.6; `OrderArith.sum_prod_distrib_ord_iso` 18.0 MB against 200.2. Against Isabelle's size, over the 2,869
+statements of the step's trace: exponent 1.09 against its DAG (R² 0.87), from 1.22; 0.86 against its tree, from 0.98.
+Kernel: 48 parts, every one exit 0 with empty stderr, claims 32,732 of 32,732 and schemas 4,544 of 4,544 Proved
+(`check-unit.sh`, 4:28, peak 1.2 GB, against 10:53 and 8.0 GB).
 
 ### Fol — binders, guards and variables  **[BUILT 2026-09-28 as the guard; Fol's 2026-10-14; every object type and `∃` at `i` with "Reify — S1 at the site" — `Sources/Lowering/Fol.swift`]**
 

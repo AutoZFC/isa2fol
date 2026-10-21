@@ -128,6 +128,172 @@ func aClosingLineIsNeverShared() throws {
         """)
 }
 
+/// A step met alike in two sibling blocks is written once, in the innermost block holding both, before the first:
+/// closed with the first block, it would be written again in the second.
+@Test
+func aStepMetAlikeInTwoSiblingBlocksIsWrittenOnceAboveThem() throws {
+    var f = Pf()
+    let both = try f.n(.folAnd(try f.p("A"), try f.p("B")))
+    let proof = try f.intro(both, try siblings(&f, both))
+    let claim = Declaration(kind: .claim, name: "probe", root: try #require(f.t.conclusion(of: proof)))
+    #expect(try render(proof: proof, of: claim, in: f.t) == """
+        proof probe:
+            _0 = assume (A & B)
+            _1 = and_elim_r _0
+            _2 = assume C
+            _3 = implies_intro _1
+            _4 = assume D
+            _5 = implies_intro _1
+            _6 = and_intro _3, _5
+            _7 = implies_intro _6
+            qed _7
+
+        """)
+}
+
+/// A step under the hypothesis of each branch of a case split is one node and two facts: written once, closed over the
+/// hypothesis, in the block holding both branches, and each branch instantiates it.
+@Test
+func aStepUnderEachBranchsHypothesisIsWrittenOnceClosedOverIt() throws {
+    var f = Pf()
+    let proof = try caseSplit(&f, steps: 5)
+    let claim = Declaration(kind: .claim, name: "probe", root: try #require(f.t.conclusion(of: proof)))
+    #expect(try render(proof: proof, of: claim, in: f.t) == """
+        proof probe:
+            _0 = assume (A -> B)
+            _1 = assume (A | A)
+            _2 = assume A
+            _3 = implies_elim _0, _2
+            _4 = and_intro _3, _2
+            _5 = and_intro _4, _3
+            _6 = and_intro _5, _2
+            _7 = and_intro _6, _3
+            _8 = implies_intro _7
+            _9 = assume A
+            _10 = implies_elim _8, _9
+            _11 = and_intro _10, _9
+            _12 = implies_intro _11
+            _13 = assume A
+            _14 = implies_elim _8, _13
+            _15 = and_intro _13, _13
+            _16 = and_elim_l _15
+            _17 = and_intro _14, _16
+            _18 = implies_intro _17
+            _19 = or_elim _1, _12, _18
+            _20 = implies_intro _19
+            _21 = implies_intro _20
+            qed _21
+
+        """)
+}
+
+/// A step under two fixed variables is closed over the variable, `forall_elim` at each block's.
+@Test
+func aStepUnderTwoFixedVariablesIsClosedOverTheVariable() throws {
+    var f = Pf()
+    let proof = try twoFixes(&f)
+    let claim = Declaration(kind: .claim, name: "probe", root: try #require(f.t.conclusion(of: proof)))
+    #expect(try render(proof: proof, of: claim, in: f.t) == """
+        proof probe:
+            _0 = assume forall b0. (P(b0) -> Q(b0))
+            _1 = assume forall b0. (Q(b0) -> R(b0))
+            fix f1
+            _2 = forall_elim _0, f1
+            _3 = forall_elim _1, f1
+            _4 = and_intro _2, _3
+            _5 = and_intro _4, _2
+            _6 = and_intro _5, _3
+            _7 = forall_intro _6
+            fix f0
+            _8 = forall_elim _7, f0
+            _9 = forall_elim _0, f0
+            _10 = and_intro _8, _9
+            _11 = forall_intro _10
+            fix f0
+            _12 = forall_elim _7, f0
+            _13 = forall_elim _0, f0
+            _14 = and_intro _13, _13
+            _15 = and_elim_l _14
+            _16 = and_intro _12, _15
+            _17 = forall_intro _16
+            _18 = and_intro _11, _17
+            _19 = implies_intro _18
+            _20 = implies_intro _19
+            qed _20
+
+        """)
+}
+
+/// A one-line step under two hypotheses stays a line at each: closed, its binders and instantiations write more.
+@Test
+func aOneLineStepUnderTwoHypothesesIsWrittenAtEach() throws {
+    var f = Pf()
+    let proof = try caseSplit(&f, steps: 1)
+    let claim = Declaration(kind: .claim, name: "probe", root: try #require(f.t.conclusion(of: proof)))
+    #expect(try render(proof: proof, of: claim, in: f.t) == """
+        proof probe:
+            _0 = assume (A -> B)
+            _1 = assume (A | A)
+            _2 = assume A
+            _3 = implies_elim _0, _2
+            _4 = and_intro _3, _2
+            _5 = implies_intro _4
+            _6 = assume A
+            _7 = implies_elim _0, _6
+            _8 = and_intro _6, _6
+            _9 = and_elim_l _8
+            _10 = and_intro _7, _9
+            _11 = implies_intro _10
+            _12 = or_elim _1, _5, _11
+            _13 = implies_intro _12
+            _14 = implies_intro _13
+            qed _14
+
+        """)
+}
+
+/// `assume C ⊢ B` and `assume D ⊢ B`, both from the projection of `both`, outside them.
+private func siblings(_ f: inout Pf, _ both: NodeID) throws -> NodeID {
+    let fromC = try f.intro(try f.p("C"), try f.n(.folAndElimR(try f.hyp(1, both))))
+    let fromD = try f.intro(try f.p("D"), try f.n(.folAndElimR(try f.hyp(1, both))))
+    return try f.n(.folAndIntro(fromC, fromD))
+}
+
+/// `(A → B) → (A ∨ A) → S ∧ A`, by cases on `A ∨ A`, each branch deriving `S` from its own `A` in `steps` lines: `B`,
+/// then alternately `∧ A` and `∧ B`. The branches differ in how they prove `A` again, so they are two nodes.
+private func caseSplit(_ f: inout Pf, steps: Int) throws -> NodeID {
+    let A = try f.p("A")
+    let B = try f.p("B")
+    let h = try f.hyp(0, A)
+    let first = try f.n(.folImpliesElim(try f.hyp(2, try f.imp(A, B)), h))
+    var s = first
+    for k in 1..<steps { s = try f.n(.folAndIntro(s, k % 2 == 1 ? h : first)) }
+    let again = try f.n(.folAndElimL(try f.n(.folAndIntro(h, h))))
+    let one = try f.intro(A, try f.n(.folAndIntro(s, h)))
+    let other = try f.intro(A, try f.n(.folAndIntro(s, again)))
+    let aOrA = try f.n(.folOr(A, A))
+    return try f.intro(try f.imp(A, B), try f.intro(aOrA, try f.n(.folOrElim(try f.hyp(0, aOrA), one, other))))
+}
+
+/// `∀P→Q, ∀Q→R ⊢ (∀x. S(x) ∧ (P(x) → Q(x))) ∧ (∀x. S(x) ∧ (P(x) → Q(x)))`, `S(x)` five lines over `x` alone.
+private func twoFixes(_ f: inout Pf) throws -> NodeID {
+    let pq = try f.n(.folForall(body: try f.imp(try f.p("P", try f.b(0)), try f.p("Q", try f.b(0)))))
+    let qr = try f.n(.folForall(body: try f.imp(try f.p("Q", try f.b(0)), try f.p("R", try f.b(0)))))
+    let x = try f.b(0)
+    let m1 = try f.n(.folForallElim(try f.hyp(1, pq), x))
+    let m2 = try f.n(.folForallElim(try f.hyp(0, qr), x))
+    let s = try f.n(.folAndIntro(
+        try f.n(.folAndIntro(try f.n(.folAndIntro(m1, m2)), m1)),
+        m2,
+    ))
+    let one = try f.n(.folForallIntro(body: try f.n(.folAndIntro(s, m1))))
+    let other = try f.n(.folForallIntro(body: try f.n(.folAndIntro(
+        s,
+        try f.n(.folAndElimL(try f.n(.folAndIntro(m1, m1)))),
+    ))))
+    return try f.intro(pq, try f.intro(qr, try f.n(.folAndIntro(one, other))))
+}
+
 /// An `assume` opens a block, so one inside another of the same formula is written again: each is its own scope.
 @Test
 func anAssumptionIsNeverShared() throws {
@@ -307,8 +473,9 @@ func theRealCheckerProvesWhatEmissionWrites() throws {
         try f.intro(aAndB, try f.n(.folAndIntro(try f.n(.folAndElimR(hAB)), try f.n(.folAndElimL(hAB))))),
     ))
 
-    // `B -> B` is derived inside `A -> false`'s block after `B` is, so the checker, keying a fact by its formula, keeps
-    // `B`'s scopes for it and drops it with the block: the use after the block derives it again.
+    // `B -> B` is used inside `A -> false`'s block, after `B` is derived there, and after the block: written once
+    // before
+    // the block, the checker keys it by its formula with no scope of the block's.
     let notA = try f.imp(A, bottom)
     let fromNotA = try f.imp(notA, B)
     let bb = try f.intro(B, try f.hyp(0, B))
@@ -351,6 +518,9 @@ func theRealCheckerProvesWhatEmissionWrites() throws {
     ))
     proofs.append(("p_use", try f.n(.folForallIntro(body: try f.n(.folForallIntro(body:
         try f.intro(elem10, try f.n(.folImpliesElim(cited, try f.hyp(0, elem10))))))))))
+    proofs.append(("p_siblings", try f.intro(aAndB, try siblings(&f, aAndB))))
+    proofs.append(("p_closed_hypothesis", try caseSplit(&f, steps: 5)))
+    proofs.append(("p_closed_variable", try twoFixes(&f)))
 
     var def = ""
     var proof = ""

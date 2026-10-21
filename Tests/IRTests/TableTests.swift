@@ -412,6 +412,22 @@ func aLayerFindsTheTableBelowAndNumbersItsOwnPastIt() throws {
     #expect(t.count == 2)
 }
 
+/// The index holds IDs, never nodes: every node is found again at its ID across the index's growth, in the table and
+/// from a layer over it (DESIGN "A step written once a proof", decision 2).
+@Test
+func everyNodeIsFoundAgainAcrossTheIndexsGrowth() throws {
+    var t = Table()
+    let ids = try (0..<5000).map { try t.intern(.isaFree("x\($0)", i)) }
+    #expect(try (0..<5000).allSatisfy { try t.intern(.isaFree("x\($0)", i)) == ids[$0] })
+    #expect(t.count == 5000)
+    var layer = Table(over: t)
+    #expect(try (0..<5000).allSatisfy { try layer.intern(.isaFree("x\($0)", i)) == ids[$0] })
+    let fresh = try (0..<3000).map { try layer.intern(.isaFree("y\($0)", i)) }
+    #expect(try (0..<3000).allSatisfy { try layer.intern(.isaFree("y\($0)", i)) == fresh[$0] })
+    #expect(layer.count == 8000)
+    #expect(t.count == 5000)
+}
+
 /// An import adds to the table exactly the nodes a layer's results reach that it lacks, children first, and finds the
 /// rest; the layer's other nodes leave with it.
 @Test

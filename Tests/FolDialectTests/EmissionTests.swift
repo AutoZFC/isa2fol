@@ -95,25 +95,25 @@ func aSubproofUsedTwiceInOneScopeIsWrittenOnce() throws {
         """)
 }
 
-/// `p` under two sibling `fix`es is written twice, the closed `use` with it: a step does not outlive its block.
+/// `p` under two sibling `fix`es is two facts, one line each, written in each; the closed `use` is one, written once
+/// above both.
 @Test
-func aSubproofInTwoSiblingScopesIsWrittenTwice() throws {
+func aClosedCitationInTwoSiblingScopesIsWrittenOnceAboveThem() throws {
     var f = Pf()
     let p = try f.eqReflAt(0)
     let proof = try f.and(try f.forallIntro(p), try f.forallIntro(try f.and(p, p)))
     #expect(try render(proof: proof, of: claim("siblings", proof, f.t), in: f.t) == """
         proof siblings:
-            fix f0
             _0 = use eq_refl
+            fix f0
             _1 = forall_elim _0, f0
             _2 = forall_intro _1
             fix f0
-            _3 = use eq_refl
-            _4 = forall_elim _3, f0
-            _5 = and_intro _4, _4
-            _6 = forall_intro _5
-            _7 = and_intro _2, _6
-            qed _7
+            _3 = forall_elim _0, f0
+            _4 = and_intro _3, _3
+            _5 = forall_intro _4
+            _6 = and_intro _2, _5
+            qed _6
 
         """)
 }
@@ -125,29 +125,25 @@ private func independent(_ f: inout Pf) throws -> NodeID {
     return try f.and(try f.intro(a, q), try f.intro(b, q))
 }
 
-/// A step written under a closing block is derived again after it, though it uses none of the block's assumptions:
-/// `q`, written under `assume A`, is written again under `assume B`. The checker keys a fact by its formula and keeps
-/// the scopes of the derivation it met first; `p_block` in `theRealCheckerProvesWhatEmissionWrites` fails if cited.
+/// A step under two closing blocks that uses none of their assumptions is written once, before the first: `q`, met
+/// under `assume A` and `assume B`, is derived outside both, so the checker keys it by its formula with neither's
+/// scope.
 @Test
-func aStepWrittenInAClosedBlockIsDerivedAgain() throws {
+func aStepUnderTwoClosingBlocksIsWrittenOnceBeforeThem() throws {
     var f = Pf()
     let proof = try independent(&f)
     #expect(try render(proof: proof, of: claim("independent", proof, f.t), in: f.t) == """
         proof independent:
-            _0 = assume A
             fix f0
-            _1 = use eq_refl
-            _2 = forall_elim _1, f0
-            _3 = forall_intro _2
-            _4 = implies_intro _3
+            _0 = use eq_refl
+            _1 = forall_elim _0, f0
+            _2 = forall_intro _1
+            _3 = assume A
+            _4 = implies_intro _2
             _5 = assume B
-            fix f0
-            _6 = use eq_refl
-            _7 = forall_elim _6, f0
-            _8 = forall_intro _7
-            _9 = implies_intro _8
-            _10 = and_intro _4, _9
-            qed _10
+            _6 = implies_intro _2
+            _7 = and_intro _4, _6
+            qed _7
 
         """)
 }

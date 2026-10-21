@@ -99,8 +99,11 @@ before the registry proves, and the unit keeps only what a kept statement cites 
 ZF session left out, never proved; a request set aside comes back when a proof the registry makes cites it. **Emission
 is built** (`DESIGN.md` "Emission"): `isa2fol lower data/zf_export --emit DIR` writes the unit as parts — a theory's
 theorems, a lemma in its first citer's part — and `scripts/check-unit.sh DIR` kernel-checks each against the libraries
-of base and of the parts it cites: all 32,732 claims and 4,544 schemas of the ZF session's unit Proved, 71 parts, 3.00 GB; a step
-is cited only inside the block that wrote it, the checker keying a fact by its formula; a cut, `folCut`, is its proof's
+of base and of the parts it cites: all 32,732 claims and 4,544 schemas of the ZF session's unit Proved, 48 parts, 1.29 GB;
+**each step is written once a proof** (`DESIGN.md` "A step written once a proof"): its key the node and the binders its
+indices name, gathered before writing by `Sharing`, it is placed in the innermost block holding its uses, a node met
+under keys that differ closed over the binders they differ in where that writes less, and it is cited only inside its
+block, the checker keying a fact by its formula; a cut, `folCut`, is its proof's
 step, the body citing it by name — `Frame.have`, Fol's `∃`-elim at `i` and Logic's cuts build it (`DESIGN.md` "A fact
 derived once, cited by name"); a line already written in an open block is cited, never written again, a line opening or
 closing a block never shared (`DESIGN.md` "A record's facts at fewer steps"). `DESIGN.md` is the plan; its "The steps after class
@@ -140,11 +143,12 @@ MEM=16G scripts/capped.sh scripts/check-base.sh [LIBDIR]   # base alone, each ti
 ```
 
 ⚠ **EACH UNIT OF WORK INTERNS INTO A LAYER OVER THE UNIT'S TABLE, WHICH TAKES ONLY WHAT ITS RESULTS REACH** (`DESIGN.md`
-"Memory — a unit of work's nodes leave with it"): the complete run peaks at 46.9 GB (2026-10-20,
-`--threads 16`, 42:49, under `MEM=64G`): ⚠ IT NO LONGER FITS THE CI'S `MEM=32G` — 26.1 GB before "β at values", whose
-320 theorems' own proofs double the unit (`DESIGN.md`, its Measured); when every node a walk built stayed, it peaked at
-45.8 GB. A pass's walk is built once a run, and lowers a node two of its units share once, its form kept in the unit's
-table.
+"Memory — a unit of work's nodes leave with it"): the complete run peaks at 17.9 GB under `MEM=32G`, the CI's
+(2026-10-20, `--threads 16`, 24:01), the table holding each node once and its index node IDs (`DESIGN.md` "A step
+written once a proof", decision 2); ⚠ **THE INDEX NEVER HOLDS A NODE AGAIN**: held as the key of a dictionary, each node
+was 80 bytes twice and the index doubled past 100.6M nodes holding both copies, 46.9 GB. When every node a walk built
+stayed, it peaked at 45.8 GB. A pass's walk is built once a run, and lowers a node two of its units share once, its
+form kept in the unit's table.
 
 The checker is at **`~/repos/fol-zfc-comb/bazel-bin/src/tools/proof_checker`**
 and its source at `~/repos/fol-zfc-comb` (C++, Bazel). Tests find it via
@@ -294,7 +298,7 @@ determinism R1–R3 (§4.6).
    print(f'{c}/{t} = {100*c/t:.1f}%')"
    ```
 
-   ✓ **CURRENTLY 274/16865 = 1.6%, under the cap.** Keep it there: a breach is
+   ✓ **CURRENTLY 291/17478 = 1.7%, under the cap.** Keep it there: a breach is
    fixed by deleting prose, never by raising the cap.
 
    Does not apply to `base/**/*.fol.def` headers: those record provenance of
@@ -339,7 +343,7 @@ Package.swift
 Sources/
   YXML/          Isabelle's transfer format → a hash-consed Forest (equal subtrees, one Ref).  Knows no dialect.
   IR/            Node · Table · transform · index engine · passes · legalize
-  FolDialect/    Declaration · render (formulas and proofs) · parse (base's schemas) — the text boundary over IR
+  FolDialect/    Declaration · render (formulas and proofs, each step once a proof: Sharing) · parse (base's schemas) — the text boundary over IR
   Reader/        the export → isa nodes: Export (loading) · IsaType · Constants · Terms (η-long, closed) · Statements · Proofs (decoder) · Reader (proofs) · Census
   Lowering/      the plan, never seen by the framework: the passes Expand · Logic · Fol, Reify a component in Logic's walk, and the registry — Expand's rules, Logic's for a proposition's letter, Pure's `⋀` over a proposition and functions of propositions (Truth, S4's truth set), `subst` and Pure's equality at `o` and at `i`, Reify's naming, `@def`s and instance at a compound term, a ZF definition cited (Unfolding, `c_UNFOLD`), Fol's at every object type, class existence (Comprehension, the class prover), a proof's values (Values) and the meeting lemmas (Meeting) built
   isa2fol/       CLI
