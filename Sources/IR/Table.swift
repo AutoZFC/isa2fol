@@ -78,13 +78,13 @@ public struct Table: Sendable {
     public func looseBound(of id: NodeID) -> Int {
         let k = Int(id.raw)
         if let layer, k < layer.base { return layer.below.table.looseBound(of: id) }
-        return looseTerms[k - base]
+        return Int(looseTerms[k - base])
     }
 
     public func looseHyps(of id: NodeID) -> Int {
         let k = Int(id.raw)
         if let layer, k < layer.base { return layer.below.table.looseHyps(of: id) }
-        return looseHypotheses[k - base]
+        return Int(looseHypotheses[k - base])
     }
 
     public mutating func intern(_ n: Node) throws -> NodeID {
@@ -159,7 +159,7 @@ public struct Table: Sendable {
                 case .value(let T): .value(T)
                 case .step(let c): .step(concluding: try here(c))
                 }
-            moved[k] = added(n, sort, layer.looseTerms[k], layer.looseHypotheses[k], hash)
+            moved[k] = added(n, sort, Int(layer.looseTerms[k]), Int(layer.looseHypotheses[k]), hash)
         }
         return try ids.map(here)
     }
@@ -179,8 +179,8 @@ public struct Table: Sendable {
     private var layer: (below: Below, base: Int)?
     private var nodes = [Node]()
     private var sorts = [Sort]()
-    private var looseTerms = [Int]()
-    private var looseHypotheses = [Int]()
+    private var looseTerms = [Int32]()
+    private var looseHypotheses = [Int32]()
     private var slots = [UInt32]()
     private var indexed = 0
 
@@ -221,8 +221,8 @@ public struct Table: Sendable {
         let id = NodeID(raw: UInt32(count))
         nodes.append(n)
         sorts.append(sort)
-        looseTerms.append(terms)
-        looseHypotheses.append(hyps)
+        looseTerms.append(Int32(terms))
+        looseHypotheses.append(Int32(hyps))
         if 2 * (indexed + 1) > slots.count {
             let old = slots
             slots = [UInt32](repeating: 0, count: max(1 << 10, 2 * old.count))

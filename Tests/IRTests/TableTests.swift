@@ -491,3 +491,11 @@ func anImportedLemmaCitationHasItsRequestsIDsInTheTable() throws {
     #expect(t.count == count)
     #expect(t[out[0]] == .use(.lemma(Lemma(Holding(name: "L", formula: aa))), [], ab))
 }
+
+/// ⚠ A WIDE KIND HELD INLINE WIDENS EVERY NODE: the table holds each node at the enum's width, 80 bytes while a
+/// definition's name, types and arguments were inline, for a connective's two children.
+@Test
+func aNodeIsSixteenBytesAndATypeOneWord() {
+    #expect(MemoryLayout<Node>.stride == 16)
+    #expect(MemoryLayout<IRType>.stride == 8)
+}

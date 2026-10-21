@@ -144,14 +144,17 @@ MEM=16G scripts/capped.sh scripts/check-base.sh [LIBDIR]   # base alone, each ti
 ```
 
 ⚠ **EACH UNIT OF WORK INTERNS INTO A LAYER OVER THE UNIT'S TABLE, WHICH TAKES ONLY WHAT ITS RESULTS REACH** (`DESIGN.md`
-"Memory — a unit of work's nodes leave with it"): the complete run peaks at 45.0 GB at emission (2026-10-20,
-`--threads 16`, 39:49, under `MEM=64G`): ⚠ IT NO LONGER FITS THE CI'S `MEM=32G`, killed at 32:51 — 17.9 GB before
-"`infinity` read", whose 1,345 theorems triple the unit and take the table past 2^27 nodes, where its arrays double
-(`DESIGN.md`, its Measured). The table holds each node once and its index node IDs (`DESIGN.md` "A step written once a
-proof", decision 2); ⚠ **THE INDEX NEVER HOLDS A NODE AGAIN**: held as the key of a dictionary, each node
-was 80 bytes twice and the index doubled past 100.6M nodes holding both copies, 46.9 GB. When every node a walk built
-stayed, it peaked at 45.8 GB. A pass's walk is built once a run, and lowers a node two of its units share once, its
-form kept in the unit's table.
+"Memory — a unit of work's nodes leave with it"): the complete run fits the CI's `MEM=32G` again, peaking at 17.4 GB
+at emission (2026-10-20, `--threads 16`, 26:04); lowering stays under 8.0 GB (`DESIGN.md` "Memory under the CI's
+32 GB"). ⚠ **A NODE IS 16 BYTES, A TYPE ONE WORD**: a kind wider than three children and a type is held behind a
+reference (`indirect`). Inline, the widest kind set every node's width, 80 bytes, which put 151M nodes at 20.3 GB
+(`aNodeIsSixteenBytesAndATypeOneWord`). ⚠ **A WALK'S CONTEXT IS A REFERENCE INTO ITS CHAIN OF BINDERS, NEVER A
+COPY**: Fol's keys, each copying the binders above its node, held 9 GB in `Bin.integ_of_add`'s one walk, and the
+heap kept it. The table holds each node once and its index holds node IDs (`DESIGN.md` "A step written once a
+proof", decision 2). ⚠ **THE INDEX NEVER HOLDS A NODE AGAIN**: held as the key of a dictionary, each node was 80
+bytes twice and the index doubled past 100.6M nodes holding both copies, 46.9 GB. When every node a walk built stayed,
+it peaked at 45.8 GB. A pass's walk is built once a run, and lowers a node two of its units share once, its form kept
+in the unit's table.
 
 The checker is at **`~/repos/fol-zfc-comb/bazel-bin/src/tools/proof_checker`**
 and its source at `~/repos/fol-zfc-comb` (C++, Bazel). Tests find it via
@@ -301,7 +304,7 @@ determinism R1–R3 (§4.6).
    print(f'{c}/{t} = {100*c/t:.1f}%')"
    ```
 
-   ✓ **CURRENTLY 291/17440 = 1.7%, under the cap.** Keep it there: a breach is
+   ✓ **CURRENTLY 293/17501 = 1.7%, under the cap.** Keep it there: a breach is
    fixed by deleting prose, never by raising the cap.
 
    Does not apply to `base/**/*.fol.def` headers: those record provenance of

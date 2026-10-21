@@ -7014,11 +7014,159 @@ size, over 4,226 statements: exponent 1.10 against its DAG, 0.78 against its tre
 Isabelle step (median 368) over its 2.67M steps, the 2,220 before them 318 (median 265) over 1.74M; the largest,
 `Bin.integ_of_add`, 99.3 MB at 9,318 Isabelle steps, 22 of the 1,345 at 20 MB or more.
 
-⚠ **THE COMPLETE RUN NO LONGER FITS THE CI'S 32 GB**: under `MEM=32G` it is killed at 32:51, at the cap. Under
+⚠ **THE COMPLETE RUN NO LONGER FITS THE CI'S 32 GB** (superseded by "Memory under the CI's 32 GB": 17.4 GB under
+`MEM=32G`): under `MEM=32G` it is killed at 32:51, at the cap. Under
 `MEM=64G`, `--threads 16`: 39:49, peak 45.0 GB, at emission (sampled every 15 s: 10.7 GB at 1,066 s, 27.0 GB at
 1,186 s inside Fol, 35.2 GB at Fol's end, 44.9 GB at 2,357 s, after lowering ended at 2,261 s); lowered 2,215.0 s —
 Expand 6.1 s, Logic 346.5 s, the registry 583.5 s, Fol 1,190.7 s against 395.1 s; emitted 127.2 s; the table
 150,984,076 nodes, against 109,639,662, past 2^27, where its arrays double.
+
+### Memory under the CI's 32 GB — Fol's context held by reference; a node at the width of its common kinds  **[AGREED 2026-10-20 (user: "Agree to both"); BUILT 2026-10-20 — `Sources/Lowering/Fol.swift`, `Sources/IR/Node.swift`, `IRType.swift`, `Table.swift`]**
+
+**The step.** "`infinity` read" lowers 1,345 named theorems more, and the complete run no longer fits the CI's 32 GB:
+killed at 32:51 under `MEM=32G`, 45.0 GB under `MEM=64G`. A probe of the same run (a throwaway build, not kept) counts
+at each stage the table's nodes, those still reached from what the pipeline holds, the resident set and the heap, and
+times every unit Fol takes over 5 s; the unit it emits is the one before, byte for byte (97 parts, 4,492,822,269 bytes):
+
+| after | the table | reached | resident | of it, the heap |
+|---|---:|---:|---:|---:|
+| Expand | 2.8M | 2.8M | 0.7 GB | 0.2 GB |
+| Logic | 41.3M | 39.0M | 5.9 GB | 0.3 GB |
+| the registry | 63.7M | 61.4M | 8.8 GB | 0.5 GB |
+| Fol | 151.0M | 89.4M | 35.4 GB | 17.4 GB |
+| emission, every proof rendered | — | — | 43.9 GB | — |
+
+Three costs make the 45.0 GB:
+- **The table's arrays, 20.3 GB at 151M nodes.** A node takes 80 bytes for its kind, 24 for its sort, 16 for its
+  loose counts and 14 for the index's slots. At 2^27 nodes the arrays double, and copying the node array lifts the
+  resident set 10.5 GB above itself, from 33.5 to 43.9 GB, inside `List.update_zip`'s Fol unit.
+- **Fol's walks, 16.9 GB of heap.** The heap is 0.5 GB before Fol and 17.4 GB after it. `Bin.integ_of_add`'s walk
+  alone takes the resident set from 16.1 to 27.1 GB in its 57 s, and the heap keeps what a walk freed.
+- **Emission, 8.7 GB.** Every proof's text, 4.31 GB, is held until the last is rendered, beside sixteen threads'
+  working memory.
+
+**The root causes.**
+
+*Fol's context copies every binder above a node.* Fol inserts hypotheses: a guard at each object binder, and an
+`∃`-elim's two facts. A step's form therefore depends on the binders between it and those it cites. Fol's walk keys a
+node's form by the node and its context, an array with one entry per binder from the node out to the farthest its
+loose indices reach (`FolRule.narrow`). Each visit narrows it by a copy, and each key holds its own. `Bin.integ_of_add`
+alone (`--theorem`, the same probe) gives 1,815,635 keys; 1,010,169 of them hold 1,024 entries or more, the longest
+2,271. Their contexts are 322,047 distinct arrays of 375.7M entries, 9.0 GB at 24 bytes an entry. 771,358 of the keys
+are formulas, whose form no binder above them changes: Fol's rule reads its context only at a step, to renumber a
+hypothesis or to discharge a variable's guard.
+
+*A node is as wide as the widest kind.* Swift lays out every case of an enum in the slot of its widest payload.
+`isaDefinition` (a name, its definiendum, its types, a node and its arguments, 73 bytes) makes each node 80 bytes,
+while `folImplies`, the commonest kind, holds 8. `IRType` is 24 bytes because of a type variable's name, and every
+node's sort holds one. The loose counts are 64-bit. The wide kinds hold a constant, a name, an argument list, a
+citation, or a type beside two children; they are 2.15M of the 151M nodes.
+
+**1. Fol's context is the walk's chain of binders, held by reference.** A key holds the chain and the reach its
+node's form depends on (none for a formula), and two keys are compared entry by entry within that reach. There is one
+`Binder` for each binder the walk enters, pointing to the one outside it. A context is the innermost binder, a reach,
+and the hash of the entries within that reach. `narrow` walks the node's reach once, as now, and copies nothing. Two
+keys are one where the entries within their reach agree, as now, so two chains alike within a subproof's reach share
+its form.
+
+```
+now     enter   c + [.fix(T), .inserted(guard: true)]              a new array, every entry copied
+        narrow  k == 0 ? c : Array(c[k...])                        a copy at each visit; the key holds it
+after   enter   Binder(.inserted(guard: true), outer: Binder(.fix(T), outer: c.innermost)), reach + 2
+        narrow  a formula: the empty context
+                a step: (c.innermost, reach r, the hash of its r entries)
+        ==      the same reach and the same entries, walked from each innermost; meeting the same binder ends the walk
+```
+
+| a key of Fol's walk | now | after |
+|---|---|---|
+| a step's | the node and a copy of its context: up to 2,271 entries of 24 bytes | the node, a reference, a reach and a hash: 24 bytes |
+| a formula's | the same | the node, at the empty context |
+| two keys alike within their reach | one | one |
+
+Not the narrowed contexts interned by value, each stored once: the 322,047 distinct ones are the 9.0 GB. Not a key by
+the chain's identity alone: a subproof met under two chains alike within its reach would be lowered once per chain,
+which is Isabelle's proof tree, not its DAG ("A step written once a proof"). Not the hypotheses' indices kept by
+reserving the guards' binders in the isa proof: the guard is Fol's (D3). Not the heap trimmed after each unit: the walk
+would still need its 9 GB at once.
+
+**2. A node is held at the width of its common kinds: up to three children and a type, 16 bytes.** A kind holding a
+name, a list or a citation, or a type beside two children, is held behind a reference (`indirect`). A type variable's
+name is too, so a type is one word, and a node's loose counts are 32-bit. Twelve kinds are held behind a reference:
+`isaConst`, `isaFree`, `isaBound`, `isaVarApp`, `isaOfClass`, `isaTransitive`, `isaCombination`, `isaDefinition`,
+`isaExElim`, `use`, `folPred` and `folLetter`. They are matched as now, because `indirect` changes a case's storage,
+not the case.
+
+```
+now     case isaConst(Constant, IRType, args: [NodeID])            Node 80 bytes, IRType 24, Sort 24, loose 2 × 8
+        case variable(String)
+after   indirect case isaConst(Constant, IRType, args: [NodeID])   Node 16, IRType 8, Sort 8, loose 2 × 4
+        indirect case variable(String)
+```
+
+| a node in the table, bytes | now | after |
+|---|---:|---:|
+| its kind | 80 | 16 |
+| its sort | 24 | 8 |
+| its loose counts | 16 | 8 |
+| the index's slots | 8–16 | 8–16 |
+| at 151M nodes | 20.3 GB | 6.0–7.2 GB, and a box beside each of the 2.15M wide ones |
+
+Not the table packed by hand, with a kind and three children in parallel arrays and the node rebuilt at each read:
+that is the same 16 bytes, but every read of every pass becomes a construction. `indirect` is the language's own and
+changes no reader. Not the forms a later stage replaced compacted out of the table: at Fol's end 61.6M of its 151M
+nodes are no longer reached, about 2.7 GB after this decision ("Not in this step").
+
+**Estimated** (a belief until the run): lowering under 11 GB, from the table's 6–7 GB, a Fol walk's heap about its
+unit's layer, and the doubling at 2^27 copying 2.1 GB. Emission adds 8.7 GB as now, for a peak of about 17 GB, and the
+unit stays byte-identical.
+
+**FOUNDATION first.** No change: this step is memory only, and the unit is the same text.
+
+**The contracts (D2):**
+
+| | provides | assumes |
+|---|---|---|
+| IR, the node | `Node` 16 bytes and `IRType` 8; the same cases, matched as now | — |
+| IR, the table | a node in 40–48 bytes, its loose counts 32-bit | a binder depth below 2^31 |
+| IR, the walk | unchanged: a node's form keyed by the node and its narrowed context | a rule's context is cheap to hash and compare |
+| Fol | its context a chain of binders held by reference; a key is the chain, its reach and its hash; a formula's is the empty context | — |
+
+**Tests, written first.**
+- `IRTests`: a node is 16 bytes and a type 8 (`MemoryLayout`); the table's tests pass as now.
+- `FolTests`: Fol's context narrowed to a step's reach holds the binders it was entered with, the same objects. Two
+  chains alike within a reach are one key, and two unlike within it are two, whatever lies outside it. A formula's
+  context is the empty one. Every Fol test passes as now.
+- The ZF session: the complete run under `MEM=32G`, emitted and kernel-checked. The unit is byte-identical to the last
+  run's, with the same 3,565 named.
+
+**Not in this step.** Emission holding every proof's text until the last is rendered (4.31 GB) beside sixteen
+threads' working memory; the table's forms a later stage replaced (61.6M nodes at Fol's end); the index at load 1/2.
+
+**Built.** IR: twelve kinds of `Node` are held behind a reference (`indirect`): `isaConst`, `isaFree`, `isaBound`,
+`isaVarApp`, `isaOfClass`, `isaTransitive`, `isaCombination`, `isaDefinition`, `use`, `isaExElim`, `folPred` and
+`folLetter`. So is `IRType.variable`, and the table's loose counts are `Int32`. A `Node` is 16 bytes and an `IRType` 8
+(`aNodeIsSixteenBytesAndATypeOneWord`). Lowering: Fol's rule is internal, and its context is `FolRule.Context`: the
+innermost `Binder` of the chain the walk enters (one `Binder` per binder entered), a reach, and the digest of the
+entries within that reach. `narrow` walks the reach, and gives a formula the empty context. Two contexts are compared
+entry by entry within their reach, and a binder both share ends the walk (`FolContextTests`, four tests). `Sources` is
+17,501 lines, from 17,440.
+
+**Decisions made in the build**, for the user's review:
+1. **A context's digest is a polynomial over its entries' hashes, the innermost first.** Entering a binder extends it
+   in one step, and narrowing recomputes it over the reach that it walks anyway. Equal contexts have equal digests,
+   and equality never rests on the digest alone.
+2. **Every node with no conclusion gets the empty context**, a term as well as a formula: Fol's rule reads its context
+   only at a step.
+
+**Measured** (the ZF session, the release build, the lint first; `MEM=32G`, `--threads 16`): the complete run takes
+26:04 with a peak of 17.4 GB, against 39:49 and 45.0 GB under `MEM=64G`. Lowering takes 1,400.8 s (Expand 4.8 s,
+Logic 286.9 s, the registry 493.9 s, Fol 539.1 s against 1,186.3 s) and stays under 8.0 GB (sampled every 15 s).
+Emission takes 117.1 s and adds the rest: every proof's text held and sixteen threads' working memory. The unit is the
+last run's: all 195 of its files are identical byte for byte. That is 3,565 named lowered, the same 51 refused, 97
+parts, 49,510 claims, 6,202 schemas and 4,492,822,269 bytes, from a table of 150,984,076 nodes as before. Every one
+of the 97 parts kernel-checks with exit 0 and empty stderr: claims 49,510 of 49,510 and schemas 6,202 of 6,202 Proved
+(`check-unit.sh` under `MEM=32G`, 23:09, peak 4.7 GB). The tests: 14, 142, 169, 134 and 51 pass, none failing.
 
 ### Fol — binders, guards and variables  **[BUILT 2026-09-28 as the guard; Fol's 2026-10-14; every object type and `∃` at `i` with "Reify — S1 at the site" — `Sources/Lowering/Fol.swift`]**
 

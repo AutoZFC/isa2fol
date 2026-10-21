@@ -43,22 +43,22 @@ public enum Node: Hashable, Sendable {
     // rest.
     case ifolAll(IRType, body: NodeID)
     case ifolEx(IRType, body: NodeID)
-    case isaConst(Constant, IRType, args: [NodeID])
-    case isaFree(String, IRType)
-    case isaBound(Int, IRType)
-    case isaVarApp(head: NodeID, args: [NodeID])
+    indirect case isaConst(Constant, IRType, args: [NodeID])
+    indirect case isaFree(String, IRType)
+    indirect case isaBound(Int, IRType)
+    indirect case isaVarApp(head: NodeID, args: [NodeID])
     case isaAbs(IRType, body: NodeID)
-    case isaOfClass(IRType, TypeClass)
+    indirect case isaOfClass(IRType, TypeClass)
     case isaAllIntro(IRType, body: NodeID)
     case isaAllElim(NodeID, NodeID)
     case isaReflexive(NodeID)
     case isaSymmetric(IRType, NodeID)
-    case isaTransitive(IRType, NodeID, NodeID)
-    case isaCombination(IRType, NodeID, NodeID)
+    indirect case isaTransitive(IRType, NodeID, NodeID)
+    indirect case isaCombination(IRType, NodeID, NodeID)
     case isaAbstract(IRType, NodeID)
     case isaClassical(NodeID, NodeID)
     case isaIffReflection(NodeID, NodeID, NodeID)
-    case isaDefinition(String, of: Definiendum, [IRType], NodeID, args: [NodeID])
+    indirect case isaDefinition(String, of: Definiendum, [IRType], NodeID, args: [NodeID])
     case isaPropAll(body: NodeID)
     case isaPropIntro(body: NodeID)
     case isaPropBound(Int)
@@ -72,7 +72,7 @@ public enum Node: Hashable, Sendable {
     case folBottom
     case folImpliesIntro(NodeID, body: NodeID)
     case folImpliesElim(NodeID, NodeID)
-    case use(Cited, [IRType], NodeID)
+    indirect case use(Cited, [IRType], NodeID)
     case hyp(Int, NodeID)
     case folIffIntro(NodeID, NodeID)
     case folIffElimL(NodeID, NodeID)
@@ -89,7 +89,7 @@ public enum Node: Hashable, Sendable {
     // binder, which fol guards.
     case isaGuard(NodeID, NodeID)
     case isaExIntro(NodeID, NodeID, body: NodeID)
-    case isaExElim(IRType, NodeID, body: NodeID)
+    indirect case isaExElim(IRType, NodeID, body: NodeID)
     // Isa only, lowering's: a term's value standing in a proof's formula, and the step concluding its fact; Logic binds
     // both where the term's innermost variable is fixed.
     case isaValue(NodeID)
@@ -98,7 +98,7 @@ public enum Node: Hashable, Sendable {
     // Fol-zfc only: lowering produces these; the reader never does.
     case folNot(NodeID)
     case folBound(Int)
-    case folPred(Predicate, args: [NodeID])
+    indirect case folPred(Predicate, args: [NodeID])
     case folForall(body: NodeID)
     case folExists(body: NodeID)
     case folNotIntro(NodeID, body: NodeID)
@@ -114,7 +114,7 @@ public enum Node: Hashable, Sendable {
     // A base schema's letter with arguments: its binder, its application, its λ instance. Isa's binder at a class type
     // is a class (FOUNDATION S4), never a letter.
     case folLetterAll(Int, body: NodeID)
-    case folLetter(head: NodeID, args: [NodeID])
+    indirect case folLetter(head: NodeID, args: [NodeID])
     case folLetterAbs(body: NodeID)
 
     public var boundVariable: (namespace: Namespace, index: Int, reindexed: (Int) -> Node)? {

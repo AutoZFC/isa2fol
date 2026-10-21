@@ -3,7 +3,7 @@ public enum IRType: Hashable, Sendable, CustomStringConvertible {
     case i
     case o
     indirect case fn(IRType, IRType)
-    case variable(String)
+    indirect case variable(String)
 
     public var description: String {
         switch self {
