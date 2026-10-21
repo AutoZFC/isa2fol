@@ -1319,7 +1319,7 @@ func instantiatedAtLambda(
     base: Base,
     in t: inout Table,
 ) throws -> NodeID {
-    guard looseIndices(psi, in: t).contains(0) else { return try atClass(p, T, lambda, .proof(0), base, &t) }
+    guard looseIndices(psi, in: t).contains(0) else { return try atClass(p, T, lambda, base, &t) }
     let under = try shift(lambda, by: 1, in: &t)
     let both = try t.intern(.folAnd(psi, try t.intern(.isaConst(
         .primitive(.pure(.eq)),
@@ -1404,58 +1404,16 @@ func instantiatedAtLambda(
     return try g.close(at, in: &t)
 }
 
-/// `p`, proving `∀P. ψ` with every term named, at `λ`: the class fixed by its existence, the premise at it, `BETA` at
-/// it stated. `ψ` below the binder, `lambda` at the site.
-func instantiatedStated(
-    _ p: NodeID,
-    _ psi: NodeID,
-    _ T: IRType,
-    at lambda: NodeID,
-    base: Base,
-    in t: inout Table,
-) throws -> NodeID {
-    guard looseIndices(psi, in: t).contains(0) else { return try atClass(p, T, lambda, .statement, base, &t) }
-    var g = Frame()
-    let (K, h) = try g.open(try classExistence(lambda, .statement, base, &t), in: &t)
-    let cls = try g.variable(K, in: &t)
-    let site = try shift(lambda, by: 1, in: &t)
-    let definition = try g.hypothesis(h, in: &t)
-    let wrapped = try shift(try t.intern(.isaAbs(T, body: psi)), by: 1, in: &t)
-    guard case .isaAbs(_, let below) = t[wrapped] else { throw MeetingError.unmet(psi) }
-    var functional: NodeID?
-    if try guarded(cls, T, in: &t) != nil {
-        let function = try functionFact(site, mode: .statement, base, &t)
-        functional = try t.intern(.folImpliesElim(try t.intern(.folForallElim(function, cls)), definition))
-    }
-    var at = try t.intern(.folForallElim(try lifted(p, terms: 1, hyps: 1, in: &t), cls))
-    if let functional { at = try t.intern(.folImpliesElim(at, functional)) }
-    let lemma = try betaCited(
-        below,
-        T,
-        at: site,
-        cls: cls,
-        definition: definition,
-        stated: true,
-        forward: true,
-        guardOf: { x, U, t in
-            if x == cls, let functional { return functional }
-            return try isaGuard(x, U, &t)
-        },
-        in: &t,
-    )
-    return try g.close(try t.intern(.folImpliesElim(lemma, at)), in: &t)
-}
-
 /// `p`, proving `∀P. ψ` with `ψ` free of `P`, at the λ's class: `ψ` itself.
-private func atClass(_ p: NodeID, _ T: IRType, _ lambda: NodeID, _ mode: Mode, _ base: Base, _ t: inout Table) throws
+private func atClass(_ p: NodeID, _ T: IRType, _ lambda: NodeID, _ base: Base, _ t: inout Table) throws
     -> NodeID
 {
     var g = Frame()
-    let (K, h) = try g.open(try classExistence(lambda, mode, base, &t), in: &t)
+    let (K, h) = try g.open(try classExistence(lambda, .proof(0), base, &t), in: &t)
     let cls = try g.variable(K, in: &t)
     var at = try t.intern(.folForallElim(try lifted(p, terms: 1, hyps: 1, in: &t), cls))
     if try guarded(cls, T, in: &t) != nil {
-        let function = try functionFact(try shift(lambda, by: 1, in: &t), mode: mode, base, &t)
+        let function = try functionFact(try shift(lambda, by: 1, in: &t), base, &t)
         let guardProof = try t.intern(.folImpliesElim(
             try t.intern(.folForallElim(function, cls)),
             try g.hypothesis(h, in: &t),

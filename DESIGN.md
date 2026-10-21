@@ -6905,6 +6905,121 @@ statements of the step's trace: exponent 1.09 against its DAG (R² 0.87), from 1
 Kernel: 48 parts, every one exit 0 with empty stderr, claims 32,732 of 32,732 and schemas 4,544 of 4,544 Proved
 (`check-unit.sh`, 4:28, peak 1.2 GB, against 10:53 and 8.0 GB).
 
+### `infinity` read — a definition at its terms, by a proof's instance met to the statement's form  **[AGREED 2026-10-20 (user); BUILT 2026-10-20 — `Sources/Lowering/Unfolding.swift`, `Logic.swift`, `Axioms.swift`, `Meeting.swift`]**
+
+**The step.** The ZF session refuses 1,396 of its 3,616 named theorems: 7 at no owner, `AC.AC`, and 1,388 citing a
+refused statement. One lemma is refused unbuilt, `ZF_Base.infinity_AXIOM`, and with it `ZF_Base.infinity`, the theorem
+whose proof is the axiom; `Nat.nat_bnd_mono` cites that theorem (`nat ≡ lfp(Inf, λX. {0} ∪ {succ(i). i ∈ X})`), so
+every theorem built on `nat` waits on it — 1,345 of the 1,388 by the trace before "β at values" (throwaway, not kept).
+Step 8 built the lemma, its reading checked structurally (`infinityReadsSuccByTheTheoremStatingItsMembers`); "Linear
+proof size" made S1's naming universal and refused it unbuilt (decision 4 in its build, "an instance at a closed term
+in statement form"); `upair.succ_iff`, which it also waited on, now stands.
+
+**The problem, in target text.**
+
+```
+Isabelle   infinity:  0 ∈ Inf ∧ (∀y∈Inf. succ(y) ∈ Inf)              read: 0 ∈ Inf ∧ Ball(Inf, λy. succ(y) ∈ Inf)
+lemma      ZF_Base.infinity_AXIOM states it as the unit names it, its second conjunct:
+             ∀w. set(w) → Inf(w) → ∀Q. ⟦Q the class of λy. succ(y) ∈ Inf⟧ → ∀K. Ball(K, Q) → ∀t. ⟨w⟩ = t → t ∈ K
+base       ZF_Base.infinity_NBG, its second conjunct, in NBG's words:
+             ∀y. (∃w. Inf(w) ∧ y ∈ w) → ∃s. (∀z. z ∈ s ↔ z = y ∨ z ∈ y) ∧ ∃w. Inf(w) ∧ s ∈ w
+reading    Ball(Inf, λ…) by Ball's definition at its terms, Ball_UNFOLD: ∀A P. Ball(A, P) ↔ (∀x. x ∈ A → P(x))
+now        A at a variable: forall_elim; P at a λ: its class, β in statement form; A at Inf: none — refused unbuilt
+           before the walk (`AxiomReading.unbuilt`), and `unfolding` throws at it
+```
+
+**The root cause.** The reading cites a definition at its terms in the statement's form, every term named where it
+stands, and builds that instance itself: at a variable by `forall_elim`, at a λ by its class and β in statement form.
+At a set term there is no statement-form step: the term is named at each atom where the variable stood, and what
+relates a formula holding a term's value to the formula naming it is the meeting lemma, a proof's. "Linear proof size"
+moved every instance at a term in a proof to the term's value; the reading kept an instance of its own, in statement
+form, which has no case for a term, and `Inf` is the one set term the six axioms put in a defined predicate's set slot.
+
+**1. The reading cites a definition at its terms as a proof cites it, and meets the instance to the statement's form.**
+**AGREED 2026-10-20 (user).** `unfolding` takes the instance a proof takes at a definition read at its terms (Logic's): `c_UNFOLD`
+cited, each set term at its value, each λ at its class, letters by `schema_inst`; then the instance, in a proof's form,
+is met to the statement's (`moving: .closed`), as a proof's last step meets its statement, and the values it holds are
+fixed where it stands, by `exists_elim` over their EX. One route for every argument: a variable is its own value; a λ's
+β is a proof's (`instantiatedAtLambda`), not the statement form's (`instantiatedStated`, then unused, removed); a set
+term is its value. Logic's instance at a definition's terms moves to `Unfolding.swift`, the one home both cite.
+
+```
+after      Ball_UNFOLD at Inf's value v, P at its class:   Ball(v, P) ↔ ∀x. x ∈ v → succ(x) ∈ v     v by EX⟨Inf⟩, ∃v. Inf(v)
+           met to the statement's form:   [∀w. Inf(w) → … ⟨w⟩ ∈ K]  ↔  ∀x. (∀w. Inf(w) → x ∈ w) → ⟦succ(x) ∈ Inf⟧
+           the walk inside, as Step 8 built it:   x ∈ Inf by its pieces, succ(x) ∈ Inf by upair.succ_iff
+```
+
+| `unfolding`, at an argument | now | after |
+|---|---|---|
+| a set variable | `forall_elim`, in statement form | a proof's instance, `forall_elim` at it, met to statement form |
+| a λ | its class, β in statement form (`instantiatedStated`) | its class, β in a proof's form (`instantiatedAtLambda`), met |
+| a set term, `Inf` | refused unbuilt | its value, met; the value fixed by its EX |
+
+`AxiomReading.unbuilt` loses its first clause, a defined predicate at a set argument that is no variable; its second,
+an atom naming more than set constants and tuples, stays.
+
+Not a rule for a constant in the reading's walk — the naming's binder for `Inf` walked as a binder, the definition
+unfolded at its variable, `Inf`'s words related by logic: the walk would read the definiens around the argument, a
+negative atom by logic and a positive one by UNIQ (D1). Not `infinity` stated in base with `Ball`: base cannot name the
+unit's `Ball` (Step 8, 1). Not a third case beside the two: one instance for every argument, the proof's.
+
+**Cost.** At each defined predicate an axiom names, the instance's meeting lemmas, each proved once per formula, where
+now a statement-form instance; six lemmas in all.
+
+**FOUNDATION first.** No change: S1's naming of a statement, universal, and of a term in a proof, its value, and §3b's
+instance at a compound term on its value, are what the reading now does at a definition's terms; S3 reads an axiom by
+the predicates' pointwise definitions, as now.
+
+**The contracts (D2):**
+
+| | provides | assumes |
+|---|---|---|
+| Unfolding (`unfolding`) | `c_UNFOLD` at a predicate's terms in statement form, at every set term and λ | `c_UNFOLD` (Reify's prover); EX per value (Reify's); the meeting lemmas (the meeting prover); the instances at values and λs (`Instances`, `instantiatedAtLambda`) |
+| The axioms' reading | `ZF_Base.a_AXIOM` for the six, `infinity` among them | `unfolding`, as above; `upair.succ_iff` standing |
+| Logic | a definition read at its terms, as now, from `Unfolding.swift` | — |
+
+**Superseded.** "Linear proof size", decision 4 in its build: `infinity` refused unbuilt.
+
+**Tests, written first.**
+- `AxiomTests.infinityReadsSuccByTheTheoremStatingItsMembers`, failing now (`.unbuilt`): the lemma proved, its proof
+  concluding its statement through Fol, the lemmas it cites proved in turn.
+- `AxiomTests`, the five axioms' tests as now, each kernel-checked: each reads `Ball` or `Bex` at a λ, directly or
+  under `⊆`, now by a proof's β, met.
+- `DefinitionTests`, Logic's definitions at their terms, as now, through the moved instance.
+- The ZF session: the complete run under `MEM=32G`, emitted and kernel-checked; the named set diffed against the last
+  run's, `ZF_Base.infinity` and the theorems behind it added, none lost; what those stop at next, named.
+
+**Not in this step.** `AC.AC` and the 43 citing it (Choice, FOUNDATION §1's axiom 19); the 7 at a type variable no
+class restricts; what the theorems behind `infinity` stop at, measured by the build.
+
+**Built.** `Sources/Lowering/Unfolding.swift`: `definition`, the instance a proof takes at a definition's terms —
+`c_UNFOLD` cited, its letters by `schema_inst`, a set term at its value (`Instances`), a λ at its class
+(`instantiatedAtLambda`) — moved out of Logic's rule for a definition read at its terms, which calls it; `unfolding`
+takes it, meets it to the statement's form (`met`, `moving: .closed`) and fixes the values it holds by their existence,
+those over the walk's variables inside the closed ones, as a proof's last step does. `Axioms.swift`: `unbuilt` loses
+its clause refusing a defined predicate at a set argument that is no variable. `Meeting.swift`: `instantiatedStated`
+removed, and `atClass` takes a proof's form only. `Sources` 17,440 lines, from 17,478.
+
+**Measured** (the ZF session, the release build, the lint first; base unchanged): the tests: 14, 142, 133, 51 pass, and
+Lowering 165 of 165, `infinityReadsSuccByTheTheoremStatingItsMembers` among them. **3,565 of the 3,616 named theorems
+lowered, against 2,220**: the 2,220 all kept, and 1,345 added — the trace's count — `ZF_Base.infinity` and
+`Nat.nat_bnd_mono` among them, led by `Bin` 218, `List` 198, `IntDiv` 192, `Int` 187, `Univ` 115, `Arith` 103. Refused,
+named: 51 — no owner 7, `AC.AC`, and 43 citing a refused statement, each in `AC.AC`'s chain (`Zorn.AC_well_ord`,
+`AC.AC_Pi`, `Cardinal_AC.cardinal_eqpoll`, …). Lemmas refused unbuilt: none; left out: none. Every proof of the run
+before is the same length but the five other axioms' lemmas, 2 to 4 bytes shorter, and six statement-form `BETA_<fp>_S`
+the removed route requested are gone. The unit: 97 parts, claims 49,510 and schemas 6,202, every part exit 0 with empty
+stderr, all Proved (`check-unit.sh`, 23:09, peak 4.7 GB); 4,492,822,269 bytes, against 1,292,735,372 — its proofs
+4.31 GB, the 1,345 theorems' own 2,815 MB, the 2,220's 556 as before, the lemmas' 937 against 629. Against Isabelle's
+size, over 4,226 statements: exponent 1.10 against its DAG, 0.78 against its tree; the 1,345 write 1,054 bytes an
+Isabelle step (median 368) over its 2.67M steps, the 2,220 before them 318 (median 265) over 1.74M; the largest,
+`Bin.integ_of_add`, 99.3 MB at 9,318 Isabelle steps, 22 of the 1,345 at 20 MB or more.
+
+⚠ **THE COMPLETE RUN NO LONGER FITS THE CI'S 32 GB**: under `MEM=32G` it is killed at 32:51, at the cap. Under
+`MEM=64G`, `--threads 16`: 39:49, peak 45.0 GB, at emission (sampled every 15 s: 10.7 GB at 1,066 s, 27.0 GB at
+1,186 s inside Fol, 35.2 GB at Fol's end, 44.9 GB at 2,357 s, after lowering ended at 2,261 s); lowered 2,215.0 s —
+Expand 6.1 s, Logic 346.5 s, the registry 583.5 s, Fol 1,190.7 s against 395.1 s; emitted 127.2 s; the table
+150,984,076 nodes, against 109,639,662, past 2^27, where its arrays double.
+
 ### Fol — binders, guards and variables  **[BUILT 2026-09-28 as the guard; Fol's 2026-10-14; every object type and `∃` at `i` with "Reify — S1 at the site" — `Sources/Lowering/Fol.swift`]**
 
 **Every isa binder at an object type, its intro, its variable and the guard of its variable become fol-zfc's, with the

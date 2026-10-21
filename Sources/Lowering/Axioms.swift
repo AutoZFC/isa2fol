@@ -206,14 +206,10 @@ private struct AxiomReading {
         return nil
     }
 
-    /// Whether reading `phi` meets what the reading does not have: a defined predicate's unfolding at a set argument
-    /// that is no variable, or an atom naming more than set constants and tuples outside a primitive's and a function's
-    /// reading.
+    /// Whether reading `phi` meets what the reading does not have: an atom naming more than set constants and tuples
+    /// outside a primitive's and a function's reading.
     func unbuilt(_ phi: NodeID, _ t: inout Table) throws -> Bool {
-        if let (_, d, args) = predicate(phi, t) {
-            if args.contains(where: { t.type(of: $0) == .i && !isBound($0, t) }) { return true }
-            return try unbuilt(try beta(d.definiens, args, in: &t), &t)
-        }
+        if let (_, d, args) = predicate(phi, t) { return try unbuilt(try beta(d.definiens, args, in: &t), &t) }
         if try primitive(phi, t) != nil || (try function(phi, t)) != nil { return false }
         if Reify().names(Pattern(t[phi], in: t)) {
             var naming = Naming()

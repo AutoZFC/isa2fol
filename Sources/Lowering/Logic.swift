@@ -317,23 +317,7 @@ private struct Steps: Rule {
         case .isaDefinition(_, .constant(let c), _, let stated, let args):
             guard Reify().owns(Pattern(t[id], in: t)) == .rule else { return nil }
             let statement = try formula(stated, .statement, in: &t)
-            let k = min(letters(stated, t), args.count)
-            var proof = try cited(Unfolding(constant: c, statement: statement), statement, &t)
-            for a in args.prefix(k) { proof = try t.intern(.folSchemaInst(proof, try valued(a, in: &t))) }
-            proof = try metBelowLetters(proof, stated, at: Array(args.prefix(k)), in: &t)
-            var at = stated
-            for a in args.prefix(k) {
-                guard case .ifolAll(.o, let body) = t[at] else { throw LogicError.notTheRule(id) }
-                at = try instantiate(body, with: a, in: &t)
-            }
-            for a in args.dropFirst(k) {
-                guard case .ifolAll(let T, let body) = t[at] else { throw LogicError.notTheRule(id) }
-                proof = T == .i
-                    ? try Instances(base: base).instance(proof, body, T, at: a, in: &t)
-                    : try instantiatedAtLambda(proof, body, T, at: a, base: base, in: &t)
-                at = try instantiate(body, with: a, in: &t)
-            }
-            return proof
+            return try definition(c, stated: stated, statement: statement, at: args, base: base, in: &t).proof
 
         default:
             return nil

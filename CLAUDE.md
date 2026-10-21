@@ -48,14 +48,15 @@ value; a statement keeps S1's naming, universal (`∀v. ⟦v = t⟧ → φ(v)`);
 proved once per formula crosses them — `MEET_<fp>`, `BETA_<fp>` at a λ (β at its class variable's arguments' values,
 fixed where the application stands: `DESIGN.md` "β at values"), `SUBST_<fp>` Leibniz, `ARGS_<fp>` — below a statement's
 letters, which stay on its spine. Of the ZF session's 3,616 named theorems (`--skip` the other seven), `lower` lowers
-2,220 to fol-zfc: 7 stop at no owner, 1 at logic (`AC.AC`, Choice), and 1,388 cite a refused statement, led by
-`Arith.natify_non_succ` (366); 1 lemma they reach is refused unbuilt, `infinity`'s. **ZF's axioms are theorems of base read back into Isabelle's form**
+3,565 to fol-zfc: 7 stop at no owner, 1 at logic (`AC.AC`, Choice), and 43 cite a refused statement, each in `AC.AC`'s
+chain; no lemma they reach is refused unbuilt. **ZF's axioms are theorems of base read back into Isabelle's form**
 (`DESIGN.md` "Step 8 — ZF's axioms, derived from NBG"): base states each in NBG's words — a primitive by its relation,
 a predicate Isabelle defines by its definition — and proves it, Regularity pinned for `foundation`; a lemma per axiom,
 `ZF_Base.a_AXIOM`, reads the words back, a named predicate by its `c_UNFOLD`, a primitive's application by its class at
 its tuple, `infinity`'s `succ` by `upair.succ_iff`; the registry hands provers the unit's named statements, and emission
-places a statement no earlier than what it cites. `infinity`'s lemma stops at `∀y∈Inf`, `Ball` at the set constant
-`Inf`: the reading unfolds a defined predicate only at variables. **The definition command's local constant at a function of classes or of propositions is
+places a statement no earlier than what it cites; a defined predicate is unfolded at its terms as a proof cites it —
+a set term at its value, a λ at its class — and met to the statement's form (`DESIGN.md` "`infinity` read"), `Ball` at
+`Inf` among them. **The definition command's local constant at a function of classes or of propositions is
 substituted where its box is cited** (`DESIGN.md` "Step 9 — the definition command's local constant", "Step 9,
 widened"): a box binding a variable whose type takes a function or a proposition is read at its citation, its proof at
 the cited terms, and never a schema though it binds a proposition; Expand reads Pure's `combination`, `symmetric` and
@@ -95,11 +96,11 @@ uniform in the record's length, re-keyed by `REKEY`; S1's tuple formula one atom
 at symbolic positions, and a level one fact, base's `snoc_facts` (`DESIGN.md` "Class existence at a few steps a node");
 a letter an atom of a class body, read by base's `row_letter`, every record if it holds and none if not (`DESIGN.md`
 "The class of a λ holding a proposition"). **A lemma is proved once a statement that stands cites it** (`DESIGN.md` "Lazy proving"): the link closes
-before the registry proves, and the unit keeps only what a kept statement cites — 17,076 lemmas of the
-ZF session left out, never proved; a request set aside comes back when a proof the registry makes cites it. **Emission
+before the registry proves, and the unit keeps only what a kept statement cites — none of the ZF session's lemmas
+left out now, every one cited; a request set aside comes back when a proof the registry makes cites it. **Emission
 is built** (`DESIGN.md` "Emission"): `isa2fol lower data/zf_export --emit DIR` writes the unit as parts — a theory's
 theorems, a lemma in its first citer's part — and `scripts/check-unit.sh DIR` kernel-checks each against the libraries
-of base and of the parts it cites: all 32,732 claims and 4,544 schemas of the ZF session's unit Proved, 48 parts, 1.29 GB;
+of base and of the parts it cites: all 49,510 claims and 6,202 schemas of the ZF session's unit Proved, 97 parts, 4.49 GB;
 **each step is written once a proof** (`DESIGN.md` "A step written once a proof"): its key the node and the binders its
 indices name, gathered before writing by `Sharing`, it is placed in the innermost block holding its uses, a node met
 under keys that differ closed over the binders they differ in where that writes less, and it is cited only inside its
@@ -143,9 +144,11 @@ MEM=16G scripts/capped.sh scripts/check-base.sh [LIBDIR]   # base alone, each ti
 ```
 
 ⚠ **EACH UNIT OF WORK INTERNS INTO A LAYER OVER THE UNIT'S TABLE, WHICH TAKES ONLY WHAT ITS RESULTS REACH** (`DESIGN.md`
-"Memory — a unit of work's nodes leave with it"): the complete run peaks at 17.9 GB under `MEM=32G`, the CI's
-(2026-10-20, `--threads 16`, 24:01), the table holding each node once and its index node IDs (`DESIGN.md` "A step
-written once a proof", decision 2); ⚠ **THE INDEX NEVER HOLDS A NODE AGAIN**: held as the key of a dictionary, each node
+"Memory — a unit of work's nodes leave with it"): the complete run peaks at 45.0 GB at emission (2026-10-20,
+`--threads 16`, 39:49, under `MEM=64G`): ⚠ IT NO LONGER FITS THE CI'S `MEM=32G`, killed at 32:51 — 17.9 GB before
+"`infinity` read", whose 1,345 theorems triple the unit and take the table past 2^27 nodes, where its arrays double
+(`DESIGN.md`, its Measured). The table holds each node once and its index node IDs (`DESIGN.md` "A step written once a
+proof", decision 2); ⚠ **THE INDEX NEVER HOLDS A NODE AGAIN**: held as the key of a dictionary, each node
 was 80 bytes twice and the index doubled past 100.6M nodes holding both copies, 46.9 GB. When every node a walk built
 stayed, it peaked at 45.8 GB. A pass's walk is built once a run, and lowers a node two of its units share once, its
 form kept in the unit's table.
@@ -298,7 +301,7 @@ determinism R1–R3 (§4.6).
    print(f'{c}/{t} = {100*c/t:.1f}%')"
    ```
 
-   ✓ **CURRENTLY 291/17478 = 1.7%, under the cap.** Keep it there: a breach is
+   ✓ **CURRENTLY 291/17440 = 1.7%, under the cap.** Keep it there: a breach is
    fixed by deleting prose, never by raising the cap.
 
    Does not apply to `base/**/*.fol.def` headers: those record provenance of

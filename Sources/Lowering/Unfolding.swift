@@ -6,7 +6,8 @@ public enum UnfoldingError: Error, Equatable, Sendable {
     case notAnUnfolding(String)
 }
 
-/// `c_UNFOLD` at its arguments, every term named: a set variable by its instance, a λ by its class and `BETA` there.
+/// `c_UNFOLD` at its arguments in the statement's form: the instance a proof takes, met to the statement's naming, the
+/// values it holds fixed where it stands by their existence.
 func unfolding(
     _ c: Defined,
     stated: NodeID,
@@ -15,21 +16,44 @@ func unfolding(
     base: Base,
     in t: inout Table,
 ) throws -> NodeID {
+    let (proof, matrix) = try definition(c, stated: stated, statement: statement, at: args, base: base, in: &t)
+    let named = try met(proof, matrix, moving: .closed, toValues: false, in: &t)
+    let inner = try fixing(
+        try scoped(named, closed: false, below: Int.max, in: &t),
+        in: named,
+        by: .existence(base),
+        in: &t,
+    )
+    return try fixing(try scoped(inner, closed: true, in: &t), in: inner, by: .existence(base), in: &t)
+}
+
+/// `c_UNFOLD` cited at a definition's terms as a proof cites it — its letters by `schema_inst`, a set term at its
+/// value, a λ at its class — and the instance it concludes, in the proof's form.
+func definition(
+    _ c: Defined,
+    stated: NodeID,
+    statement: NodeID,
+    at args: [NodeID],
+    base: Base,
+    in t: inout Table,
+) throws -> (proof: NodeID, matrix: NodeID) {
+    let k = min(letters(stated, t), args.count)
     var proof = try cited(Unfolding(constant: c, statement: statement), statement, &t)
-    var rest = stated
-    for a in args {
-        guard case .ifolAll(let T, let psi) = t[rest] else { throw UnfoldingError.notADefinition(a) }
-        switch t[a] {
-        case .isaBound where T == .i:
-            proof = try t.intern(.isaAllElim(proof, a))
-        case .isaAbs where !isEntry(T):
-            proof = try instantiatedStated(proof, psi, T, at: a, base: base, in: &t)
-        default:
-            throw UnfoldingError.notADefinition(a)
-        }
-        rest = try instantiate(psi, with: a, in: &t)
+    for a in args.prefix(k) { proof = try t.intern(.folSchemaInst(proof, try valued(a, in: &t))) }
+    proof = try metBelowLetters(proof, stated, at: Array(args.prefix(k)), in: &t)
+    var at = stated
+    for a in args.prefix(k) {
+        guard case .ifolAll(.o, let body) = t[at] else { throw UnfoldingError.notADefinition(a) }
+        at = try instantiate(body, with: a, in: &t)
     }
-    return proof
+    for a in args.dropFirst(k) {
+        guard case .ifolAll(let T, let body) = t[at] else { throw UnfoldingError.notADefinition(a) }
+        proof = T == .i
+            ? try Instances(base: base).instance(proof, body, T, at: a, in: &t)
+            : try instantiatedAtLambda(proof, body, T, at: a, base: base, in: &t)
+        at = try instantiate(body, with: a, in: &t)
+    }
+    return (proof, at)
 }
 
 func pointwiseDefinition(_ c: Defined, _ d: Definition, in t: inout Table) throws -> NodeID {
