@@ -254,11 +254,11 @@ private func connectiveVariable(_ k: Int, _ l: inout LogicTable) throws -> NodeI
     try l.lam(o, try l.t.intern(.isaVarApp(head: try l.bound(k + 1, fn(o, o)), args: [try l.bound(0, o)])))
 }
 
-/// `≡`'s congruence at `T`, the definition command's rewriting under `h`:
-/// `combination (combination (reflexive (λf g. f ≡ g)) h) (reflexive d)`. At `h : c ≡ c` both steps conclude `t ≡ t`,
-/// and the last, `(c ≡ d) ↔ (c ≡ d)`, is `reflexive (c ≡ d)`, the steps under it gone; at `h : c ≡ e` it has no
-/// reading.
-private func congruenceIsReflexivityOnly(
+/// `≡`'s congruence at `T`, the definition command's rewriting under `h : c ≡ e`:
+/// `combination (combination (reflexive (λf g. f ≡ g)) h) (reflexive d)` is Logic's, read whole from its head, and
+/// Expand leaves it. `symmetric` at `T ⇒ o` is Expand's: of `(λg. c ≡ g) ≡ (λg. c ≡ g)` it is `reflexive`, of
+/// `(λg. c ≡ g) ≡ (λg. e ≡ g)` it has no reading.
+private func onlySymmetryIsExpands(
     _ T: IRType,
     constant: (String, inout LogicTable) throws -> NodeID,
     variable: (Int, inout LogicTable) throws -> NodeID,
@@ -268,33 +268,30 @@ private func congruenceIsReflexivityOnly(
     let d = try constant("d", &l)
     let e = try constant("e", &l)
     let equality = try l.lam(T, try l.lam(T, try l.equal(T, try variable(1, &l), try variable(0, &l))))
-    let congruence = try l.t.intern(.isaReflexive(equality))
-    let atD = try l.t.intern(.isaReflexive(d))
-    func rewritten(_ h: NodeID, in l: inout LogicTable) throws -> (inner: NodeID, proof: NodeID) {
-        let inner = try l.t.intern(.isaCombination(fn(T, fn(T, o)), congruence, try l.t.intern(.hyp(0, h))))
-        let outer = try l.t.intern(.isaCombination(fn(T, o), inner, atD))
-        return (inner, try l.t.intern(.folImpliesIntro(h, body: outer)))
-    }
-    let cc = try l.equal(T, c, c)
-    let cd = try l.equal(T, c, d)
-    let (_, proof) = try rewritten(cc, in: &l)
-    let statement = try l.imp(cc, try l.t.intern(.folIff(cd, cd)))
-    let unit = try expanded(l, [Statement(name: "congruence", root: statement, proof: proof)], [])
-    var m = LogicTable(t: unit.table)
-    #expect(unit.statements[0].proof == (try m.t.intern(.folImpliesIntro(cc, body: try m.t.intern(.isaReflexive(cd))))))
     let ce = try l.equal(T, c, e)
-    let (inner, apart) = try rewritten(ce, in: &l)
-    #expect(throws: ExpandError.noReading(l.t[inner])) { _ = try run(Expand(), [apart], in: &l.t) }
+    let inner = try l.t.intern(.isaCombination(
+        fn(T, fn(T, o)),
+        try l.t.intern(.isaReflexive(equality)),
+        try l.t.intern(.hyp(0, ce)),
+    ))
+    let outer = try l.t.intern(.isaCombination(fn(T, o), inner, try l.t.intern(.isaReflexive(d))))
+    #expect(try run(Expand(), [outer], in: &l.t) == [outer])
+    let u = try l.lam(T, try l.equal(T, c, try variable(0, &l)))
+    let w = try l.lam(T, try l.equal(T, e, try variable(0, &l)))
+    let same = try l.t.intern(.isaSymmetric(fn(T, o), try l.t.intern(.hyp(0, try l.equal(fn(T, o), u, u)))))
+    #expect(try run(Expand(), [same], in: &l.t) == [try l.t.intern(.isaReflexive(u))])
+    let apart = try l.t.intern(.isaSymmetric(fn(T, o), try l.t.intern(.hyp(0, try l.equal(fn(T, o), u, w)))))
+    #expect(throws: ExpandError.noReading(l.t[apart])) { _ = try run(Expand(), [apart], in: &l.t) }
 }
 
 /// At a type taking a function, `T = (i ⇒ o) ⇒ o`.
 @Test
-func pureEqualityAtATypeTakingAFunctionIsReflexivityWhenItsSidesAreOneTerm() throws {
-    try congruenceIsReflexivityOnly(takesAFunction, constant: etaConstant, variable: etaVariable)
+func atATypeTakingAFunctionCombinationIsLogicsAndSymmetryReflexivity() throws {
+    try onlySymmetryIsExpands(takesAFunction, constant: etaConstant, variable: etaVariable)
 }
 
 /// At a type taking a proposition, `T = o ⇒ o`: the definition command's rewriting at a connective.
 @Test
-func pureEqualityAtATypeTakingAPropositionIsReflexivityWhenItsSidesAreOneTerm() throws {
-    try congruenceIsReflexivityOnly(fn(o, o), constant: connective, variable: connectiveVariable)
+func atATypeTakingAPropositionCombinationIsLogicsAndSymmetryReflexivity() throws {
+    try onlySymmetryIsExpands(fn(o, o), constant: connective, variable: connectiveVariable)
 }

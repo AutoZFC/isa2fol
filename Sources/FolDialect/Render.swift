@@ -636,11 +636,16 @@ private let keywords: Set = [
 
 func spelled(_ name: String) throws -> String {
     let segments = name.split(separator: ".", omittingEmptySubsequences: false).map(String.init)
-    let wellFormed = isSegment(segments[0][...], digitFirst: false)
-        && segments.dropFirst().allSatisfy { isSegment($0[...], digitFirst: true) }
+    let wellFormed = isSegment(segments[0][...], digitFirst: false) && segments.dropFirst().allSatisfy(isQuotable)
     guard wellFormed, !keywords.contains(segments[0]) else { throw RenderError.notAName(name) }
-    return ([segments[0]] + segments.dropFirst().map { keywords.contains($0) ? "\"\($0)\"" : $0 })
-        .joined(separator: ".")
+    let written = segments.dropFirst().map {
+        isSegment($0[...], digitFirst: true) && !keywords.contains($0) ? $0 : "\"\($0)\""
+    }
+    return ([segments[0]] + written).joined(separator: ".")
+}
+
+private func isQuotable(_ s: String) -> Bool {
+    !s.isEmpty && s.allSatisfy { $0.isASCII && ($0.isLetter || $0.isNumber || $0 == "_" || $0 == "'") }
 }
 
 private func isSegment(_ s: Substring, digitFirst: Bool) -> Bool {

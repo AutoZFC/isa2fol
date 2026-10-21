@@ -345,3 +345,114 @@ func reflexiveAtAFunctionInstantiatesTheTermAsStated() throws {
     #expect(unit.refused.isEmpty, "\(unit.refused)")
     try kernelChecks(unit)
 }
+
+/// `∀y. y ∈ X ⟶ K(y)`, `X` and `K` the bound variables `x` and `k` outside it.
+private func members(_ x: Int, _ k: Int, _ l: inout LogicTable) throws -> NodeID {
+    try l.all(i, try l.imp(
+        try l.mem(try l.bound(0, i), try l.bound(x + 1, i)),
+        try applied(try l.bound(k + 1, P), try l.bound(0, i), &l),
+    ))
+}
+
+/// MetaExists' `⋁` over classes, unfolded: `combination (reflexive ex) (abstract_rule q)`,
+/// `ex = λR. ⋀Q. (⋀K. R K ⟹ Q) ⟹ Q` and `q ⊢ ⋀K. φ_A(K) ≡ φ_B(K)`. Read whole from its head: the walk over `ex`'s body
+/// at the two λs, its hole `R K` filled by `q` at `K`. The kernel proves the unit.
+@Test
+func aCombinationUnderAFunctionOfAFunctionOfClassesIsReadWhole() throws {
+    var l = LogicTable()
+    let R = fn(P, o)
+    let atK = try l.lam(i, try applied(try l.bound(1, P), try l.bound(0, i), &l))
+    let rk = try l.t.intern(.isaVarApp(head: try l.bound(2, R), args: [atK]))
+    let opened = try l.all(P, try l.imp(rk, try l.t.intern(.isaPropBound(1))))
+    let ex = try l.lam(R, try l.t.intern(.isaPropAll(body: try l.imp(opened, try l.t.intern(.isaPropBound(0))))))
+    let premise = try l.all(P, try iff(try members(2, 0, &l), try members(1, 0, &l), &l))
+    let abstracted = try l.t.intern(.isaAbstract(fn(P, o), try l.t.intern(.hyp(0, premise))))
+    let combined = try l.t.intern(.isaCombination(fn(R, o), try l.t.intern(.isaReflexive(ex)), abstracted))
+    let side = { (x: Int, l: inout LogicTable) throws -> NodeID in
+        let body = try l.imp(try members(x, 0, &l), try l.t.intern(.isaPropBound(1)))
+        return try l.t.intern(.isaPropAll(body: try l.imp(try l.all(P, body), try l.t.intern(.isaPropBound(0)))))
+    }
+    let read = try closed(
+        2,
+        i,
+        try l.imp(premise, try iff(try side(3, &l), try side(2, &l), &l)),
+        try l.t.intern(.folImpliesIntro(premise, body: combined)),
+        &l,
+    )
+    let unit = try lowered(l, [statement("T.read", read)])
+    #expect(unit.refused.isEmpty, "\(unit.refused)")
+    try kernelChecks(unit)
+}
+
+/// `≡`'s congruence at `(i ⇒ o) ⇒ o`, the definition command's rewriting by a constant's equation:
+/// `combination (combination (reflexive (λf g. f ≡ g)) h) (reflexive d)`. At `h : c ≡ e` the chain is read whole, the
+/// walk over `f ≡ g` pointwise, its hole `f(K)` filled by `h` at `K`; at `h : c ≡ c` the two sides are one. The kernel
+/// proves the unit.
+@Test
+func equalitysCongruenceAtAFunctionOfClassesIsReadWhole() throws {
+    var l = LogicTable()
+    let T = fn(P, o)
+    let atY = try applied(try l.bound(1, P), try l.bound(0, i), &l)
+    let c = try l.definition(Defined(.zf, "T.c", .object), T, try l.lam(P, try l.all(i, atY)))
+    let d = try l.definition(Defined(.zf, "T.d", .object), T, try l.lam(P, try l.all(i, try l.imp(atY, atY))))
+    let e = try l.definition(Defined(.zf, "T.e", .object), T, try l.lam(P, try l.all(i, try l.and(atY, atY))))
+    let atZ = try l.lam(i, try applied(try l.bound(1, P), try l.bound(0, i), &l))
+    let term = { (def: Definition, l: inout LogicTable) throws -> NodeID in
+        try l.lam(P, try l.const(.defined(def.constant), T, atZ))
+    }
+    let variable = { (k: Int, l: inout LogicTable) throws -> NodeID in
+        try l.lam(P, try l.t.intern(.isaVarApp(head: try l.bound(k + 1, T), args: [atZ])))
+    }
+    let ct = try term(c, &l)
+    let dt = try term(d, &l)
+    let et = try term(e, &l)
+    let equality = try l.lam(T, try l.lam(T, try l.equal(T, try variable(1, &l), try variable(0, &l))))
+    func rewritten(_ name: String, _ by: NodeID, in l: inout LogicTable) throws -> Statement {
+        let h = try l.equal(T, ct, by)
+        let inner = try l.t.intern(.isaCombination(
+            fn(T, fn(T, o)),
+            try l.t.intern(.isaReflexive(equality)),
+            try l.t.intern(.hyp(0, h)),
+        ))
+        let outer = try l.t.intern(.isaCombination(fn(T, o), inner, try l.t.intern(.isaReflexive(dt))))
+        let root = try l.imp(h, try iff(try l.equal(T, ct, dt), try l.equal(T, by, dt), &l))
+        return Statement(
+            name: name,
+            root: root,
+            proof: try l.t.intern(.folImpliesIntro(h, body: outer)),
+            theory: "Test",
+        )
+    }
+    let apart = try rewritten("T.apart", et, in: &l)
+    let same = try rewritten("T.same", ct, in: &l)
+    let unit = try lowered(l, [apart, same], [c, d, e])
+    #expect(unit.refused.isEmpty, "\(unit.refused)")
+    try kernelChecks(unit)
+}
+
+/// `≡`'s congruence at `o ⇒ o`, the definition command's rewriting at a connective under `h : c ≡ c`: the two sides
+/// are one, `iff_refl` at once. The kernel proves the unit.
+@Test
+func equalitysCongruenceAtAFunctionOfPropositionsIsItsSidesBeingOne() throws {
+    var l = LogicTable()
+    let T = fn(o, o)
+    let c = try l.lam(o, try l.imp(try l.bound(0, o), try l.bottom()))
+    let d = try l.lam(o, try l.bound(0, o))
+    let variable = { (k: Int, l: inout LogicTable) throws -> NodeID in
+        try l.lam(o, try l.t.intern(.isaVarApp(head: try l.bound(k + 1, T), args: [try l.bound(0, o)])))
+    }
+    let equality = try l.lam(T, try l.lam(T, try l.equal(T, try variable(1, &l), try variable(0, &l))))
+    let h = try l.equal(T, c, c)
+    let inner = try l.t.intern(.isaCombination(
+        fn(T, fn(T, o)),
+        try l.t.intern(.isaReflexive(equality)),
+        try l.t.intern(.hyp(0, h)),
+    ))
+    let outer = try l.t.intern(.isaCombination(fn(T, o), inner, try l.t.intern(.isaReflexive(d))))
+    let cd = try l.equal(T, c, d)
+    let root = try l.imp(h, try iff(cd, cd, &l))
+    let proof = try l.t.intern(.folImpliesIntro(h, body: outer))
+    let unit = try lowered(l, [Statement(name: "T.connective", root: root, proof: proof, theory: "Test")])
+    #expect(unit.refused.isEmpty, "\(unit.refused)")
+    try kernelChecks(unit)
+}

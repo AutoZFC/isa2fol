@@ -126,6 +126,7 @@ private enum Pointwise {
     case equation
     case combination
     case abstract
+    case chain
 }
 
 private func piece(_ p: Pattern) -> Piece? {
@@ -139,7 +140,7 @@ private func piece(_ p: Pattern) -> Piece? {
         return mentionsTypeVariable(T) ? nil : .unbuilt
 
     case .isaReflexive(let T):
-        return equality(T, .reflexive)
+        return onlyReflexive(T) ? .pointwise(.chain) : equality(T, .reflexive)
 
     case .isaSymmetric(let T, _):
         return onlyReflexive(T) ? nil : equality(T, .symmetric)
@@ -149,8 +150,8 @@ private func piece(_ p: Pattern) -> Piece? {
 
     case .isaCombination(let F, _, _):
         if overArguments(F) { return .pointwise(.combination) }
-        if overArguments(F) { return .unbuilt }
-        return mentionsTypeVariable(F) || onlyReflexive(F) ? nil : .unbuilt
+        if onlyReflexive(F) { return .pointwise(.chain) }
+        return mentionsTypeVariable(F) ? nil : .unbuilt
 
     case .isaAbstract(let F, _):
         if overObjects(F) { return .pointwise(.abstract) }
@@ -164,7 +165,11 @@ private func piece(_ p: Pattern) -> Piece? {
 
     case .isaAbs(let T, body: let U):
         if !isObject(.fn(T, U)), overArguments(.fn(T, U)) { return .pointwise(.wrapper) }
+        if beyondFunctions(T) { return .pointwise(.chain) }
         return beyondObjects(.fn(T, U)) ? .unbuilt : nil
+
+    case .isaVarApp(head: let T, _):
+        return beyondFunctions(T) ? .pointwise(.chain) : nil
 
     case .isaAllElim(_, let T):
         if T == .o { return .instance }
@@ -186,7 +191,7 @@ private func piece(_ p: Pattern) -> Piece? {
     case .isaHidden(let T, _):
         return T == .o ? .proposition(.hidden) : nil
 
-    case .isaConst, .isaFree, .isaBound, .isaVarApp, .isaOfClass, .isaDefinition, .folImplies, .folImpliesIntro,
+    case .isaConst, .isaFree, .isaBound, .isaOfClass, .isaDefinition, .folImplies, .folImpliesIntro,
          .folImpliesElim, .folAnd, .folOr, .folIff, .folBottom, .use, .hyp, .isaGuard, .isaExIntro, .isaExElim, .folNot,
          .folBound, .folPred,
          .folForall, .folExists, .folAndIntro, .folAndElimL, .folAndElimR, .folOrIntroL, .folOrIntroR, .folOrElim,
@@ -206,6 +211,11 @@ private func equality(_ T: IRType, _ e: Equality) -> Piece? {
 
 private func beyondObjects(_ T: IRType) -> Bool {
     !isObject(T) && !mentionsTypeVariable(T)
+}
+
+private func beyondFunctions(_ T: IRType) -> Bool {
+    guard case .fn = T else { return false }
+    return beyondObjects(T)
 }
 
 private func rule(_ a: Axiom) -> Piece {
@@ -254,7 +264,7 @@ private struct Formulas: Rule {
             guard case .isaPropBound(let k) = n else { throw LogicError.notTheRule(id) }
             return try holds(try t.intern(.folBound(k)), in: &t)
 
-        case .pointwise(.wrapper)?, .unbuilt?, nil:
+        case .pointwise(.wrapper)?, .pointwise(.chain)?, .unbuilt?, nil:
             return nil
 
         case .pointwise(.equation)?, .claimed?, .axiom?, .instance?, .lambda?, .equality?, .classical?,
@@ -319,6 +329,10 @@ private struct Steps: Rule {
             let statement = try formula(stated, .statement, in: &t)
             return try definition(c, stated: stated, statement: statement, at: args, base: base, in: &t).proof
 
+        case .isaCombination(.fn(_, .o), _, _):
+            guard case .pointwise(.chain)? = piece(Pattern(t[id], in: t)) else { return nil }
+            return try Functions(base: base).chain(id, lowered: { q, t in try transform(q, self, in: &t) }, in: &t)
+
         default:
             return nil
         }
@@ -380,6 +394,9 @@ private struct Steps: Rule {
         case .pointwise(.combination)?:
             guard case .isaCombination(let F, let p, let q) = n else { throw LogicError.notTheRule(id) }
             return try Functions(base: base).combination(F, p, q, was: id, in: &t)
+
+        case .pointwise(.chain)?:
+            throw FunctionsError.noReading(id)
 
         case .pointwise(.abstract)?:
             guard case .isaAbstract(_, let p) = n else { throw LogicError.notTheRule(id) }

@@ -1382,7 +1382,8 @@ specialisation at `kpair`.
 | `⋀P` over a proposition anywhere else, `AppT` at it | a truth-set variable; `forall_elim` at `E(φ)`, then β (S4) |
 | a variable only the proof uses (`dummy_pattern`) | constant in its arguments: the witness of an `exists_elim` at the proof's top, below its letters, over its result type's inhabitation, `i` or `o`, each application that witness |
 | `AppT` at a term, of a box's `AbsT` at a type taking a function or a proposition | the box's proof at the term: no binder and no schema, as Isabelle substitutes |
-| Pure's equality rules at a type with an argument taking a function or a proposition, concluding `t ≡ t` | `reflexive t`; any other conclusion there has no reading |
+| Pure's `symmetric`, `transitive` at a type with an argument taking a function or a proposition, concluding `t ≡ t` | `reflexive t`; any other conclusion there has no reading |
+| Pure's `combination` at a type with an argument taking a function or a proposition, its head reflexive or such a `combination` | read whole: the head's body at the two argument lists, each argument's equation substituted where it stands applied, at the atom's arguments — no binder over the argument's type; any other head has no reading |
 | `Axm` of ZF — `extension`, `Union_iff`, `Pow_iff`, `replacement`, `foundation`, `infinity` | the base's statement of it in NBG's words, read back into Isabelle's form (S3) |
 
 **THE KERNEL'S ∃-INTRODUCTION FINDS ITS BODY; ISABELLE'S IS GIVEN IT.** From `φ` and a variable `a`, `exists_intro`
@@ -1411,14 +1412,18 @@ predicate variable to take it as a parameter. Isabelle binds one where its `defi
 the constant it defines, `⋀Balla A P. Balla ≡ Ball ⟹ Balla(A, P) ≡ ∀x. x ∈ A ⟶ P(x)`, and instantiates it at the
 constant at once; a box applied to a term is its proof at the term, so there it is that proof, `Ball` where `Balla`
 stood, and no binder is written. Pure's equality between functions of such a variable — `(λg. Ball ≡ g) ≡ (λg. Ball ≡
-g)`, from rewriting under `≡` at `Ball`'s type — would bind one again; it is read only when its two sides are one
-term, as reflexivity, which needs no binder, and has no reading otherwise.
+g)`, from rewriting under `≡` at `Ball`'s type — would bind one again if stated. It is read only where a `combination`
+consumes it, its head reflexive or itself such a `combination`: the conclusion, the head's body at the two argument
+lists, is the arguments' equations substituted where each stands applied, at each such atom the argument's equation at
+the atom's arguments — an equation between functions of classes, first-order, `∀K. F(K) ↔ G(K)`. No binder over the
+variable is written, and any other conclusion there has no reading.
 
 **SO IS ONE WHOSE TYPE TAKES A PROPOSITION.** A function of propositions has a reading as a variable, a class of tuples
 of truth sets (S4); where Isabelle instantiates it by substitution the target substitutes, as it does a proposition. The
 stand-in `⋀Nota P. Nota ≡ Not ⟹ Nota(P) ≡ (P ⟶ False)`, applied to `Not` at once, is that box's proof at `Not`, which
 unfolds to `⟶` and `False`; the box binds its proposition `P` there too and is read at its terms, never as a schema.
-Pure's equality between functions of such a variable is read as above, only when its two sides are one term.
+Pure's equality between functions of such a variable is read as above, only where a `combination` consumes it, each
+argument's equation pointwise, a truth-set binder at a proposition.
 
 **⚠ THE GUARD STEP HAS NO COUNTERPART IN THE PROOF TERM.** Isabelle gets `a : i`
 from its type system — decided, never proved — so every `forall_elim` needs a

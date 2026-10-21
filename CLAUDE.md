@@ -64,9 +64,11 @@ a set term at its value, a λ at its class — and met to the statement's form (
 `Inf` among them. **The definition command's local constant at a function of classes or of propositions is
 substituted where its box is cited** (`DESIGN.md` "Step 9 — the definition command's local constant", "Step 9,
 widened"): a box binding a variable whose type takes a function or a proposition is read at its citation, its proof at
-the cited terms, and never a schema though it binds a proposition; Expand reads Pure's `combination`, `symmetric` and
-`transitive` at a type with an argument taking a function or a proposition as `reflexive` where they conclude `t ≡ t`,
-the only reading they have. **A ZF
+the cited terms, and never a schema though it binds a proposition; Expand reads Pure's `symmetric` and `transitive` at
+a type with an argument taking a function or a proposition as `reflexive` where they conclude `t ≡ t`, the only reading
+they have, and **Logic reads `combination` there whole** (`DESIGN.md` "`combination` under a function of a function,
+read whole"): from its reflexive head down its links, none stated, by the Replacement walk over the head's body at the
+two argument lists, each argument applied filled by its equation at the atom's variables. **A ZF
 definition cited is its constant's pointwise definition** (`DESIGN.md` "Step 5 — a ZF definition cited"): `c_UNFOLD`,
 cited and instantiated at the terms, proved by Reify's prover from the `@def` through Lambda's conversion of a class at
 its tuple, the slot classes of class parameters read back by Lambda's β. **The rules that consumed a proposition where it stood are removed**
@@ -137,9 +139,11 @@ Swift 6.4, language mode 5. `scripts/02-install-swift.sh` installs it into
 **Iterate on the stage being built; run the whole unit only as CI** (`DESIGN.md` "Iteration"). A feature fails at the
 earliest stage that sees it, so a run stops there (`--through expand|logic|registry`) and on the theorems it concerns
 (`--theorem NAME,…`, `--skip SESSION,…`; the export's load, ~30 s, stays). The complete run, emitted and
-kernel-checked, is the check of a feature believed complete. **Until the ZF session is fully translated, every run is
-the ZF session alone** (user, 2026-10-17): `$ZF` below is `--skip ZF-AC,ZF-Coind,ZF-Constructible,ZF-IMP,ZF-Induct,
-ZF-Resid,ZF-ex`. **Lint before every run** (user, 2026-10-17): `pre-commit run --all-files` first.
+kernel-checked, is the check of a feature believed complete. **The complete run is all eight sessions** (user,
+2026-10-21, the ZF session at its ceiling): the ZF session's 3,609 are the baseline a run must not lose, and `$ZF` below,
+`--skip ZF-AC,ZF-Coind,ZF-Constructible,ZF-IMP,ZF-Induct,ZF-Resid,ZF-ex`, runs it alone. ⚠ The other sessions do not
+fit memory yet (`DESIGN.md` "`combination` under a function of a function, read whole", Measured). **Lint before
+every run** (user, 2026-10-17): `pre-commit run --all-files` first.
 
 ```bash
 MEM=48G scripts/capped.sh .build/release/isa2fol lower data/zf_export --through logic $ZF [--theorem NAME,…]
@@ -149,9 +153,9 @@ MEM=16G scripts/capped.sh scripts/check-base.sh [LIBDIR]   # base alone, each ti
 ```
 
 ⚠ **EACH UNIT OF WORK INTERNS INTO A LAYER OVER THE UNIT'S TABLE, WHICH TAKES ONLY WHAT ITS RESULTS REACH** (`DESIGN.md`
-"Memory — a unit of work's nodes leave with it"): the complete run fits the CI's `MEM=32G` again, peaking at 17.5 GB
-at emission (2026-10-21, `--threads 16`, 25:33); lowering stays under 8.0 GB (`DESIGN.md` "Memory under the CI's
-32 GB"). ⚠ **A NODE IS 16 BYTES, A TYPE ONE WORD**: a kind wider than three children and a type is held behind a
+"Memory — a unit of work's nodes leave with it"): the ZF session's complete run fits the CI's `MEM=32G`, peaking at
+17.4 GB at emission (2026-10-21, `--threads 16`, 27:55); lowering stays under 8.0 GB (`DESIGN.md` "Memory under the
+CI's 32 GB"). ⚠ **A NODE IS 16 BYTES, A TYPE ONE WORD**: a kind wider than three children and a type is held behind a
 reference (`indirect`). Inline, the widest kind set every node's width, 80 bytes, which put 151M nodes at 20.3 GB
 (`aNodeIsSixteenBytesAndATypeOneWord`). ⚠ **A WALK'S CONTEXT IS A REFERENCE INTO ITS CHAIN OF BINDERS, NEVER A
 COPY**: Fol's keys, each copying the binders above its node, held 9 GB in `Bin.integ_of_add`'s one walk, and the
@@ -309,7 +313,7 @@ determinism R1–R3 (§4.6).
    print(f'{c}/{t} = {100*c/t:.1f}%')"
    ```
 
-   ✓ **CURRENTLY 296/17606 = 1.7%, under the cap.** Keep it there: a breach is
+   ✓ **CURRENTLY 300/17673 = 1.7%, under the cap.** Keep it there: a breach is
    fixed by deleting prose, never by raising the cap.
 
    Does not apply to `base/**/*.fol.def` headers: those record provenance of

@@ -96,10 +96,24 @@ func aReservedSegmentAfterTheFirstIsQuoted() throws {
     }
 }
 
+/// A segment after the first with a prime before its end is no identifier of the checker's; it is written quoted, and
+/// the name is unchanged.
+@Test
+func aSegmentAfterTheFirstWithAnInnerPrimeIsQuoted() throws {
+    var f = Fol()
+    for (name, written) in [
+        ("Tree_Forest.tree'induct", "Tree_Forest.\"tree'induct\""),
+        ("DPow_absolute.M_DPow.DPow'_abs", "DPow_absolute.M_DPow.\"DPow'_abs\""),
+        ("T.a'b.4", "T.\"a'b\".4"),
+    ] {
+        #expect(try f.text(try f.p(name)) == written)
+    }
+}
+
 @Test
 func aMalformedNameIsRefused() throws {
     var f = Fol()
-    for bad in ["1bad", "forall", "a..b", "a.", ".a", "ZF Base", "a'b", "mem(4)", "use.T"] {
+    for bad in ["1bad", "forall", "a..b", "a.", ".a", "ZF Base", "a'b", "mem(4)", "use.T", "T.a b", "T.a\"b"] {
         #expect(throws: RenderError.notAName(bad)) { try f.text(try f.p(bad)) }
     }
     let body = try f.p("set", try f.b(0))
@@ -163,6 +177,7 @@ func theRealCheckerAcceptsWhatRenderEmits() throws {
         Declaration(kind: .claim, name: "probe", root: membersAreSets),
         Declaration(kind: .claim, name: "probe_bottom", root: notBottom),
         Declaration(kind: .claim, name: "probe_syntax", root: every),
+        Declaration(kind: .claim, name: "Q.tree'induct", root: membersAreSets),
     ]
     let def = try decls.map { try render($0, in: f.t) }.joined(separator: "\n") + "\n"
     let proof = """
@@ -176,6 +191,10 @@ func theRealCheckerAcceptsWhatRenderEmits() throws {
             qed _b
 
         proof probe_syntax: UNPROVED
+
+        proof Q."tree'induct":
+            _a = use members_are_sets
+            qed _a
 
         """
 
@@ -203,4 +222,5 @@ func theRealCheckerAcceptsWhatRenderEmits() throws {
     #expect(stderr.isEmpty, "stderr must be empty: \(stderr)")
     #expect(stdout.contains("+ probe\n") || stdout.contains("+ probe "), "probe did not prove:\n\(stdout)")
     #expect(stdout.contains("+ probe_bottom"), "probe_bottom did not prove -- is false rendered as ⊥?\n\(stdout)")
+    #expect(stdout.contains("+ Q.tree'induct"), "a quoted segment with an inner prime did not prove:\n\(stdout)")
 }

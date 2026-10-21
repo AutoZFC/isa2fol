@@ -42,10 +42,10 @@ private func piece(_ p: Pattern) -> Piece? {
         unfolds(f, level) && !types.contains(where: mentionsTypeVariable) ? .citation : nil
     case .isaOfClass(let T):
         mentionsTypeVariable(T) ? nil : .membership
-    case .isaCombination(let T, _, _), .isaSymmetric(let T, _), .isaTransitive(let T, _, _):
+    case .isaSymmetric(let T, _), .isaTransitive(let T, _, _):
         onlyReflexive(T) ? .equation : nil
     case .ifolAll, .ifolEx, .isaConst, .isaFree, .isaBound, .isaVarApp, .isaAbs, .isaAllIntro,
-         .isaAllElim, .isaReflexive, .isaAbstract, .isaClassical,
+         .isaAllElim, .isaReflexive, .isaCombination, .isaAbstract, .isaClassical,
          .isaIffReflection, .isaPropAll, .isaPropIntro, .isaPropBound, .isaHidden, .folImplies, .folAnd,
          .folOr, .folIff, .folBottom, .folImpliesIntro, .folImpliesElim, .use,
          .hyp, .isaGuard, .isaExIntro, .isaExElim, .folNot, .folBound, .folPred, .folForall, .folExists, .folAndIntro,

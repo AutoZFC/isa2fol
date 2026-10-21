@@ -5,6 +5,7 @@ public enum FunctionsError: Error, Equatable, Sendable {
     case notAFunction(NodeID)
     case notMine(NodeID)
     case misproved(NodeID)
+    case noReading(NodeID)
 }
 
 func overObjects(_ T: IRType) -> Bool {
@@ -90,8 +91,59 @@ struct Functions {
         return try concluding(valued, id, in: &t)
     }
 
+    /// `combination` at `o` under a function whose argument takes a function or a proposition, read whole from its
+    /// head, its links never stated: the Replacement walk over the head's body at the two argument lists, each hole an
+    /// argument applied, filled by its equation at the hole's variables.
+    func chain(_ id: NodeID, lowered: (NodeID, inout Table) throws -> NodeID, in t: inout Table) throws -> NodeID {
+        var equations = [NodeID]()
+        var link = id
+        while case .isaCombination(let G, let p, let q) = t[link], onlyReflexive(G) {
+            equations.insert(q, at: 0)
+            link = p
+        }
+        guard case .isaReflexive(let head) = t[link], let H = t.type(of: head) else {
+            throw FunctionsError.noReading(id)
+        }
+        let holes = try H.domains.prefix(equations.count).enumerated()
+            .map { k, A in try t.intern(.isaFree("chain.\(k)", A)) }
+        let ends = try equations.map { try sides($0, t) }
+        let proofs = try equations.map { try lowered($0, &t) }
+        let l = try valued(try beta(head, ends.map(\.0), in: &t), in: &t)
+        let r = try valued(try beta(head, ends.map(\.1), in: &t), in: &t)
+        let walk = Replacement(base: base) { phi, l, r, inner, t in
+            guard case .isaVarApp(let h, let xs) = t[phi], let k = holes.firstIndex(of: h) else { return nil }
+            var proof = try lifted(proofs[k], from: Scope(), to: inner, in: &t)
+            for x in xs {
+                guard
+                    let v = try variable(x, in: &t), let c = t.conclusion(of: proof),
+                    case .ifolAll(let T, _) = t[c]
+                else { throw FunctionsError.noReading(id) }
+                let e = try t.intern(.folForallElim(proof, v))
+                proof = try guarded(v, T, in: &t)
+                    .map { try t.intern(.folImpliesElim(e, try t.intern(.isaGuard(v, $0)))) }
+                    ?? e
+            }
+            guard t.conclusion(of: proof) == (try t.intern(.folIff(l, r))) else { throw FunctionsError.misproved(id) }
+            return proof
+        }
+        return try concluding(try walk.proof(try beta(head, holes, in: &t), l, r, in: Scope(), &t), id, in: &t)
+    }
+
     private static func argument(_ T: IRType, _ k: Int, in t: inout Table) throws -> NodeID {
         try t.intern(T == .o ? .isaPropBound(k) : .isaBound(k, T))
+    }
+
+    /// The variable an argument read η-long applies: `λz⃗. K z⃗` is `K`.
+    private func variable(_ x: NodeID, in t: inout Table) throws -> NodeID? {
+        var body = x
+        var m = 0
+        while case .isaAbs(_, let b) = t[body] { (body, m) = (b, m + 1) }
+        if m == 0 { return if case .isaBound = t[x] { x } else { nil } }
+        guard
+            case .isaVarApp(let h, let args) = t[body], case .isaBound(let j, let T) = t[h], j >= m, args.count == m,
+            args.enumerated().allSatisfy({ k, a in if case .isaBound(m - 1 - k, _) = t[a] { true } else { false } })
+        else { return nil }
+        return try t.intern(.isaBound(j - m, T))
     }
 
     /// `combination` at a class argument: the premise at `a`, `BETA` back to `a`'s class, the formula `f a ≡ g Q`

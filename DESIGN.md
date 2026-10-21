@@ -2696,7 +2696,14 @@ in parallel; lowering by part, for the table's own ceiling (13.0 GB at 15.6M nod
    (`false` and `bottom` are both `BOTTOM`), so the grammar could not take the word itself, and a lexer that did would
    read `forall x.false` by its whitespace. The export's seven: `Bool.and`, `Bool.not`, `Bool.or`, `Com.bexp.false`,
    `Com.evalb.false`, `FOL.excluded_middle`, `IFOL.iff` (Expand's). ⚠ An earlier count named the three `Bool` ones
-   alone — it read one session's constants, not the export's names.
+   alone — it read one session's constants, not the export's names. **So is a segment after the first that is no
+   identifier of the checker's** (BUILT 2026-10-21, for the user's review): the lexer reads an identifier as
+   `[a-zA-Z_][a-zA-Z0-9_]*'*` and a string literal as a segment, so `Tree_Forest.tree'induct`, a prime before the
+   segment's end, is written `Tree_Forest."tree'induct"` and the name is unchanged. The export holds 31: ZF-Induct's
+   `tree'induct` and `forest'induct`, 29 of ZF-Constructible's (`DPow_absolute.DPow'_abs`, …); without it the first
+   complete run of the other sessions stopped at emission (`notAName`). A first segment so formed, or a segment
+   holding a character no Isabelle name has, is refused as before (`aSegmentAfterTheFirstWithAnInnerPrimeIsQuoted`,
+   the checker proving `Q.tree'induct` in `theRealCheckerAcceptsWhatRenderEmits`).
 5. **A theorem's part is the reader's theory**, `Statement.theory`: a name's first segment can be a locale's.
 6. **The report's kinds are Lowering's typed requests** (`kind(of:)`), not the names' suffixes.
 7. **Base is checked once, by libraries**: `check-base.sh` checks each tier against its listed tiers' libraries; the
@@ -7342,6 +7349,180 @@ the theorem.
 **Decided: (b).** FOUNDATION §3b gains a row: a named theorem polymorphic in a type no class restricts has no
 statement of its own in the target, and each instance a proof cites is translated there. The 7 stay refused at no
 owner, and the ZF session's ceiling is 3,609 of 3,616 named theorems.
+
+### `combination` under a function of a function, read whole — ZF-Constructible's reflection and its definitions written unapplied  **[AGREED 2026-10-21 (user: "Agree to both"); BUILT 2026-10-21 — `Sources/Lowering/Functions.swift`, `Logic.swift`, `Expand.swift`]**
+
+**The step.** The complete run of all eight sessions stops in Expand at 1:29, before a statement is lowered:
+`pipeline: noReading(isaCombination(((i ⇒ o) ⇒ o) ⇒ o, …))`. Run alone through Expand (`--through expand`, `--skip`
+the other seven), only ZF-Constructible stops; by theory (`--theorem` each theory's names), 7 of its 18 —
+Internalize, L_axioms, DPow_absolute, Rank_Separation, Rec_Separation, Separation, Satisfies_absolute — and the other
+11 pass. Expand reads Pure's `combination`, `symmetric` and `transitive` at a type with an argument taking a function
+or a proposition only where they conclude `t ≡ t` (Step 9, 2; "Step 9, widened", 2), and throws on any other, so the
+first such step stops the run, not its theorem. ZF-Constructible holds two kinds that conclude no `t ≡ t`, both a
+`combination` under a function whose argument is a function of classes.
+
+**The problem, in target text.**
+
+1. Rewriting under a meta-existential over classes. L_axioms states reflection with MetaExists' `⋁`, `ex :: ('a ⇒
+   prop) ⇒ prop` at `'a = i ⇒ o`, and the simplifier simplifies under it (`Triv_reflection`, `simp add:
+   L_Reflects_def`):
+
+```
+Isabelle   REFLECTS[P,Q] ≡ (⋁Cl. Closed_Unbounded(Cl) ∧ (∀a. Cl(a) ⟶ (∀x∈Lset(a). P(x) ⟷ Q(a,x))))
+           combination (reflexive ex) q                                       at ((i ⇒ o) ⇒ prop) ⇒ prop
+             q  ⊢ (λCl. Closed_Unbounded(Cl) ∧ (∀a. …)) ≡ (λCl. Closed_Unbounded(Cl))
+                ⊢ (⋁Cl. Closed_Unbounded(Cl) ∧ (∀a. …)) ≡ (⋁Cl. Closed_Unbounded(Cl))
+read       Expand unfolds ex, a meta-level definition; the two sides differ: noReading
+```
+
+2. A constant taking a class, defined unapplied. The `definition` command proves `satisfies_MH_def` by a box over a
+   stand-in, and the box carries the definition's own equation through `≡`'s congruence at the constant's type:
+
+```
+Isabelle   satisfies_MH ≡ λM A u f z. ∀fml[M]. is_formula(M,fml) ⟶ is_lambda(M, fml, …, z)      [i⇒o,i,i,i,i] ⇒ o
+           the box   ⋀satisfies_MHa. satisfies_MHa ≡ satisfies_MH ⟹ satisfies_MHa ≡ (λM A u f z. …)
+             combination (combination (reflexive (≡)) W) (reflexive (λM A u f z. …))
+               W  ⊢ satisfies_MHa ≡ λM A u f z. …
+                  ⊢ (satisfies_MHa ≡ λM A u f z. …) ≡ ((λM A u f z. …) ≡ (λM A u f z. …))
+read       Step 9 substitutes satisfies_MHa := satisfies_MH, and the sides still differ: noReading
+```
+
+`not_def`'s congruence is `t ≡ t` because Expand unfolds `Not`; `satisfies_MH` is a ZF constant Reify names as a class.
+A definition written applied, `Closed(P) ≡ …`, takes the equation outside the congruence, and its box is `t ≡ t` after
+Step 9: `Normal.Closed_def` lowers alone. `Satisfies_absolute.satisfies_MH_def` stops alone, and so do DPow_absolute's
+theorems that cite it.
+
+**The root cause.** FOUNDATION reads Pure's equality between functions of such a variable — a function whose argument
+takes a function — only when its two sides are one term, because stating it pointwise would bind a variable of the
+argument's type, and no fol-zfc variable has one. That holds of `ex ≡ ex` and of `(≡ satisfies_MH) ≡ (≡ λ…)` stated
+alone. It does not hold of the `combination` that consumes them: its conclusion is an equivalence of two formulas the
+target states, `⋁Cl. φ(Cl)` and `⋁Cl. ψ(Cl)`, or `satisfies_MH ≡ λ…` and `λ… ≡ λ…` — each an equation between functions
+of classes, pointwise with a class binder (FOUNDATION, "An equation between functions is pointwise"). Step 4's
+`combination` cannot read it: it takes the premise at the argument and carries the argument to the other side by the
+formula's Leibniz lemma, over a variable of the argument's type (`SUBST_<fp>`, "Linear proof size"), and a function of
+classes has none.
+
+**1. A `combination` at a type with an argument taking a function or a proposition is read whole from its head: where
+its function premise is reflexive, or itself such a `combination` — Isabelle's congruence under a function of several
+arguments — its conclusion is the head's body at the two argument lists, β-reduced, each argument's equation
+substituted where the argument stands applied.** **AGREED 2026-10-21 (user).** The Replacement walk proves it at the site. Its pattern is the head's
+body with each argument a variable. An atom applying an argument is a hole, filled by that argument's equation read
+pointwise (Step 4; a truth-set binder at a proposition, S4) at the atom's arguments — `forall_elim` at a variable,
+Lambda's instance at a λ. A connective or a binder is base's `cong_*` over its parts, as the walk does now. No variable
+of the argument's type is bound, and no link of the chain is stated: the links are read where the last consumes them.
+A head that is any other premise has no reading; the corpus holds none (believed; the complete run measures it).
+
+```
+before   combination (reflexive ex) q                         Expand: noReading — the run stops
+after    the walk over ex's body, ex unfolded, at the two arguments:
+           (⋀Q. (⋀Cl. φ(Cl) ⟹ Q) ⟹ Q)  ↔  (⋀Q. (⋀Cl. ψ(Cl) ⟹ Q) ⟹ Q)        Q by its truth set (S4)
+           the hole φ(Cl) against ψ(Cl): q at Cl, q read  forall Cl. (φ(Cl) <-> ψ(Cl)),  Cl a class, unguarded
+before   combination (combination (reflexive (≡)) W) (reflexive b)       Expand: noReading — the run stops
+after    the walk over x ≡ y at (satisfies_MH, b) and (b, b), each side pointwise (Step 4):
+           (∀M A u f z. satisfies_MH(M,A,u,f,z) ↔ b(M,A,u,f,z))  ↔  (∀M A u f z. b(M,A,u,f,z) ↔ b(M,A,u,f,z))
+           the hole satisfies_MH(M,A,u,f,z) against b(M,A,u,f,z): W at M A u f z; b against b: iff_refl
+```
+
+Not the premise stated: `ex ≡ ex` and `(≡ satisfies_MH) ≡ (≡ λ…)` bind a function of classes pointwise, which the
+target cannot. Not a Leibniz lemma per formula, proved once: its variable would be of the argument's type. Not Expand's
+reading widened in place: the walk and the pointwise readings that fill its holes are Logic's (Step 4, S4). The walk
+is written at each such `combination`, proportional to the head's body — `ex`'s definiens, `≡`'s pointwise form, a
+few connectives.
+
+**2. Logic owns `combination` at a type with an argument taking a function or a proposition (`Functions`); Expand
+keeps `symmetric` and `transitive` there, `t ≡ t` only.** **AGREED 2026-10-21 (user).** Ownership is by pattern, one owner each (I3), and a pattern
+cannot tell `t ≡ t` from the rest. Step 9's boxes — `≡`'s congruence after the substitution, `not_def`'s and every
+`definition` box's — go through the walk: two identical sides are `iff_refl` at once, its first case.
+
+**FOUNDATION first.** In "A variable whose type takes a function …" and "So is one whose type takes a proposition",
+the last sentence of each becomes: Pure's equality between functions of such a variable is read only where a
+`combination` consumes it, its head reflexive or such a `combination`: the arguments' equations substituted where each
+stands applied in the head's body, at each such atom the argument's equation at the atom's arguments. No binder over
+the variable is written, and any other conclusion there has no reading. §3b's row "Pure's equality rules at a type
+with an argument taking a function or a proposition, concluding `t ≡ t`" splits in two: `symmetric` and `transitive`
+there, `reflexive t` where they conclude `t ≡ t`; `combination` there, read whole as above.
+
+**The contracts (D2):**
+
+| | provides | assumes |
+|---|---|---|
+| Expand | `symmetric` and `transitive` at a type with an argument taking a function or a proposition: `reflexive t` where they conclude `t ≡ t`; `combination` there no longer its | — |
+| Logic (`Functions`) | `combination` there, from a reflexive head or a chain of such: its conclusion by the Replacement walk over the head's body; any other head, no reading | each argument's equation pointwise: at a function of objects (Step 4), of propositions (S4) |
+| The Replacement walk | a hole where an argument stands applied, filled by its equation at the atom's arguments | — |
+
+**Tests, written first.**
+- `FunctionsTests`: `combination` of `reflexive F` at `((i ⇒ o) ⇒ o) ⇒ o`, `F` a λ applying its argument to a class
+  under `⋀`, `q` from `abstract_rule`, lowers and kernel-checks to the two formulas' equivalence; a chain, `≡`'s
+  congruence at `(i ⇒ o) ⇒ o` in its first argument by a defined constant's equation, likewise; identical sides are
+  `iff_refl`.
+- `PlanTests`: `combination` at such a type is Logic's, `symmetric` and `transitive` there Expand's
+  (`eachPatternHasTheOwnerTheDivisionGivesIt`); Step 9's tests pass as now.
+- The ZF session: the complete run, emitted and kernel-checked, its 3,609 kept name for name.
+- ZF-Constructible: each of its 18 theories through logic, no `noReading`; then all eight sessions, the complete run.
+
+**Not in this step.**
+- A step its owner has no reading for stops the whole run (`ExpandError.noReading`, a prover's error other than
+  `MeetingError.unmet`), where a refusal would stop only its theorem.
+- What ZF-Constructible meets after Expand. MetaExists' `ex_def`, `meta_exI` and `meta_exE` are at a type no class
+  restricts: the ceiling's kind, each use at `i ⇒ o` instantiated where it is cited.
+- Memory: the other six sessions with the ZF session peak at 39.4 GB lowering, past the CI's 32 GB.
+
+**Built** (`Sources/Lowering/Expand.swift`, `Logic.swift`, `Functions.swift`; `docs/FOUNDATION.md`). Expand: `combination`
+leaves its `.equation` piece; `symmetric` and `transitive` keep it. Logic: a piece `.pointwise(.chain)` — `combination`
+and `reflexive` at a type with an argument taking a function or a proposition, a λ binding a variable beyond objects,
+and that variable applied. `Functions.chain` reads a `combination` at `o` there whole: the chain followed down its
+function premises to its `reflexive` head, the arguments' proofs lowered by Logic's own rule, the Replacement walk over
+the head's body at the two argument lists, β-reduced and valued, each hole an argument applied, filled by its lowered
+equation at the hole's variables, then `concluding` the combination's own conclusion. Tests:
+`aCombinationUnderAFunctionOfAFunctionOfClassesIsReadWhole` (`⋁`'s shape), `equalitysCongruenceAtAFunctionOfClassesIsReadWhole`
+(`satisfies_MH_def`'s, at `h : c ≡ e` and at `c ≡ c`), `equalitysCongruenceAtAFunctionOfPropositionsIsItsSidesBeingOne`
+(`not_def`'s), each kernel-checked; Expand's two, `combination` there left to Logic and `symmetric` at `T ⇒ o`
+reflexivity or no reading; `PlanTests`' rows. 14, 142, 175, 135, 52 pass, none failing.
+
+**Decisions made in the build**, for the user's review:
+1. **The chain is read top-down, at its consumer**: Logic's walk reads a `combination` at `o` there before it descends,
+   its arguments' proofs lowered by the same rule. ⚠ **A LINK CANNOT WAIT, LOWERED BELOW, FOR ITS CONSUMER**: the table
+   computes a node's conclusion from its children's, and a link kept over lowered children is no Pure equation
+   (`principalConnective`).
+2. **The head's pieces are Logic's**: `reflexive` there, a λ binding a variable beyond objects (`(i ⇒ o) ⇒ o`,
+   `o ⇒ o`), and its application were Logic's `.unbuilt`; read at the consumer, they hold no pattern unbuilt at Logic.
+   One that reaches the walk alone, outside a chain read at `o`, has no reading and stops the run
+   (`FunctionsError.noReading`) where it was refused before; the ZF session and the other six held none refused.
+3. **A hole is filled at variables only**: an argument applied at bound variables, read η-long — at a set with its guard,
+   at a class or a function without — its equation instantiated by `forall_elim` there. At a term, a λ or a
+   proposition there is no reading yet: a proposition's truth hypothesis is not the walk's, which proves
+   `(truth(E) → A) ↔ (truth(E) → B)` from `A ↔ B`. The ZF session's congruences at `o ⇒ o` are `t ≡ t`, read before
+   a hole.
+4. **A hole is the head's argument as a free variable** (`chain.k`) in the walk's pattern, which never leaves the rule:
+   the pattern's indices and the sides' agree, Pure's `⋀` over a proposition binding a term in both.
+
+**Measured** (2026-10-21).
+- **The ZF session**, the complete run (`$ZF`, `--threads 16`): 3,609 of 3,616 lowered, the 7 at no owner as before;
+  97 parts, 50,306 claims and 6,273 schemas, each part exit 0 with stderr empty, every one Proved; every claim and
+  schema name `AC.AC`'s step's, part by part (56,579). 17.4 GB peak at emission, 27:55; checking 23:31, 4.7 GB. The
+  walk reads `≡`'s congruence in definition boxes there — `ZF_Base.Sigma_def`, `Pi_def`, `lam_def`, `Collect_def`,
+  `WF.wftrec_def` among them — kernel-checked with the rest.
+- **ZF-Constructible, through Logic, theory by theory** (`--theorem` its names, with what they cite): none stops on
+  `noReading`. Named theorems standing: AC_in_L 70 of 70, Formula 224/224, Relative 283/283, Rank 107/107,
+  Reflection 45/45, Wellorderings 37/37, WF_absolute 35/35, WFrec 26/26, L_axioms 269/357, Internalize 144/196, Normal 63/64,
+  Separation 50/167, Rec_Separation 17/108, Rank_Separation 0/33, MetaExists 0/3. What Logic refuses is the issues after
+  this step: an equation at `((i ⇒ o) ⇒ o) ⇒ o` stated, `MetaExists.ex_def` at `i ⇒ o`, which L_axioms' reflection
+  theorems cite (9; 79 cite them); a binder over a relativized predicate variable, `(i ⇒ o) ⇒ i ⇒ o` to
+  `(i ⇒ o) ⇒ i ⇒ i ⇒ i ⇒ i ⇒ o` (Internalize, Rec_Separation, Rank_Separation); `MetaExists`' three and one of
+  `Normal`'s at a type no class restricts, the ceiling; the rest cite those (Separation's 117 all). Datatype_absolute,
+  DPow_absolute and Satisfies_absolute exceed 30 GB, below (Satisfies_absolute at 57 minutes).
+- **`satisfies_MH_def`**, decision 1's second case, lowered with what it cites, emitted and kernel-checked: 10 parts,
+  997 claims and 448 schemas, every one Proved. `⋁`'s case stands in no theorem yet, L_axioms' reflection theorems
+  refused on `ex_def`'s equation above; its fixture is its check.
+- **Memory: ZF-Constructible does not fit, and not by this step.** Timed statement by statement (a traced build, never
+  committed), Datatype_absolute's statements take under 2 s each until `Formula_Rec.MH_rel2`; alone, through Logic,
+  it peaks at 13.3 GB in 9:22, 66M nodes. DPow_absolute's `DPow'_iff_sats` adds 47.8M nodes in 270 s,
+  `Satisfies_absolute.sats_formula_case_fm` 17.6M. None reads a chain. 97% of those nodes are `finished`'s: it fixes a
+  proof's closed values at its top (`fixing`), and `Rebind` writes each value's variable and its fact as de Bruijn
+  indices, which differ with depth, so a node holding one is copied at every (term, hypothesis) depth where the proof
+  meets it. `DPow'_iff_sats`: Isabelle's proof 41K nodes, 288 binders deep; Logic's, 434K, 1,770 deep; 62 closed
+  values, held by 94K nodes met at 1,756 term depths: 46.5M copies. The six other sessions' 39.4 GB lowering is
+  believed the same cause, unmeasured.
 
 ### Fol — binders, guards and variables  **[BUILT 2026-09-28 as the guard; Fol's 2026-10-14; every object type and `∃` at `i` with "Reify — S1 at the site" — `Sources/Lowering/Fol.swift`]**
 
