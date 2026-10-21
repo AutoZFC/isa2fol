@@ -212,8 +212,8 @@ private func rule(_ a: Axiom) -> Piece {
     switch a {
     case .ifol(.subst):
         .claimed(.classSubst)
-    case .zf(let z):
-        z.inNBG == nil ? .unbuilt : .axiom
+    case .zf:
+        .axiom
     case .ifol(.refl), .ifol(.impI), .ifol(.mp), .ifol(.conjI), .ifol(.conjunct1), .ifol(.conjunct2), .ifol(.disjI1),
          .ifol(.disjI2), .ifol(.disjE), .ifol(.falseE), .ifol(.allI), .ifol(.spec), .ifol(.exI), .ifol(.exE),
          .ifol(.eqReflection), .ifol(.iffReflection), .fol(.classical):

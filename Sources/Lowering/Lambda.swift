@@ -402,7 +402,7 @@ public struct LambdaProver: Prover {
         _ l: Lemma,
         _ statement: NodeID,
         _: [Definition],
-        _: [String: NodeID],
+        _: [String: NamedStatement],
         in t: inout Table,
     ) throws -> Proved {
         guard let f = l.request as? LambdaFact, f.fact == .arguments else { throw LambdaError.notMine(l.name) }

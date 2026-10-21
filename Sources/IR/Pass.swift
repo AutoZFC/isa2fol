@@ -29,12 +29,23 @@ public enum Stated: Hashable, Sendable {
     case unbuilt
 }
 
+/// A named statement as the proving pass took it, which a proof cites as it does, and as the pass left it.
+public struct NamedStatement: Hashable, Sendable {
+    public init(stated: NodeID, statement: NodeID) {
+        self.stated = stated
+        self.statement = statement
+    }
+
+    public let stated: NodeID
+    public let statement: NodeID
+}
+
 public protocol Registry {
     func prove(
         _ lemma: Lemma,
         _ statement: NodeID,
         _ definitions: [Definition],
-        _ theorems: [String: NodeID],
+        _ theorems: [String: NamedStatement],
         in t: inout Table,
     ) throws -> Proved
     func define(_ c: Defined, _ definitions: [Definition], in t: inout Table) throws -> Stated
@@ -319,6 +330,7 @@ private struct Run {
             var cited = [(Lemma, NodeID)]()
             var forms = [NodeID: NodeID]()
             var done = [Live?](repeating: nil, count: ready.count)
+            var taken = [String: NamedStatement]()
             var gone = Set(unit.refused.map(\.name))
             for j in try citationOrder(ready) {
                 var l = ready[j]
@@ -356,6 +368,9 @@ private struct Run {
                     pass: pass.name,
                     pattern: p,
                 ) }
+                if k == proving, before.lemma == nil, before.defines == nil {
+                    taken[before.name] = NamedStatement(stated: before.root, statement: l.statement.root)
+                }
                 done[j] = l
             }
             live = done.compactMap(\.self)
@@ -377,7 +392,7 @@ private struct Run {
             if k == proving {
                 let proving = ContinuousClock.now
                 try pruned()
-                try prove()
+                try prove(taken)
                 stages.append(Stage(name: "registry", since: proving))
                 if stage == "registry" { return false }
             }
@@ -530,12 +545,11 @@ private struct Run {
         }
     }
 
-    mutating func prove() throws {
+    mutating func prove(_ taken: [String: NamedStatement]) throws {
         guard let registry, let r = proving else { return }
-        var theorems = [String: NodeID]()
-        for l in live where l.statement.lemma == nil && l.statement.defines == nil {
-            theorems[l.statement.name] = l.statement.root
-        }
+        let standing = Set(live.filter { $0.statement.lemma == nil && $0.statement.defines == nil }
+            .map(\.statement.name))
+        let theorems = taken.filter { standing.contains($0.key) }
         var next = 0
         var unbuilt = Set<Int>()
         while next < live.count {

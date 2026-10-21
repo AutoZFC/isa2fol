@@ -48,12 +48,17 @@ value; a statement keeps S1's naming, universal (`∀v. ⟦v = t⟧ → φ(v)`);
 proved once per formula crosses them — `MEET_<fp>`, `BETA_<fp>` at a λ (β at its class variable's arguments' values,
 fixed where the application stands: `DESIGN.md` "β at values"), `SUBST_<fp>` Leibniz, `ARGS_<fp>` — below a statement's
 letters, which stay on its spine. Of the ZF session's 3,616 named theorems (`--skip` the other seven), `lower` lowers
-3,565 to fol-zfc: 7 stop at no owner, 1 at logic (`AC.AC`, Choice), and 43 cite a refused statement, each in `AC.AC`'s
-chain; no lemma they reach is refused unbuilt. **ZF's axioms are theorems of base read back into Isabelle's form**
+3,609 to fol-zfc, `AC.AC` and Zorn's lemma among them; the 7 others stop at no owner, each a named theorem at a type no
+class restricts — a ceiling (`DESIGN.md` "A named theorem at a type no class restricts", FOUNDATION §3b): fol-zfc has no
+type variable, and each instance a proof cites is translated there. No lemma they reach is refused unbuilt. **ZF's
+axioms are theorems of base read back into Isabelle's form**
 (`DESIGN.md` "Step 8 — ZF's axioms, derived from NBG"): base states each in NBG's words — a primitive by its relation,
 a predicate Isabelle defines by its definition — and proves it, Regularity pinned for `foundation`; a lemma per axiom,
 `ZF_Base.a_AXIOM`, reads the words back, a named predicate by its `c_UNFOLD`, a primitive's application by its class at
-its tuple, `infinity`'s `succ` by `upair.succ_iff`; the registry hands provers the unit's named statements, and emission
+its tuple, `infinity`'s `succ` by `upair.succ_iff`; **`AC.AC` is derived from axiom 19, Choice, pinned as Gödel's E**
+(`DESIGN.md` "`AC.AC`"): base's `choice_function`, E in the unit's words, opened, and the unit's `func.lam_type` cited at
+`λx. F(B(x))` — an isa proof the prover writes and Logic's walk lowers; the registry hands provers the unit's named
+statements as the proving pass took and left them, and emission
 places a statement no earlier than what it cites; a defined predicate is unfolded at its terms as a proof cites it —
 a set term at its value, a λ at its class — and met to the statement's form (`DESIGN.md` "`infinity` read"), `Ball` at
 `Inf` among them. **The definition command's local constant at a function of classes or of propositions is
@@ -100,7 +105,7 @@ before the registry proves, and the unit keeps only what a kept statement cites 
 left out now, every one cited; a request set aside comes back when a proof the registry makes cites it. **Emission
 is built** (`DESIGN.md` "Emission"): `isa2fol lower data/zf_export --emit DIR` writes the unit as parts — a theory's
 theorems, a lemma in its first citer's part — and `scripts/check-unit.sh DIR` kernel-checks each against the libraries
-of base and of the parts it cites: all 49,510 claims and 6,202 schemas of the ZF session's unit Proved, 97 parts, 4.49 GB;
+of base and of the parts it cites: all 50,306 claims and 6,273 schemas of the ZF session's unit Proved, 97 parts, 4.52 GB;
 **each step is written once a proof** (`DESIGN.md` "A step written once a proof"): its key the node and the binders its
 indices name, gathered before writing by `Sharing`, it is placed in the innermost block holding its uses, a node met
 under keys that differ closed over the binders they differ in where that writes less, and it is cited only inside its
@@ -144,8 +149,8 @@ MEM=16G scripts/capped.sh scripts/check-base.sh [LIBDIR]   # base alone, each ti
 ```
 
 ⚠ **EACH UNIT OF WORK INTERNS INTO A LAYER OVER THE UNIT'S TABLE, WHICH TAKES ONLY WHAT ITS RESULTS REACH** (`DESIGN.md`
-"Memory — a unit of work's nodes leave with it"): the complete run fits the CI's `MEM=32G` again, peaking at 17.4 GB
-at emission (2026-10-20, `--threads 16`, 26:04); lowering stays under 8.0 GB (`DESIGN.md` "Memory under the CI's
+"Memory — a unit of work's nodes leave with it"): the complete run fits the CI's `MEM=32G` again, peaking at 17.5 GB
+at emission (2026-10-21, `--threads 16`, 25:33); lowering stays under 8.0 GB (`DESIGN.md` "Memory under the CI's
 32 GB"). ⚠ **A NODE IS 16 BYTES, A TYPE ONE WORD**: a kind wider than three children and a type is held behind a
 reference (`indirect`). Inline, the widest kind set every node's width, 80 bytes, which put 151M nodes at 20.3 GB
 (`aNodeIsSixteenBytesAndATypeOneWord`). ⚠ **A WALK'S CONTEXT IS A REFERENCE INTO ITS CHAIN OF BINDERS, NEVER A
@@ -304,7 +309,7 @@ determinism R1–R3 (§4.6).
    print(f'{c}/{t} = {100*c/t:.1f}%')"
    ```
 
-   ✓ **CURRENTLY 293/17501 = 1.7%, under the cap.** Keep it there: a breach is
+   ✓ **CURRENTLY 296/17606 = 1.7%, under the cap.** Keep it there: a breach is
    fixed by deleting prose, never by raising the cap.
 
    Does not apply to `base/**/*.fol.def` headers: those record provenance of

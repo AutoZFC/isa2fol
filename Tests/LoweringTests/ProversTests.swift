@@ -27,7 +27,7 @@ private struct Answering<R: Request>: Prover {
         l.request is R ? owned : nil
     }
 
-    func prove(_: Lemma, _: NodeID, _: [Definition], _: [String: NodeID], in _: inout Table) throws -> Proved {
+    func prove(_: Lemma, _: NodeID, _: [Definition], _: [String: NamedStatement], in _: inout Table) throws -> Proved {
         .proof(proof)
     }
 

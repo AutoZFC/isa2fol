@@ -228,7 +228,7 @@ public struct MeetingProver: Prover {
         _ l: Lemma,
         _ statement: NodeID,
         _: [Definition],
-        _: [String: NodeID],
+        _: [String: NamedStatement],
         in t: inout Table,
     ) throws -> Proved {
         let proofs = MeetingProofs(base: base)

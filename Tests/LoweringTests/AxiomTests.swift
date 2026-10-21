@@ -12,6 +12,8 @@ private let predicate = fn(i, o)
 private let quantifier = fn(i, fn(predicate, o))
 private let relation = fn(i, fn(i, o))
 private let replace = fn(i, fn(relation, i))
+private let function = fn(i, i)
+private let family = fn(i, fn(function, i))
 
 /// Isabelle's `Ball`, `Bex` and `⊆`, defined as `ZF_Base` defines them, and the axioms' statements over them, each
 /// closed in the export's order: the free variables as they first occur.
@@ -21,6 +23,8 @@ private struct Fixture {
     let bex = Defined(.zf, "ZF_Base.Bex", .object)
     let subset = Defined(.zf, "ZF_Base.Subset", .object)
     let succ = Defined(.zf, "ZF_Base.succ", .object)
+    let lambda = Defined(.zf, "ZF_Base.Lambda", .object)
+    let pi = Defined(.zf, "ZF_Base.Pi", .object)
 
     mutating func definitions() throws -> [Definition] {
         let x = try l.bound(0, i)
@@ -36,7 +40,39 @@ private struct Fixture {
             try l.definition(bex, quantifier, parameters: 2, try l.lam(i, try l.lam(predicate, bexBody))),
             try l.definition(subset, relation, parameters: 2, try l.lam(i, try l.lam(i, subsetBody))),
             try l.definition(succ, fn(i, i), parameters: 1, try l.lam(i, union)),
+            try l.definition(lambda, family, parameters: 2, try l.lam(i, try l.lam(function, try Self.image(&l)))),
+            try l.definition(pi, family, parameters: 2, try l.lam(i, try l.lam(function, try l.const(
+                .primitive(.zf(.pow)),
+                fn(i, i),
+                try Self.image(&l),
+            )))),
         ]
+    }
+
+    /// `f(x)`, the application of the function variable `f` at the bound `x`.
+    mutating func applied(_ f: Int, _ x: Int) throws -> NodeID {
+        try l.t.intern(.isaVarApp(head: try l.bound(f, function), args: [try l.bound(x, i)]))
+    }
+
+    /// `AC`: `⟦a ∈ A; ⋀x. x ∈ A ⟹ ∃y. y ∈ B(x)⟧ ⟹ ∃z. z ∈ Pi(A, B)`, `a`, `A`, `B` in the export's order.
+    mutating func choice() throws -> NodeID {
+        let member = try l.mem(try l.bound(2, i), try l.bound(1, i))
+        let some = try l.t.intern(.ifolEx(i, body: try l.mem(try l.bound(0, i), try applied(2, 1))))
+        let nonempty = try l.all(i, try l.imp(try l.mem(try l.bound(0, i), try l.bound(2, i)), some))
+        let product = try l.const(.defined(pi), family, try l.bound(2, i), try l.lam(i, try applied(2, 0)))
+        let goal = try l.t.intern(.ifolEx(i, body: try l.mem(try l.bound(0, i), product)))
+        return try l.all(i, try l.all(i, try l.all(function, try l.imp(member, try l.imp(nonempty, goal)))))
+    }
+
+    /// `func.lam_type`: `(⋀x. x ∈ A ⟹ b(x) ∈ B(x)) ⟹ (λx∈A. b(x)) ∈ Pi(A, B)`, `A`, `b`, `B` as they first occur.
+    mutating func lamType() throws -> NodeID {
+        let premise = try l.all(i, try l.imp(
+            try l.mem(try l.bound(0, i), try l.bound(3, i)),
+            try l.mem(try applied(2, 0), try applied(1, 0)),
+        ))
+        let built = try l.const(.defined(lambda), family, try l.bound(2, i), try l.lam(i, try applied(2, 0)))
+        let product = try l.const(.defined(pi), family, try l.bound(2, i), try l.lam(i, try applied(1, 0)))
+        return try l.all(i, try l.all(function, try l.all(function, try l.imp(premise, try l.mem(built, product)))))
     }
 
     mutating func ball(_ a: NodeID, _ p: NodeID) throws -> NodeID {
@@ -132,6 +168,14 @@ private struct Fixture {
         let next = try l.mem(try l.const(.defined(succ), fn(i, i), try l.bound(0, i)), inf)
         return try l.and(try l.mem(zero, inf), try ball(inf, try l.lam(i, next)))
     }
+
+    /// `PrimReplace(A, λx y. y = f(x))`, under `A` and `f`.
+    private static func image(_ l: inout LogicTable) throws -> NodeID {
+        let fx = try l.t.intern(.isaVarApp(head: try l.bound(2, function), args: [try l.bound(1, i)]))
+        let graph = try l.lam(i, try l.lam(i, try l.equal(i, try l.bound(0, i), fx)))
+        return try l.const(.primitive(.zf(.primReplace)), replace, try l.bound(1, i), graph)
+    }
+
 }
 
 private func lowered(_ axiom: Axiom.ZF, _ build: (inout Fixture) throws -> NodeID) throws -> IR.Unit {
@@ -214,7 +258,7 @@ func infinityReadsSuccByTheTheoremStatingItsMembers() throws {
         Lemma(fact),
         statement,
         definitions,
-        ["upair.succ_iff": members],
+        ["upair.succ_iff": NamedStatement(stated: succIff, statement: members)],
         in: &t,
     )
     guard case .proof(let p) = answer else {
@@ -236,6 +280,50 @@ func infinityReadsSuccByTheTheoremStatingItsMembers() throws {
     }
     let (_, unbuilt) = try proveAll(requests, definitions, in: &t)
     #expect(unbuilt.isEmpty)
+}
+
+/// `AC` is proved from base's choice function `F` by the unit's `func.lam_type` at `λx. F(B(x))`: an isa proof, lowered
+/// by Logic's walk, concluding the lemma's statement, through Fol, and the lemmas it cites proved in turn. The kernel
+/// sees it in the ZF session, where `func.lam_type` is proved; a fixture's has no proof to give.
+@Test
+func choiceIsProvedByLamTypeAtBasesChoiceFunction() throws {
+    var f = Fixture()
+    let definitions = try f.definitions()
+    let stated = try f.choice()
+    let lamType = try f.lamType()
+    var t = f.l.t
+    let b = try base(in: &t)
+    let statement = try formula(stated, .statement, in: &t)
+    let taken = NamedStatement(stated: lamType, statement: try formula(lamType, .statement, in: &t))
+    let fact = AxiomFact(axiom: .choice, stated: stated, statement: statement)
+    let answer = try AxiomProver(base: b).prove(Lemma(fact), statement, definitions, ["func.lam_type": taken], in: &t)
+    guard case .proof(let p) = answer else {
+        Issue.record("not proved: \(answer)")
+        return
+    }
+    #expect(t.conclusion(of: p) == statement)
+    let lowered = try run(Fol(base: b), [statement, p], in: &t)
+    #expect(t.conclusion(of: lowered[1]) == lowered[0])
+    try legalize(lowered[1], in: t)
+    var requests = [(Lemma, NodeID)]()
+    var seen = Set<NodeID>()
+    var work = [p]
+    while let id = work.popLast() {
+        guard seen.insert(id).inserted else { continue }
+        if case .use(.lemma(let l), _, let root) = t[id] { requests.append((l, root)) }
+        t[id].forEachChild { c, _ in work.append(c) }
+    }
+    let (_, unbuilt) = try proveAll(requests, definitions, in: &t)
+    #expect(unbuilt.isEmpty, "\(unbuilt)")
+}
+
+/// `AC` without `func.lam_type` in the unit refuses its lemma citing it, and the theorem with it.
+@Test
+func choiceWithoutLamTypeIsRefusedCitingIt() throws {
+    let unit = try lowered(.choice) { try $0.choice() }
+    let refusals = Dictionary(uniqueKeysWithValues: unit.refused.map { ($0.name, $0.refusal) })
+    #expect(refusals["AC.AC_AXIOM"] == .cites("func.lam_type"))
+    #expect(refusals["AC.AC"] == .cites("AC.AC_AXIOM"))
 }
 
 /// `Union_iff` with its bounded `∃` written out, so no predicate unfolds at a λ: `⋃`'s class read at its tuple against
@@ -306,7 +394,7 @@ func infinityWithItsBoundedForallWrittenOutReadsSuccByItsMembers() throws {
         Lemma(fact),
         statement,
         definitions,
-        ["upair.succ_iff": members],
+        ["upair.succ_iff": NamedStatement(stated: succIff, statement: members)],
         in: &t,
     )
     guard case .proof(let p) = answer else {

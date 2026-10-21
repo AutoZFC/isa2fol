@@ -84,7 +84,7 @@ private final class Proving: Registry {
     }
 
     var asked = [String]()
-    var handed = [String: NodeID]()
+    var handed = [String: NamedStatement]()
     let answer: (Lemma, NodeID, inout Table) throws -> Proved
     let defining: (Defined, inout Table) throws -> Stated
 
@@ -92,7 +92,7 @@ private final class Proving: Registry {
         _ lemma: Lemma,
         _ statement: NodeID,
         _: [Definition],
-        _ theorems: [String: NodeID],
+        _ theorems: [String: NamedStatement],
         in t: inout Table,
     ) throws -> Proved {
         asked.append(lemma.name)
@@ -220,6 +220,15 @@ private final class FirstConjunct: Rule {
 private let close = Owning(name: "close", owned: [free: .rule], rule: Close())
 private let elem = Owning(name: "elem", owned: [memAtom: .rule], rule: Elem())
 private let cite = Owning(name: "cite", owned: [axiomCited: .rule], rule: CiteLemma())
+private let citeElem = Owning(name: "citeElem", owned: [axiomCited: .rule, memAtom: .rule], rule: CiteAndElem())
+
+/// `cite` and `elem` in one pass: a lemma it requests is stated as it leaves its statements.
+private struct CiteAndElem: Rule {
+    func after(_ n: Node, was id: NodeID, context c: Depth, in t: inout Table) throws -> NodeID? {
+        if let cited = try CiteLemma().after(n, was: id, context: c, in: &t) { return cited }
+        return try Elem().after(n, was: id, context: c, in: &t)
+    }
+}
 
 /// `A → A`, proved by assuming `A`.
 private func identity(_ name: String, _ a: NodeID, _ t: inout Table) throws -> Statement {
@@ -584,9 +593,29 @@ func theRegistryHandsItsProversTheNamedStatements() throws {
     var unit = Unit(table: t, statements: [named, s])
     let registry = Proving { _, _, _ in .proof(viaT) }
     try Pipeline(passes: [cite, elem], registry: registry, provingAfter: "cite").run(&unit)
-    #expect(registry.handed == ["T": r, "S": r])
+    let same = NamedStatement(stated: r, statement: r)
+    #expect(registry.handed == ["T": same, "S": same])
     #expect(unit.refused.isEmpty)
     #expect(Set(unit.statements.map(\.name)) == ["T", "S", "L"])
+}
+
+/// A prover reads a named statement as the proving pass took it, to cite it as a proof does, and as the pass left it,
+/// the statement its citation concludes.
+@Test
+func theRegistryHandsItsProversEachNamedStatementAsTheProvingPassTookItAndLeftIt() throws {
+    var t = Table()
+    let (r, proof) = try reflexiveMem(&t)
+    let x = try t.intern(.folBound(0))
+    let atom = try t.intern(.folPred(.base("elem"), args: [x, x]))
+    let lowered = try t.intern(.folForall(body: try t.intern(.folImplies(atom, atom))))
+    let named = Statement(name: "T", root: r, proof: proof)
+    let s = try citing("L", "S", r, &t)
+    var unit = Unit(table: t, statements: [named, s])
+    let registry = Proving { _, statement, t in .proof(try t.intern(.use(.theorem("T"), [], statement))) }
+    try Pipeline(passes: [citeElem], registry: registry, provingAfter: "citeElem").run(&unit)
+    let taken = NamedStatement(stated: r, statement: lowered)
+    #expect(registry.handed == ["T": taken, "S": taken])
+    #expect(unit.refused.isEmpty)
 }
 
 /// A prover answering that its lemma's proof cites a statement the unit does not hold refuses the lemma so, and the

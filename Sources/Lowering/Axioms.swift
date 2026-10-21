@@ -66,14 +66,19 @@ public struct AxiomProver: Prover {
         _ l: Lemma,
         _ statement: NodeID,
         _ definitions: [Definition],
-        _ theorems: [String: NodeID],
+        _ theorems: [String: NamedStatement],
         in t: inout Table,
     ) throws -> Proved {
-        guard let r = l.request as? AxiomFact, let words = r.axiom.inNBG else { throw AxiomError.notMine(l.name) }
+        guard let r = l.request as? AxiomFact else { throw AxiomError.notMine(l.name) }
+        switch r.axiom {
+        case .choice: return try chosen(r, statement, theorems, in: &t)
+        case .extension, .unionIff, .powIff, .replacement, .foundation, .infinity: break
+        }
+        guard let words = r.axiom.inNBG else { throw AxiomError.notMine(l.name) }
         var members: (name: String, root: NodeID)?
         if let name = r.axiom.members {
-            guard let root = theorems[name] else { return .cites(name) }
-            members = (name, root)
+            guard let named = theorems[name] else { return .cites(name) }
+            members = (name, named.statement)
         }
         let reading = AxiomReading(base: base, definitions: definitions, members: members)
         if try reading.unbuilt(r.stated, &t) { return .unbuilt }
@@ -102,6 +107,91 @@ public struct AxiomProver: Prover {
     }
 
     let base: Base
+
+    /// ⚠ AN ISA PROOF, LOWERED BY LOGIC'S WALK: written in Logic's form, its instances at λs and its values would be a
+    /// second copy of Logic's rules.
+    private func chosen(
+        _ r: AxiomFact,
+        _ statement: NodeID,
+        _ theorems: [String: NamedStatement],
+        in t: inout Table,
+    ) throws -> Proved {
+        let name = "func.lam_type"
+        guard let lamType = theorems[name] else { return .cites(name) }
+        guard
+            case .ifolAll(.i, let a) = t[r.stated], case .ifolAll(.i, let aA) = t[a],
+            case .ifolAll(let F, let aAB) = t[aA], case .folImplies(let member, let rest) = t[aAB],
+            case .folImplies(let nonempty, let goal) = t[rest]
+        else { throw AxiomError.misread(r.stated) }
+        let function = try t.intern(.use(.base(BaseStatement.choiceFunction.rawValue), [], try choiceStatement(F, &t)))
+        guard let some = t.conclusion(of: function), case .ifolEx(F, let chooses) = t[some] else {
+            throw AxiomError.misread(function)
+        }
+        let bound = { (k: Int, T: IRType, t: inout Table) throws -> NodeID in try t.intern(.isaBound(k, T)) }
+        let applied = { (f: NodeID, x: NodeID, t: inout Table) throws -> NodeID in
+            try t.intern(.isaVarApp(head: f, args: [x]))
+        }
+        let x = try bound(0, .i, &t)
+        let atX = try applied(try bound(2, F, &t), x, &t)
+        let inA = try t.intern(.isaConst(.primitive(.zf(.mem)), .fn(.i, .fn(.i, .o)), args: [x, try bound(3, .i, &t)]))
+        let nonemptyAtX = try t.intern(.folImpliesElim(
+            try t.intern(.isaAllElim(try t.intern(.hyp(2, try shift(nonempty, by: 2, in: &t))), x)),
+            try t.intern(.hyp(0, inA)),
+        ))
+        let chosenAtX = try t.intern(.folImpliesElim(
+            try t.intern(.isaAllElim(try t.intern(.hyp(1, try shift(chooses, by: 1, in: &t))), atX)),
+            nonemptyAtX,
+        ))
+        let premise = try t.intern(.isaAllIntro(.i, body: try t.intern(.folImpliesIntro(inA, body: chosenAtX))))
+        let composed = try t.intern(.isaAbs(.i, body: try applied(
+            try bound(1, F, &t),
+            try applied(try bound(2, F, &t), try bound(0, .i, &t), &t),
+            &t,
+        )))
+        var built = try t.intern(.use(.theorem(name), [], lamType.stated))
+        for y in [try bound(2, .i, &t), composed, try etaLong(try bound(1, F, &t), in: &t)] {
+            built = try t.intern(.isaAllElim(built, y))
+        }
+        built = try t.intern(.folImpliesElim(built, premise))
+        let shifted = try shift(goal, by: 1, in: &t)
+        guard
+            let membership = t.conclusion(of: built),
+            case .isaConst(.primitive(.zf(.mem)), _, let xs) = t[membership], xs.count == 2,
+            case .ifolEx(.i, let witnessed) = t[shifted]
+        else { throw AxiomError.misread(built) }
+        var proof = try t.intern(.isaExElim(F, function, body: try t.intern(.isaExIntro(
+            built,
+            xs[0],
+            body: witnessed,
+        ))))
+        proof = try t.intern(.folImpliesIntro(nonempty, body: proof))
+        proof = try t.intern(.folImpliesIntro(member, body: proof))
+        for T in [F, .i, .i] { proof = try t.intern(.isaAllIntro(T, body: proof)) }
+        var memo = Memo()
+        let lowered = try Logic(base: base).run(
+            [r.stated, proof],
+            citing: [lamType.stated: lamType.statement],
+            sharing: &memo,
+            in: &t,
+        )
+        guard lowered[0] == statement, t.conclusion(of: lowered[1]) == statement else {
+            throw AxiomError.misread(statement)
+        }
+        return .proof(lowered[1])
+    }
+}
+
+private func choiceStatement(_ T: IRType, _ t: inout Table) throws -> NodeID {
+    let mem = { (x: NodeID, y: NodeID, t: inout Table) throws -> NodeID in
+        try t.intern(.isaConst(.primitive(.zf(.mem)), .fn(.i, .fn(.i, .o)), args: [x, y]))
+    }
+    let s = try t.intern(.isaBound(0, .i))
+    let member = try t.intern(.ifolEx(
+        .i,
+        body: try mem(try t.intern(.isaBound(0, .i)), try t.intern(.isaBound(1, .i)), &t),
+    ))
+    let chosen = try mem(try t.intern(.isaVarApp(head: try t.intern(.isaBound(1, T)), args: [s])), s, &t)
+    return try t.intern(.ifolEx(T, body: try t.intern(.ifolAll(.i, body: try t.intern(.folImplies(member, chosen))))))
 }
 
 private struct Application {

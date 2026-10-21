@@ -51,7 +51,7 @@ private enum Piece {
     case guardOf
     case variable
     case existsIntro
-    case existsElim
+    case existsElim(IRType)
     case hidden
     case unbuilt
     case renumber
@@ -66,7 +66,7 @@ private func piece(_ p: Pattern) -> Piece? {
     case .isaGuard(let T, _): isObject(T) ? .guardOf : nil
     case .isaBound(let T): mentionsTypeVariable(T) || T == .o ? nil : isObject(T) ? .variable : .unbuilt
     case .isaExIntro(_, let T, _): T == .i ? .existsIntro : nil
-    case .isaExElim(let T, _, _): T == .i ? .existsElim : nil
+    case .isaExElim(let T, _, _): isObject(T) ? .existsElim(T) : nil
     case .isaHidden(let T, _): T == .i ? .hidden : nil
     case .hyp: .renumber
     case .isaConst, .isaFree, .isaVarApp, .isaAbs, .isaOfClass, .isaReflexive, .isaSymmetric, .isaTransitive,
@@ -152,7 +152,10 @@ struct FolRule: Rule {
 
             case .forall(let T)?, .exists(let T)?: [.fix(T)]
 
-            case .existsElim?: [.fix(.i), .inserted(guard: false), .inserted(guard: true), .assume]
+            case .existsElim(let T)?:
+                guardPredicate(T) == nil
+                    ? [.fix(T), .assume]
+                    : [.fix(T), .inserted(guard: false), .inserted(guard: true), .assume]
 
             case .hidden?: [.fix(.i), .inserted(guard: true)]
 
@@ -227,9 +230,10 @@ struct FolRule: Rule {
                 try t.intern(.folAndIntro(try discharge(x, c, &t), q)),
             ))
 
-        case .existsElim?:
+        case .existsElim(let T)?:
+            guard case .isaExElim(_, let p, let body) = n else { throw FolError.notGuardedExistential(id) }
+            if guardPredicate(T) == nil { return try t.intern(.folExistsElim(p, body: body)) }
             guard
-                case .isaExElim(_, let p, let body) = n,
                 case .folExists(let both)? = t.conclusion(of: p).map({ t[$0] }),
                 case .folAnd = t[both]
             else { throw FolError.notGuardedExistential(id) }

@@ -58,6 +58,7 @@ public enum BaseStatement: String, CaseIterable, Hashable, Sendable {
     case zfUnionDef = "ZF_Base.Union_def"
     case zfPrimReplaceDef = "ZF_Base.PrimReplace_def"
     case zfPrimReplaceValue = "ZF_Base.PrimReplace_value"
+    case choiceFunction = "choice_function"
     case powEX = "Pow_EX"
     case powUNIQ = "Pow_UNIQ"
     case powCONG = "Pow_CONG"

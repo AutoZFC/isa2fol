@@ -7168,6 +7168,181 @@ parts, 49,510 claims, 6,202 schemas and 4,492,822,269 bytes, from a table of 150
 of the 97 parts kernel-checks with exit 0 and empty stderr: claims 49,510 of 49,510 and schemas 6,202 of 6,202 Proved
 (`check-unit.sh` under `MEM=32G`, 23:09, peak 4.7 GB). The tests: 14, 142, 169, 134 and 51 pass, none failing.
 
+### `AC.AC` — Choice pinned as Gödel's axiom E; Isabelle's AC by `lam_type` at base's choice function  **[AGREED 2026-10-20 (user: Gödel's E, over Mendelson's local AC and Step 8's reading of `Pi`); BUILT 2026-10-21, its decisions in the build for the user's review — `base/axioms`, `base/tiers/metafun`, `Sources/Lowering/Axioms.swift`, `Logic.swift`, `Fol.swift`, `Base.swift`, `Sources/IR/Pass.swift`, `docs/FOUNDATION.md`]**
+
+**The step.** Of the ZF session's 3,616 named theorems, 3,565 are lowered and 51 refused. 44 of the 51 stop at
+`AC.AC`: the axiom's theorem itself, refused at Logic as unbuilt, and the 43 that cite it, among them `AC.AC_Pi`,
+`Cardinal_AC.cardinal_eqpoll` and `Zorn.AC_well_ord`. Step 8 left it as "Choice, FOUNDATION §1's axiom 19, is
+unpinned, and `Pi(A, B)`'s members are read through `func`'s `Pi_iff`, `Sigma`, `domain` and Isabelle's own pairs —
+a step of its own." The other 7 are "A named theorem at a type no class restricts", below.
+
+**The problem, in target text.**
+
+```
+Isabelle   AC:  ⟦a ∈ A; ⋀x. x ∈ A ⟹ ∃y. y ∈ B(x)⟧ ⟹ ∃z. z ∈ Pi(A, B)        axiomatization, B :: i ⇒ i
+           Pi(A, B) ≡ {f ∈ Pow(Sigma(A, B)). A ⊆ domain(f) ∧ function(f)}
+base       FOUNDATION §1 names Choice, axiom 19, and states none; base has no statement to prove AC from
+now        Logic: use(axiom AC.AC) is unbuilt, because the axiom has no statement in NBG's words (`inNBG` nil)
+```
+
+**The root cause.** Choice is the one axiom of §1 that base has never stated, so nothing proves AC. The other six ZF
+axioms are lemmas read back from base's statements (Step 8), and AC waits on axiom 19. Reading AC back the way Step 8
+reads the six would read `Pi`'s members from NBG's words: `Pi_iff`, then `Sigma`, `domain`, `function` and
+Isabelle's pairs. The unit holds no theorem stating `Sigma`'s members at an arbitrary member, because `Sigma_iff`
+states them only at a pair.
+
+**1. Choice, FOUNDATION §1's axiom 19, is pinned as Gödel states it (his axiom E): one class chooses a member of
+every set that has one. Base admits it.**
+
+```
+axiom choice: exists F. ((forall x. forall y. forall z. (set(x) -> (set(y) -> (set(z) ->
+                  (pmem(x,y,F) -> (pmem(x,z,F) -> eq(y,z)))))))
+                & forall x. (set(x) -> ((exists u. (set(u) & elem(u,x))) -> exists y. (set(y) & (pmem(x,y,F) & elem(y,x))))))
+```
+
+This is Gödel's E (*The Consistency of the Continuum Hypothesis*, 1940) word for word in base's encoding. `F` is a
+class, unguarded. `Un(F)` is its single-valuedness, inlined as `replacement` inlines `Fun(F)`. `x ≠ 0 → F'x ∈ x`
+holds for each set `x`. B1–B7 are Gödel's group B, and E is the axiom of his system that base leaves out. NBG with E
+is conservative over ZFC (Felgner 1971), so a kernel proof from base witnesses a theorem of ZFC, as Isabelle's ZF
+with `AC` is. The axiom is exercised by base's selector (2) before it is trusted.
+
+Alternatives:
+- Mendelson's AC for sets ("for any set x there is a function f such that for any nonempty subset y of x,
+  f'y ∈ y"). Base's selector (2) would be the same statement with a longer proof: `⋃{B(x). x ∈ A}` built by
+  replacement first, then `f` on its subsets.
+- Isabelle's AC itself as the axiom: base cannot name the unit's `Pi`, and inventing a base axiom's form is what
+  base's header forbids.
+
+**2. Base proves AC's selector in the unit's words for a function, `AC.AC_NBG`.**
+
+```
+base   AC.AC_NBG: forall A. (set(A) -> forall B. (function(B) ->
+           ((forall x. (set(x) -> (elem(x,A) -> ⟦∃y. y ∈ B(x)⟧))) -> exists b. (function(b) & forall x. (set(x) -> (elem(x,A) -> ⟦b(x) ∈ B(x)⟧)))))))
+```
+
+`⟦…⟧` is the unit's rendering of an application of a class variable at a 1-tuple, as `func.lam_type` renders
+`b(x) ∈ B(x)`: `∀t. ⟨x⟩ = t → ∀v. apply(t, v, B) → …`. It uses base's predicates alone (`function`, `apply`,
+`zero`, `snoc`) and no constant of the unit. It is proved from `choice` by composing `B` with `F`. The graph of `b`,
+`{⟨t, v⟩. ∃w. apply(t, w, B) ∧ ⟨w, v⟩ ∈ F}`, is a class by B1–B7 (base's `cls_*` and `g*` lemmas). It is
+single-valued because `F` is, and `b(x) ∈ B(x)` wherever `B(x)` has a member.
+
+**3. `AC.AC`'s lemma, `AC.AC_AXIOM`, cites base's selector and the unit's `func.lam_type`, the theorem Isabelle builds a
+member of `Pi` by.**
+
+```
+lam_type    (⋀x. x ∈ A ⟹ b(x) ∈ B(x)) ⟹ (λx∈A. b(x)) ∈ Pi(A, B)
+proof       A, B, a and the two premises fixed;
+            AC.AC_NBG at A and B, its premise the axiom's second;  ∃-elim at i ⇒ i: the selector b, its body
+            func.lam_type at A, λx. b(x), λx. B(x): its premise the selector's body, met to the proof's form
+            ∃-intro at the value of λx∈A. b(x) (its EX);  met to the statement's form
+```
+
+The axiom's premise `a ∈ A` goes unused, because global choice needs no member of `A`. Fol gains an `∃`-elim at every
+object type: where the type has a guard (`function` at `i ⇒ i`), the guard and the body open by two cuts, as at `i`
+now; where it has none, the body is the one hypothesis. Base's selector is the first `∃` at `i ⇒ i` that a proof
+eliminates. Logic owns `use(axiom AC.AC)` as it owns the six, its lemma proved by the axioms' prover.
+
+| `AC.AC` | now | after |
+|---|---|---|
+| its citation | Logic: unbuilt | Logic: `AC.AC_AXIOM`, as the six |
+| its lemma | none | base's selector at `A`, `B`; `lam_type` at it; `∃`-intro at `λx∈A. b(x)` |
+| base | 18 axioms, Choice unstated | 19: `choice`, Gödel's E; `AC.AC_NBG` proved |
+
+Not Step 8's reading of `Pi` from NBG's words. That takes `Pi_iff`, then `Sigma`'s members at an arbitrary member
+(which no theorem of the unit states), `domain`'s, `function`'s, and Isabelle's pairs through `Upair_iff`: five
+readings of what `lam_type`, already proved in the unit, holds. Not the witness built in base, because base cannot
+name the unit's `Lambda` or `Pi`.
+
+**FOUNDATION first.** §1, axiom 19: Choice stated as Gödel's E. R1 is unchanged: 19 axioms, all of them now stated.
+S3: Isabelle's `AC` is read through the unit's `lam_type` at base's selector.
+
+**The contracts (D2):**
+
+| | provides | assumes |
+|---|---|---|
+| Base | `choice`, admitted (axiom 19); `AC.AC_NBG`, proved | NBG |
+| Fol | an `∃`-elim at every object type, a guarded one opened by two cuts as at `i` | — |
+| The axioms' prover | `AC.AC_AXIOM`, from `AC.AC_NBG` and `func.lam_type` | `func.lam_type` in the unit (`Proved.cites` otherwise); an instance at a λ (`instantiatedAtLambda`); a term's EX; `met` |
+| Logic | `use(axiom AC.AC)`: its lemma, as the six | the registry proves it or refuses it (I2) |
+| Emission | the lemma placed no earlier than `func` | as now |
+
+**Tests, written first.**
+- `check-base.sh`: `choice` admitted (19 axioms); `AC.AC_NBG` proved.
+- `FolTests`: an `∃`-elim at `i ⇒ i` is lowered, with `function`'s guard and the body opened by two cuts.
+- `AxiomTests`: `AC.AC` cited by its theorem, lowered to the end and kernel-checked with base and a fixture
+  `lam_type`. The theorem concludes its statement, and its lemma cites `AC.AC_NBG` and `lam_type`.
+- `PlanTests`: `use(axiom AC.AC)` is Logic's rule, no longer unbuilt.
+- The ZF session: the complete run, emitted and kernel-checked. The 44 are lowered, or what each stops at next is
+  named.
+
+**Not in this step.** The 7 named theorems at a type no class restricts.
+
+**Built.** Base: `choice`, axiom 19, with its exercise `choice_singleton` (`base/axioms`). `choice_function`
+(`base/tiers/metafun`) is E's class keyed by 1-tuples, `∃F. function(F) ∧ ∀s. (∃u. u ∈ s) → F(s) ∈ s` in the unit's
+words, proved from `choice` by `g6_snocsec`, `cls_conv`, `g6_comp` and `snoc_inj`. Base now has 19 axioms, and every
+tier is Proved. IR: the registry hands provers each named statement as the proving pass took it and as it left it
+(`NamedStatement`). Lowering: the axioms' prover proves `AC.AC_AXIOM` (`chosen`) by an isa proof that Logic's walk
+lowers, with `lam_type`'s statement as Logic took it:
+- base's choice function opened at `i ⇒ i`;
+- `func.lam_type` at `A`, `λx. F(B(x))` and `λx. B(x)`, its premise discharged by `F`'s choice at `B(x)`, which the
+  axiom's premise gives a member;
+- `∃`-intro at `Lambda(A, λx. F(B(x)))`.
+
+Logic owns every ZF axiom's citation, and Fol eliminates an `∃` at every object type. Tests:
+`AxiomTests.choiceIsProvedByLamTypeAtBasesChoiceFunction` and `choiceWithoutLamTypeIsRefusedCitingIt`,
+`FolTests.anExistentialAtAFunctionTypeIsOpenedByItsGuard`,
+`PipelineTests.theRegistryHandsItsProversEachNamedStatementAsTheProvingPassTookItAndLeftIt`, and `PlanTests`' row.
+
+**Decisions made in the build**, for the user's review:
+1. **Base states E in the unit's words, not decision 2's selector.** The selector, `∃b. ∀x∈A. b(x) ∈ B(x)`, is
+   instantiated at `λx. B(x)`. Its β lemma walks the formula to meet the named and valued forms, and that walk has no
+   case for an `∃` over a function: `BETA_<fp>` came back unbuilt on the fixture. E's class is closed, so it is opened
+   at the proof's top with nothing instantiated under it. The composite `λx. F(B(x))` is a λ that the class prover
+   builds like any other. `choice_singleton` exercises the axiom in place of the selector.
+2. **The lemma's proof is an isa proof, lowered by Logic's walk.** It is the derivation Isabelle would give from E,
+   so its instances, values and meetings are Logic's own, and the prover adds only the proof's skeleton.
+3. **The registry hands provers each named statement twice: as the proving pass took it and as it left it.** A proof
+   cites a theorem through the form Logic took, where its instances are read, and the citation concludes the form
+   Logic left.
+
+**Measured** (the ZF session, the release build, the lint first; `MEM=32G`, `--threads 16`): the complete run takes
+25:33 with a peak of 17.5 GB. **3,609 of the 3,616 named theorems are lowered**, against 3,565. All 3,565 are kept, and
+the 44 added are `AC.AC` and the 43 behind it: `AC`'s seven, `Cardinal_AC`'s 21, `InfDatatype`'s 10 and `Zorn`'s 5,
+among them `Zorn.Zorn`, `Zorn.Hausdorff` and `Zorn.AC_well_ord`. The 7 refused, named, are the ceiling below. No lemma
+is refused unbuilt and none is left out. Every proof and statement of the run before is the same text, and 867 proofs
+are added. The unit has 97 parts, 50,306 claims, 6,273 schemas and 4,518,493,956 bytes, from a table of 152,096,494
+nodes. Lowering takes 1,371.8 s (Expand 4.7 s, Logic 279.5 s, the registry 483.9 s, Fol 530.8 s), and emission
+118.6 s. Every part kernel-checks with exit 0 and empty stderr: claims 50,306 of 50,306 and schemas 6,273 of 6,273
+Proved (`check-unit.sh` under `MEM=32G`, 23:25, peak 4.7 GB). Base: 19 axioms; `axioms` 9 of 9, `metafun` 19 of 19.
+The tests: 14, 142, 172, 135 and 51 pass, none failing.
+
+### A named theorem at a type no class restricts — its own statement  **[DECIDED 2026-10-20 (user): (b), a ceiling, documented]**
+
+**The step.** 7 of the 51 refused are named theorems whose own statements quantify over a type with no class:
+`pair.split`, `pair.expand_split`, `ZF_Base.split_def`, `QPair.qsplit`, `QPair.expand_qsplit` and `QPair.qsplit_def`,
+all of `split, qsplit :: [[i, i] ⇒ 'a, i] ⇒ 'a::{}`, and `Inductive.def_trans` (`f ≡ g ⟹ g(a) = b ⟹ f(a) = b`,
+`f :: 'a ⇒ 'b`). Each is translated wherever it is cited, at the citer's type ("OFCLASS — …", 3; "A theorem cited
+at a type"). Only its own statement stops, at no owner.
+
+**The problem.** fol-zfc has no type variables. A statement at `'a` is a family of statements of different shapes,
+one per type: an equation of sets at `i`, an equivalence at `o`, an equation of classes at `i ⇒ o`. "A theorem cited
+at a type" rejected reading the generic theorem at one type under its own name, because that names one instance as
+the theorem.
+
+**Options.**
+- (a) Each type variable is read at the most general type fol-zfc states where it stands: a class (`i ⇒ o`) where it
+  is only a value, as in `split`, and a set where it is an argument, as in `def_trans`'s `'a`. The instances at `i`
+  and `o` follow from the one at `i ⇒ o`, because a set is the class of its members and a proposition is its truth
+  set. This reopens the rejection above. `expand_split`'s `R :: 'a ⇒ o` limits it: as a predicate on classes it
+  would need a schema letter over classes, a rule no pass has.
+- (b) A ceiling, like R6's two constants: the named statement has no fol-zfc statement, and its instances are
+  translated where cited. That makes 3,609 of 3,616, with the 7 outside FOL's reach, and the ceiling recorded in
+  FOUNDATION.
+
+**Decided: (b).** FOUNDATION §3b gains a row: a named theorem polymorphic in a type no class restricts has no
+statement of its own in the target, and each instance a proof cites is translated there. The 7 stay refused at no
+owner, and the ZF session's ceiling is 3,609 of 3,616 named theorems.
+
 ### Fol — binders, guards and variables  **[BUILT 2026-09-28 as the guard; Fol's 2026-10-14; every object type and `∃` at `i` with "Reify — S1 at the site" — `Sources/Lowering/Fol.swift`]**
 
 **Every isa binder at an object type, its intro, its variable and the guard of its variable become fol-zfc's, with the

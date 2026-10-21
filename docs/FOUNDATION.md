@@ -85,7 +85,17 @@ and `u ∩ X = ∅` "no member of `u` is in `A`", there being no function symbol
 `∩` or `∅`. Isabelle's `foundation` is its instance at a set. NBG with it is a
 conservative extension of ZF; without it the base answers to ZF without
 Foundation, which does not prove `foundation` (Rieger's permutation models).
-Choice is named and not stated: no statement of the base needs it yet.
+
+19. Choice `∃F. (∀x y z. set(x) → set(y) → set(z) → (⟨x,y⟩∈F → ⟨x,z⟩∈F → y = z)) ∧ ∀x. set(x) → (∃u. set(u) ∧ u∈x) → ∃y. set(y) ∧ ⟨x,y⟩∈F ∧ y∈x`
+
+Choice is Gödel's axiom E, global choice: one class `F`, single-valued, choosing a
+member of every set that has one. B1–B7 are Gödel's group B, and E is the axiom of
+his system they leave out. NBG with E is a conservative extension of ZFC (Felgner
+1971), so a proof from the base witnesses a theorem of ZFC, as Isabelle's ZF with
+`AC` is. Isabelle's `AC.AC` — `⟦a ∈ A; ⋀x. x ∈ A ⟹ ∃y. y ∈ B(x)⟧ ⟹ ∃z. z ∈ Pi(A,B)`
+— follows from E by Isabelle's own `lam_type` at `λx. F(B(x))`. The local form,
+Mendelson's (for any set `x` a function choosing from each nonempty subset of
+`x`), gives the same consequences for sets with a longer derivation.
 
 `set(·)` guards are written explicitly. They are mandatory on B3: unguarded, the
 complement of `∅` is the class of all objects → collapse.
@@ -773,8 +783,10 @@ constants in order, so EX/UNIQ/CONG propagate by induction. Three base cases:
   through `cons`, `∪`, `Upair` and `Replace`: its members are read by `succ_iff`,
   `i ∈ succ(j) ⟷ i = j ∨ i ∈ j`, a theorem Isabelle proves from the other axioms
   and not from `infinity`, so the least inductive set, closed under `y ∪ {y}`, is
-  closed under `succ` by Extensionality. Nothing is admitted (R1); `AC.AC` waits for
-  Choice.
+  closed under `succ` by Extensionality. Nothing is admitted (R1). `AC.AC` is read
+  from axiom 19: E's class keyed by 1-tuples, as the target applies a class
+  variable, opened, and Isabelle's `lam_type` cited at `λx. F(B(x))`, its premise
+  `F`'s choice at `B(x)`, which the axiom's premise says has a member.
 - **definite descriptions** are total and single-valued *provided* the
   `∅`-default is present; a bare Hilbert `ι` loses totality. **`The` is not one
   of these**, and an earlier version of this list said it was. Isabelle *defines*
@@ -1361,6 +1373,7 @@ specialisation at `kpair`.
 | Pure's `combination` | the premise at the argument, then the argument's equation substituted into the function by the formula's Leibniz lemma, membership's congruence at its atoms; at a proposition, the premise's truth instance, then the equivalence substituted by the formula's Leibniz lemma for a letter, `(P ↔ Q) → ψ(P) → ψ(Q)`; at a class, the premise at the λ's class and β, the two λs' classes having the same members by their definitions and the premise `a ≡ b`, the formula's Leibniz lemma for a class, `(∀z. z ∈ K ↔ z ∈ L) → ψ(K) → ψ(L)` — at a function class the same pairs, `∀t r. ⟨t, r⟩ ∈ K ↔ ⟨t, r⟩ ∈ L`, carrying `apply` too — then β at the other λ |
 | `Thm` of a theorem polymorphic in a type no class restricts, at a type binding no proposition on its spine | its proof at that type, in place: the target has no type |
 | `Thm` of a theorem polymorphic in a type no class restricts, at a type binding a proposition on its spine | its instance there, a schema of the unit named by its proof's content; `schema_inst` at the citation |
+| A named theorem polymorphic in a type no class restricts, as its own statement | none — a ceiling: the target has no type variable, and the theorem's instances differ in shape from type to type (an equation of sets at `i`, an equivalence at `o`, of classes at `i ⇒ o`); each instance a proof cites is translated there, as the two rows above say |
 | an application of a logical rule (`conjI`, `mp`, `spec`, `exE`, …) | the kernel's OWN step at its premises; never translated (S4) |
 | `exI` at `P` and `a` | base's `ex_intro` at `P`, then `forall_elim` at `a`: an ∃-introduction given its body |
 | an application of a definition whose constant is unfolded, `AppT` at its parameters | `reflexive` at its terms: the definiens at them on both sides, no binder introduced (S1) |

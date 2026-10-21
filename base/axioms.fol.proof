@@ -236,3 +236,61 @@ proof no_self_member:
     _i = implies_intro _c2
     _g = forall_intro _i
     qed _g
+
+proof choice_singleton:
+    _ch = use choice
+    _pg = use pairing
+    _ud = use upair_def
+    _rf = use eq_refl
+    _ef = exists_elim _ch, F
+    _pick = and_elim_r _ef
+    fix a
+    _sa = assume set(a)
+    _p1 = forall_elim _pg, a
+    _p2 = forall_elim _p1, a
+    _p3 = implies_elim _p2, _sa
+    _p4 = implies_elim _p3, _sa
+    _es = exists_elim _p4, s
+    _ss = and_elim_l _es
+    _sm = and_elim_r _es
+    _u1 = forall_elim _ud, a
+    _u2 = forall_elim _u1, a
+    _u3 = forall_elim _u2, s
+    _ua = and_intro _sa, _sm
+    _ub = and_intro _sa, _ua
+    _ups = iff_elim_r _u3, _ub
+    _m1 = forall_elim _sm, a
+    _m2 = implies_elim _m1, _sa
+    _aa = forall_elim _rf, a
+    _d = let eq(a,a)
+    _or = or_intro_l _aa, _d
+    _as = iff_elim_r _m2, _or
+    _hm = and_intro _sa, _as
+    _ne = exists_intro _hm, a
+    _c1 = forall_elim _pick, s
+    _c2 = implies_elim _c1, _ss
+    _c3 = implies_elim _c2, _ne
+    _ey = exists_elim _c3, y
+    _sy = and_elim_l _ey
+    _yr = and_elim_r _ey
+    _ysF = and_elim_l _yr
+    _ys = and_elim_r _yr
+    _y1 = forall_elim _sm, y
+    _y2 = implies_elim _y1, _sy
+    _y3 = iff_elim_l _y2, _ys
+    _hya = assume eq(y,a)
+    _k = implies_intro _hya
+    _ya = or_elim _y3, _k, _k
+    _q1 = and_intro _ysF, _ya
+    _q2 = and_intro _sy, _q1
+    _q3 = exists_intro _q2, y
+    _q4 = exists_intro _q3
+    _q5 = and_intro _ups, _q4
+    _q6 = and_intro _ss, _q5
+    _q7 = exists_intro _q6, s
+    _q8 = exists_intro _q7
+    _i1 = implies_intro _q8
+    _all = forall_intro _i1
+    _f1 = exists_intro _all, F
+    _f2 = exists_intro _f1
+    qed _f2

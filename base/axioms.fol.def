@@ -16,12 +16,12 @@
 # be the eq-form or set_cong does not go through -- so retyping is a real risk
 # that was avoided everywhere it could be.
 #
-# ONE OF THE 19 IS ABSENT: Choice (19). FOUNDATION §1 names it and does not state
-# it, and no unit needs it yet. Absent rather than guessed: inventing a statement
-# for a base axiom is exactly what "nothing is assumed" forbids, and §0 is the
-# standing evidence that a plausible-looking variant can be wrong. Pin it before a
-# unit needs it -- as `infinity` and `regularity` have been, each when the unit
-# could not do without it; see their own notes.
+# ALL 19 ARE STATED. Choice (19) was the last: FOUNDATION §1 named it and left it
+# unstated until a unit needed it, as `infinity` and `regularity` were each pinned
+# when the unit could not do without them -- Choice for Isabelle's `AC.AC`; see its
+# own note. Inventing a statement for a base axiom is what "nothing is assumed"
+# forbids, and §0 is the standing evidence that a plausible-looking variant can be
+# wrong: each of the three is a textbook axiom word for word, and each is exercised.
 #
 # WHAT `empty_from_infinity` DOES AND DOES NOT SHOW. It shows `infinity` is well
 # formed and usable -- a malformed or unusable statement fails there. It does NOT
@@ -93,7 +93,7 @@ axiom replacement: forall F. ((forall u. (set(u) -> (forall v. (set(v) -> (foral
 # that a plausible variant can be wrong).
 axiom infinity: exists z. (set(z) & ((exists e. (set(e) & (elem(e,z) & (forall u. (set(u) -> (~ elem(u,e))))))) & (forall y. (set(y) -> (elem(y,z) -> (exists s. (set(s) & (elem(s,z) & (forall w. (set(w) -> (elem(w,s) <-> (elem(w,y) | eq(w,y)))))))))))))
 
-# --- IV. Regularity (18). Choice (19) is unpinned, see the header.
+# --- IV. Regularity (18) and Choice (19).
 #
 # Regularity is NBG's axiom D as Mendelson states it, `forall X (X != 0 -> exists u
 # (u in X & u cap X = 0))`, word for word in this encoding: X a CLASS, unguarded;
@@ -103,6 +103,17 @@ axiom infinity: exists z. (set(z) & ((exists e. (set(e) & (elem(e,z) & (forall u
 # `foundation`, which nothing else here proves (ZF without Foundation has
 # permutation models with x in x); `no_self_member` below exercises it.
 axiom regularity: forall A. ((exists u. (set(u) & elem(u,A))) -> (exists u. (set(u) & (elem(u,A) & (forall v. (set(v) -> (elem(v,u) -> (~ elem(v,A)))))))))
+
+# Choice is Godel's axiom E (The Consistency of the Continuum Hypothesis, 1940),
+# global choice, word for word in this encoding: one class F, unguarded,
+# single-valued (`Un(F)`, inlined as Replacement inlines `Fun(F)`), choosing a
+# member of every set that has one (`x != 0 -> F'x in x`). B1-B7 are Godel's group B
+# and E the axiom of his system they leave out; NBG with E is conservative over ZFC
+# (Felgner 1971), so a kernel proof from base witnesses a theorem of ZFC, as
+# Isabelle's ZF with `AC` is. STATED, NOT COPIED: no accepted text held it. Pinned
+# for Isabelle's `AC.AC`, which nothing else here proves; `choice_singleton` below
+# exercises it.
+axiom choice: exists F. ((forall x. (set(x) -> (forall y. (set(y) -> (forall z. (set(z) -> (pmem(x,y,F) -> (pmem(x,z,F) -> eq(y,z))))))))) & (forall x. (set(x) -> ((exists u. (set(u) & elem(u,x))) -> (exists y. (set(y) & (pmem(x,y,F) & elem(y,x))))))))
 
 # --- Tier 1: the equality core. §8 -- every congruence step downstream
 # routes through this, and it is what replaces the banned eq_subst.
@@ -126,3 +137,8 @@ claim empty_from_infinity: exists z. (set(z) & (forall u. (set(u) -> (~ elem(u,z
 # would put x in both. It shows the axiom usable and carrying what the other 17 do
 # not; that it is not too strong rests on its being axiom D, word for word.
 claim no_self_member: forall x. (set(x) -> (~ elem(x,x)))
+
+# EXERCISES `choice`, as `no_self_member` exercises `regularity`: Pairing gives
+# {a}, which has a member, and the one class E gives chooses that member, a. It
+# shows the axiom usable; that it is not too strong rests on its being axiom E.
+claim choice_singleton: exists F. (forall a. (set(a) -> (exists s. (set(s) & (upair(a,a,s) & (exists y. (set(y) & (pmem(s,y,F) & eq(y,a)))))))))

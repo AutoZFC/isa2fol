@@ -156,7 +156,7 @@ public struct TupleProver: Prover {
         _ l: Lemma,
         _ statement: NodeID,
         _: [Definition],
-        _: [String: NodeID],
+        _: [String: NamedStatement],
         in t: inout Table,
     ) throws -> Proved {
         guard let f = l.request as? TupleFact else { throw TupleError.notMine(l.name) }

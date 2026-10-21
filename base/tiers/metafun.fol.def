@@ -59,3 +59,9 @@ schema graph_class [Q(2)]: (forall p. (set(p) -> (forall p1. (set(p1) -> (forall
 
 # A function variable's application as a class: its witness class, which a row reads as it reads a constant's.
 claim cls_apply: forall F. (exists W. (forall t. (set(t) -> (forall r. (set(r) -> (pmem(t,r,W) <-> apply(t,r,F)))))))
+
+# GODEL'S E IN THE UNIT'S WORDS FOR A FUNCTION (DESIGN "`AC.AC`"): choice_function, axiom 19's class F keyed by
+# 1-tuples, as the unit applies a class variable -- `function(F)` and F(s) by `apply` at s's 1-tuple. The translator's
+# AC.AC_AXIOM opens it and cites the unit's func.lam_type at `lam x. F(B(x))`. Proved from choice: E's class composed
+# with the converse of the 1-tuple relation (g6_snocsec, cls_conv, g6_comp), single-valued by snoc_inj and E's own.
+claim choice_function: exists F. (function(F) & (forall s. (set(s) -> ((exists u. (set(u) & elem(u,s))) -> (forall t. (set(t) -> ((forall e. (set(e) -> (zero(e) -> snoc(e,e,s,t)))) -> (forall v. (set(v) -> (apply(t,v,F) -> elem(v,s)))))))))))

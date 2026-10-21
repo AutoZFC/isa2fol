@@ -179,6 +179,36 @@ func anExistentialAtIIsGuardedWhereItIsOpenedAndClosed() throws {
     )))
 }
 
+/// `(∃b::i ⇒ i. R(b)) ⟹ ⊥` by `c`: `∃`-elim at a function type opens `function(b) ∧ R(b)`, its guard and its body, by
+/// two cuts of its projections, as at `i`.
+@Test
+func anExistentialAtAFunctionTypeIsOpenedByItsGuard() throws {
+    var f = F()
+    let fun = fn(i, i)
+    let rb = try f.t.intern(.folPred(.base("R"), args: [try f.t.intern(.isaBound(0, fun))]))
+    let someR = try f.t.intern(.ifolEx(fun, body: rb))
+    let bottom = try f.t.intern(.folBottom)
+    let c = Statement(name: "c", root: bottom, proof: try f.use("c_ax", bottom))
+    let proof = try f.assume(
+        someR,
+        try f.t.intern(.isaExElim(fun, try f.hyp(0, someR), body: try f.use("c", bottom))),
+    )
+    let unit = try lowered(f, [c, Statement(name: "thm", root: try f.imp(someR, bottom), proof: proof)])
+    var g = F(t: unit.table)
+    let v = try g.v(0)
+    let rv = try g.t.intern(.folPred(.base("R"), args: [v]))
+    let both = try g.t.intern(.folAnd(try g.t.intern(.folPred(.base("function"), args: [v])), rv))
+    let guarded = try g.t.intern(.folExists(body: both))
+    let body = try g.t.intern(.folCut(
+        try g.t.intern(.folAndElimL(try g.hyp(0, both))),
+        body: try g.t.intern(.folCut(try g.t.intern(.folAndElimR(try g.hyp(1, both))), body: try g.use("c", bottom))),
+    ))
+    #expect(try statement(unit, "thm").proof == (try g.assume(
+        guarded,
+        try g.t.intern(.folExistsElim(try g.hyp(0, guarded), body: body)),
+    )))
+}
+
 /// `λx h. lem x h`: the elimination at `x` owes `set(x)`, and `x`'s guard is one assumption
 /// back — `P(x)` lies between.
 @Test

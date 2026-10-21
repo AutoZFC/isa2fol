@@ -245,7 +245,7 @@ func eachPatternHasTheOwnerTheDivisionGivesIt() throws {
         (.use(.axiom(.zf(.powIff)), [], o), "logic", .rule),
         (.use(.axiom(.zf(.foundation)), [], o), "logic", .rule),
         (.use(.axiom(.zf(.infinity)), [], o), "logic", .rule),
-        (.use(.axiom(.zf(.choice)), [], o), "logic", .unbuilt),
+        (.use(.axiom(.zf(.choice)), [], o), "logic", .rule),
         (.use(.theoryAxiom, [], o), nil, nil),
         (.isaDefinition(.zf, .object, [], args: []), "logic", .rule),
         (.isaDefinition(.zf, .object, [], args: [i]), "logic", .rule),
@@ -526,7 +526,7 @@ private struct Unbuilt: Prover {
         _: Lemma,
         _ statement: NodeID,
         _: [Definition],
-        _: [String: NodeID],
+        _: [String: NamedStatement],
         in _: inout Table,
     ) throws -> Proved {
         .proof(statement)

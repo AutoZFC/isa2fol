@@ -13,7 +13,7 @@ public protocol Prover {
         _ l: Lemma,
         _ statement: NodeID,
         _ definitions: [Definition],
-        _ theorems: [String: NodeID],
+        _ theorems: [String: NamedStatement],
         in t: inout Table,
     ) throws -> Proved
     func defines(_ c: Defined) -> Owned?
@@ -29,7 +29,7 @@ public struct Provers: Registry {
         _ lemma: Lemma,
         _ statement: NodeID,
         _ definitions: [Definition],
-        _ theorems: [String: NodeID],
+        _ theorems: [String: NamedStatement],
         in t: inout Table,
     ) throws -> Proved {
         let (prover, owned) = try owner(lemma.name) { $0.owns(lemma) }
