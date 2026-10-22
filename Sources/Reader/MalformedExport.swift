@@ -44,10 +44,16 @@ public enum MalformedExport: Error, Equatable, Sendable {
     case unproved(statement: NodeID, conclusion: NodeID?)
     case cyclicClosure(String)
     case notADefinition(String)
+    case abbreviationOccurs(String)
+    case unreachedParameter(String)
+    case unreachedPremise(String)
 }
 
 @frozen
 public enum DialectGap: Error, Equatable, Sendable {
     case leaf(String)
     case axiom(String)
+    case parameter(String)
+    case premise(String)
+    case premiseAtItsTerms(String)
 }

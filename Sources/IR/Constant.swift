@@ -123,13 +123,11 @@ public enum Definiendum: Hashable, Sendable, CustomStringConvertible {
 public enum Constant: Hashable, Sendable {
     case primitive(Primitive)
     case defined(Defined)
-    case declared(String)
 
     public var name: String {
         switch self {
         case .primitive(let p): p.name
         case .defined(let d): d.name
-        case .declared(let name): name
         }
     }
 }
@@ -204,14 +202,13 @@ public enum Axiom: Hashable, Sendable, CustomStringConvertible {
 public enum Cited: Hashable, Sendable {
     case theorem(String)
     case axiom(Axiom)
-    case theoryAxiom(String)
     case lemma(Lemma)
     case base(String)
     case definition(Defined)
 
     public var name: String {
         switch self {
-        case .theorem(let name), .theoryAxiom(let name), .base(let name): name
+        case .theorem(let name), .base(let name): name
         case .axiom(let a): a.name
         case .lemma(let l): l.name
         case .definition(let c): c.definitionName

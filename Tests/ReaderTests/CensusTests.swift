@@ -42,15 +42,16 @@ private let ballDef = app(
     )))),
 )
 
-/// A miniature export; every proof concludes its statement, as the reader checks:
-///   T.M  (named)   False                 axiom T.onlyInM, a theory's own axiom
-///   T.N  (named)   False                 cite T.M: N's closure holds M's
+/// A miniature export; every proof concludes its statement, as the reader checks. A theory's own axiom is a premise of
+/// what reaches it:
+///   T.M  (named)   False                 axiom T.onlyInM
+///   T.N  (named)   False                 cite T.M: N's closure holds M's, and its premise
 ///   box 30         OFCLASS(i, term)      axiom T.termI
-///   T.Q  (named)   b = b                 reflAx[i] %% box 30 % b, a theory's own axiom
+///   T.Q  (named)   b = b                 reflAx %% box 30 % b
 ///   T.B  (named)   Ball(A, λx. x ∈ A)    axiom T.ballAx % A: Ball OCCURS, so its definition is in the closure
 ///   T.D  (named)   Ball ≡ λA P. …        axiom ZF_Base.Ball_def_raw: the definition CITED
 ///   T.O  (named)   False                 oracle: refused, not followed
-///   T.P  (named)   OFCLASS('a, term) ⟹ x = x   polymorphic, restricted to term, so read at i: λH. reflAx['a] %% H % x
+///   T.P  (named)   OFCLASS('a, term) ⟹ x = x   polymorphic, restricted to term, so read at i: λH. reflAx %% H % x
 private func census() throws -> Census {
     let theorems: [(String, Int, String)] = [
         ("T.N", 10, proofFile(frees: [], prop: falsum, proof: pcite(20, "ZF.T", "T.M"))),
@@ -58,7 +59,7 @@ private func census() throws -> Census {
         ("T.Q", 40, proofFile(
             frees: [("b", i)],
             prop: eq(i, free("b")),
-            proof: pappt(pappp(paxiom("T.reflAx", i), pcite(30, "ZF.T")), free("b")),
+            proof: pappt(pappp(paxiom("T.reflAx"), pcite(30, "ZF.T")), free("b")),
         )),
         ("T.B", 50, proofFile(frees: [("A", i)], prop: ballA, proof: pappt(paxiom("T.ballAx"), free("A")))),
         ("T.D", 60, proofFile(frees: [], prop: ballDef, proof: paxiom("ZF_Base.Ball_def_raw"))),
@@ -70,7 +71,7 @@ private func census() throws -> Census {
             proof: pabsp(
                 "H",
                 termClass(typeA),
-                pappt(pappp(paxiom("T.reflAx", typeA), pbound(0)), free("x")),
+                pappt(pappp(paxiom("T.reflAx"), pbound(0)), free("x")),
             ),
         )),
     ]
@@ -79,11 +80,7 @@ private func census() throws -> Census {
         "ZF.ZF_Base/theory/axioms": axiomEntity("ZF_Base.Ball_def_raw", prop: ballDef),
         "ZF.T/theory/axioms": axiomEntity("T.onlyInM", prop: falsum) + axiomEntity("T.termI", prop: termClass(i))
             + axiomEntity("T.ballAx", frees: [("A", i)], prop: ballA)
-            + axiomEntity(
-                "T.reflAx",
-                tfrees: ["'a"],
-                prop: imp(termClass(typeA), all("a", typeA, eq(typeA, bound(0)))),
-            ),
+            + axiomEntity("T.reflAx", prop: imp(termClass(i), all("a", i, eq(i, bound(0))))),
         "ZF.T/theory/thms": thmsFile(theorems.map { ($0.0, $0.1) }),
         "ZF.T/proofs/30": proofFile(frees: [], prop: termClass(i), proof: paxiom("T.termI")),
     ]
@@ -104,13 +101,15 @@ func thePopulationIsTheNamedTheoremsOfTheZFSessions() throws {
     #expect(c.refused == [.oracle("skip_proof"): 1], "T.O is counted, and not followed")
 }
 
-/// A citation is counted by what the reader types it as, never by its name.
+/// A citation is counted by what the reader types it as, never by its name; a theory's own axiom, a premise, once per
+/// theorem it is a premise of.
 @Test
 func aCitationIsCountedOncePerTheoremWhoseClosureHoldsIt() throws {
     let c = try census()
-    #expect(c.citations[.theoryAxiom("T.onlyInM")] == 2, "M, and N through the named M")
-    #expect(c.citations[.theoryAxiom("T.reflAx")] == 2, "Q, and P read at i")
-    #expect(c.citations[.theoryAxiom("T.termI")] == 1, "Q, through the unnamed box 30")
+    #expect(c.premises["T.onlyInM"] == 2, "M, and N through the named M")
+    #expect(c.premises["T.reflAx"] == 2, "Q, and P read at i")
+    #expect(c.premises["T.termI"] == 1, "Q, through the unnamed box 30")
+    #expect(c.premises["T.ballAx"] == 1, "B")
     #expect(
         c.definitions[CitedDefinition(
             axiom: "ZF_Base.Ball_def_raw",
@@ -126,8 +125,6 @@ func aPatternIsCountedThroughCitationsBoxesAndDefinitions() throws {
     let c = try census()
     #expect(c.patterns[.isaOfClass(.i)] == 2, "box 30's statement in Q's proof, and P's premise read at i")
     #expect(c.patterns[.isaPropAll] == 2, "Q and P, through the class's definition, as a constant's")
-    #expect(c.patterns[.use(.theoryAxiom, [.i], .o)] == 2, "Q, and P read at i")
-    #expect(c.patterns[.use(.theoryAxiom, [.variable("'a")], .o)] == nil, "no theorem is read at 'a")
     let ball = Pattern.isaConst(.defined(.zf, .object), ballType, args: [.i, .fn(.i, .o)])
     #expect(c.patterns[ball] == 2, "B's statement and D's")
     let definitionEquality = Pattern.isaConst(

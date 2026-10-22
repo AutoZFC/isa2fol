@@ -20,7 +20,7 @@ private struct K {
     }
 
     mutating func c(_ name: String) throws -> NodeID {
-        try n(.isaConst(.declared(name), o, args: []))
+        try p(name)
     }
 
     mutating func imp(_ a: NodeID, _ b: NodeID) throws -> NodeID {

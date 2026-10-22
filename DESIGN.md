@@ -304,7 +304,7 @@ The generic term language — ZF's own vocabulary, not logic at any level:
 
 | node | source | added | left out |
 |---|---|---|---|
-| `isaConst(Constant, T, args)` | any constant not read as logic above, fully applied, typed (§4.3b): a primitive (`IFOL.eq`, ZF_Base's six, `Pure.eq` at a function type or a type variable), a defined constant (every one `theory/constdefs` defines), or a declared one (a theory's own parameter) | its INSTANTIATED type `T` — it determines the type arguments and back, so the identity is the same | the declared scheme (`IFOL.eq :: 'a ⇒ 'a ⇒ o`): the READER instantiates it from `theory/consts` at the use's type arguments — the file's own variables where it is generic |
+| `isaConst(Constant, T, args)` | any constant not read as logic above, fully applied, typed (§4.3b): a primitive (`IFOL.eq`, ZF_Base's six, `Pure.eq` at a function type or a type variable), or a defined constant (every one `theory/constdefs` defines); a theory's own parameter is no constant but a variable of what reaches it ("A theory's own parameter, a variable of what reaches it") | its INSTANTIATED type `T` — it determines the type arguments and back, so the identity is the same | the declared scheme (`IFOL.eq :: 'a ⇒ 'a ⇒ o`): the READER instantiates it from `theory/consts` at the use's type arguments — the file's own variables where it is generic |
 | `isaHidden(T, body)` | `Pure.dummy_pattern`'s binder: a variable only the proof uses, bound at its proof's top, its occurrences `isaBound` (`isaPropBound` at `o`) ("Step 7") — a free `ZVar` of the statement reads as its closure binder's `isaBound` (§2); `isaFree(name, T)` is the index engine's (§4.4), never the reader's | | |
 | `isaBound(k, T)` | `ZBound k`, and a free `ZVar` under its statement's closure | **the type**, from the enclosing binder or the `frees` header | |
 | `isaVarApp(head, args)` | a variable applied — a class variable `P(x)` | | the head is an `isaFree` or `isaBound`, never merged into the constant namespace (rule 3) |
@@ -472,7 +472,7 @@ cited axioms (§4a, "Logic's second step").
 | the reference | here | principle |
 |---|---|---|
 | `Pure.dummy_pattern` is a `Primitive.pure`, and reify refuses it by name (`pureConstant`) | the variable only the proof uses, bound by `isaHidden(T, …)` at its proof's top ("Step 7") | §4.3: a node's meaning follows from the node alone |
-| ZF-Coind's and ZF-ex's own parameters are `Primitive.zf`, and their axioms `Axiom.zf` | `declared` and `theoryAxiom` | I1. R1 admits nothing beyond the 19, and these are not ZF's |
+| ZF-Coind's and ZF-ex's own parameters are `Primitive.zf`, and their axioms `Axiom.zf` | a variable of what reaches it, its theory's axioms premises ("A theory's own parameter, a variable of what reaches it"; first `declared` and `theoryAxiom`, which no rule read) | I1. R1 admits nothing beyond the 19, and these are not ZF's |
 | an unlisted leaf or axiom REFUSES the theorem (`Com.loc`: 102 theorems) | an unlisted leaf or axiom of the foundation STOPS the read; above the foundation nothing needs listing | D2: the reader never decides what translates, and a gap fails at its provider |
 | `Pure.prop` is erased, marked pending ("until Pure's own step (2b)") | `Pure.prop` is read as defined, like `↔` and `¬`: coverage applies to leaves only | D1: one rule per piece, with no pending exception |
 | `isaDefinition(_, of: Constant)`: a definition of a primitive is representable, and checked at load | `isaDefinition(_, of: Defined)` | I1 |
@@ -497,13 +497,13 @@ enum Primitive { case pure(Pure), ifol(IFOL), zf(ZF) }     // the leaves the tar
 //   pure: eq · ifol: eq · zf: mem zero Pow Union PrimReplace Inf
 enum Level     { case object, meta }                      // meta: the declared type mentions `prop` or a type variable
 struct Defined { let family: Family; let name: String; let level: Level }
-enum Constant  { case primitive(Primitive), defined(Defined), declared(String) }
+enum Constant  { case primitive(Primitive), defined(Defined) }
 enum Axiom     { case pure(Pure), ifol(IFOL), fol(FOL), zf(ZF) }
 //   pure: reflexive symmetric transitive combination abstract_rule equal_intr equal_elim
 //   ifol: refl subst impI mp conjI conjunct1 conjunct2 disjI1 disjI2 disjE FalseE allI spec exI exE
 //         eq_reflection iff_reflection · fol: classical
 //   zf:   extension replacement Pow_iff Union_iff foundation infinity, AC.AC
-enum Cited     { case theorem(String), isaDefinition(String, of: Defined), axiom(Axiom), theoryAxiom(String) }
+enum Cited     { case theorem(String), isaDefinition(String, of: Defined), axiom(Axiom) }
 
 // Node, changed
 case isaConst(Constant, IRType, args: [NodeID])   // was String
@@ -533,7 +533,7 @@ other theory's family is `zf` when it descends from `ZF.ZF_Base`.
 | a `Primitive` | `isaConst(.primitive(p))` |
 | `Pure.dummy_pattern` | `isaBound` under `isaHidden(T, …)` at its proof's top ("Step 7") |
 | a constant `theory/constdefs` defines: IFOL's `↔ ¬ ∃! True`, Pure's `PROP &&& TERM`, and every ZF definition | `isaConst(.defined(Defined(family, name, level)))` |
-| an undefined constant of a theory outside the foundation | `isaConst(.declared(name))` |
+| an undefined constant of a theory outside the foundation, its parameter | a variable of what reaches it, bound in front of a statement's own variables ("A theory's own parameter, a variable of what reaches it"); an abbreviation never occurs, and occurring is malformed |
 | an undefined constant of the foundation, none of the above | the read STOPS: `DialectGap.leaf(name)` |
 
 | a cited axiom | read as |
@@ -541,7 +541,7 @@ other theory's family is `zf` when it descends from `ZF.ZF_Base`.
 | an `Axiom` | `.axiom(a)` |
 | a definition (`theory/constdefs`) | `.isaDefinition(name, of: its constant)` |
 | an axiom of the foundation, none of the above | the read STOPS: `DialectGap.axiom(name)` |
-| an axiom of any other theory | `.theoryAxiom(name)` |
+| an axiom of any other theory | a premise of what reaches it, its citation the premise's hypothesis (`hyp`) |
 
 A named theorem is read as `.theorem(claim name)`.
 
@@ -550,15 +550,16 @@ every variable that a proof uses but its proposition does not as `dummy_pattern`
 term twin of the hidden type `dummy` (§4.3a 3), and like `dummy` it is ONE variable per type. That is sound, because a
 proof stays a proof under substitution for its free variables. The exporter merged the names away, so it has none.
 
-⚠ **A THEORY'S OWN PARAMETER IS NOT A ZF LEAF.** These are `declared`:
+⚠ **A THEORY'S OWN PARAMETER IS NOT A ZF LEAF.** These are its parameters:
 - ZF-Coind's `Language.Const`, `c_app` and `ExVar` (`axiomatization`: "these really can't be definitions"),
   `Static.isof` and `Types.TyConst`;
 - ZF-ex's `LList.flip`;
 - ZF-IMP's `Com.loc`.
 
-Their axioms `constNEE`, `c_appI`, `isof_app`, `flip_LNil` and `flip_LCons` are `theoryAxiom`s. Filed under ZF, they
-would give the switch over ZF's axioms a case whose only rule is a refusal (D1). What a theorem resting on them becomes
-is lowering's question.
+Their axioms `constNEE`, `c_appI`, `isof_app`, `flip_LNil` and `flip_LCons` are their theories' axioms. Filed under ZF,
+they would give the switch over ZF's axioms a case whose only rule is a refusal (D1). What a theorem resting on them
+becomes is the reader's (revised 2026-10-21, "A theory's own parameter, a variable of what reaches it", decision 2): a
+parameter a variable of what reaches it, an axiom a premise; first read `declared` and `theoryAxiom`, no rule had them.
 
 **3. A gap in the dialect stops the read; it is never a refusal.** A refusal would skip theorems silently. A gap is
 fixed by adding the case. Abbreviations (`IFOL.not_equal`, `ZF_Base.not_mem`, …) and Pure's proof-term constants
@@ -573,8 +574,8 @@ decides by a type switches over `IRType`'s own constructors and recurses into `f
 **Every pattern is built by ONE rule, the reference's** (`kinds-proposal:Sources/IR/Pattern.swift`). Take the node and
 replace each child by its type (a proof step by `o`), and a list of children by the list of their types. Replace a
 constant or a citation by its kind. Drop names, de Bruijn indices and class names (D1: a rule never keys on a name, the
-primitives excepted). A constant's kind is `primitive(p)`, `defined(family, level)` or `declared`. A citation's kind is
-`theorem`, `isaDefinition(family, level)`, `axiom(a)` or `theoryAxiom`. For example:
+primitives excepted). A constant's kind is `primitive(p)` or `defined(family, level)`. A citation's kind is `theorem`,
+`isaDefinition(family, level)` or `axiom(a)`. For example:
 - `isaConst(c, T, xs)` gives `isaConst(kind, T, args: types of xs)`;
 - `isaAllElim(p, x)` gives `isaAllElim(o, type of x)`;
 - `use(c, Ts, r)` gives `use(kind, Ts, o)`;
@@ -595,7 +596,7 @@ tests. How a pass states its sets, and where they are checked: §4a, "Lowering's
 **5. The census counts patterns** (`Reader.census()`, `Sources/Reader/Census.swift`). Its population is the
 reference's: the named theorems of the ZF sessions, everything they cite, and the definition of every constant that
 occurs, transitively. A count is the named theorems whose closure holds the pattern. `docs/SOURCE_SURFACE.md` lists
-every pattern the reader emits. `docs/CLOSURE.md` lists the citations of axioms, definitions and theory axioms. Both
+every pattern the reader emits. `docs/CLOSURE.md` lists the citations of axioms and definitions, and theory axioms as premises. Both
 are computed from the reader's output; the decoder census (`Sources/Reader/Surface.swift`) is deleted. D1's pieces
 are then exactly the patterns the passes switch over.
 ⚠ **A DEFINITION'S STATEMENT `c ≡ b` NAMES ITS OWN CONSTANT**: its closure leaves `c` out, or the walk revisits the
@@ -604,7 +605,7 @@ definition forever (it filled 32 GB before the fix). A constant reached again wh
 **Pinned by:** `theCoveredLeavesReadAsFolNodesAndADefinedConnectiveAsDefined`,
 `truepropIsErasedAndPropIsADefinedConstant`, `dummyPatternReadsAsTheHiddenVariable`,
 `anUnlistedLeafOfTheFoundationStopsTheRead`, `eachKindOfConstantHasItsReading`,
-`theExportsConstantsReadByTheirTheoriesAndDefinitions` (on the export: `Com.loc` declared, `IFOL.not_equal` a gap),
+`theExportsConstantsReadByTheirTheoriesAndDefinitions` (on the export: `Com.loc` a parameter, `IFOL.not_equal` a gap),
 `aVariableOnlyTheProofUsesIsTheHiddenVariable`, `aCitedAxiomIsTypedByWhatItIs`,
 `anUnlistedAxiomOfTheFoundationStopsTheRead`, `onePrimitiveAtSeveralTypesIsSeveralPatterns`,
 `aFolPatternKeepsItsArgumentsTypes`, and the census's three tests.
@@ -1042,11 +1043,11 @@ own rows exactly.
 |---|---|
 | a Pure, IFOL or FOL defined constant, or a ZF one at the meta level ("Expand", point 6); a citation of its definition | Logic, `expand` |
 | a citation of an IFOL or FOL axiom; Pure's equality steps; Pure's `≡` at a function type; an instance at `o`; a binder, an instance or a `λ` at a type beyond objects other than `o` (a function of propositions or of classes) | Logic |
-| an applied constant (a ZF primitive, a ZF definition at the object level, a declared constant, `IFOL.eq`); an applied variable; a `λ` at an object type; an instance at a class type, Lambda's | Reify, in the logic pass |
+| an applied constant (a ZF primitive, a ZF definition at the object level, `IFOL.eq`); an applied variable; a `λ` at an object type; an instance at a class type, Lambda's | Reify, in the logic pass |
 | a binder, a variable or the guard of a variable at `i`, `iⁿ ⇒ i` or `iⁿ ⇒ o`; an instance at `i`; `∃`-intro and `∃`-elim at an isa binder at `i` | Fol, with the guard Reify gives the type |
 | a bound variable at another type | Fol, unbuilt: no such variable outlives its binder's owner |
 | the both dialect's connectives, ⟹-intro and ⟹-elim, a hypothesis, a theorem or a lemma cited at no type arguments, and a binder, its intro and its variable at `o`, the schema's letter ("Logic") | none: fol-zfc has them |
-| a type variable, `OFCLASS` or a theorem cited at type arguments (decision 4); the hidden variable; a citation of a ZF axiom, a theory axiom or a ZF definition at the object level | **no owner yet**: each is its component's design question, and is refused before the first pass |
+| a type variable, `OFCLASS` or a theorem cited at type arguments (decision 4); the hidden variable; a citation of a ZF axiom or a ZF definition at the object level | **no owner yet**: each is its component's design question, and is refused before the first pass |
 
 **Built.** `Lowering.plan` is the three passes in order — expand, logic, fol — and `Lowering.pipeline` adds the
 registry, `Provers`, proving after logic. Reify has no pass: the logic pass's switch asks Reify's for every pattern
@@ -7607,6 +7608,148 @@ bytes; the table 179,234,579 nodes; stages expand 5.5 s, logic 329.6 s, registry
 run 30:57, peak 18.9 GB. A lemma is written in its first citer's part in emission's order, and ZF-AC's `AC_Equiv` and
 `AC18_AC19` cite only ZF theories that come before `ArithSimp`: 295 of the ZF session's lemmas are written in those two
 parts now, and ZF's later parts read their libraries.
+
+### A theory's own parameter, a variable of what reaches it — ZF-IMP's `loc`, ZF-Coind's `Const` …, ZF-ex's `flip`  **[AGREED 2026-10-21, decision by decision (user: "Agree to decision 1", "… 2", "… 3"; 4: "Yes"); BUILT 2026-10-22 — `Sources/Reader/Parameters.swift`, `Reader.swift`, `Terms.swift`]**
+
+**The step.** The target is ZF with ZF-IMP, ZF-Coind and ZF-ex (user, 2026-10-21; `$T`). In the complete run of every
+session but ZF-Constructible, ZF-IMP stood at 147 of 284, ZF-Coind 149 of 288 and ZF-ex 792 of 798: 282 refused, at a
+constant its theory declares and never defines (Logic, unbuilt: `isaConst(declared, …)`), at an axiom of the theory
+about one (no owner), or citing a theorem refused so. The reader reads these as `declared` and `theoryAxiom` (§2), and
+nothing has a rule for either; §2 left it: "What a theorem resting on them becomes is lowering's question."
+
+| theory | parameter | type | its axioms | definitions it reaches directly |
+|---|---|---|---|---|
+| ZF-IMP `Com` | `loc` | `i` | — | `aexp`, `com`, `evala`, `evalb`, `evalc`; `Denotation`'s `C`, `Gamma` |
+| ZF-Coind `Language` | `Const` | `i` | `constNEE`; `c_appI` | `Exp`, `Val_ValEnv`, `EvalRel`, `HasTyRel`, `ElabRel`, `isofenv` |
+| | `ExVar` | `i` | — | `Exp`, `TyEnv`, `Val_ValEnv`, `EvalRel`, `HasTyRel`, `ElabRel` |
+| | `c_app` | `i ⇒ i ⇒ i` | `c_appI`; `isof_app` | `EvalRel` |
+| ZF-Coind `Static` | `isof` | `i ⇒ i ⇒ o` | `isof_app` | `ElabRel`, `HasTyRel`, `isofenv` |
+| ZF-Coind `Types` | `TyConst` | `i` | — | `Ty` |
+| ZF-ex `LList` | `flip` | `i ⇒ i` | `flip_LNil`, `flip_LCons` | — |
+
+Through the definitions that use those, the parameters reach most of ZF-IMP and ZF-Coind: `bexp`'s definition holds
+`aexp`, `evalc`'s holds `com`.
+
+```
+Isabelle   consts loc :: i                          datatype aexp = N(n ∈ nat) | X(x ∈ loc) | Op1(…) | Op2(…)
+           lemma evala_fun: ⟨a,sigma⟩ -a-> n ⟹ ⟨a,sigma⟩ -a-> m ⟹ n = m
+read       isaConst(declared, i, args: [])          Reify: unbuilt — the theorem refused at Logic
+Isabelle   axiomatization Const :: i and c_app :: i ⇒ i ⇒ i
+             where constNEE: c ∈ Const ⟹ c ≠ 0  and  c_appI: c1 ∈ Const ⟹ c2 ∈ Const ⟹ c_app(c1,c2) ∈ Const
+read       use(theoryAxiom, …)                      no owner — refused before the first pass
+```
+
+**1. A theory's own parameter is a variable of each statement that reaches it, each of the theory's axioms the
+statement's proof reaches a premise of it, and a definition that reaches one takes it as an argument** (FOUNDATION §2,
+"A theory's own parameter is a variable of what reaches it"). Nothing is admitted; each theorem holds for every value
+of its parameters satisfying its premises.
+
+```
+after    claim LList.flip_LNil: forall b0. (function(b0) -> (A(b0) -> A(b0)))          flip a variable, its axiom a premise
+           A(b0) = forall b1. (set(b1) -> (LList.llist.LNil(b1) -> (forall b2. (set(b2) -> ((forall b3. (set(b3) ->
+             (zero(b3) -> snoc(b3, b3, b1, b2)))) -> (forall b3. (set(b3) -> (apply(b2, b3, b0) -> eq(b3, b1)))))))))
+         claim LList.flip_type: forall b0. (function(b0) -> (A(b0) -> (B(b0) ->       flip and its premises, then l
+           (forall b1. (set(b1) -> (… elem(b1, …) -> … apply(b2, b3, b0) -> elem(b3, …))))))))   B: flip_LCons at b0
+         @def(Com.aexp) axiom Com.aexp_DEF: forall b0. (Com.aexp(b0) <-> (forall b1. (set(b1) -> (forall b2. (set(b2) ->
+           (pmem(b1, b2, b0) <-> …))))))          aexp a function of loc, named as LList.lconst is: b1 = ⟨loc⟩
+```
+
+A parameter at a function type is a function variable, `function` its guard and `apply` its application, as every
+function variable is (FOUNDATION S5); at `i ⇒ … ⇒ o`, a class variable, its atom membership at the tuple (S4).
+
+Not `loc` fixed at one set: that proves less than Isabelle states. Not the axioms admitted (R1). Not a model chosen
+for them: none is needed.
+
+**2. The reader reads it, revising §2's "lowering's question".** A parameter reads as a bound variable of its
+statement's closure, as the variable only a proof uses already reads (`hidden`); applied, as that variable applied. A
+defined constant that reaches parameters reads with them as its leading arguments, and its definition takes them as
+its leading λs. A theory axiom's citation reads as its premise; a citation of a statement with parameters, at the
+citer's own parameters and premises. The reader's output then holds no declared constant that occurs and no theory
+axiom — two patterns with no rule leave the IR — and lowering reads what it reads already: a statement's variable at
+a set, a function or a class, a premise, a constant taking a set, a function or a class. Not a lowering pass: it
+would change what each statement and each constant's type is, across the unit, which the reader decides.
+
+**3. A statement is `⋀letters. ⋀p⃗. A⃗ ⟹ ⋀frees. φ`: the parameters and their premises in front of the statement's own
+variables, as in front of a definition's own arguments.** `⋀frees. φ` is Isabelle's statement as it stands, each
+parameter read as its variable; the letters stay at the top, schemas. A citation reads the cited letters as Isabelle's
+proof term gives them, then the citer's parameters and premise hypotheses, then Isabelle's remaining arguments, as many
+as it gives: it concludes Isabelle's proposition at that point, the parameters the citer's. Not after the frees: a
+citation giving fewer arguments than the cited theorem's variables would have to be η-expanded over the rest, and one
+occurs — of the three sessions' 10,695 citations of a theorem of theirs, 4 give fewer than its frees header, 2 of them
+of a box holding `loc` or `flip` (a scratch count, 2026-10-21). A definition takes its parameters as its leading λs,
+the same order. Parameters in their declaration order, axioms in theirs.
+
+**4. What reaches what is computed from the export before a statement is read**: in front of its own variables
+(decision 3), a statement's parameters fix the index of every variable its proof binds, and a citation applies the
+cited theorem's. A definition's parameters are those its definiens reaches, through the definitions it uses; a
+statement's are those its formula and its proof reach, through the definitions they use and the theorems and axioms
+the proof cites, and its premises the axioms its proof reaches so. A theory reaches only what it imports: a theorem of
+a theory importing no parameter's theory reaches none, unscanned — ZF's among them — and each other proof is scanned
+once before it is read, as `hide` scans one for the variable only it uses.
+
+**The contracts (D2):**
+
+| | provides | assumes |
+|---|---|---|
+| The reader | each statement closed over the parameters it reaches, in front of its own variables, after its letters, with the axioms it reaches as premises between; each definition and use of a constant reaching parameters with them as leading arguments; a citation at the citer's own | the export: a theory's declared constants and its axioms, its abbreviations, and its imports |
+| Lowering | nothing new: a set, function or class variable at a statement's top, a premise, a constant taking a set, function or class | the IR has no declared constant and no theory axiom: `Constant.declared` and `Cited.theoryAxiom` are removed |
+
+**Tests, written first.**
+- `ParameterTests`, on a theory above the foundation declaring `P.c :: i` and `P.F :: i ⇒ i` with an axiom about them:
+  the axiom Isabelle names a theorem reads `⋀c F. A ⟹ A`; a statement's own variable stands after the parameters and
+  the premise, the axiom's citation the premise's hypothesis; a citation takes the citer's parameters and hypotheses,
+  then Isabelle's arguments; a citation giving fewer arguments than its theorem's variables, of a named theorem and of
+  an inlined box, reads as Isabelle's does; a definition takes the parameters as leading arguments, its definiens as
+  leading λs, its citation at the citer's; a statement reaching none reads unchanged; one reaching them through its
+  proof alone has them. `ConstantsTests`: an undefined constant above the foundation is its parameter, an abbreviation
+  none and malformed where it occurs; on the export, the seven in the export's order.
+- `theExportsParametersReadAsVariablesOfWhatReachesThem`, on the export, ⚠ scale-gated (`ISA2FOL_SCALE=1`): it loads
+  every proof, 571 s in a debug build. `Com.aexp.intros(1)` closed over `loc` then `n`, `aexp` at it; `aexp`'s definiens
+  a leading λ; `Language.constNEE` `⋀Const. A ⟹ A`; `Values.ValNEE`'s proof citing it at a bound variable and a
+  hypothesis; `ZF_Base.subsetI` reaching none.
+- The target's complete run, emitted and kernel-checked: ZF-IMP's, ZF-Coind's and ZF-ex's refused counted again, ZF's
+  3,609 kept name for name. That no declared constant or theory axiom is left is the IR's: it has neither.
+
+**Built** (2026-10-22). `Sources/Reader/Parameters.swift`: `Reach`, a statement's parameters and premises in the
+export's order; `Reaches`, decision 4 — a vertex per theorem, constant and theory axiom, its own facts scanned from the
+export, closed iteratively, a theory importing no parameter's theory unscanned; `ParameterContext`, each parameter's
+type and each defined constant's parameters, computed when the reader is made. `Constants`: a constant's theory and
+whether it abbreviates; `parameters`; `reading` gives `.parameter`, an abbreviation occurring is malformed. `Terms`: the
+closure letters, parameters, other frees; `close` the premises between; `parameter(_:_:)` the variable, η-long; a
+defined constant reaching parameters takes them as leading arguments. `Reader`: `prove` and `stating` read a statement
+with its parameters and premises, each premise its axiom's statement instantiated at the statement's parameters, bound
+as hypotheses at the proof's top; a theory axiom's citation is its premise's hypothesis; a theorem's citation takes
+Isabelle's letters, then the citer's parameters and premise hypotheses, then Isabelle's remaining arguments; a
+definition's, the citer's parameters first; `definition(of:at:)` the parameters as leading λs; `restrictedToTerm` and
+`isReadAtItsTerms` step over the premises. IR: `Constant.declared` and `Cited.theoryAxiom` removed with their pattern
+kinds, lowering's switches without them. The census counts a theory axiom per statement it is a premise of
+(`Census.premises`). ⚠ **`AC.AC` IS THE DIALECT'S AXIOM, STATED ABOVE THE FOUNDATION** (`ZF.AC`): a theory's own axiom
+is an axiom above the foundation that is neither a definition nor one of `Axiom`'s (`isTheorysOwnAxiom`). Taken for a
+theory's own, every theorem resting on choice carried it as a premise instead of citing `AC.AC`, derived from axiom
+19, and the unit held no `AC.AC_AXIOM`: found by the first complete run's steps, which listed none, and pinned by
+`anAxiomOfTheDialectAboveTheFoundationIsCitedNeverAPremise`. Gaps that stop the read, none in the export: a parameter at a type no object has
+(`DialectGap.parameter`), a theory axiom stating a type variable (`premise`), a theorem read at its terms (step 9)
+with a premise (`premiseAtItsTerms`). Test fixtures: a theory axiom standing for a cited leaf is a cited theorem where
+the axiom was not the subject (`T.reflAx`, `T.vacAx`, `T.termI`), a premise where it was (`T.defax`, the census's); the
+reader fixture's opaque constants are defined; the IR's and lowering's stand-ins are a defined constant and a citation
+of base. Sources 18,047 lines, 302 comments.
+
+**Measured** (2026-10-22, the target `$T`, `MEM=32G`, `--threads 16`, the release build, the lint first). Tests 14, 152,
+178, 135, 52 pass, none failing; the export's test, scale-gated, passes in 571 s in a debug build.
+- **Every named theorem of the three sessions lowers and kernel-checks**: ZF-IMP 284 of 284, ZF-Coind 288 of 288,
+  ZF-ex 798 of 798 (before: 147, 149, 792), and ZF's 3,609 of 3,616, every claim and schema name of the ZF session's
+  own run present; refused, named: ZF's 7, the ceiling; @defs stated 422, refused 0; no lemma refused unbuilt or left
+  out. 4,979 of 4,986.
+- **The complete run**: 49:42, peak 26.8 GB — read 51.0 s; expand 6.5 s, logic 472.0 s, registry 1,163.2 s, fol
+  917.1 s, link 109.6 s; emitted 258.1 s, 136 parts, 6,293,806,360 bytes; the table 270,012,521 nodes.
+  `check-unit.sh`: 39:04, peak 4.8 GB, every part exit 0 and empty stderr, claims 72,408 of 72,408 and schemas 8,262
+  of 8,262 Proved.
+- ⚠ **26.8 GB of the CI's 32**, ZF with ZF-AC 18.9: the peak is emission's, as the seven sessions' 37.1 was.
+
+**Not in this step.** The other sessions: ZF-Constructible's memory first (the values a proof fixes at its top, copied
+at every depth), and ZF-Induct's 2 and ZF-Resid's 6 refused in the seven sessions' run, before the last two steps, not
+run since. A theory axiom stating a type variable, a parameter at a type no object has, and a theorem read at its
+terms with a premise stop the read; the export holds none.
 
 ### Fol — binders, guards and variables  **[BUILT 2026-09-28 as the guard; Fol's 2026-10-14; every object type and `∃` at `i` with "Reify — S1 at the site" — `Sources/Lowering/Fol.swift`]**
 

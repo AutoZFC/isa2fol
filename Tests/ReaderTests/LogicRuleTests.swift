@@ -471,9 +471,9 @@ private func logicReader() throws -> Reader {
             "FOL.classical",
             prop: mall("P", o, mimp(mimp(trueprop(not(b0)), trueprop(b0)), trueprop(b0))),
         ),
-        "ZF.T/theory/axioms": axiomEntity("T.termI", prop: ofclass(i, "IFOL.term")),
-        "ZF.T/theory/thms": thmsFile(theorems.map { ($0.0, $0.1) }),
-        "ZF.T/proofs/95": proofFile(frees: [], prop: ofclass(i, "IFOL.term"), proof: paxiom("T.termI")),
+        "ZF.T/theory/thms": thmsFile(theorems.map { ($0.0, $0.1) } + [("T.termI", 400)]),
+        "ZF.T/proofs/400": proofFile(frees: [], prop: ofclass(i, "IFOL.term")),
+        "ZF.T/proofs/95": proofFile(frees: [], prop: ofclass(i, "IFOL.term"), proof: pcite(400, "ZF.T", "T.termI")),
     ]
     for (_, serial, text) in theorems { files["ZF.T/proofs/\(serial)"] = text }
     let root = try writeExport(files)
@@ -659,7 +659,7 @@ func exIIsAnExistentialIntroGivenItsBodyAndSubstStaysACitation() throws {
         try e.assume(atFA, try e.n(.isaExIntro(try e.hyp(0, atFA), fa, body: someF))),
     )))
     #expect(patterns(under: [subst], in: r.table).contains(.use(.axiom(.ifol(.subst)), [.i], .o)))
-    #expect(patterns(under: [subst], in: r.table).contains(.use(.theoryAxiom, [], .o)))
+    #expect(patterns(under: [subst], in: r.table).contains(.use(.theorem, [], .o)))
 }
 
 /// A rule missing a term stops the read, as Pure's does.

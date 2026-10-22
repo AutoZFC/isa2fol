@@ -1196,7 +1196,7 @@ func setConstantExistence(_ c: Constant, _ base: Base, _ t: inout Table) throws 
         return try cited(f, try statement(f, in: &t), &t)
 
     case .primitive(.zf(.mem)), .primitive(.zf(.pow)), .primitive(.zf(.union)), .primitive(.zf(.primReplace)),
-         .primitive(.pure), .primitive(.ifol), .declared:
+         .primitive(.pure), .primitive(.ifol):
         throw TermsError.noFact("\(c.name), a set constant")
     }
 }

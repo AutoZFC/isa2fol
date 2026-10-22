@@ -145,7 +145,7 @@ func aHiddenVariableOutsideAProofIsMalformed() throws {
 @Test
 func anUndefinedConstantAboveTheFoundationIsDeclared() throws {
     var r = try Reading()
-    #expect(try r.proposition(const("T.claim")) == (try r.const(.declared("T.claim"), oT)))
+    #expect(try r.proposition(const("T.claim")) == (try r.const(defined(.zf, "T.claim", .meta), oT)))
 }
 
 /// `ZF_Base.not_mem` is an undefined constant of the foundation that the dialect does not list.
@@ -248,7 +248,7 @@ func aMetaQuantifierOverAPropositionIsPuresBoundAll() throws {
 func aPropositionValuedConstantReadsAsAFormulaConstant() throws {
     var r = try Reading()
     let got = try r.proposition(app(const("Pure.imp"), const("T.claim"), trueprop(const("IFOL.False"))))
-    #expect(got == (try r.n(.folImplies(try r.const(.declared("T.claim"), oT), try r.n(.folBottom)))))
+    #expect(got == (try r.n(.folImplies(try r.const(defined(.zf, "T.claim", .meta), oT), try r.n(.folBottom)))))
 }
 
 @Test
@@ -259,7 +259,7 @@ func aConstantOverPropositionsReadsWithPropAsO() throws {
         frees: [("A", i)],
     )
     let mem = try r.const(mem, memT, try r.bound(0), try r.free("A", iT, under: 1))
-    #expect(got == (try r.const(.declared("T.metaEx"), fnT(fnT(iT, oT), oT), try r.abs(iT, mem))))
+    #expect(got == (try r.const(defined(.zf, "T.metaEx", .meta), fnT(fnT(iT, oT), oT), try r.abs(iT, mem))))
 }
 
 @Test

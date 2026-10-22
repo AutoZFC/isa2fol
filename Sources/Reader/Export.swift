@@ -49,6 +49,7 @@ struct TheoremKey: Hashable {
 struct AxiomEntry {
     let theory: String
     let body: Body
+    let order: Int
 
     var file: String {
         "\(theory)/theory/axioms"
@@ -95,7 +96,7 @@ struct Families {
 
 }
 
-private func parents(of theory: String, in root: String) throws -> [String] {
+private func listedParents(of theory: String, in root: String) throws -> [String] {
     try String(contentsOfFile: "\(root)/\(theory)/theory/parents", encoding: .utf8).split(separator: "\n")
         .map(String.init)
 }
@@ -106,16 +107,18 @@ public struct Export {
         theories = try FileManager.default.contentsOfDirectory(atPath: root).sorted()
         for theory in theories {
             if let body = try theoryFile(theory, "consts") {
-                guard let family = try families.family(of: theory, parents: { try parents(of: $0, in: root) }) else {
+                guard let family = try families.family(of: theory, parents: { try listedParents(of: $0, in: root) })
+                else {
                     throw MalformedExport.constantsOutsideTheFamilies(theory: theory)
                 }
                 let inFoundation = families.isFoundation(theory)
                 try located("\(theory)/theory/consts") {
-                    try constants.load(body, family: family, foundation: inFoundation, in: forest)
+                    try constants.load(body, theory: theory, family: family, foundation: inFoundation, in: forest)
                 }
             }
             if let body = try theoryFile(theory, "classes") {
-                guard let family = try families.family(of: theory, parents: { try parents(of: $0, in: root) }) else {
+                guard let family = try families.family(of: theory, parents: { try listedParents(of: $0, in: root) })
+                else {
                     throw MalformedExport.classesOutsideTheFamilies(theory: theory)
                 }
                 try located("\(theory)/theory/classes") { try classes.load(body, family: family, in: forest) }
@@ -154,13 +157,18 @@ public struct Export {
             }
             try located("\(theory)/theory/axioms") {
                 for (name, body) in try entities(theory, "axioms") {
-                    guard axioms.updateValue(AxiomEntry(theory: theory, body: body), forKey: name) == nil else {
+                    let entry = AxiomEntry(theory: theory, body: body, order: axioms.count)
+                    guard axioms.updateValue(entry, forKey: name) == nil else {
                         throw MalformedExport.duplicateAxiom(name)
                     }
                 }
             }
         }
         return Corpus(names: names, files: files, axioms: axioms)
+    }
+
+    func parents(_ theory: String) throws -> [String] {
+        try located("\(theory)/theory/parents") { try listedParents(of: theory, in: root) }
     }
 
     mutating func names(_ theory: String) throws -> [Int: String] {

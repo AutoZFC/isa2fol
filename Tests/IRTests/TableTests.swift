@@ -213,7 +213,7 @@ func theGuardOfAVariableConcludesItsFormula() throws {
     let set = try t.intern(.folPred(.base("set"), args: [x]))
     let g = try t.intern(.isaGuard(x, set))
     #expect(t.conclusion(of: g) == set)
-    let a = try t.intern(.isaConst(.declared("a"), i, args: []))
+    let a = try t.intern(.isaConst(.defined(Defined(.zf, "a", .object)), i, args: []))
     #expect(throws: TableError.notATermVariable(a)) { try t.intern(.isaGuard(a, set)) }
     #expect(throws: TableError.childType(expected: o, found: i)) { try t.intern(.isaGuard(x, x)) }
 }
@@ -238,7 +238,7 @@ func aSchemaInstantiationConcludesItsPremisesLetterAtTheInstance() throws {
 func anEquationIsReadByItsType() throws {
     var t = Table()
     let A = try t.intern(.folPred(.base("A"), args: []))
-    let a = try t.intern(.isaConst(.declared("a"), i, args: []))
+    let a = try t.intern(.isaConst(.defined(Defined(.zf, "a", .object)), i, args: []))
     let f = try t.intern(.isaAbs(i, body: try t.intern(.isaBound(0, i))))
     #expect(try t.equation(o, A, A) == t.intern(.folIff(A, A)))
     #expect(try t.equation(i, a, a) == t.intern(.isaConst(.primitive(.ifol(.eq)), fn(i, fn(i, o)), args: [a, a])))
@@ -256,8 +256,8 @@ func pureEqualityStepsConcludeByTheReadingOfEquality() throws {
     let A = try t.intern(.folPred(.base("A"), args: []))
     let B = try t.intern(.folPred(.base("B"), args: []))
     let C = try t.intern(.folPred(.base("C"), args: []))
-    let a = try t.intern(.isaConst(.declared("a"), i, args: []))
-    let b = try t.intern(.isaConst(.declared("b"), i, args: []))
+    let a = try t.intern(.isaConst(.defined(Defined(.zf, "a", .object)), i, args: []))
+    let b = try t.intern(.isaConst(.defined(Defined(.zf, "b", .object)), i, args: []))
     let reflO = try t.intern(.isaReflexive(A))
     let reflI = try t.intern(.isaReflexive(a))
     #expect(t.conclusion(of: reflO) == (try t.equation(o, A, A)))
@@ -296,8 +296,8 @@ func aCombinationConcludesTheApplicationsBetaReduced() throws {
 func anAbstractionConcludesTheEquationOfItsLambdas() throws {
     var t = Table()
     let x = try t.intern(.isaBound(0, i))
-    let fx = try t.intern(.isaConst(.declared("F"), fn(i, o), args: [x]))
-    let gx = try t.intern(.isaConst(.declared("G"), fn(i, o), args: [x]))
+    let fx = try t.intern(.isaConst(.defined(Defined(.zf, "F", .object)), fn(i, o), args: [x]))
+    let gx = try t.intern(.isaConst(.defined(Defined(.zf, "G", .object)), fn(i, o), args: [x]))
     let pointwise = try t.intern(.hyp(0, try t.intern(.ifolAll(i, body: try t.equation(o, fx, gx)))))
     let step = try t.intern(.isaAbstract(fn(i, o), pointwise))
     let f = try t.intern(.isaAbs(i, body: fx))
@@ -453,8 +453,8 @@ func anImportAddsExactlyTheNewNodesItsResultsReach() throws {
 @Test
 func anImportedStepConcludesWhatItsLayerDerivedItsConclusionImportedWithIt() throws {
     var t = Table()
-    let p = try t.intern(.isaConst(.declared("P"), o, args: []))
-    let q = try t.intern(.isaConst(.declared("Q"), o, args: []))
+    let p = try t.intern(.isaConst(.defined(Defined(.zf, "P", .object)), o, args: []))
+    let q = try t.intern(.isaConst(.defined(Defined(.zf, "Q", .object)), o, args: []))
     var layer = Table(over: t)
     let both = try layer.intern(.folAndIntro(try layer.intern(.hyp(0, p)), try layer.intern(.hyp(1, q))))
     let before = t.count

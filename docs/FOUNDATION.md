@@ -628,6 +628,29 @@ formula.
 > inside a premise — a truth-set variable, not a schema (§2 S4). That is Pure's `⋀`
 > over `prop`, not this border: in a conclusion the same unfolding is a schema.
 
+**A theory's own parameter is a variable of what reaches it, and its theory's axioms
+are premises** (agreed 2026-10-21). Above the foundation, three sessions declare
+constants they never define, and constrain some by axioms of their own: ZF-IMP's
+`loc`, its set of locations; ZF-Coind's `Const`, `c_app`, `ExVar`, `TyConst` and
+`isof`, constrained by `constNEE`, `c_appI` and `isof_app` ("these really can't be
+definitions"); ZF-ex's `flip`, given by `flip_LNil` and `flip_LCons`, a corecursion
+the package cannot define. Such a constant denotes no particular set: its theory
+proves what holds of every value of it that satisfies its axioms. So:
+- a statement that reaches one — in its own formula, through a definition it uses,
+  or through what its proof cites — is closed over it, a variable at its object
+  type: a set, a function or a class, guarded as every variable of that type;
+- each of the theory's axioms its proof reaches is a premise of it, `A⃗(p⃗) ⟹ φ`,
+  and where Isabelle cites the axiom the proof cites the premise;
+- a definition that reaches one takes it as an argument: `aexp ≡ lfp(… loc …)` is
+  `aexp(loc) ≡ lfp(… loc …)`, named as any constant taking a set;
+- a citation instantiates what it cites at its own variables and discharges the
+  premises cited by its own.
+
+Nothing is admitted (R1): each theorem is proved for every value of its parameters
+that satisfies its premises, R2's parametric proof stated in the object logic. Fixing
+a parameter at one set would prove less than Isabelle states, and choosing one that
+satisfies its axioms would need a model of them; this reading needs neither.
+
 **S2 — Every constant carries EX, UNIQ, and — when it takes arguments — CONG.**
 The three are claims about an `F` **that encodes a function** `f`, `F(x⃗,r)`
 reading `f(x⃗) = r`. They say nothing about a predicate that encodes no

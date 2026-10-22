@@ -28,8 +28,9 @@ public enum Outcome: Equatable, Sendable {
 }
 
 struct ProofScope: Hashable {
-    init(_ terms: Scope) {
+    init(_ terms: Scope, premises: [NodeID] = [], at depth: Int = 0) {
         self.terms = terms
+        hypotheses = premises.map { Hypothesis(formula: $0, depth: depth) }
     }
 
     struct Hypothesis: Hashable {
@@ -67,7 +68,14 @@ private struct FileProof {
     }
 
     var terms: Terms
+    var premises = [String]()
     var steps = [Key: NodeID]()
+}
+
+private enum Applied {
+    case given(ProofArgument)
+    case term(NodeID)
+    case proof(NodeID)
 }
 
 private let axioms = Dictionary(uniqueKeysWithValues: Axiom.all.map { ($0.name, $0) })
@@ -192,6 +200,15 @@ public struct Reader {
         population = corpus.names.keys.filter { session(of: $0.theory) != nil }
             .sorted { ($0.theory, $0.serial) < ($1.theory, $1.serial) }
             .map { Theorem($0) }
+        reaches = Reaches(decode, constants, corpus, families, reaching: try Reaches.reaching(export, corpus))
+        for name in constants.parameters {
+            guard let d = constants[name] else { throw MalformedExport.undeclaredConstant(name) }
+            parameterContext.types[name] = try d.scheme.irType()
+        }
+        for name in constants.names where constants[name]?.definition != nil {
+            let own = try reaches.parameters(ofConstant: name)
+            if !own.isEmpty { parameterContext.ofConstant[name] = own }
+        }
     }
 
     public private(set) var table = Table()
@@ -212,6 +229,10 @@ public struct Reader {
     }
 
     private(set) var citedAs = [String: Theorem]()
+
+    mutating func reach(of theorem: Theorem) throws -> Reach {
+        try reaches.of(theorem.key)
+    }
 
     func typeVariables(of theorem: Theorem) throws -> [String] {
         try located(theorem.key.path) { try decode.proofFile(try corpus.file(theorem.key)).0.tfrees }
@@ -241,7 +262,12 @@ public struct Reader {
                 return name
             }
             guard names == e.frees.map(\.0) else { throw MalformedExport.notADefinition(axiom) }
-            let declared = try e.frees.reversed().reduce(try type.irType()) { U, free in .fn(try free.1.irType(), U) }
+            let own = parameterContext.ofConstant[d.name] ?? []
+            let stated = try e.frees.reversed().reduce(try type.irType()) { U, free in .fn(try free.1.irType(), U) }
+            let declared = try own.reversed().reduce(stated) { U, p in
+                guard let P = parameterContext.types[p] else { throw MalformedExport.unreachedParameter(p) }
+                return .fn(P, U)
+            }
             var bound = [String: IRType]()
             guard match(declared, T, &bound) else { throw MalformedExport.notADefinition(axiom) }
             let instance = try e.tfrees.map { v in
@@ -255,6 +281,8 @@ public struct Reader {
                 file: e,
                 at: instance,
                 order: .stated,
+                parameters: own,
+                context: parameterContext,
             )
             let body = try terms.term(rhs, try terms.irType(type), terms.closure, in: &table)
             let definiens = try terms.close(body, Node.isaAbs, in: &table)
@@ -262,7 +290,7 @@ public struct Reader {
                 defines: .constant(d),
                 type: T,
                 axiomTypes: instance,
-                parameters: names.count,
+                parameters: own.count + names.count,
                 definiens: definiens,
             )
         }
@@ -316,6 +344,8 @@ public struct Reader {
     private var readAt = [TheoremKey: [IRType]]()
     private var definienda = [String: Definiendum]()
     private var classAxioms: [TypeClass: String]?
+    private var reaches: Reaches
+    private var parameterContext = ParameterContext()
 
     private mutating func types(of key: TheoremKey) throws -> [IRType] {
         if let types = readAt[key] { return types }
@@ -323,15 +353,21 @@ public struct Reader {
         var types = tfrees.map(IRType.variable)
         if !tfrees.isEmpty {
             let stated = try statement(Instance(source: .theorem(key), types: types))
-            if restrictedToTerm(stated) == Set(tfrees) { types = tfrees.map { _ in .i } }
+            let premises = try reaches.of(key).premises.count
+            if restrictedToTerm(stated, premises: premises) == Set(tfrees) { types = tfrees.map { _ in .i } }
         }
         readAt[key] = types
         return types
     }
 
-    private func restrictedToTerm(_ statement: NodeID) -> Set<String> {
+    private func restrictedToTerm(_ statement: NodeID, premises: Int) -> Set<String> {
         var x = statement
         var restricted = Set<String>()
+        while case .ifolAll(_, let body) = table[x] { x = body }
+        for _ in 0..<premises {
+            guard case .folImplies(_, let rest) = table[x] else { return [] }
+            x = rest
+        }
         while case .ifolAll(_, let body) = table[x] { x = body }
         while case .folImplies(let premise, let rest) = table[x], case .isaOfClass(let T, let c) = table[premise] {
             guard case .variable(let v) = T, c.name == termClass else { return [] }
@@ -344,6 +380,7 @@ public struct Reader {
     private mutating func prove(_ key: TheoremKey, at types: [IRType]) throws -> (statement: NodeID, proof: NodeID) {
         let instance = Instance(source: .theorem(key), types: types)
         if let proved = proofs[instance] { return proved }
+        let reach = try reaches.of(key)
         let proved = try located(key.path) {
             let (e, proof) = try decode.proofFile(try corpus.file(key))
             var f = FileProof(terms: try Terms(
@@ -353,11 +390,16 @@ public struct Reader {
                 file: e,
                 at: types,
                 order: .lettersFirst,
+                parameters: reach.parameters,
+                context: parameterContext,
             ))
+            f.premises = reach.premises
             letterMasks[instance] = f.terms.letters
-            let root = try f.terms.statement(e.prop, in: &table)
-            let body = try step(proof, ProofScope(f.terms.closure), &f, top: true)
-            let p = try f.terms.close(body, Node.isaAllIntro, in: &table)
+            let premised = try premises(reach.premises, at: f.terms)
+            let root = try f.terms.statement(e.prop, premising: premised, in: &table)
+            let s = ProofScope(f.terms.closure, premises: premised, at: f.terms.front.depth)
+            let body = try step(proof, s, &f, top: true)
+            let p = try f.terms.close(body, Node.isaAllIntro, premising: premised, Node.folImpliesIntro, in: &table)
             guard table.conclusion(of: p) == root else {
                 throw MalformedExport.unproved(statement: root, conclusion: table.conclusion(of: p))
             }
@@ -378,7 +420,7 @@ public struct Reader {
             let stated = try statement(Instance(source: .theorem(key), types: read))
             if spineLetters(stated, in: table) > 0 {
                 let proof = try prove(key, at: read).proof
-                if !isReadAtItsTerms(proof) {
+                if !isReadAtItsTerms(proof, premises: try reaches.of(key).premises.count) {
                     c = "\(key.theory.split(separator: ".").last!).BOX_\(fingerprint(proof, table))"
                 }
             }
@@ -404,60 +446,106 @@ public struct Reader {
             return p
         }
         var p: NodeID
-        var arguments = spine.arguments[...]
+        var pending: [Applied]
+        var premises = 0
         if case .axiom(let name, let types) = spine.node, let rule = Rule(name) {
-            (p, arguments) = try applied(rule, try types.map(f.terms.irType), arguments, s, &f)
+            let (q, rest) = try applied(rule, try types.map(f.terms.irType), spine.arguments[...], s, &f)
+            (p, pending) = (q, rest.map(Applied.given))
         } else if case .axiom(let name, let types) = spine.node, let d = constants.defined(byAxiom: name) {
-            (p, arguments) = try definition(
+            let (q, rest) = try definition(
                 name,
                 try definiendum(name, d),
                 try types.map(f.terms.irType),
-                arguments,
+                spine.arguments[...],
                 s,
                 &f,
             )
+            (p, pending) = (q, rest.map(Applied.given))
         } else {
-            p = try head(spine.node, s, &f, top: top && arguments.isEmpty)
+            p = try head(spine.node, s, &f, top: top && spine.arguments.isEmpty)
+            pending = spine.arguments.map(Applied.given)
             if case .theorem(let c) = spine.node {
-                let instance = Instance(
-                    source: .theorem(TheoremKey(theory: c.theory, serial: c.serial)),
-                    types: try c.types.map(f.terms.irType),
-                )
-                arguments = try citedLettersFirst(arguments, try letters(of: instance))
+                let cited = TheoremKey(theory: c.theory, serial: c.serial)
+                let instance = Instance(source: .theorem(cited), types: try c.types.map(f.terms.irType))
+                let letters = try letters(of: instance)
+                let arguments = try citedLettersFirst(spine.arguments[...], letters)
+                let reach = try reaches.of(cited)
+                let n = letters.count(where: { $0 })
+                var own = [Applied]()
+                for name in reach.parameters { own.append(.term(try f.terms.parameter(name, s.terms, in: &table))) }
+                for name in reach.premises { own.append(.proof(try premise(name, s, f.premises))) }
+                premises = reach.premises.count
+                if premises > 0, isReadAtItsTerms(p, premises: premises) {
+                    throw DialectGap.premiseAtItsTerms(cited.path)
+                }
+                pending = arguments.prefix(n).map(Applied.given) + own + arguments.dropFirst(n).map(Applied.given)
             }
         }
-        let substituting = isReadAtItsTerms(p)
-        for argument in arguments {
+        let substituting = isReadAtItsTerms(p, premises: premises)
+        for argument in pending {
             switch argument {
-            case .term(let x):
+            case .given(.term(let x)):
                 let concluded = table.conclusion(of: p).map { table[$0] }
                 let T: IRType
                 if case .ifolAll(let U, _)? = concluded { T = U } else if case .isaPropAll? = concluded { T = .o }
                 else {
                     throw TableError.principalConnective(p)
                 }
-                let term = try f.terms.term(x, T, s.terms, in: &table)
-                if substituting, case .isaAllIntro(_, let body) = table[p] {
-                    p = try instantiate(body, with: term, in: &table)
-                } else {
-                    p = try table.intern(.isaAllElim(p, term))
-                }
+                p = try instantiating(p, try f.terms.term(x, T, s.terms, in: &table), substituting)
 
-            case .proof(let q):
+            case .given(.proof(let q)):
                 p = try table.intern(.folImpliesElim(p, try step(q, s, &f)))
+
+            case .term(let term):
+                p = try instantiating(p, term, substituting)
+
+            case .proof(let h):
+                p = try table.intern(.folImpliesElim(p, h))
             }
         }
         f.steps[key] = p
         return p
     }
 
-    private func isReadAtItsTerms(_ p: NodeID) -> Bool {
-        var p = p
-        while case .isaAllIntro(let T, let body) = table[p] {
-            if takesAFunctionOrProposition(T), !mentionsTypeVariable(T) { return true }
-            p = body
+    private mutating func instantiating(_ p: NodeID, _ term: NodeID, _ substituting: Bool) throws -> NodeID {
+        if
+            substituting,
+            case .isaAllIntro(_, let body) = table[p] { return try instantiate(body, with: term, in: &table) }
+        return try table.intern(.isaAllElim(p, term))
+    }
+
+    private mutating func premise(_ name: String, _ s: ProofScope, _ premises: [String]) throws -> NodeID {
+        guard let k = premises.firstIndex(of: name) else { throw MalformedExport.unreachedPremise(name) }
+        return try hypothesis(s.hypotheses.count - 1 - k, s)
+    }
+
+    private mutating func premises(_ names: [String], at terms: Terms) throws -> [NodeID] {
+        var formulas = [NodeID]()
+        for name in names {
+            var A = try statement(Instance(source: .axiom(name), types: []))
+            for p in try reaches.parameters(ofAxiom: name) {
+                guard case .ifolAll(_, let body) = table[A] else { throw TableError.principalConnective(A) }
+                A = try instantiate(body, with: try terms.parameter(p, terms.front, in: &table), in: &table)
+            }
+            formulas.append(A)
         }
-        return false
+        return formulas
+    }
+
+    private func isReadAtItsTerms(_ p: NodeID, premises: Int) -> Bool {
+        var p = p
+        var premises = premises
+        while true {
+            if case .isaAllIntro(let T, let body) = table[p] {
+                if takesAFunctionOrProposition(T), !mentionsTypeVariable(T) { return true }
+                p = body
+            } else if premises > 0, case .folImpliesIntro(_, let body) = table[p] {
+                premises -= 1
+                p = body
+            } else {
+                return false
+            }
+        }
     }
 
     private func isTermAbstraction(_ h: ProofHead) -> Bool {
@@ -514,6 +602,7 @@ public struct Reader {
             throw MalformedExport.freeHypothesis
 
         case .axiom(let name, let types):
+            if f.premises.contains(name) { return try premise(name, s, f.premises) }
             let instance = Instance(source: .axiom(name), types: try types.map(f.terms.irType))
             return try use(try cited(axiom: name), instance)
 
@@ -531,7 +620,8 @@ public struct Reader {
             let root = try statement(instance)
             if instance.types != read, !instance.types.contains(where: mentionsTypeVariable) {
                 let proof = try prove(key, at: instance.types).proof
-                if spineLetters(root, in: table) == 0 || isReadAtItsTerms(proof) { return proof }
+                let premises = try reaches.of(key).premises.count
+                if spineLetters(root, in: table) == 0 || isReadAtItsTerms(proof, premises: premises) { return proof }
                 let named = "\(key.theory.split(separator: ".").last!).BOX_\(fingerprint(proof, table))"
                 if citedAs[named] == nil {
                     citedAs[named] = Theorem(key, at: instance.types)
@@ -620,6 +710,14 @@ public struct Reader {
         let stated = try statement(Instance(source: .axiom(axiom), types: types))
         var at = stated
         var terms = [NodeID]()
+        var own = [String]()
+        if case .constant(let c) = d, let given = parameterContext.ofConstant[c.name] { own = given }
+        for name in own {
+            guard let (_, body) = termBinder(at) else { throw TableError.principalConnective(at) }
+            let term = try f.terms.parameter(name, s.terms, in: &table)
+            terms.append(term)
+            at = try instantiate(body, with: term, in: &table)
+        }
         var rest = arguments
         while case .term(let x)? = rest.first, let (T, body) = termBinder(at) {
             let term = try f.terms.term(x, T, s.terms, in: &table)
@@ -729,7 +827,7 @@ public struct Reader {
         if let a = axioms[name] { return .axiom(a) }
         guard let entry = corpus.axioms[name] else { throw MalformedExport.undeclaredAxiom(name) }
         guard !families.isFoundation(entry.theory) else { throw DialectGap.axiom(name) }
-        return .theoryAxiom(name)
+        throw MalformedExport.unreachedPremise(name)
     }
 
     private mutating func use(_ cited: Cited, _ instance: Instance) throws -> NodeID {
@@ -803,17 +901,26 @@ public struct Reader {
         let path: String
         let e: Envelope
         let order: FreeOrder
+        let reach: Reach
         switch instance.source {
         case .theorem(let key):
             path = key.path
             e = try located(path) { try decode.proofFile(try corpus.file(key)).0 }
             order = .lettersFirst
+            reach = try reaches.of(key)
 
         case .axiom(let name):
             guard let entry = corpus.axioms[name] else { throw MalformedExport.undeclaredAxiom(name) }
             path = entry.file
             e = try located(path) { try decode.axiom(entry.body) }
             order = .stated
+            if let d = constants.defined(byAxiom: name) {
+                reach = Reach(parameters: parameterContext.ofConstant[d.name] ?? [])
+            } else if isTheorysOwnAxiom(name, entry, constants, families) {
+                reach = Reach(parameters: try reaches.parameters(ofAxiom: name))
+            } else {
+                reach = Reach()
+            }
         }
         let (p, letters) = try located(path) {
             var terms = try Terms(
@@ -823,8 +930,11 @@ public struct Reader {
                 file: e,
                 at: instance.types,
                 order: order,
+                parameters: reach.parameters,
+                context: parameterContext,
             )
-            return (try terms.statement(e.prop, in: &table), terms.letters)
+            let premised = try premises(reach.premises, at: terms)
+            return (try terms.statement(e.prop, premising: premised, in: &table), terms.letters)
         }
         statements[instance] = p
         letterMasks[instance] = letters

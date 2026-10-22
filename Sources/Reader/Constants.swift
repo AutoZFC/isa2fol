@@ -12,6 +12,7 @@ enum Reading: Equatable {
     case metaAll
     case metaEquality
     case hidden
+    case parameter
     case constant(Constant)
 }
 
@@ -37,7 +38,20 @@ struct Constants {
         let scheme: IsaType
         let family: Family
         let foundation: Bool
+        let theory: String
+        let abbreviation: Bool
         var definition: String? = nil
+    }
+
+    var names: [String] {
+        order
+    }
+
+    var parameters: [String] {
+        order.filter { name in
+            guard let d = declarations[name] else { return false }
+            return d.definition == nil && !d.foundation && !d.abbreviation
+        }
     }
 
     subscript(_ name: String) -> Declaration? {
@@ -48,7 +62,13 @@ struct Constants {
         definitions[axiom]
     }
 
-    mutating func load(_ body: [Ref], family: Family, foundation: Bool, in forest: Forest) throws {
+    mutating func load(
+        _ body: [Ref],
+        theory: String,
+        family: Family,
+        foundation: Bool,
+        in forest: Forest,
+    ) throws {
         let d = Decode(forest: forest)
         for r in body {
             guard case .element(let entity) = forest[r], entity.tag == "entity" else {
@@ -57,7 +77,8 @@ struct Constants {
             let name = try entity.attribute("name")
             let (_, rest) = try d.pair({ $0 }, { $0 }, entity.children)
             let (parameters, typed) = try d.pair({ try d.list(d.string, $0) }, { $0 }, rest)
-            let (scheme, _) = try d.pair(d.type, { $0 }, typed)
+            let (scheme, after) = try d.pair(d.type, { $0 }, typed)
+            let (abbreviation, _) = try d.pair({ $0 }, { $0 }, after)
             guard
                 parameters.count == Set(parameters).count,
                 scheme.variables == Set(parameters.map { IsaType.tfree($0, sort: []) })
@@ -70,7 +91,10 @@ struct Constants {
                 scheme: scheme,
                 family: family,
                 foundation: foundation,
+                theory: theory,
+                abbreviation: !abbreviation.isEmpty,
             )
+            order.append(name)
         }
     }
 
@@ -92,7 +116,8 @@ struct Constants {
         if d.definition != nil { return .constant(.defined(Defined(d.family, name, d.scheme.level))) }
         if let p = primitives[name] { return .constant(.primitive(p)) }
         guard !d.foundation else { throw DialectGap.leaf(name) }
-        return .constant(.declared(name))
+        guard !d.abbreviation else { throw MalformedExport.abbreviationOccurs(name) }
+        return .parameter
     }
 
     func instantiate(_ name: String, _ arguments: [IsaType]) throws -> IsaType {
@@ -108,6 +133,7 @@ struct Constants {
     }
 
     private var declarations = [String: Declaration]()
+    private var order = [String]()
     private var definitions = [String: Defined]()
 
 }

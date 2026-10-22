@@ -6,7 +6,7 @@ private let o = IRType.o
 private let memT = IRType.fn(i, .fn(i, o))
 private let free = Pattern.isaFree(i)
 private let memAtom = Pattern.isaConst(.primitive(.zf(.mem)), memT, args: [i, i])
-private let axiomCited = Pattern.use(.theoryAxiom, [], o)
+private let axiomCited = Pattern.use(.base, [], o)
 
 private struct Owning<R: Rule>: Pass, Walk {
     let name: String
@@ -148,23 +148,23 @@ private struct ForgetTheProof: Rule {
 private struct BottomToC: Rule {
     func before(_ id: NodeID, context _: Depth, in t: inout Table) throws -> NodeID? {
         guard case .folBottom = t[id] else { return nil }
-        return try t.intern(.isaConst(.declared("C"), o, args: []))
+        return try t.intern(.isaConst(.defined(Defined(.zf, "C", .object)), o, args: []))
     }
 }
 
-/// Every citation of a theory axiom becomes a citation of the lemma of the same name, at the same statement.
+/// Every citation of base's `name` becomes a citation of the lemma of the same name, at the same statement.
 private struct CiteLemma: Rule {
     func after(_ n: Node, was _: NodeID, context _: Depth, in t: inout Table) throws -> NodeID? {
-        guard case .use(.theoryAxiom(let name), [], let root) = n else { return nil }
+        guard case .use(.base(let name), [], let root) = n else { return nil }
         return try t.intern(.use(.lemma(lemma(name)), [], root))
     }
 }
 
-/// Every citation of a theory axiom becomes a citation of a lemma whose request holds a node built where it stands.
+/// Every citation of base's `name` becomes a citation of a lemma whose request holds a node built where it stands.
 private struct CiteHolding: Rule {
     func after(_ n: Node, was _: NodeID, context _: Depth, in t: inout Table) throws -> NodeID? {
-        guard case .use(.theoryAxiom(let name), [], let root) = n else { return nil }
-        let held = try t.intern(.isaConst(.declared("F"), o, args: []))
+        guard case .use(.base(let name), [], let root) = n else { return nil }
+        let held = try t.intern(.isaConst(.defined(Defined(.zf, "F", .object)), o, args: []))
         return try t.intern(.use(.lemma(Lemma(Holding(name: name, formula: held))), [], root))
     }
 }
@@ -252,9 +252,9 @@ private func reflexiveMem(_ t: inout Table) throws -> (statement: NodeID, proof:
     return (statement, proof)
 }
 
-/// A statement proved by citing the theory axiom `name` at its own statement.
+/// A statement proved by citing base's `name` at its own statement.
 private func citing(_ name: String, _ statementName: String, _ root: NodeID, _ t: inout Table) throws -> Statement {
-    Statement(name: statementName, root: root, proof: try t.intern(.use(.theoryAxiom(name), [], root)))
+    Statement(name: statementName, root: root, proof: try t.intern(.use(.base(name), [], root)))
 }
 
 private func refusals(_ unit: Unit) -> [String: PipelineRefusal] {
@@ -282,7 +282,7 @@ func aPipelineRunsItsPassesInOrderOverEveryStatementAndItsProof() throws {
 func aPatternNoPassOwnsIsRefusedBeforeTheFirstPassNamingEveryOne() throws {
     var t = Table()
     let member = try t.intern(.isaOfClass(i, TypeClass(.ifol, "IFOL.term")))
-    let c = try t.intern(.isaConst(.declared("C"), o, args: []))
+    let c = try t.intern(.isaConst(.defined(Defined(.zf, "C", .object)), o, args: []))
     let bad = try identity("bad", try t.intern(.folAnd(member, c)), &t)
     let good = try identity("good", try memOfA(&t), &t)
     var unit = Unit(table: t, statements: [bad, good])
@@ -290,7 +290,7 @@ func aPatternNoPassOwnsIsRefusedBeforeTheFirstPassNamingEveryOne() throws {
     try Pipeline(passes: [close, elem, Owning(name: "count", owned: [:], rule: count)]).run(&unit)
     #expect(unit.statements.map(\.name) == ["good"])
     #expect(unit.refused.map(\.name) == ["bad"])
-    #expect(unit.refused.map(\.refusal) == [.noOwner([.isaConst(.declared, o, args: []), .isaOfClass(i)])])
+    #expect(unit.refused.map(\.refusal) == [.noOwner([.isaConst(.defined(.zf, .object), o, args: []), .isaOfClass(i)])])
     #expect(count.visits[member] == nil)
 }
 
@@ -366,7 +366,7 @@ func aPatternNoPassOwnsWrittenByAPassFailsAtTheEnd() throws {
     var t = Table()
     let s = try identity("s", try t.intern(.folBottom), &t)
     var unit = Unit(table: t, statements: [s])
-    let c = try unit.table.intern(.isaConst(.declared("C"), o, args: []))
+    let c = try unit.table.intern(.isaConst(.defined(Defined(.zf, "C", .object)), o, args: []))
     #expect(throws: IRRefusal.sourceKindSurvived(c)) {
         try Pipeline(passes: [Owning(name: "bottom-to-c", owned: [:], rule: BottomToC())]).run(&unit)
     }
@@ -395,7 +395,7 @@ func aLemmaTwoStatementsCiteIsAddedOnceAndLoweredWithBothAsOneNode() throws {
     var t = Table()
     let (r, proof) = try reflexiveMem(&t)
     let s1 = try citing("L", "S1", r, &t)
-    let p = try t.intern(.use(.theoryAxiom("L"), [], r))
+    let p = try t.intern(.use(.base("L"), [], r))
     let s2 = Statement(name: "S2", root: try t.intern(.folAnd(r, r)), proof: try t.intern(.folAndIntro(p, p)))
     var unit = Unit(table: t, statements: [s1, s2])
     let registry = Proving { _, _, _ in .proof(proof) }
@@ -502,7 +502,7 @@ func aLemmaRequestedByAStatementCitingARefusedOneIsNeverProved() throws {
         root: try t.intern(.folAnd(r, r)),
         proof: try t.intern(.folAndIntro(
             try t.intern(.use(.theorem("C"), [], r)),
-            try t.intern(.use(.theoryAxiom("L"), [], r)),
+            try t.intern(.use(.base("L"), [], r)),
         )),
     )
     var unit = Unit(table: t, statements: [c, s])
@@ -541,8 +541,8 @@ func aLemmaWhoseCitersFallAfterItIsProvedLeavesTheUnit() throws {
         name: "S",
         root: try t.intern(.folAnd(r, r)),
         proof: try t.intern(.folAndIntro(
-            try t.intern(.use(.theoryAxiom("L1"), [], r)),
-            try t.intern(.use(.theoryAxiom("L2"), [], r)),
+            try t.intern(.use(.base("L1"), [], r)),
+            try t.intern(.use(.base("L2"), [], r)),
         )),
     )
     var unit = Unit(table: t, statements: [s])
@@ -568,7 +568,7 @@ func aLemmaSetAsideAndCitedByAProofLaterIsProvedAndKept() throws {
         root: try t.intern(.folAnd(r, r)),
         proof: try t.intern(.folAndIntro(
             try t.intern(.use(.theorem("C"), [], r)),
-            try t.intern(.use(.theoryAxiom("L"), [], r)),
+            try t.intern(.use(.base("L"), [], r)),
         )),
     )
     let k = try citing("M", "K", r, &t)
@@ -639,7 +639,11 @@ func aPassReadsTheDefinitionsOfTheConstantsItOwnsAsTheyStandAtItsInput() throws 
     var t = Table()
     let statement = try identity("s", try t.intern(.folBottom), &t)
     let x = try t.intern(.isaBound(0, i))
-    let k = { (a: NodeID, t: inout Table) in try t.intern(.isaConst(.declared("K"), .fn(o, i), args: [a])) }
+    let k = { (a: NodeID, t: inout Table) in try t.intern(.isaConst(
+        .defined(Defined(.zf, "K", .object)),
+        .fn(o, i),
+        args: [a],
+    )) }
     let m = try t.intern(.isaConst(.primitive(.zf(.mem)), memT, args: [x, x]))
     let definiens = try t.intern(.isaAbs(i, body: try k(m, &t)))
     let d = Defined(.zf, "T.d", .object)
@@ -648,7 +652,7 @@ func aPassReadsTheDefinitionsOfTheConstantsItOwnsAsTheyStandAtItsInput() throws 
     let reading = Reading(owned: [
         .isaConst(.defined(.zf, .object), .fn(i, i), args: [i]): .unbuilt,
         .isaAbs(i, body: i): .unbuilt,
-        .isaConst(.declared, .fn(o, i), args: [o]): .unbuilt,
+        .isaConst(.defined(.zf, .object), .fn(o, i), args: [o]): .unbuilt,
         .isaBound(i): .unbuilt,
     ])
     try Pipeline(passes: [elem, reading]).run(&unit)
@@ -985,7 +989,7 @@ func aLemmaTwoStatementsRequestInTheirLayersIsOneStatementOfTheUnit() throws {
     var t = Table()
     let (r, proof) = try reflexiveMem(&t)
     let s1 = try citing("L", "S1", r, &t)
-    let p = try t.intern(.use(.theoryAxiom("L"), [], r))
+    let p = try t.intern(.use(.base("L"), [], r))
     let s2 = Statement(name: "S2", root: try t.intern(.folAnd(r, r)), proof: try t.intern(.folAndIntro(p, p)))
     var unit = Unit(table: t, statements: [s1, s2])
     let registry = Proving { _, _, _ in .proof(proof) }

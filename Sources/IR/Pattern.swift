@@ -214,13 +214,11 @@ public enum Pattern: Hashable, Sendable {
     public enum ConstantKind: Hashable, Sendable, CustomStringConvertible {
         case primitive(Primitive)
         case defined(Family, Level)
-        case declared
 
         init(_ c: Constant) {
             switch c {
             case .primitive(let p): self = .primitive(p)
             case .defined(let d): self = .defined(d.family, d.level)
-            case .declared: self = .declared
             }
         }
 
@@ -228,7 +226,6 @@ public enum Pattern: Hashable, Sendable {
             switch self {
             case .primitive(let p): "primitive \(p)"
             case .defined(let f, let level): "defined \(f) \(level)"
-            case .declared: "declared"
             }
         }
     }
@@ -237,7 +234,6 @@ public enum Pattern: Hashable, Sendable {
     public enum CitedKind: Hashable, Sendable, CustomStringConvertible {
         case theorem
         case axiom(Axiom)
-        case theoryAxiom
         case lemma
         case base
         case definition
@@ -246,7 +242,6 @@ public enum Pattern: Hashable, Sendable {
             switch c {
             case .theorem: self = .theorem
             case .axiom(let a): self = .axiom(a)
-            case .theoryAxiom: self = .theoryAxiom
             case .lemma: self = .lemma
             case .base: self = .base
             case .definition: self = .definition
@@ -257,7 +252,6 @@ public enum Pattern: Hashable, Sendable {
             switch self {
             case .theorem: "theorem"
             case .axiom(let a): "axiom \(a)"
-            case .theoryAxiom: "theory axiom"
             case .lemma: "lemma"
             case .base: "base"
             case .definition: "@def"
@@ -283,7 +277,7 @@ extension Pattern {
         case .use(let kind, let types, _):
             switch kind {
             case .theorem, .lemma, .definition: types.isEmpty ? [.isa, .fol] : [.isa]
-            case .axiom, .theoryAxiom: [.isa]
+            case .axiom: [.isa]
             case .base: [.fol]
             }
 

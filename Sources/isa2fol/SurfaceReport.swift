@@ -74,11 +74,10 @@ func closureReport(_ c: Census, command: String) -> String {
     }
     var axioms = [Family: [(String, Int)]]()
     var definitions = [Family: [(String, Int)]]()
-    var theory = [(String, Int)]()
+    let theory = c.premises.map { ($0.key, $0.value) }
     for (cited, n) in c.citations {
         switch cited {
         case .axiom(let a): axioms[a.family, default: []].append((a.name, n))
-        case .theoryAxiom(let name): theory.append((name, n))
         case .theorem, .lemma, .base, .definition: break
         }
     }
@@ -93,9 +92,9 @@ func closureReport(_ c: Census, command: String) -> String {
         "theorems, derived Pure/IFOL/FOL rules, unnamed boxes, class discharges — down to axioms. A citation is read as"
     )
     line(
-        "the reader types it (`DESIGN.md` §4.3b): an axiom of the foundation, a definition, or an axiom a theory above"
+        "the reader types it (`DESIGN.md` §4.3b): an axiom of the foundation or a definition; an axiom a theory above"
     )
-    line("the foundation states. Counts are named theorems whose closure contains it.")
+    line("the foundation states is a premise of what reaches it. Counts are named theorems whose closure contains it.")
     line("")
     population(c, line)
     for f in [Family.pure, .ifol, .fol] {
@@ -113,7 +112,7 @@ func closureReport(_ c: Census, command: String) -> String {
     line("Plus **\(zf.count) definitions** of the zf family; the most-reached is reached by "
         + (zf.first.map { "\($0.1) (`\($0.0)`)" } ?? "none") + ".")
     line("")
-    line("## Axioms of theories above the foundation — not ZF's")
+    line("## Axioms of theories above the foundation — premises of the theorems reaching them, never admitted")
     line("")
     table("axiom", theory)
     line("")

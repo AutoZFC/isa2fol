@@ -38,12 +38,12 @@ func fn(_ a: String, _ b: String) -> String {
 let i = typeT("ZF_Base.i")
 let o = typeT("IFOL.o")
 
-func constEntity(_ name: String, parameters: [String], scheme: String) -> String {
+func constEntity(_ name: String, parameters: [String], scheme: String, abbreviating: String? = nil) -> String {
     element("entity", [("name", name)], [
         node(tagged(0, [], [])),
         node(
             node(parameters.map { node($0) }.joined()),
-            node(node(scheme), node(node(), node("1"))),
+            node(node(scheme), node(node(abbreviating.map { node($0) } ?? ""), node("1"))),
         ),
     ])
 }
@@ -148,6 +148,12 @@ private let fixtureTheories = [
         ("Sum.Inl", "Sum.Inl_def"),
         ("Sum.Part", "Sum.Part_def"),
         ("EquivClass.congruent", "EquivClass.congruent_def"),
+        ("T.f", "T.f_def"),
+        ("T.g", "T.g_def"),
+        ("T.h", "T.h_def"),
+        ("T.k", "T.k_def"),
+        ("T.claim", "T.claim_def"),
+        ("T.metaEx", "T.metaEx_def"),
     ]),
 ]
 
@@ -165,7 +171,7 @@ func testConstants() throws -> Constants {
         var f = Forest()
         let body = try f
             .parse(Array(theory.constants.map { constEntity($0.0, parameters: $0.1, scheme: $0.2) }.joined().utf8))
-        try c.load(body, family: theory.family, foundation: theory.foundation, in: f)
+        try c.load(body, theory: theory.name, family: theory.family, foundation: theory.foundation, in: f)
     }
     for theory in fixtureTheories {
         for (constant, axiom) in theory.definitions { try c.define(constant, by: axiom) }

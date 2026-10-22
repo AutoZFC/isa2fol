@@ -29,7 +29,7 @@ private struct F {
     }
 
     mutating func pred(_ n: String, _ x: NodeID) throws -> NodeID {
-        try const(.declared(n), fn(i, o), x)
+        try const(.defined(Defined(.zf, n, .object)), fn(i, o), x)
     }
 
     mutating func set(_ x: NodeID) throws -> NodeID {
@@ -257,7 +257,7 @@ func anEliminationSkipsTheGuardsOfInnerVariables() throws {
 @Test
 func aHypothesisAcrossAGuardIsRenumbered() throws {
     var f = F()
-    let c = try f.const(.declared("C"), o)
+    let c = try f.const(.defined(Defined(.zf, "C", .object)), o)
     let x = try f.b(0)
     let px = try f.pred("P", x)
     let root = try f.imp(c, try f.all(try f.imp(px, c)))
@@ -273,7 +273,7 @@ func aHypothesisAcrossAGuardIsRenumbered() throws {
 @Test
 func aBinderAtAnotherTypeInsertsNoGuard() throws {
     var f = F()
-    let c = try f.const(.declared("C"), o)
+    let c = try f.const(.defined(Defined(.zf, "C", .object)), o)
     let p = try f.t.intern(.isaBound(0, o))
     let root = try f.imp(c, try f.t.intern(.ifolAll(o, body: try f.imp(p, c))))
     let proof = try f.assume(c, try f.t.intern(.isaAllIntro(o, body: try f.assume(p, try f.hyp(1, c)))))

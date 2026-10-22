@@ -21,7 +21,6 @@ public struct Reify {
             case .primitive(.zf): return .rule
             case .primitive(.ifol(.eq)): return T == .fn(.i, .fn(.i, .o)) ? .rule : .unbuilt
             case .primitive(.pure): return nil
-            case .declared: return .unbuilt
             case .defined(let f, let level): return unfolds(f, level) ? nil : namesConstant(T) ? .rule : .unbuilt
             }
 

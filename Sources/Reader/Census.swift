@@ -7,6 +7,7 @@ public struct Census: Sendable {
     public internal(set) var patterns = [Pattern: Int]()
     public internal(set) var citations = [Cited: Int]()
     public internal(set) var definitions = [CitedDefinition: Int]()
+    public internal(set) var premises = [String: Int]()
 }
 
 public struct CitedDefinition: Hashable, Sendable {
@@ -88,7 +89,7 @@ private struct Closure {
                 switch c {
                 case .theorem(let name):
                     if let v = cited(name) { edges.insert(v) }
-                case .axiom, .theoryAxiom, .lemma, .base, .definition:
+                case .axiom, .lemma, .base, .definition:
                     bits.insert(id(.cited(c)))
                 }
             }
@@ -166,6 +167,9 @@ extension Reader {
             return last
         }
 
+        for theorem in population where proved[theorem] != nil {
+            for p in try reach(of: theorem).premises { c.premises[p, default: 0] += 1 }
+        }
         for theorem in population {
             guard let v = proved[theorem] else { continue }
             for k in try close(v).members {

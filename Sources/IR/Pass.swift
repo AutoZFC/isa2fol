@@ -767,7 +767,7 @@ private func citations(under proof: NodeID, _ t: Table) -> [(Cited, NodeID)] {
             switch c {
             case .theorem, .lemma, .definition:
                 if cited.insert(c).inserted { found.append((c, root)) }
-            case .axiom, .theoryAxiom, .base:
+            case .axiom, .base:
                 break
             }
             continue

@@ -852,7 +852,7 @@ private struct AxiomReading {
             return try cited(f, try Lowering.statement(f, in: &t), &t)
 
         case .primitive(.zf(.mem)), .primitive(.zf(.pow)), .primitive(.zf(.union)), .primitive(.zf(.primReplace)),
-             .primitive(.pure), .primitive(.ifol), .declared:
+             .primitive(.pure), .primitive(.ifol):
             throw AxiomError.noReading(try t.intern(.isaConst(c, .i, args: [])))
         }
     }
@@ -924,7 +924,7 @@ private func isPrimitiveFunction(_ c: Constant) -> Bool {
     switch c {
     case .primitive(.zf(.pow)), .primitive(.zf(.union)), .primitive(.zf(.primReplace)): true
     case .primitive(.zf(.mem)), .primitive(.zf(.zero)), .primitive(.zf(.inf)), .primitive(.pure), .primitive(.ifol),
-         .defined, .declared:
+         .defined:
         false
     }
 }

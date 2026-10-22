@@ -91,7 +91,7 @@ func eachPatternBelongsToTheIsaDialectTheFolDialectOrBoth() {
     #expect(Pattern.isaClassical(.o, .o).dialects == [.isa])
     #expect(Pattern.isaIffReflection(.o, .o, .o).dialects == [.isa])
     #expect(Pattern.isaDefinition(.zf, .object, [], args: [.i]).dialects == [.isa])
-    #expect(Pattern.use(.theoryAxiom, [], .o).dialects == [.isa])
+    #expect(Pattern.use(.axiom(.zf(.extension)), [], .o).dialects == [.isa])
     #expect(Pattern.use(.lemma, [], .o).dialects == [.isa, .fol])
     #expect(Pattern.isaGuard(.i, .o).dialects == [.isa])
     #expect(Pattern.ifolAll(.o, body: .o).dialects == [.isa, .fol])

@@ -39,8 +39,8 @@ private let typeB = tfree("'b")
 ///   T.viaBox     Q ⟹ Q                     box250 % Q;       T.viaTwin  Q ⟹ Q   box255 % Q
 ///   T.boundPremise  (⋀P. P ⟹ P) ⟹ Q ⟹ Q     λH q. H % Q %% q     Pure's ⋀ over a proposition in a formula
 ///   T.introProp     Q ⟹ Q                   (⋀P. λh. h) % Q      Pure's ⋀ over a proposition introduced in a proof
-///   T.reflAx     axiom OFCLASS('a, term) ⟹ ⋀a. a = a, a theory's own: cited, never read as a step
-///   T.termI      axiom OFCLASS(i, term)
+///   T.reflAx     OFCLASS('a, term) ⟹ ⋀a. a = a, a theorem cited, never read
+///   T.termI      OFCLASS(i, term), a theorem cited, never read
 ///   T.arity      OFCLASS(i, term)          T.termI           as arity_term_i
 ///   box 95       OFCLASS(i, term)          T.arity           as box 1792: how a proof discharges at i
 ///   T.axiom      b = b                     reflAx[i] %% box95 % b
@@ -50,8 +50,8 @@ private let typeB = tfree("'b")
 /// T.usesPoly at i
 ///   T.polyPartial  OFCLASS('a, term) ⟹ (⋀h::'b. Q) ⟹ (⋀h::'b. Q)   'b unrestricted: read as stated; cited by
 /// T.usesPartial and T.usesPartialAgain at i, i
-///   T.defax      axiom with a typed free: A ∈ A;   T.useDef  a ∈ a   T.defax % a
-///   T.vacAx      axiom (⋀h::'a. Q) ⟹ Q;          T.hidden  Q ⟹ Q   λH. vacAx[dummy] % Q %% (⋀h::dummy. H)
+///   T.defax      a theory's own axiom with a typed free: A ∈ A;   T.useDef  a ∈ a   T.defax % a, its premise
+///   T.vacAx      (⋀h::'a. Q) ⟹ Q, a theorem cited;   T.hidden  Q ⟹ Q   λH. vacAx[dummy] % Q %% (⋀h::dummy. H)
 ///   T.hiddenTerm (⋀x::i. ⋀R::o. Q) ⟹ Q        λH. H % dummy_pattern::i % dummy_pattern::o   variables only the proof
 ///                uses
 ///   T.hiddenFunctions  (⋀x y::i. ⋀R::o. Q) ⟹ P(a) ⟹ Q   λH K. H % F(λx. P x, Q) % g(c) % C(c), each of F, g, c, C
@@ -90,16 +90,16 @@ private func miniReader() throws -> Reader {
             "T.defax",
             frees: [("A", i)],
             prop: mem(tagged(1, ["A"], [i]), tagged(1, ["A"], [i])),
-        )
-            + axiomEntity("T.vacAx", tfrees: ["'a"], frees: [("Q", o)], prop: imp(all("h", typeA, Q), Q))
-            + axiomEntity("T.termI", prop: termClass(i))
-            + axiomEntity(
-                "T.reflAx",
-                tfrees: ["'a"],
-                prop: imp(termClass(typeA), all("a", typeA, eq(typeA, bound(0)))),
-            ),
+        ),
     ]
     let theorems: [(String?, Int, String)] = [
+        ("T.termI", 400, proofFile(frees: [], prop: termClass(i))),
+        ("T.reflAx", 401, proofFile(
+            tfrees: ["'a"],
+            frees: [],
+            prop: imp(termClass(typeA), all("a", typeA, eq(typeA, bound(0)))),
+        )),
+        ("T.vacAx", 402, proofFile(tfrees: ["'a"], frees: [("Q", o)], prop: imp(all("h", typeA, Q), Q))),
         ("T.imp", 10, proofFile(frees: [("P", o)], prop: imp(P, P), proof: pabsp("H", P, pbound(0)))),
         (
             "T.fix",
@@ -145,7 +145,7 @@ private func miniReader() throws -> Reader {
         ("T.axiom", 70, proofFile(
             frees: [("b", i)],
             prop: eq(i, free("b")),
-            proof: pappt(pappp(paxiom("T.reflAx", i), pcite(95, "ZF.T")), free("b")),
+            proof: pappt(pappp(pcite(401, "ZF.T", "T.reflAx", i), pcite(95, "ZF.T")), free("b")),
         )),
         (nil, 80, proofFile(
             tfrees: ["'a"],
@@ -154,7 +154,7 @@ private func miniReader() throws -> Reader {
             proof: pabsp(
                 "H",
                 termClass(typeA),
-                pappt(pappp(paxiom("T.reflAx", typeA), pbound(0)), free("x")),
+                pappt(pappp(pcite(401, "ZF.T", "T.reflAx", typeA), pbound(0)), free("x")),
             ),
         )),
         (nil, 95, proofFile(frees: [], prop: termClass(i), proof: pcite(120, "ZF.T", "T.arity"))),
@@ -173,7 +173,7 @@ private func miniReader() throws -> Reader {
                 proof: pabsp(
                     "H",
                     termClass(typeA),
-                    pappt(pappp(paxiom("T.reflAx", typeA), pbound(0)), free("y")),
+                    pappt(pappp(pcite(401, "ZF.T", "T.reflAx", typeA), pbound(0)), free("y")),
                 ),
             ),
         ),
@@ -185,7 +185,7 @@ private func miniReader() throws -> Reader {
                 pcite(95, "ZF.T"),
             ),
         )),
-        ("T.arity", 120, proofFile(frees: [], prop: termClass(i), proof: paxiom("T.termI"))),
+        ("T.arity", 120, proofFile(frees: [], prop: termClass(i), proof: pcite(400, "ZF.T", "T.termI"))),
         (
             "T.useDef",
             125,
@@ -196,7 +196,7 @@ private func miniReader() throws -> Reader {
             Q,
             pappp(
                 pappt(
-                    paxiom("T.vacAx", dummy),
+                    pcite(402, "ZF.T", "T.vacAx", dummy),
                     free("Q"),
                 ),
                 pabst("h", dummy, pbound(0)),
@@ -260,10 +260,7 @@ private func miniReader() throws -> Reader {
             "H",
             Q,
             pappp(
-                pappt(paxiom(
-                    "T.vacAx",
-                    tfree("'b"),
-                ), free("Q")),
+                pappt(pcite(402, "ZF.T", "T.vacAx", tfree("'b")), free("Q")),
                 pabst(
                     "h",
                     tfree("'b"),
@@ -448,7 +445,7 @@ private func roots(citing name: String, _ root: NodeID, _ t: Table) -> Set<NodeI
     return found
 }
 
-private let reflAx = Cited.theoryAxiom("T.reflAx")
+private let reflAx = Cited.theorem("T.reflAx")
 
 private func failure(_ r: inout Reader, _ name: String) throws -> ReadFailure? {
     do {
@@ -596,22 +593,33 @@ func aBoxBindingAPropositionIsCitedByItsContentsName() throws {
     #expect(r.cited.map { r.name(of: $0) } == [nil])
 }
 
-/// `T.reflAx`'s class premise is discharged by an ordinary ⟹-elim, with box 95's inlined proof.
+/// `T.reflAx`'s class premise is discharged by an ordinary ⟹-elim, with box 95's inlined proof; read at `i`, every type
+/// variable restricted to `term`, it is cited with no types.
 @Test
 func aClassDischargeIsAnOrdinaryPremise() throws {
     var r = try miniReader()
     guard let (_, proof) = try proved(&r, "T.axiom") else { return }
     #expect(citations(proof, r.table) == [
-        Citation(cited: reflAx, types: [.i]),
+        Citation(cited: reflAx, types: []),
         Citation(cited: .theorem("T.arity"), types: []),
     ])
 }
 
+/// A theory's own axiom is a premise of what reaches it (DESIGN "A theory's own parameter"), its frees closed like a
+/// theorem's and its typed variables agreeing: `T.useDef` reads `(⋀A. A ∈ A) ⟹ ⋀a. a ∈ a`, the citation the
+/// premise's hypothesis at `a`.
 @Test
-func anAxiomsFreesCloseLikeATheoremsAndItsTypedVariablesAgree() throws {
+func aTheorysOwnAxiomIsAPremiseItsFreesClosedLikeATheorems() throws {
     var r = try miniReader()
-    guard let (_, proof) = try proved(&r, "T.useDef") else { return }
-    #expect(uses(proof, r.table) == ["T.defax"])
+    guard let (statement, proof) = try proved(&r, "T.useDef") else { return }
+    var t = r.table
+    let a = try t.intern(.isaBound(0, .i))
+    let aa = try t.intern(.isaConst(.primitive(.zf(.mem)), .fn(.i, .fn(.i, .o)), args: [a, a]))
+    let axiom = try t.intern(.ifolAll(.i, body: aa))
+    #expect(statement == (try t.intern(.folImplies(axiom, axiom))))
+    let atA = try t.intern(.isaAllElim(try t.intern(.hyp(0, axiom)), a))
+    #expect(proof == (try t.intern(.folImpliesIntro(axiom, body: try t.intern(.isaAllIntro(.i, body: atA))))))
+    #expect(uses(proof, r.table).isEmpty)
 }
 
 /// Box 80 binds its class hypothesis and discharges `T.reflAx`'s class premise with it: both bookkeeping.
@@ -620,7 +628,7 @@ func aPolymorphicBoxIsInlinedAtTheInstanceItIsCitedAt() throws {
     var r = try miniReader()
     guard let (_, proof) = try proved(&r, "T.poly") else { return }
     #expect(citations(proof, r.table) == [
-        Citation(cited: reflAx, types: [.i]),
+        Citation(cited: reflAx, types: []),
         Citation(cited: .theorem("T.arity"), types: []),
     ])
 }
@@ -637,7 +645,7 @@ func aTheoremRestrictedToTermIsReadAtI() throws {
     let member = try t.intern(.isaOfClass(.i, ifolTerm))
     let eq = try t.intern(.isaConst(.primitive(.ifol(.eq)), .fn(.i, .fn(.i, .o)), args: [y, y]))
     #expect(statement == (try t.intern(.ifolAll(.i, body: try t.intern(.folImplies(member, eq))))))
-    #expect(citations(proof, r.table) == [Citation(cited: reflAx, types: [.i])])
+    #expect(citations(proof, r.table) == [Citation(cited: reflAx, types: [])])
 }
 
 /// `T.polyPartial`'s `'b` carries no class: it is read at its variables. Cited at `[i, i]` it binds `Q`, a proposition,
@@ -688,7 +696,7 @@ func aCitationAtIOfATheoremReadAtICitesItsStatement() throws {
 func aHiddenProofTypeIsATypeVariable() throws {
     var r = try miniReader()
     guard let (_, proof) = try proved(&r, "T.hidden") else { return }
-    #expect(citations(proof, r.table) == [Citation(cited: .theoryAxiom("T.vacAx"), types: [.variable("dummy")])])
+    #expect(citations(proof, r.table) == [Citation(cited: .theorem("T.vacAx"), types: [.variable("dummy")])])
 }
 
 /// The exporter writes a variable only the proof uses as `dummy_pattern` (`standard_hidden_terms`), one per type: the
@@ -739,7 +747,8 @@ func aVariableOnlyTheProofUsesIsConstantInItsArguments() throws {
     #expect(R == (try t.intern(.isaPropBound(0))))
 }
 
-/// A cited axiom is typed by what it is: an axiom of the foundation, a definition, or a theory's own axiom.
+/// A cited axiom is typed by what it is: an axiom of the foundation, a definition, or a theory's own axiom — the last
+/// no citation but the premise's hypothesis.
 @Test
 func aCitedAxiomIsTypedByWhatItIs() throws {
     var r = try miniReader()
@@ -751,7 +760,8 @@ func aCitedAxiomIsTypedByWhatItIs() throws {
         types: [],
         terms: [],
     )])
-    #expect(citations(defax, r.table) == [Citation(cited: .theoryAxiom("T.defax"), types: [])])
+    #expect(citations(defax, r.table).isEmpty)
+    #expect(try r.reach(of: try theorem(r, "T.useDef")) == Reach(premises: ["T.defax"]))
 }
 
 /// `prop_def % Q` is one application, as a rule's is: the definition at its term, concluding `PROP Q ≡ Q`, and no
@@ -859,7 +869,7 @@ func aClassFactIsProved() throws {
     guard let (statement, proof) = try proved(&r, "T.arity") else { return }
     var t = r.table
     #expect(statement == (try t.intern(.isaOfClass(.i, ifolTerm))))
-    #expect(citations(proof, r.table) == [Citation(cited: .theoryAxiom("T.termI"), types: [])])
+    #expect(citations(proof, r.table) == [Citation(cited: .theorem("T.termI"), types: [])])
 }
 
 @Test

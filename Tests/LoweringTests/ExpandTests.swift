@@ -26,7 +26,7 @@ private func expanded(_ l: LogicTable, _ statements: [Statement], _ definitions:
 func aDefinedConstantOfTheLogicUnfoldsInAStatementAndItsProof() throws {
     var l = LogicTable()
     let not = try l.not()
-    let c = try l.const(.declared("C"), o)
+    let c = try l.const(.defined(Defined(.zf, "C", .object)), o)
     let notC = try l.const(.defined(not.constant), fn(o, o), c)
     let proof = try l.t.intern(.folImpliesIntro(notC, body: try l.t.intern(.hyp(0, notC))))
     let unit = try expanded(l, [Statement(name: "thm", root: try l.imp(notC, notC), proof: proof)], [not])
@@ -45,7 +45,7 @@ func anArgumentAtAFunctionTypeReducesIntoTheBodyAndAConstantOfNoArgumentsIsItsDe
     var l = LogicTable()
     let ex1 = try l.ex1()
     let truth = try l.truth()
-    let a = try l.const(.declared("A"), i)
+    let a = try l.const(.defined(Defined(.zf, "A", .object)), i)
     let inA = try l.lam(i, try l.mem(try l.bound(0, i), a))
     let unique = try l.const(.defined(ex1.constant), fn(fn(i, o), o), inA)
     let isTrue = try l.const(.defined(truth.constant), o)
@@ -66,7 +66,7 @@ func aDefinitionUsingAnotherUnfoldsThroughBoth() throws {
     let both = try l.and(try l.bound(1, o), try l.bound(0, o))
     let body = try l.const(.defined(not.constant), fn(o, o), both)
     let nand = try l.definition(nandConstant, fn(o, fn(o, o)), try l.lam(o, try l.lam(o, body)))
-    let c = try l.const(.declared("C"), o)
+    let c = try l.const(.defined(Defined(.zf, "C", .object)), o)
     let used = try l.const(.defined(nandConstant), fn(o, fn(o, o)), c, c)
     #expect(try run(Expand(), [used], [nand, not], in: &l.t) == [try l.imp(
         try l.and(c, c),
@@ -99,8 +99,8 @@ func anAppliedDefinitionAtItsTermsIsReflexivityThere() throws {
     let body = try l.conjunctionBody()
     let applied = try l.const(.defined(conjunction.constant), fn(o, fn(o, o)), try l.bound(1, o), try l.bound(0, o))
     let root = try l.all(o, try l.all(o, try l.equal(o, applied, body)))
-    let c = try l.const(.declared("C"), o)
-    let d = try l.const(.declared("D"), o)
+    let c = try l.const(.defined(Defined(.zf, "C", .object)), o)
+    let d = try l.const(.defined(Defined(.zf, "D", .object)), o)
     let cited = { (args: [NodeID], t: inout Table) in
         try t.intern(.isaDefinition("Pure.conjunction_def", of: conjunction.defines, [], root, args: args))
     }
@@ -133,7 +133,7 @@ func aCitationsStatementUnfoldsAsEveryFormula() throws {
     var l = LogicTable()
     let not = try l.not()
     let iff = try l.iff()
-    let c = try l.const(.declared("C"), o)
+    let c = try l.const(.defined(Defined(.zf, "C", .object)), o)
     let notC = try l.const(.defined(not.constant), fn(o, o), c)
     let lemRoot = try l.imp(notC, notC)
     let lem = Statement(
@@ -182,7 +182,7 @@ func aClassMembershipUnfoldsByItsClassDefinitionAndACitationOfItIsReflexive() th
 @Test
 func aConstantWithNoDefinitionStopsTheRun() throws {
     var l = LogicTable()
-    let c = try l.const(.declared("C"), o)
+    let c = try l.const(.defined(Defined(.zf, "C", .object)), o)
     let not = Constant.defined(Defined(.ifol, "IFOL.Not", .object))
     let notC = try l.const(not, fn(o, o), c)
     #expect(throws: ExpandError.noDefinition(.isaConst(not, fn(o, o), args: [c]))) {
@@ -205,7 +205,7 @@ func aZFDefinitionAtTheMetaLevelUnfoldsAsTheLogicsDo() throws {
         axiomTypes: [o],
         try l.lam(F, try l.lam(i, applied)),
     )
-    let a = try l.const(.declared("A"), i)
+    let a = try l.const(.defined(Defined(.zf, "A", .object)), i)
     let member = try l.lam(i, try l.lam(i, try l.mem(try l.bound(1, i), try l.bound(0, i))))
     let used = try l.const(.defined(split.constant), T, member, a)
     let ball = try l.const(
@@ -234,7 +234,7 @@ private let takesAFunction = fn(fn(i, o), o)
 /// `λP. c(λz. P z)`, the constant `c` at `(i ⇒ o) ⇒ o` read η-long.
 private func etaConstant(_ name: String, _ l: inout LogicTable) throws -> NodeID {
     let atZ = try l.t.intern(.isaVarApp(head: try l.bound(1, fn(i, o)), args: [try l.bound(0, i)]))
-    return try l.lam(fn(i, o), try l.const(.declared(name), takesAFunction, try l.lam(i, atZ)))
+    return try l.lam(fn(i, o), try l.const(.defined(Defined(.zf, name, .object)), takesAFunction, try l.lam(i, atZ)))
 }
 
 /// `λP. f(λz. P z)`, the variable `f` at `(i ⇒ o) ⇒ o`, `k` binders out, read η-long.
@@ -246,7 +246,7 @@ private func etaVariable(_ k: Int, _ l: inout LogicTable) throws -> NodeID {
 
 /// `λP. c(P)`, the constant `c` at `o ⇒ o` read η-long.
 private func connective(_ name: String, _ l: inout LogicTable) throws -> NodeID {
-    try l.lam(o, try l.const(.declared(name), fn(o, o), try l.bound(0, o)))
+    try l.lam(o, try l.const(.defined(Defined(.zf, name, .object)), fn(o, o), try l.bound(0, o)))
 }
 
 /// `λP. f(P)`, the variable `f` at `o ⇒ o`, `k` binders out, read η-long.

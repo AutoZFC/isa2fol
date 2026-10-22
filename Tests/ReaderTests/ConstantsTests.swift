@@ -7,7 +7,7 @@ import YXML
 private func load(_ c: inout Constants, family: Family = .zf, foundation: Bool = false, _ entities: String...) throws {
     var f = Forest()
     let body = try f.parse(Array(entities.joined().utf8))
-    try c.load(body, family: family, foundation: foundation, in: f)
+    try c.load(body, theory: "ZF.T", family: family, foundation: foundation, in: f)
 }
 
 private let a = IsaType.tfree("'a", sort: [])
@@ -27,6 +27,8 @@ func aConstantLoadsItsParametersInOrderItsSchemeAndItsTheorysFamily() throws {
         scheme: fnT(a, b),
         family: .zf,
         foundation: false,
+        theory: "ZF.T",
+        abbreviation: false,
     ))
     #expect(c["T.absent"] == nil)
 }
@@ -123,8 +125,28 @@ func eachKindOfConstantHasItsReading() throws {
     #expect(try c.reading("IFOL.iff") == .constant(defined(.ifol, "IFOL.iff", .object)))
     #expect(try c.reading("Pure.prop") == .constant(defined(.pure, "Pure.prop", .meta)))
     #expect(try c.reading("Sum.Inl") == .constant(defined(.zf, "Sum.Inl", .object)))
-    #expect(try c.reading("T.claim") == .constant(.declared("T.claim")))
+    #expect(try c.reading("T.claim") == .constant(defined(.zf, "T.claim", .meta)))
     #expect(throws: DialectGap.leaf("ZF_Base.not_mem")) { try c.reading("ZF_Base.not_mem") }
+}
+
+/// DESIGN "A theory's own parameter": a constant a theory above the foundation declares and never defines is its
+/// parameter, read as a variable of what reaches it; an abbreviation never occurs, so it is none, and occurring is
+/// malformed.
+@Test
+func aConstantATheoryDeclaresAndNeverDefinesIsItsParameter() throws {
+    var c = Constants()
+    try load(
+        &c,
+        constEntity("P.c", parameters: [], scheme: i),
+        constEntity("P.d", parameters: [], scheme: i),
+        constEntity("P.short", parameters: [], scheme: i, abbreviating: const("P.c")),
+        constEntity("P.F", parameters: [], scheme: fn(i, i)),
+    )
+    try c.define("P.d", by: "P.d_def")
+    #expect(try c.reading("P.c") == .parameter)
+    #expect(try c.reading("P.F") == .parameter)
+    #expect(c.parameters == ["P.c", "P.F"])
+    #expect(throws: MalformedExport.abbreviationOccurs("P.short")) { try c.reading("P.short") }
 }
 
 @Test
@@ -138,7 +160,8 @@ func aDefinitionOfALeafTheDialectListsIsMalformed() throws {
 func aConstantDefinedTwiceOrTwoConstantsByOneAxiomIsMalformed() throws {
     var c = try testConstants()
     #expect(throws: MalformedExport.duplicateDefinition("IFOL.iff")) { try c.define("IFOL.iff", by: "IFOL.iff_again") }
-    #expect(throws: MalformedExport.duplicateDefinition("T.f")) { try c.define("T.f", by: "IFOL.iff_def_raw") }
+    try load(&c, constEntity("T.u", parameters: [], scheme: i))
+    #expect(throws: MalformedExport.duplicateDefinition("T.u")) { try c.define("T.u", by: "IFOL.iff_def_raw") }
     #expect(c.defined(byAxiom: "IFOL.iff_def_raw") == Defined(.ifol, "IFOL.iff", .object))
 }
 
@@ -160,6 +183,8 @@ func theExportsConstantsReadByTheirTheoriesAndDefinitions() throws {
         scheme: fnT(a, fnT(a, oT)),
         family: .ifol,
         foundation: true,
+        theory: "IFOL",
+        abbreviation: false,
     ))
     #expect(try c.instantiate("IFOL.eq", [iT]).irType() == .fn(.i, .fn(.i, .o)))
     #expect(try c.instantiate("ZF_Base.mem", []).irType() == .fn(.i, .fn(.i, .o)))
@@ -168,8 +193,17 @@ func theExportsConstantsReadByTheirTheoriesAndDefinitions() throws {
     #expect(try c.reading("IFOL.iff") == .constant(defined(.ifol, "IFOL.iff", .object)))
     #expect(try c.reading("FOL.induct_implies") == .constant(defined(.fol, "FOL.induct_implies", .object)))
     #expect(try c.reading("ZF_Base.Ball") == .constant(defined(.zf, "ZF_Base.Ball", .object)))
-    #expect(try c.reading("Language.Const") == .constant(.declared("Language.Const")))
-    #expect(try c.reading("Com.loc") == .constant(.declared("Com.loc")))
+    #expect(try c.reading("Language.Const") == .parameter)
+    #expect(try c.reading("Com.loc") == .parameter)
+    #expect(c.parameters == [
+        "Language.Const",
+        "Language.c_app",
+        "Language.ExVar",
+        "Static.isof",
+        "Types.TyConst",
+        "Com.loc",
+        "LList.flip",
+    ])
     #expect(throws: DialectGap.leaf("IFOL.not_equal")) { try c.reading("IFOL.not_equal") }
 }
 

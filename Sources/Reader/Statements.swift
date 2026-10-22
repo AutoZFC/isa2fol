@@ -91,8 +91,8 @@ struct Classes {
 }
 
 extension Terms {
-    mutating func statement(_ prop: Body, in t: inout Table) throws -> NodeID {
-        try close(try proposition(prop, closure, top: true, in: &t), Node.ifolAll, in: &t)
+    mutating func statement(_ prop: Body, premising premises: [NodeID] = [], in t: inout Table) throws -> NodeID {
+        try close(try proposition(prop, closure, top: true, in: &t), Node.ifolAll, premising: premises, in: &t)
     }
 }
 

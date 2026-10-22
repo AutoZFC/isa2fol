@@ -115,6 +115,8 @@ struct Terms {
         file e: Envelope,
         at instance: [IRType],
         order: FreeOrder,
+        parameters own: [String] = [],
+        context: ParameterContext = ParameterContext(),
     ) throws {
         guard instance.count == e.tfrees.count else {
             throw MalformedExport.instanceArity(expected: e.tfrees.count, found: instance.count)
@@ -130,17 +132,26 @@ struct Terms {
         else { throw MalformedExport.tfreesHeader(e.tfrees) }
         let typed = try e.frees.map { ($0.0, try $0.1.irType().substituting(types)) }
         letters = typed.map { $0.1 == .o }
-        let closed =
+        let (front, rest) =
             switch order {
-            case .lettersFirst: lettersFirst(typed, letters)
-            case .stated: typed
+            case .lettersFirst: (typed.filter { $0.1 == .o }, typed.filter { $0.1 != .o })
+            case .stated: ([], typed)
             }
+        let given = try own.map { name in
+            guard let T = context.types[name] else { throw MalformedExport.unreachedParameter(name) }
+            guard isObject(T) else { throw DialectGap.parameter(name) }
+            return T
+        }
         self.types = types
-        freeTypes = closed.map(\.1)
-        frees = Dictionary(uniqueKeysWithValues: closed.enumerated().map { (
+        self.context = context
+        outer = front.map(\.1) + given
+        inner = rest.map(\.1)
+        frees = Dictionary(uniqueKeysWithValues: (front + rest).enumerated().map { (
             $0.element.0,
-            (level: $0.offset, type: $0.element.1),
+            (level: $0.offset < front.count ? $0.offset : $0.offset + given.count, type: $0.element.1),
         ) })
+        parameterLevels = Dictionary(uniqueKeysWithValues: own.enumerated()
+            .map { ($0.element, front.count + $0.offset) })
     }
 
     let letters: [Bool]
@@ -150,11 +161,31 @@ struct Terms {
     let classes: Classes
 
     var closure: Scope {
-        Scope(frees: freeTypes.count)
+        Scope(frees: outer.count + inner.count)
     }
 
-    func close(_ n: NodeID, _ binder: (IRType, NodeID) -> Node, in t: inout Table) throws -> NodeID {
-        try freeTypes.reversed().reduce(n) { body, T in try t.intern(binder(T, body)) }
+    var front: Scope {
+        Scope(frees: outer.count)
+    }
+
+    func close(
+        _ n: NodeID,
+        _ binder: (IRType, NodeID) -> Node,
+        premising premises: [NodeID] = [],
+        _ implication: (NodeID, NodeID) -> Node = Node.folImplies,
+        in t: inout Table,
+    ) throws -> NodeID {
+        var body = try inner.reversed().reduce(n) { body, T in try t.intern(binder(T, body)) }
+        for A in premises.reversed() { body = try t.intern(implication(A, body)) }
+        return try outer.reversed().reduce(body) { body, T in try t.intern(binder(T, body)) }
+    }
+
+    func parameter(_ name: String, _ s: Scope, in t: inout Table) throws -> NodeID {
+        guard let level = parameterLevels[name], let T = context.types[name] else {
+            throw MalformedExport.unreachedParameter(name)
+        }
+        let v = try t.intern(.isaBound(s.depth - 1 - level, T))
+        return try etaLong(v, [], T, &t)
     }
 
     func irType(_ T: IsaType) throws -> IRType {
@@ -230,8 +261,11 @@ struct Terms {
     }
 
     private let types: [String: IRType]
+    private let context: ParameterContext
     private let frees: [String: (level: Int, type: IRType)]
-    private let freeTypes: [IRType]
+    private let parameterLevels: [String: Int]
+    private let outer: [IRType]
+    private let inner: [IRType]
     private var hidden: [IRType: Int]?
     private var memo = [Memo: NodeID]()
 
@@ -386,7 +420,21 @@ struct Terms {
         switch try constants.reading(name) {
         case .constant(let c):
             let T = try irType(scheme)
-            return try t.intern(.isaConst(c, T, args: try operands(name, T.domains, arguments, s, &t)))
+            var own = [String]()
+            if case .defined(let d) = c, let given = context.ofConstant[d.name] { own = given }
+            let leading = try own.map { try parameter($0, s, in: &t) }
+            let given = try operands(name, T.domains, arguments, s, &t)
+            let U = try own.reversed().reduce(T) { U, p in
+                guard let P = context.types[p] else { throw MalformedExport.unreachedParameter(p) }
+                return .fn(P, U)
+            }
+            return try t.intern(.isaConst(c, U, args: leading + given))
+
+        case .parameter:
+            guard let level = parameterLevels[name], let T = context.types[name] else {
+                throw MalformedExport.unreachedParameter(name)
+            }
+            return try variable(name, try t.intern(.isaBound(s.depth - 1 - level, T)), T, arguments, s, &t)
 
         case .hidden:
             let T = try irType(scheme)

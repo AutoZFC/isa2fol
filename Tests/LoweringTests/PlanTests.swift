@@ -186,7 +186,6 @@ func eachPatternHasTheOwnerTheDivisionGivesIt() throws {
         (.isaConst(.defined(.zf, .object), o, args: []), "logic", .rule),
         (.isaConst(.defined(.zf, .object), fn(o, fn(i, fn(i, i))), args: [o, i, i]), "logic", .rule),
         (.isaConst(.defined(.zf, .object), fn(o, i), args: [o]), "logic", .rule),
-        (.isaConst(.declared, i, args: []), "logic", .unbuilt),
         (.isaVarApp(head: fn(i, o), args: [i]), "logic", .rule),
         (.isaVarApp(head: fn(i, i), args: [i]), "logic", .rule),
         (.isaVarApp(head: fn(o, o), args: [o]), "logic", .rule),
@@ -247,7 +246,6 @@ func eachPatternHasTheOwnerTheDivisionGivesIt() throws {
         (.use(.axiom(.zf(.foundation)), [], o), "logic", .rule),
         (.use(.axiom(.zf(.infinity)), [], o), "logic", .rule),
         (.use(.axiom(.zf(.choice)), [], o), "logic", .rule),
-        (.use(.theoryAxiom, [], o), nil, nil),
         (.isaDefinition(.zf, .object, [], args: []), "logic", .rule),
         (.isaDefinition(.zf, .object, [], args: [i]), "logic", .rule),
         (.isaDefinition(.zf, .object, [], args: [fn(i, o), i]), "logic", .rule),
@@ -676,15 +674,15 @@ func aStatementNamingAConstantIsLoweredWithTheConstantsDefinition() throws {
     #expect(unit.statements.last?.defines == d.constant)
 }
 
-/// `T.e ≡ λx. x ∈ a`, `a` a declared constant: no `@def` names it, so the `@def` is refused at the logic pass, and the
-/// statement naming `T.e` with it.
+/// `T.e ≡ λx. ∀P::o ⇒ o. x ∈ x`: Logic has not built a quantifier over a function of propositions, so the `@def` is
+/// refused at the logic pass, and the statement naming `T.e` with it.
 @Test
 func aDefinitionHoldingAPieceNotBuiltRefusesItsUsers() throws {
     var l = LogicTable()
-    let x = try l.bound(0, i)
-    let declared = try l.const(.declared("T.a"), i)
-    let e = try l.definition(Defined(.zf, "T.e", .object), fn(i, o), try l.lam(i, try l.mem(x, declared)))
-    let atom = try l.const(.defined(e.constant), fn(i, o), x)
+    let x = try l.bound(1, i)
+    let unbuilt = try l.t.intern(.ifolAll(fn(o, o), body: try l.mem(x, x)))
+    let e = try l.definition(Defined(.zf, "T.e", .object), fn(i, o), try l.lam(i, unbuilt))
+    let atom = try l.const(.defined(e.constant), fn(i, o), try l.bound(0, i))
     let proof = try l.t.intern(.isaAllIntro(
         i,
         body: try l.t.intern(.folImpliesIntro(atom, body: try l.t.intern(.hyp(0, atom)))),
@@ -699,7 +697,7 @@ func aDefinitionHoldingAPieceNotBuiltRefusesItsUsers() throws {
     #expect(unit.statements.isEmpty)
     #expect(unit.refused.map(\.name) == ["T.e_DEF", "thm"])
     #expect(unit.refused.map(\.refusal) == [
-        .unbuilt(pass: "logic", [.isaConst(.declared, i, args: [])]),
+        .unbuilt(pass: "logic", [.ifolAll(fn(o, o), body: o)]),
         .cites("T.e_DEF"),
     ])
 }

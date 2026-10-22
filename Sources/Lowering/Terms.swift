@@ -429,7 +429,7 @@ struct TermProofs {
 
         case .primitive(.zf(.mem)), .primitive(.zf(.pow)), .primitive(.zf(.union)), .primitive(.zf(.primReplace)),
              .primitive(.pure),
-             .primitive(.ifol), .declared:
+             .primitive(.ifol):
             throw TermsError.noFact("\(c.name), a set constant")
         }
     }

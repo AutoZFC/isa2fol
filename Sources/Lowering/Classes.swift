@@ -22,7 +22,7 @@ public struct ClassProver: Prover {
             switch f.constant {
             case .defined, .primitive(.zf(.pow)), .primitive(.zf(.union)), .primitive(.zf(.primReplace)): return .rule
             case .primitive(.zf(.zero)), .primitive(.zf(.inf)): return f.fact == .classExists ? .rule : nil
-            case .primitive, .declared: return .unbuilt
+            case .primitive: return .unbuilt
             }
 
         case let f as LambdaFact:
@@ -539,7 +539,7 @@ struct ClassProofs {
                 try base.cite(.zfInfDef, in: &t),
             )
 
-        case .primitive, .declared:
+        case .primitive:
             throw ClassError.noDefinition(c.name)
         }
         var top = Frame()
@@ -674,7 +674,7 @@ struct ClassProofs {
             let phi = try dropping(try iff(matrix, t).right, k + outside, in: &t)
             return (definition, outside, .formula(phi), phi)
 
-        case .primitive, .declared:
+        case .primitive:
             throw ClassError.noDefinition(c.name)
         }
     }

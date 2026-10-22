@@ -41,8 +41,7 @@ struct GraphProofs {
         case .primitive(.zf(.union)): return try base.cite(.zfUnionDef, in: &t)
         case .primitive(.zf(.primReplace)): return try base.cite(.zfPrimReplaceDef, in: &t)
         case .defined(let d): return try t.intern(.use(.definition(d), [], try atDefinition(d, definitions, in: &t)))
-        case .primitive(.zf(.mem)), .primitive(.zf(.zero)), .primitive(.zf(.inf)), .primitive(.pure), .primitive(.ifol),
-             .declared:
+        case .primitive(.zf(.mem)), .primitive(.zf(.zero)), .primitive(.zf(.inf)), .primitive(.pure), .primitive(.ifol):
             throw GraphError.noDefinition(c.name)
         }
     }
@@ -86,8 +85,7 @@ struct GraphProofs {
                 return try beta(definiens, args, in: &t)
             }
 
-        case .primitive(.zf(.mem)), .primitive(.zf(.zero)), .primitive(.zf(.inf)), .primitive(.pure), .primitive(.ifol),
-             .declared:
+        case .primitive(.zf(.mem)), .primitive(.zf(.zero)), .primitive(.zf(.inf)), .primitive(.pure), .primitive(.ifol):
             throw GraphError.noDefinition(c.name)
         }
     }

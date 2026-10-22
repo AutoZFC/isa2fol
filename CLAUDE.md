@@ -15,10 +15,15 @@ its proof read there, in place, when it binds no proposition on its spine there 
 there a statement of the unit, named by its proof's content, when it binds one ("A theorem cited at a type"). **The input layer is
 `DESIGN.md` §4.3b**: Pure, IFOL, FOL and ZF contribute axioms and constants, read as typed values — Pure's equality
 rules, and the logic's natural-deduction rules fol-zfc has, read as their steps ("The logic's rules read as steps") —
-`Constant` (primitive · defined · declared), `Cited` (theorem · definition · axiom · theory axiom,
+`Constant` (primitive · defined), `Cited` (theorem · definition · axiom,
 and lowering's lemma and base's schema); a
 leaf FOL has reads as its node, a defined constant as defined, at its declared level (object · meta); a gap in the
-dialect stops the read.
+dialect stops the read. **A theory's own parameter is a variable of what reaches it** (`DESIGN.md` "A theory's own
+parameter, a variable of what reaches it", FOUNDATION §2): a constant a theory above the foundation declares and never
+defines — ZF-IMP's `loc`, ZF-Coind's `Const`, `c_app`, `ExVar`, `isof`, `TyConst`, ZF-ex's `flip` — is bound by each
+statement reaching it, in its formula, through a definition or through its proof, after its letters and before its own
+variables, and the theory's axioms its proof reaches are premises between, their citations the premises' hypotheses;
+a definition reaching one takes it as a leading argument, and a citation takes the citer's own. Nothing is admitted.
 **Lowering is the plan of three passes, declared whole** (`DESIGN.md` §4a, "Lowering's components"): expand ·
 logic · fol. **Reify is no pass**: the logic pass's walk calls its code ("Reify called from Logic's walk"). Each pass
 owns patterns by ONE exhaustive switch over `Pattern`; the pipeline refuses a statement holding a pattern no pass owns
@@ -51,9 +56,11 @@ fixed where the application stands: `DESIGN.md` "β at values"), `SUBST_<fp>` Le
 letters, which stay on its spine. Of the ZF session's 3,616 named theorems (`--skip` the other seven), `lower` lowers
 3,609 to fol-zfc, `AC.AC` and Zorn's lemma among them; the 7 others stop at no owner, each a named theorem at a type no
 class restricts — a ceiling (`DESIGN.md` "A named theorem at a type no class restricts", FOUNDATION §3b): fol-zfc has no
-type variable, and each instance a proof cites is translated there. No lemma they reach is refused unbuilt. **ZF-AC,
-the target now, lowers and kernel-checks whole, 477 of 477**, with ZF's 3,609 (`DESIGN.md` "A ZF proposition defined
-with no arguments", Measured). With the other sessions but ZF-Constructible, before it, 6,921 of 7,299 lower and
+type variable, and each instance a proof cites is translated there. No lemma they reach is refused unbuilt. ZF-AC
+lowers and kernel-checks whole, 477 of 477, with ZF's 3,609 (`DESIGN.md` "A ZF proposition defined with no arguments",
+Measured). **ZF-IMP, ZF-Coind and ZF-ex, the target now, lower and kernel-check whole**, 284, 288 and 798, with ZF's
+3,609: 72,408 claims and 8,262 schemas Proved, peak 26.8 GB (`DESIGN.md` "A theory's own parameter, a variable of what
+reaches it", Measured). With the other sessions but ZF-Constructible, before those two steps, 6,921 of 7,299 lower and
 kernel-check, all Proved: ZF-Induct 1,494 of 1,496, ZF-ex 792 of 798, ZF-Resid 334 of 340, ZF-AC 396 of 477, ZF-Coind
 149 of 288, ZF-IMP 147 of 284 (`DESIGN.md` "`combination` under a function of a function, read whole", Measured). **ZF's
 axioms are theorems of base read back into Isabelle's form**
@@ -144,16 +151,16 @@ Swift 6.4, language mode 5. `scripts/02-install-swift.sh` installs it into
 **Iterate on the stage being built; run the whole unit only as CI** (`DESIGN.md` "Iteration"). A feature fails at the
 earliest stage that sees it, so a run stops there (`--through expand|logic|registry`) and on the theorems it concerns
 (`--theorem NAME,…`, `--skip SESSION,…`; the export's load, ~30 s, stays). The complete run, emitted and
-kernel-checked, is the check of a feature believed complete. **Runs target one session at a time, until it is
-translated** (user): the ZF session alone until 2026-10-21, at its ceiling; **now ZF with ZF-AC** (user, 2026-10-21),
-`$AC` below, `--skip ZF-Coind,ZF-Constructible,ZF-IMP,ZF-Induct,ZF-Resid,ZF-ex`, ZF kept so its 3,609 stay the
-baseline a run must not lose. ⚠ All eight sessions do not fit memory yet (`DESIGN.md` "`combination` under a function
+kernel-checked, is the check of a feature believed complete. **Runs target one gap at a time, until it is
+translated** (user): the ZF session alone, then ZF with ZF-AC, both done 2026-10-21; then ZF with ZF-IMP, ZF-Coind
+and ZF-ex (user, 2026-10-21), done 2026-10-22, `$T` below, `--skip ZF-AC,ZF-Constructible,ZF-Induct,ZF-Resid`, ZF kept
+so its 3,609 stay the baseline a run must not lose; the next target is the user's. ⚠ All eight sessions do not fit memory yet (`DESIGN.md` "`combination` under a function
 of a function, read whole", Measured). **Lint before every run** (user, 2026-10-17): `pre-commit run --all-files`
 first.
 
 ```bash
-MEM=48G scripts/capped.sh .build/release/isa2fol lower data/zf_export --through logic $AC [--theorem NAME,…]
-MEM=32G scripts/capped.sh .build/release/isa2fol lower data/zf_export $AC --emit DIR [--threads N]   # CI; N: every core
+MEM=48G scripts/capped.sh .build/release/isa2fol lower data/zf_export --through logic $T [--theorem NAME,…]
+MEM=32G scripts/capped.sh .build/release/isa2fol lower data/zf_export $T --emit DIR [--threads N]   # CI; N: every core
 MEM=32G scripts/capped.sh scripts/check-unit.sh DIR        # each part, against base's and its parts' libraries
 MEM=16G scripts/capped.sh scripts/check-base.sh [LIBDIR]   # base alone, each tier once
 ```
@@ -319,7 +326,7 @@ determinism R1–R3 (§4.6).
    print(f'{c}/{t} = {100*c/t:.1f}%')"
    ```
 
-   ✓ **CURRENTLY 300/17673 = 1.7%, under the cap.** Keep it there: a breach is
+   ✓ **CURRENTLY 302/18047 = 1.7%, under the cap.** Keep it there: a breach is
    fixed by deleting prose, never by raising the cap.
 
    Does not apply to `base/**/*.fol.def` headers: those record provenance of
