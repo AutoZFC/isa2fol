@@ -31,8 +31,9 @@ letter, `schema_inst` at a citation, and Pure's `⋀` over a proposition below i
 `holds(E)`; Pure's equality at a function of propositions pointwise over truth sets; `subst` base's `class_subst`; `classical` and `iff_reflection`, which the reader
 reads as isa steps, the kernel's after Expand; Pure's equality, which the reader reads as steps, as base's `iff_*` at `o`
 and `eq_*` at `i`, base's schemas parsed from base's own text), Reify in Logic's walk (S1: a term and a λ in a class slot named where they stand; a constant's
-class by its `@def`, which its prover states from the definition; an instance at a compound term by EX and UNIQ of the
-term) and Fol (the guard Reify gives each object type — `set`, `function`, none — fol-zfc's variables, `∃` at `i`) have
+class by its `@def`, which its prover states from the definition — a proposition of no arguments, `AC1 :: o`, the class
+of its 0-tuples, S4's truth set, read `∅ ∈ C` (`DESIGN.md` "A ZF proposition defined with no arguments"); an instance
+at a compound term by EX and UNIQ of the term) and Fol (the guard Reify gives each object type — `set`, `function`, none — fol-zfc's variables, `∃` at `i`) have
 rules, and an instance at a class type is Lambda's (`DESIGN.md` "Step 3 — an instance at a class type": `forall_elim`
 at the λ's class at its arguments, `LAMBDA_<fp>`, then β at each occurrence of the class variable — its slot's class
 kept, an application at its value), and Pure's equality between functions is Logic's (`DESIGN.md` "Step 4 — Pure's
@@ -50,7 +51,11 @@ fixed where the application stands: `DESIGN.md` "β at values"), `SUBST_<fp>` Le
 letters, which stay on its spine. Of the ZF session's 3,616 named theorems (`--skip` the other seven), `lower` lowers
 3,609 to fol-zfc, `AC.AC` and Zorn's lemma among them; the 7 others stop at no owner, each a named theorem at a type no
 class restricts — a ceiling (`DESIGN.md` "A named theorem at a type no class restricts", FOUNDATION §3b): fol-zfc has no
-type variable, and each instance a proof cites is translated there. No lemma they reach is refused unbuilt. **ZF's
+type variable, and each instance a proof cites is translated there. No lemma they reach is refused unbuilt. **ZF-AC,
+the target now, lowers and kernel-checks whole, 477 of 477**, with ZF's 3,609 (`DESIGN.md` "A ZF proposition defined
+with no arguments", Measured). With the other sessions but ZF-Constructible, before it, 6,921 of 7,299 lower and
+kernel-check, all Proved: ZF-Induct 1,494 of 1,496, ZF-ex 792 of 798, ZF-Resid 334 of 340, ZF-AC 396 of 477, ZF-Coind
+149 of 288, ZF-IMP 147 of 284 (`DESIGN.md` "`combination` under a function of a function, read whole", Measured). **ZF's
 axioms are theorems of base read back into Isabelle's form**
 (`DESIGN.md` "Step 8 — ZF's axioms, derived from NBG"): base states each in NBG's words — a primitive by its relation,
 a predicate Isabelle defines by its definition — and proves it, Regularity pinned for `foundation`; a lemma per axiom,
@@ -139,15 +144,16 @@ Swift 6.4, language mode 5. `scripts/02-install-swift.sh` installs it into
 **Iterate on the stage being built; run the whole unit only as CI** (`DESIGN.md` "Iteration"). A feature fails at the
 earliest stage that sees it, so a run stops there (`--through expand|logic|registry`) and on the theorems it concerns
 (`--theorem NAME,…`, `--skip SESSION,…`; the export's load, ~30 s, stays). The complete run, emitted and
-kernel-checked, is the check of a feature believed complete. **The complete run is all eight sessions** (user,
-2026-10-21, the ZF session at its ceiling): the ZF session's 3,609 are the baseline a run must not lose, and `$ZF` below,
-`--skip ZF-AC,ZF-Coind,ZF-Constructible,ZF-IMP,ZF-Induct,ZF-Resid,ZF-ex`, runs it alone. ⚠ The other sessions do not
-fit memory yet (`DESIGN.md` "`combination` under a function of a function, read whole", Measured). **Lint before
-every run** (user, 2026-10-17): `pre-commit run --all-files` first.
+kernel-checked, is the check of a feature believed complete. **Runs target one session at a time, until it is
+translated** (user): the ZF session alone until 2026-10-21, at its ceiling; **now ZF with ZF-AC** (user, 2026-10-21),
+`$AC` below, `--skip ZF-Coind,ZF-Constructible,ZF-IMP,ZF-Induct,ZF-Resid,ZF-ex`, ZF kept so its 3,609 stay the
+baseline a run must not lose. ⚠ All eight sessions do not fit memory yet (`DESIGN.md` "`combination` under a function
+of a function, read whole", Measured). **Lint before every run** (user, 2026-10-17): `pre-commit run --all-files`
+first.
 
 ```bash
-MEM=48G scripts/capped.sh .build/release/isa2fol lower data/zf_export --through logic $ZF [--theorem NAME,…]
-MEM=32G scripts/capped.sh .build/release/isa2fol lower data/zf_export $ZF --emit DIR [--threads N]   # CI; N: every core
+MEM=48G scripts/capped.sh .build/release/isa2fol lower data/zf_export --through logic $AC [--theorem NAME,…]
+MEM=32G scripts/capped.sh .build/release/isa2fol lower data/zf_export $AC --emit DIR [--threads N]   # CI; N: every core
 MEM=32G scripts/capped.sh scripts/check-unit.sh DIR        # each part, against base's and its parts' libraries
 MEM=16G scripts/capped.sh scripts/check-base.sh [LIBDIR]   # base alone, each tier once
 ```

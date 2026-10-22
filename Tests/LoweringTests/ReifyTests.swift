@@ -261,6 +261,28 @@ func aConstantsDefinitionIsItsClassFromItsDefinition() throws {
     #expect(stated == [dDef, eDef, fDef])
 }
 
+/// A ZF proposition of no arguments is a predicate at arity 0: its atom is its class's membership at the empty tuple,
+/// `∅ ∈ C`, and its `@def` the class of its 0-tuples, S4's truth set.
+@Test
+func aPropositionOfNoArgumentsIsItsClassOfTheEmptyTuple() throws {
+    var r = try R()
+    let q = Defined(.zf, "T.q", .object)
+    let atom = try r.n(.isaConst(.defined(q), o, args: []))
+    let named = try r.nameClass(
+        try r.k(.defined(q), try r.c(0)),
+        try r.name(try r.p("zero", try r.x(0)), try r.p("elem", try r.x(0), try r.c(1))),
+    )
+    #expect(try r.logic([atom]) == [named])
+    let phi = try r.every(try r.mem(try r.x(0), try r.x(0)))
+    let d = Definition(defines: .constant(q), type: o, axiomTypes: [], parameters: 0, definiens: phi)
+    let stated = try ReifyProver(base: r.base).define(q, [d], in: &r.t)
+    let truthSet = try r.n(.folForall(body: try r.iff(try r.k(.defined(q), try r.c(0)), try r.every(try r.iff(
+        try r.p("elem", try r.x(0), try r.c(1)),
+        try r.and(try r.p("zero", try r.x(0)), try r.every(try r.p("elem", try r.x(0), try r.x(0)))),
+    )))))
+    #expect(stated == truthSet)
+}
+
 /// The statement of a theorem citing `lem : ⋀x. φ(x)` at a compound term, through Logic and then Fol: each proof
 /// concludes
 /// its statement by ID at both. Returns Logic's proof.

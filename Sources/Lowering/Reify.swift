@@ -56,7 +56,7 @@ public struct Reify {
 
 private func namesConstant(_ T: IRType) -> Bool {
     let domains = T.domains
-    return domains.allSatisfy { isObject($0) || $0 == .o } && (result(T) == .i || result(T) == .o && !domains.isEmpty)
+    return domains.allSatisfy { isObject($0) || $0 == .o } && (result(T) == .i || result(T) == .o)
 }
 
 private func value(_ p: Pattern) -> IRType? {
@@ -458,7 +458,7 @@ func atDefinition(_ c: Defined, _ definitions: [Definition], in t: inout Table) 
     else { throw ReifyError.noDefinition(c.name) }
     let predicate = Predicate.constant(.defined(c))
     let domains = d.type.domains
-    guard !domains.isEmpty else {
+    guard d.type != .i else {
         let v = try t.intern(.folBound(0))
         let equated = try equation(v, d.definiens, in: &t)
         let valued = try named(atom: t[equated], in: &t)

@@ -7511,6 +7511,11 @@ reflexivity or no reading; `PlanTests`' rows. 14, 142, 175, 135, 52 pass, none f
   `(i ⇒ o) ⇒ i ⇒ i ⇒ i ⇒ i ⇒ o` (Internalize, Rec_Separation, Rank_Separation); `MetaExists`' three and one of
   `Normal`'s at a type no class restricts, the ceiling; the rest cite those (Separation's 117 all). Datatype_absolute,
   DPow_absolute and Satisfies_absolute exceed 30 GB, below (Satisfies_absolute at 57 minutes).
+- **Every session but ZF-Constructible**, the complete run (`--skip ZF-Constructible`, `MEM=64G`, `--threads 8`), the
+  six others' first kernel check: 6,921 of 7,299 named theorems lowered — ZF 3,609, ZF-AC 396 of 477, ZF-Coind 149 of
+  288, ZF-IMP 147 of 284, ZF-Induct 1,494 of 1,496, ZF-Resid 334 of 340, ZF-ex 792 of 798 — in 210 parts, claims
+  100,068 and schemas 11,139, each part exit 0 with stderr empty, every one Proved. 1:22:13, peak 37.1 GB, writing
+  the output 466 s; checked in 1:09:32 at 8.8 GB.
 - **`satisfies_MH_def`**, decision 1's second case, lowered with what it cites, emitted and kernel-checked: 10 parts,
   997 claims and 448 schemas, every one Proved. `⋁`'s case stands in no theorem yet, L_axioms' reflection theorems
   refused on `ex_def`'s equation above; its fixture is its check.
@@ -7521,8 +7526,87 @@ reflexivity or no reading; `PlanTests`' rows. 14, 142, 175, 135, 52 pass, none f
   proof's closed values at its top (`fixing`), and `Rebind` writes each value's variable and its fact as de Bruijn
   indices, which differ with depth, so a node holding one is copied at every (term, hypothesis) depth where the proof
   meets it. `DPow'_iff_sats`: Isabelle's proof 41K nodes, 288 binders deep; Logic's, 434K, 1,770 deep; 62 closed
-  values, held by 94K nodes met at 1,756 term depths: 46.5M copies. The six other sessions' 39.4 GB lowering is
-  believed the same cause, unmeasured.
+  values, held by 94K nodes met at 1,756 term depths: 46.5M copies. Not the six other sessions' 39.4 GB: their run
+  before this step (`--skip ZF-Constructible`, RSS sampled every 15 s) held 5.0 GB when Logic ended, 8.4 GB after the
+  registry and 17.9 GB after Fol, and reached 36.8 GB writing the output.
+
+### A ZF proposition defined with no arguments — ZF-AC's `WO1` … `AC19`, named as every defined predicate  **[AGREED 2026-10-21 (user: "Agree to both"); BUILT 2026-10-21 — `Sources/Lowering/Reify.swift`, `Unfolding.swift`]**
+
+**The step.** ZF with ZF-AC is the target (user, 2026-10-21). Through Logic (`$AC`), 4,005 of its 4,093 named
+theorems stand. Of the 88 refused, ZF's 7 are at no owner, the ceiling, and ZF-AC's 81 are at Logic, every one on one
+pattern, `isaConst(defined zf object, o, args: [])`: a ZF proposition defined with no arguments — `AC_Equiv`'s
+`WO1`–`WO8` and `AC0`–`AC19`, `DC.DC0`, `WO1_WO7.LEMMA`; ZF-Resid's `Confluence.strip` too. Reify names a defined
+predicate only when it takes an argument (`namesConstant`), and answers unbuilt.
+
+```
+Isabelle   AC1 ≡ ∀A. 0 ∉ A ⟶ (∃f. f ∈ (Π X∈A. X))                     AC1 :: o, declared at the object level
+           theorem AC1_AC17: AC1 ⟹ AC17
+read       isaConst(defined zf object, o, args: [])     Reify: unbuilt — the theorem refused at Logic
+```
+
+**FOUNDATION already reads it.** "A ZF constant whose declared type stays at the object level … is NAMED" (§2, "A
+constant is named only at the object level"), and S4: "A predicate of `n` arguments is the class of its argument
+tuples (R7). At `n = 0` the only tuple is the empty one, `⟨⟩ = ∅`, so a proposition `φ` is its truth set", "a
+constant's value (`AC1 :: o`) is its truth set". The case was never built: Reify's naming came before S4's arity-0
+paragraph, and two places still read "no arguments" as "a value".
+
+**1. A ZF proposition defined with no arguments is named as every defined predicate: its class is the class of its
+argument tuples, at arity 0 the class of the empty tuple — S4's truth set.** Reify owns it (`namesConstant` admits `o`
+with no domains). Its atom is its class's membership at the empty tuple, the tuple `zero(τ)` as `tuple` writes it at
+no entries, and its `@def` the class of its 0-tuples, which `classBody` already writes at `n = 0`:
+
+```
+before   Reify: unbuilt — ZF-AC's 81 refused at Logic
+after    @def(AC_Equiv.AC1) axiom AC_Equiv.AC1_DEF:
+           forall b0. (AC_Equiv.AC1(b0) <-> (forall b1. (set(b1) -> (elem(b1, b0) <-> (zero(b1) & φ*)))))
+         AC1 where a statement states it:
+           forall b0. (AC_Equiv.AC1(b0) -> (forall b1. (set(b1) -> (zero(b1) -> elem(b1, b0)))))
+```
+
+Not unfolded where it stands, as Expand reads `AC18 :: prop`: that is a meta-level constant's reading, and an
+object-level one is named, its body stated once and cited (R5 forbids inlining it). Not base's `truth_EX` for its
+class: the class prover builds a class of records at every arity, and arity 0 takes that route like every predicate
+(one route per rule).
+
+**2. "No arguments" is told apart by the result type, never the arity.** Two places read a constant of no arguments
+as a value: `atDefinition` (`c(v) ↔ v = t`) and the unfolding prover (`Unfolder.set`). At `i` it stays a value. At
+`o` it takes the predicate's route at both: its `@def` the class form, `_UNFOLD` by `Unfolder.predicate`. A value's
+`_EX` and `_UNIQ` are asked only where Reify names a term, at `i` already; an atom asks for its class's `_CLASS`.
+
+**The contracts (D2):**
+
+| | provides | assumes |
+|---|---|---|
+| Reify | an object-level defined constant at `o` with no arguments named: its class bound, `c(C)`, the atom `∅ ∈ C`; its `@def` the class of its 0-tuples | the empty tuple's formula, `zero(τ)` (`tuple`) |
+| The class prover | `c_CLASS` at records of length 0 | the tuple facts at arity 0, base's `zeroEX`, `zeroUNIQ` |
+| The unfolding prover | `c_UNFOLD` for a predicate of no arguments | the `@def` above |
+
+**Tests, written first.**
+- `ReifyTests`: a defined `T.P :: o` of no arguments is Reify's; its `@def` is the class of its 0-tuples; its atom is
+  `∅ ∈ C`.
+- A theorem `T.P`, proved by unfolding `T.P`'s definition to a closed formula proved in place, lowered, emitted and
+  kernel-checked; and `T.P ⟹ T.Q` between two such propositions.
+- `PlanTests`: `isaConst(defined zf object, o, args: [])` is Reify's, `.rule`.
+- ZF with ZF-AC, the complete run, emitted and kernel-checked: ZF-AC's 81 stand, ZF's 3,609 kept name for name.
+
+**Not in this step.** ZF-Resid's `Confluence.strip` is the same pattern, measured when ZF-Resid is the target.
+
+**Built** (`Sources/Lowering/Reify.swift`, `Unfolding.swift`). `namesConstant` admits `o` with no domains;
+`atDefinition` states the value form only at `i`; the unfolding prover reads a predicate before it reads a value, at
+every arity. Nothing else changed: the atom's empty tuple (`tuple`, `zero(τ)`), the class body at `n = 0`
+(`classBody`), the class prover's `_CLASS` at records of length 0 and base's `zeroEX` and `zeroUNIQ` held already.
+Tests: `aPropositionOfNoArgumentsIsItsClassOfTheEmptyTuple` (the atom and the `@def`),
+`aPropositionsDefinitionOfNoArgumentsIsItsUnfoldingLemma` and `aPropositionOfNoArgumentsIsProvedThroughItsDefinition`,
+each kernel-checked; `PlanTests`' row and Reify's list. 14, 142, 178, 135, 52 pass, none failing.
+
+**Measured** (2026-10-21). ZF with ZF-AC (`$AC`), the complete run, `MEM=32G`, `--threads 16`: 4,086 of the 4,093
+named theorems lowered — ZF-AC's 477 of 477, the 81 added, and ZF's 3,609, every claim and schema name of the ZF run
+before present; refused, named: ZF's 7, the ceiling; no lemma refused unbuilt or left out. 117 parts, claims 59,979
+and schemas 7,019, each part exit 0 with stderr empty, every one Proved, checked in 28:05 at 4.8 GB; 5,147,706,905
+bytes; the table 179,234,579 nodes; stages expand 5.5 s, logic 329.6 s, registry 657.1 s, fol 593.9 s; the complete
+run 30:57, peak 18.9 GB. A lemma is written in its first citer's part in emission's order, and ZF-AC's `AC_Equiv` and
+`AC18_AC19` cite only ZF theories that come before `ArithSimp`: 295 of the ZF session's lemmas are written in those two
+parts now, and ZF's later parts read their libraries.
 
 ### Fol — binders, guards and variables  **[BUILT 2026-09-28 as the guard; Fol's 2026-10-14; every object type and `∃` at `i` with "Reify — S1 at the site" — `Sources/Lowering/Fol.swift`]**
 

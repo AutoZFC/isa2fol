@@ -112,6 +112,47 @@ func aSetConstantsDefinitionIsItsUnfoldingLemma() throws {
     try checked(unit, holding: ["T.e_def", "T.e_UNFOLD"])
 }
 
+/// `T.q ≡ 0 ∈ Pow(0)`, a proposition of no arguments: `≡` at its value is `↔`, through `T.q`'s class of the empty
+/// tuple, S4's truth set.
+@Test
+func aPropositionsDefinitionOfNoArgumentsIsItsUnfoldingLemma() throws {
+    var l = LogicTable()
+    let q = try l.definition(Defined(.zf, "T.q", .object), o, try l.mem(try zero(&l), try pow(try zero(&l), &l)))
+    let stated = try raw(q, eta: try l.const(.defined(q.constant), o), &l)
+    let proof = try cited(q, stated, [], &l)
+    let unit = try lowered(l, [Statement(name: "T.q_def", root: stated, proof: proof, theory: "Test")], [q])
+    try checked(unit, holding: ["T.q_def", "T.q_UNFOLD", "T.q_DEF"])
+}
+
+/// `T.q ≡ ∀x. x ∈ x ⟶ x ∈ x` and `T.r ≡ T.q`, as `AC_Equiv`'s propositions: `T.q` proved through its definition, and
+/// `T.q ⟹ T.r` through `T.r`'s, whose class holds `T.q`'s atom.
+@Test
+func aPropositionOfNoArgumentsIsProvedThroughItsDefinition() throws {
+    var l = LogicTable()
+    let member = try l.mem(try l.bound(0, i), try l.bound(0, i))
+    let q = try l.definition(Defined(.zf, "T.q", .object), o, try l.all(i, try l.imp(member, member)))
+    let atQ = try l.const(.defined(q.constant), o)
+    let r = try l.definition(Defined(.zf, "T.r", .object), o, atQ)
+    let atR = try l.const(.defined(r.constant), o)
+    let reflexivity = try l.t.intern(.isaAllIntro(
+        i,
+        body: try l.t.intern(.folImpliesIntro(member, body: try l.t.intern(.hyp(0, member)))),
+    ))
+    let holds = try l.t.intern(.folIffElimL(
+        try l.t.intern(.isaSymmetric(o, try cited(q, try raw(q, eta: atQ, &l), [], &l))),
+        reflexivity,
+    ))
+    let implied = try l.t.intern(.folImpliesIntro(atQ, body: try l.t.intern(.folIffElimL(
+        try l.t.intern(.isaSymmetric(o, try cited(r, try raw(r, eta: atR, &l), [], &l))),
+        try l.t.intern(.hyp(0, atQ)),
+    ))))
+    let unit = try lowered(l, [
+        Statement(name: "T.q_holds", root: atQ, proof: holds, theory: "Test"),
+        Statement(name: "T.q_r", root: try l.imp(atQ, atR), proof: implied, theory: "Test"),
+    ], [q, r])
+    try checked(unit, holding: ["T.q_holds", "T.q_r"])
+}
+
 /// `T.ball ≡ λA P. ∀x. x ∈ A ⟶ P(x)`, a predicate taking a class: its slot holds `λx. P(x)`, named by its class, and
 /// the
 /// `@def`'s applications of that class are read back as `P`'s.

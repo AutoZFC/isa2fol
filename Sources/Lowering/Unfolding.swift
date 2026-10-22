@@ -114,10 +114,10 @@ struct UnfoldingProofs {
             name: r.name,
         )
         var proof: NodeID =
-            if domains.isEmpty {
-                try unfolder.set(matrix, Frame(s), &t)
-            } else if result(d.type) == .o {
+            if result(d.type) == .o {
                 try unfolder.predicate(matrix, Frame(s), &t)
+            } else if domains.isEmpty {
+                try unfolder.set(matrix, Frame(s), &t)
             } else {
                 try unfolder.function(matrix, Frame(s), &t)
             }
