@@ -15,7 +15,7 @@ func value(of x: NodeID, in t: inout Table) throws -> NodeID {
 /// ⚠ A VALUE HOLDS A PROPOSITION VARIABLE AS ITS TRUTH, `holds(E)`, NEVER AS THE VARIABLE: a lemma's letter is
 /// instantiated at the truth, and a value holding the variable would differ from it by ID.
 func valueNode(_ x: NodeID, in t: inout Table) throws -> NodeID {
-    try t.intern(.isaValue(try transform(x, TruthRead(), in: &t)))
+    try t.intern(.value(try transform(x, TruthRead(), in: &t)))
 }
 
 /// A value's truths read back as the proposition variables they stand for: its term as Isabelle holds it.
@@ -45,7 +45,7 @@ struct At: Hashable {
 
 func isVariable(_ x: NodeID, _ t: Table) -> Bool {
     switch t[x] {
-    case .isaBound, .folBound, .isaValue: true
+    case .isaBound, .folBound, .value: true
     default: false
     }
 }
@@ -60,13 +60,13 @@ func isValued(_ x: NodeID, _ t: Table) -> Bool {
          .folAndElimR, .folOrIntroL, .folOrIntroR, .folOrElim, .folBottomElim, .isaGuard, .isaExIntro, .isaExElim,
          .folNot, .folBound, .folPred, .folForall, .folExists, .folNotIntro, .folNotElim, .folIffElimR, .folForallIntro,
          .folForallElim, .folExistsIntro, .folExistsElim, .folCut, .folClassicalAbsurd, .folSchemaInst, .folLetterAll,
-         .folLetter, .folLetterAbs, .isaValue, .isaValueFact:
+         .folLetter, .folLetterAbs, .value, .valueFact, .valueElim:
         false
     }
 }
 
 func fact(of v: NodeID, in t: inout Table) throws -> NodeID {
-    try t.intern(.isaValueFact(v, try valueFact(v, in: &t)))
+    try t.intern(.valueFact(v, try valueEquation(v, in: &t)))
 }
 
 /// A formula with each maximal term `abstracting` picks replaced by a variable beyond the formula's own, `params` the
@@ -128,7 +128,7 @@ func existence(
     guardOf: (NodeID, IRType, inout Table) throws -> NodeID = isaGuard,
     in t: inout Table,
 ) throws -> NodeID {
-    guard case .isaValue(let held) = t[v] else { throw ValuesError.notAValue(v) }
+    guard case .value(let held) = t[v] else { throw ValuesError.notAValue(v) }
     let term = try transform(held, TruthUnread(), in: &t)
     let s = try skeleton(
         term,
@@ -163,14 +163,14 @@ func scoped(_ body: NodeID, closed: Bool, below k: Int = 1, in t: inout Table) t
     }
     func add(_ v: NodeID, _ t: inout Table) throws {
         guard belongs(v, t), !met.contains(v) else { return }
-        for w in try values(in: try valueFact(v, in: &t), &t) where w != v { try add(w, &t) }
+        for w in try values(in: try valueEquation(v, in: &t), &t) where w != v { try add(w, &t) }
         if met.insert(v).inserted { found.append(v) }
     }
     var work = [(body, 0)]
     var roots = [NodeID]()
     while let (n, d) = work.popLast() {
         guard t.looseBound(of: n) > d, seen.insert(At(node: n, depth: d)).inserted else { continue }
-        if case .isaValue = t[n] {
+        if case .value = t[n] {
             roots.append(try shift(n, by: -d, in: &t))
             continue
         }
@@ -187,7 +187,7 @@ private func closedValues(_ body: NodeID, _ t: inout Table) throws -> [NodeID] {
     var work = [body]
     while let n = work.popLast() {
         guard seen.insert(n).inserted else { continue }
-        if case .isaValue = t[n] {
+        if case .value = t[n] {
             if t.looseBound(of: n) == 0 { found.append(n) }
             continue
         }
@@ -204,7 +204,7 @@ func values(in formula: NodeID, _ t: inout Table) throws -> [NodeID] {
     var work = [(formula, 0)]
     while let (n, d) = work.popLast() {
         guard seen.insert(At(node: n, depth: d)).inserted else { continue }
-        if case .isaValue = t[n] {
+        if case .value = t[n] {
             let normal = try shift(n, by: -d, in: &t)
             if met.insert(normal).inserted { found.append(normal) }
             continue
@@ -248,7 +248,7 @@ func fixing(
             result = try t.intern(.isaExElim(.i, premise, body: result))
 
         case .premise:
-            let fact = try valueFact(v, in: &t)
+            let fact = try valueEquation(v, in: &t)
             let stated = try transform(
                 fact,
                 Rebind(index: index, count: j + 1, holding: closed.isEmpty ? [] : containing(closed, in: fact, t)),
@@ -260,6 +260,16 @@ func fixing(
                 result = try t.intern(.isaAllIntro(.i, body: try t.intern(.folImpliesIntro(stated, body: result))))
             }
         }
+    }
+    return result
+}
+
+/// ⚠ ONLY AT A STATEMENT'S PROOF'S TOP, WHERE EVERY USE LIES BELOW ITS BINDER: a value fixed by name in two branches
+/// has a step they share written above both, where neither name is bound.
+func naming(_ ordered: [NodeID], in body: NodeID, base: Base, in t: inout Table) throws -> NodeID {
+    var result = body
+    for v in ordered.reversed() {
+        result = try t.intern(.valueElim(v, try existence(ofValue: v, base: base, in: &t), body: result))
     }
     return result
 }
@@ -294,7 +304,7 @@ private struct Rebind: Rule {
     func before(_ id: NodeID, context depth: Depth, in t: inout Table) throws -> NodeID? {
         if t.looseBound(of: id) <= depth.terms, t.looseHyps(of: id) <= depth.hyps, !holding.contains(id) { return id }
         switch t[id] {
-        case .isaValue:
+        case .value:
             let normal = try shift(id, by: -depth.terms, in: &t)
             if let j = index[normal], j < count { return try t.intern(.isaBound(depth.terms + count - 1 - j, .i)) }
             return try shift(id, by: count, in: &t)
@@ -318,7 +328,7 @@ private struct Rebind: Rule {
         case .hyp(let h, let a) where h >= depth.hyps:
             return try t.intern(.hyp(h + count, a))
 
-        case .isaValueFact(let v, let a):
+        case .valueFact(let v, let a):
             guard case .isaBound(let k, _) = t[v], k >= depth.terms, k < depth.terms + count else { return nil }
             return try t.intern(.hyp(depth.hyps + (k - depth.terms), a))
 

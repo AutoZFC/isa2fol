@@ -239,3 +239,71 @@ func aSchemaHoldingACompoundTermKeepsItsLetterAboveItsValues() throws {
     #expect(unit.refused.isEmpty, "\(unit.refused)")
     try kernelChecks(unit)
 }
+
+/// `(∀x. x ∈ x) ⟹ Pow(0) ∈ Pow(0) ∧ (∀y. Pow(0) ∈ Pow(0))`: `Pow(0)`'s value, fixed at the proof's top by a binder
+/// naming
+/// it, is one node at both depths — the instance concludes one formula at each — and the binder's hypothesis is cited
+/// by the value: the guard its left half, the fact its right (DESIGN "A value fixed at a proof's top, named by
+/// itself").
+@Test
+func aClosedValueIsOneNodeAtEveryDepthItsBinderNamingIt() throws {
+    var s = Sized()
+    let premise = try s.n(.ifolAll(i, body: try s.mem(try s.x(0), try s.x(0))))
+    let a = try s.pow(try s.zero())
+    let statement = try s.under([premise]) { s, hs in
+        let instance = try s.n(.isaAllElim(hs[0], a))
+        return try s.n(.folAndIntro(instance, try s.n(.isaAllIntro(i, body: instance))))
+    }
+    let l = try lowered(s, statement)
+    var t = l.unit.table
+    let v = try t.intern(.value(a))
+    let set = try t.intern(.folPred(.base("set"), args: [v]))
+    var named = [NodeID]()
+    var top = l.proof
+    while case .valueElim(let w, let p, let body) = t[top] {
+        named.append(w)
+        guard case .folExists(let some)? = t.conclusion(of: p).map({ t[$0] }), case .folAnd = t[some] else {
+            Issue.record("the binder of \(w) eliminates no guarded existence")
+            return
+        }
+        top = body
+    }
+    #expect(named.count == 2 && named.last == v, "\(named)")
+    var steps = Set<NodeID>()
+    var work = [l.proof]
+    while let x = work.popLast() {
+        guard steps.insert(x).inserted else { continue }
+        t[x].forEachChild { c, _ in if t.conclusion(of: c) != nil { work.append(c) } }
+    }
+    let atoms = Set(steps.compactMap { x -> NodeID? in
+        guard let c = t.conclusion(of: x), case .folPred(.base("elem"), _) = t[c] else { return nil }
+        return c
+    })
+    #expect(atoms == [try t.intern(.folPred(.base("elem"), args: [v, v]))])
+    let hypotheses = steps.filter { x in
+        guard case .valueFact(v, let h) = t[x], case .folAnd(set, _) = t[h] else { return false }
+        return true
+    }
+    #expect(hypotheses.count == 1)
+    let guarded = steps.contains { x in
+        guard
+            case .folImpliesElim(let p, let g) = t[x], case .folForallElim(_, v) = t[p],
+            case .folAndElimL(let h) = t[g]
+        else { return false }
+        return hypotheses.contains(h)
+    }
+    #expect(guarded)
+    #expect(steps.contains { x in
+        guard case .folAndElimR(let h) = t[x] else { return false }
+        return hypotheses.contains(h)
+    })
+    for lemma in l.unit.statements where lemma.lemma != nil {
+        var seen = Set<NodeID>()
+        var pending = lemma.proof.map { [$0] } ?? []
+        while let x = pending.popLast() {
+            guard seen.insert(x).inserted else { continue }
+            if case .valueElim = t[x] { Issue.record("\(lemma.name)'s proof names a value") }
+            t[x].forEachChild { c, _ in pending.append(c) }
+        }
+    }
+}

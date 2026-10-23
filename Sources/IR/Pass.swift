@@ -746,7 +746,7 @@ private func scan(_ roots: [NodeID], _ t: Table) -> (Set<Pattern>, [(Lemma, Node
         guard seen.insert(id).inserted else { continue }
         found.insert(Pattern(t[id], in: t))
         if case .use(.lemma(let l), _, let root) = t[id] { lemmas.append((l, root)) }
-        t[id].forEachChild { c, _ in work.append(c) }
+        t[id].forEachHeldChild { work.append($0) }
     }
     return (found, lemmas)
 }

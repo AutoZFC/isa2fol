@@ -4,7 +4,7 @@ public func legalize(_ root: NodeID, in t: Table) throws {
     while let id = pending.popLast() {
         guard seen.insert(id).inserted else { continue }
         guard Pattern(t[id], in: t).dialects.contains(.fol) else { throw IRRefusal.sourceKindSurvived(id) }
-        t[id].forEachChild { c, _ in pending.append(c) }
+        t[id].forEachHeldChild { pending.append($0) }
     }
 }
 
@@ -57,8 +57,8 @@ public func misplacedLetters(_ roots: [NodeID], in t: Table) -> Set<Pattern> {
              .folBottom, .folImpliesElim, .hyp, .isaGuard, .isaExIntro, .isaExElim, .folNot, .folBound,
              .folPred, .folExists, .folAndIntro, .folAndElimL, .folAndElimR, .folOrIntroL, .folOrIntroR, .folOrElim,
              .folNotIntro, .folNotElim, .folIffIntro, .folIffElimL, .folIffElimR, .folForallElim, .folExistsIntro,
-             .folExistsElim, .folCut, .folBottomElim, .folClassicalAbsurd, .folLetter, .folLetterAbs, .isaValue,
-             .isaValueFact:
+             .folExistsElim, .folCut, .folBottomElim, .folClassicalAbsurd, .folLetter, .folLetterAbs, .value,
+             .valueFact, .valueElim:
             n.forEachChild { c, _ in pending.append(Place(id: c, spine: false)) }
         }
     }

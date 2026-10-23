@@ -70,7 +70,7 @@ public struct Table: Sendable {
              .folAndElimL, .folAndElimR,
              .folOrIntroL, .folOrIntroR, .folOrElim, .folNotIntro, .folNotElim, .folIffElimR, .folForallIntro,
              .folForallElim, .folExistsIntro, .folExistsElim, .folCut, .folBottomElim, .folClassicalAbsurd,
-             .folSchemaInst, .folLetterAll, .folLetter, .folLetterAbs, .isaValue, .isaValueFact:
+             .folSchemaInst, .folLetterAll, .folLetter, .folLetterAbs, .value, .valueFact, .valueElim:
             nil
         }
     }
@@ -480,14 +480,21 @@ public struct Table: Sendable {
             }
             return .step(concluding: try instance(try premise(p), at: x, blaming: p))
 
-        case .isaValue(let x):
+        case .value(let x):
             try expect(.i, x)
             return .value(.i)
 
-        case .isaValueFact(let v, let a):
-            guard case .isaValue = self[v] else { throw TableError.notATermVariable(v) }
+        case .valueFact(let v, let a):
+            guard case .value = self[v] else { throw TableError.notATermVariable(v) }
             try expect(.o, a)
             return .step(concluding: a)
+
+        case .valueElim(let v, let p, let body):
+            guard case .value = self[v], looseBound(of: v) == 0 else { throw TableError.notATermVariable(v) }
+            guard isExistential(self[try premise(p)]) else { throw TableError.principalConnective(p) }
+            let concluded = try premise(body)
+            guard !holds(concluded, v) else { throw TableError.witnessEscapes(body) }
+            return .step(concluding: concluded)
 
         case .isaDefinition(_, _, _, let stated, let xs):
             try expect(.o, stated)
@@ -515,7 +522,7 @@ public struct Table: Sendable {
     }
 
     private func termArgument(_ x: NodeID, else notVariable: TableError) throws {
-        if case .isaValue = self[x] { return }
+        if case .value = self[x] { return }
         _ = try termVariable(x, else: notVariable)
     }
 
@@ -537,6 +544,23 @@ public struct Table: Sendable {
         self[id].forEachChild { c, _ in withUnsafeBytes(of: fingerprint(c, &known).littleEndian) { mix($0) } }
         known[id] = h
         return h
+    }
+
+    private func isExistential(_ n: Node) -> Bool {
+        if case .ifolEx(.i, _) = n { return true }
+        if case .folExists = n { return true }
+        return false
+    }
+
+    private func holds(_ root: NodeID, _ x: NodeID) -> Bool {
+        var seen = Set<NodeID>()
+        var work = [root]
+        while let n = work.popLast() {
+            if n == x { return true }
+            guard seen.insert(n).inserted else { continue }
+            self[n].forEachChild { c, _ in work.append(c) }
+        }
+        return false
     }
 
     private mutating func witnessed(_ body: NodeID) throws -> NodeID {

@@ -42,7 +42,7 @@ public struct Reify {
              .folOrElim, .folNotIntro, .folNotElim, .folIffIntro, .folIffElimL, .folIffElimR, .folForallIntro,
              .folForallElim, .folExistsIntro, .folExistsElim, .folCut, .folBottomElim, .folClassicalAbsurd,
              .folSchemaInst,
-             .folLetterAll, .folLetter, .folLetterAbs, .isaValue, .isaValueFact:
+             .folLetterAll, .folLetter, .folLetterAbs, .value, .valueFact, .valueElim:
             return nil
         }
     }
@@ -68,7 +68,7 @@ private func value(_ p: Pattern) -> IRType? {
          .folPred, .folForall, .folExists, .folAndIntro, .folAndElimL, .folAndElimR, .folOrIntroL, .folOrIntroR,
          .folOrElim, .folNotIntro, .folNotElim, .folIffIntro, .folIffElimL, .folIffElimR, .folForallIntro,
          .folForallElim, .folExistsIntro, .folExistsElim, .folCut, .folBottomElim, .folClassicalAbsurd, .folSchemaInst,
-         .folLetterAll, .folLetter, .folLetterAbs, .isaValue, .isaValueFact:
+         .folLetterAll, .folLetter, .folLetterAbs, .value, .valueFact, .valueElim:
         nil
     }
 }
@@ -136,8 +136,8 @@ func named(atom n: Node, mode: Mode = .statement, in t: inout Table) throws -> N
 }
 
 /// `⟦v = t⟧`: S1's naming of the equation at `t`'s own application, its arguments their values.
-func valueFact(_ v: NodeID, in t: inout Table) throws -> NodeID {
-    guard case .isaValue(let term) = t[v] else { throw ReifyError.notATerm(v) }
+func valueEquation(_ v: NodeID, in t: inout Table) throws -> NodeID {
+    guard case .value(let term) = t[v] else { throw ReifyError.notATerm(v) }
     var naming = Naming(mode: .proof(0))
     let r = try naming.applied(term, &t)
     let core = try naming.chain.predicate(.base("eq"), [.outer(v), r], in: &t)
@@ -204,14 +204,14 @@ struct Naming {
              .folOrIntroR, .folOrElim, .folNotIntro, .folNotElim, .folIffIntro, .folIffElimL, .folIffElimR,
              .folForallIntro, .folForallElim, .folExistsIntro, .folExistsElim, .folCut, .folBottomElim,
              .folClassicalAbsurd,
-             .folSchemaInst, .folLetterAll, .folLetter, .folLetterAbs, .isaValue, .isaValueFact:
+             .folSchemaInst, .folLetterAll, .folLetter, .folLetterAbs, .value, .valueFact, .valueElim:
             throw ReifyError.notAnAtom(try t.intern(n))
         }
     }
 
     mutating func name(_ x: NodeID, _ t: inout Table) throws -> Ref {
         switch t[x] {
-        case .isaBound, .folBound, .isaValue:
+        case .isaBound, .folBound, .value:
             return .outer(x)
 
         case .isaConst, .isaVarApp:
@@ -227,7 +227,7 @@ struct Naming {
              .folOrElim, .folNotIntro, .folNotElim, .folIffIntro, .folIffElimL, .folIffElimR, .folForallIntro,
              .folForallElim, .folExistsIntro, .folExistsElim, .folCut, .folBottomElim, .folClassicalAbsurd,
              .folSchemaInst,
-             .folLetterAll, .folLetter, .folLetterAbs, .isaValueFact:
+             .folLetterAll, .folLetter, .folLetterAbs, .valueFact, .valueElim:
             throw ReifyError.notATerm(x)
         }
     }
@@ -271,7 +271,7 @@ struct Naming {
              .folOrIntroR, .folOrElim, .folNotIntro, .folNotElim, .folIffIntro, .folIffElimL, .folIffElimR,
              .folForallIntro, .folForallElim, .folExistsIntro, .folExistsElim, .folCut, .folBottomElim,
              .folClassicalAbsurd,
-             .folSchemaInst, .folLetterAll, .folLetter, .folLetterAbs, .isaValue, .isaValueFact:
+             .folSchemaInst, .folLetterAll, .folLetter, .folLetterAbs, .value, .valueFact, .valueElim:
             throw ReifyError.notATerm(x)
         }
     }

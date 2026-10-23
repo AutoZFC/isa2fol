@@ -499,3 +499,37 @@ func aNodeIsSixteenBytesAndATypeOneWord() {
     #expect(MemoryLayout<Node>.stride == 16)
     #expect(MemoryLayout<IRType>.stride == 8)
 }
+
+/// `0`'s value fixed by name over `∃x. set(x) ∧ P(x)`: the binder concludes its body's conclusion; a body concluding a
+/// formula holding the value lets it escape, and is refused; so is a premise concluding no existence (DESIGN "A value
+/// fixed at a proof's top, named by itself").
+@Test
+func aValuesBinderConcludesItsBodysConclusionAndRefusesItsEscape() throws {
+    var t = Table()
+    let (v, premise, fact) = try valueOverItsExistence(&t)
+    let r = try t.intern(.folPred(.base("R"), args: []))
+    let held = try #require(t.conclusion(of: fact))
+    let rule = try t.intern(.use(.theorem("pr"), [], try t.intern(.folImplies(held, r))))
+    let body = try t.intern(.folImpliesElim(rule, fact))
+    let proof = try t.intern(.valueElim(v, premise, body: body))
+    #expect(t.conclusion(of: proof) == r)
+    let escaping = try t.intern(.folAndElimR(fact))
+    #expect(throws: TableError.witnessEscapes(escaping)) { try t.intern(.valueElim(v, premise, body: escaping)) }
+    #expect(throws: TableError.principalConnective(body)) { try t.intern(.valueElim(v, body, body: body)) }
+}
+
+/// `0`'s value, `∃x. set(x) ∧ P(x)` cited, and the value's hypothesis `set(v) ∧ P(v)`.
+func valueOverItsExistence(_ t: inout Table) throws -> (value: NodeID, premise: NodeID, fact: NodeID) {
+    let v = try t.intern(.value(try t.intern(.isaConst(.primitive(.zf(.zero)), i, args: []))))
+    let b0 = try t.intern(.folBound(0))
+    let both = try t.intern(.folAnd(
+        try t.intern(.folPred(.base("set"), args: [b0])),
+        try t.intern(.folPred(.base("P"), args: [b0])),
+    ))
+    let premise = try t.intern(.use(.theorem("ex"), [], try t.intern(.folExists(body: both))))
+    let held = try t.intern(.folAnd(
+        try t.intern(.folPred(.base("set"), args: [v])),
+        try t.intern(.folPred(.base("P"), args: [v])),
+    ))
+    return (v, premise, try t.intern(.valueFact(v, held)))
+}

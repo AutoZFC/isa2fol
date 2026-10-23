@@ -157,7 +157,8 @@ struct Replacement {
              .folAndIntro, .folAndElimL, .folAndElimR, .folOrIntroL, .folOrIntroR, .folOrElim, .folNotIntro,
              .folNotElim, .folIffElimR, .folForallIntro, .folForallElim, .folExistsIntro, .folExistsElim, .folCut,
              .folBottomElim,
-             .folClassicalAbsurd, .folSchemaInst, .folLetterAll, .folLetter, .folLetterAbs, .isaValue, .isaValueFact:
+             .folClassicalAbsurd, .folSchemaInst, .folLetterAll, .folLetter, .folLetterAbs, .value, .valueFact,
+             .valueElim:
             throw CongruenceError.noCongruence(phi)
         }
     }
@@ -202,8 +203,8 @@ private func connective(_ n: Node) -> (BaseStatement, NodeID, NodeID)? {
          .folOrElim,
          .folNotIntro, .folNotElim, .folIffElimR, .folForallIntro, .folForallElim, .folExistsIntro, .folExistsElim,
          .folCut,
-         .folBottomElim, .folClassicalAbsurd, .folSchemaInst, .folLetterAll, .folLetter, .folLetterAbs, .isaValue,
-         .isaValueFact:
+         .folBottomElim, .folClassicalAbsurd, .folSchemaInst, .folLetterAll, .folLetter, .folLetterAbs, .value,
+         .valueFact, .valueElim:
         nil
     }
 }

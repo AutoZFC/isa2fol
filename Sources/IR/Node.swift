@@ -90,10 +90,12 @@ public enum Node: Hashable, Sendable {
     case isaGuard(NodeID, NodeID)
     case isaExIntro(NodeID, NodeID, body: NodeID)
     indirect case isaExElim(IRType, NodeID, body: NodeID)
-    // Isa only, lowering's: a term's value standing in a proof's formula, and the step concluding its fact; Logic binds
-    // both where the term's innermost variable is fixed.
-    case isaValue(NodeID)
-    case isaValueFact(NodeID, NodeID)
+    // Both dialects, lowering's: a term's value standing in a proof's formula, the step concluding its fact, and the
+    // binder fixing a closed one at a statement's top by its name; Logic binds every other where its innermost variable
+    // is fixed.
+    case value(NodeID)
+    case valueFact(NodeID, NodeID)
+    case valueElim(NodeID, NodeID, body: NodeID)
 
     // Fol-zfc only: lowering produces these; the reader never does.
     case folNot(NodeID)
@@ -134,7 +136,7 @@ public enum Node: Hashable, Sendable {
              .folNotElim,
              .folIffIntro, .folIffElimL, .folIffElimR, .folForallIntro, .folForallElim, .folExistsIntro, .folExistsElim,
              .folCut, .folBottomElim, .folClassicalAbsurd, .folSchemaInst, .folLetterAll, .folLetter, .folLetterAbs,
-             .isaValue, .isaValueFact:
+             .value, .valueFact, .valueElim:
             nil
         }
     }
@@ -212,9 +214,11 @@ public enum Node: Hashable, Sendable {
 
         case .isaExElim(let T, let p, let b): .isaExElim(T, try f(p, .none), body: try f(b, .termAndHyp))
 
-        case .isaValue(let x): .isaValue(try f(x, .none))
+        case .value(let x): .value(try f(x, .none))
 
-        case .isaValueFact(let v, let a): .isaValueFact(try f(v, .none), try f(a, .none))
+        case .valueFact(let v, let a): .valueFact(try f(v, .none), try f(a, .none))
+
+        case .valueElim(let v, let p, let b): .valueElim(try f(v, .none), try f(p, .none), body: try f(b, .none))
 
         case .folPred(let n, let xs): .folPred(n, args: try xs.map { try f($0, .none) })
 
@@ -266,6 +270,13 @@ public enum Node: Hashable, Sendable {
 
         case .folLetterAbs(let b): .folLetterAbs(body: try f(b, .term))
         }
+    }
+
+    /// ⚠ A VALUE'S TERM IS ITS IDENTITY, NEVER A TERM ITS PROOF HOLDS: read as one, an isa constant survives every pass
+    /// and is written nowhere.
+    public func forEachHeldChild(_ f: (NodeID) throws -> Void) rethrows {
+        if case .value = self { return }
+        try forEachChild { c, _ in try f(c) }
     }
 
     public func forEachChild(_ f: (NodeID, Binds) throws -> Void) rethrows {

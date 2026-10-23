@@ -51,8 +51,9 @@ public enum Pattern: Hashable, Sendable {
     case isaGuard(IRType, IRType)
     case isaExIntro(IRType, IRType, body: IRType)
     case isaExElim(IRType, IRType, body: IRType)
-    case isaValue(IRType)
-    case isaValueFact(IRType)
+    case value(IRType)
+    case valueFact(IRType)
+    case valueElim(IRType, IRType, body: IRType)
 
     case folNot(IRType)
     case folBound
@@ -150,9 +151,11 @@ public enum Pattern: Hashable, Sendable {
 
         case .isaExElim(let U, let p, let b): self = .isaExElim(U, T(p), body: T(b))
 
-        case .isaValue(let x): self = .isaValue(T(x))
+        case .value(let x): self = .value(T(x))
 
-        case .isaValueFact(_, let a): self = .isaValueFact(T(a))
+        case .valueFact(_, let a): self = .valueFact(T(a))
+
+        case .valueElim(let v, let p, let b): self = .valueElim(T(v), T(p), body: T(b))
 
         case .folNot(let a): self = .folNot(T(a))
 
@@ -271,7 +274,7 @@ extension Pattern {
              .isaExElim, .isaReflexive,
              .isaSymmetric, .isaTransitive, .isaCombination, .isaAbstract, .isaClassical, .isaIffReflection,
              .isaDefinition,
-             .isaPropAll, .isaPropIntro, .isaPropBound, .isaHidden, .isaValue, .isaValueFact:
+             .isaPropAll, .isaPropIntro, .isaPropBound, .isaHidden:
             [.isa]
 
         case .use(let kind, let types, _):
@@ -283,7 +286,7 @@ extension Pattern {
 
         case .folImplies, .folAnd, .folOr, .folIff, .folBottom, .folImpliesIntro, .folImpliesElim, .hyp, .folIffIntro,
              .folIffElimL, .folAndIntro, .folAndElimL, .folAndElimR, .folOrIntroL, .folOrIntroR, .folOrElim,
-             .folBottomElim:
+             .folBottomElim, .value, .valueFact, .valueElim:
             [.isa, .fol]
 
         case .folNot, .folBound, .folPred, .folForall, .folExists, .folNotIntro, .folNotElim, .folIffElimR,
@@ -304,7 +307,7 @@ public func patterns(under roots: [NodeID], in t: Table) -> Set<Pattern> {
     while let id = work.popLast() {
         guard seen.insert(id).inserted else { continue }
         found.insert(Pattern(t[id], in: t))
-        t[id].forEachChild { c, _ in work.append(c) }
+        t[id].forEachHeldChild { work.append($0) }
     }
     return found
 }

@@ -294,6 +294,54 @@ private func twoFixes(_ f: inout Pf) throws -> NodeID {
     return try f.intro(pq, try f.intro(qr, try f.n(.folAndIntro(one, other))))
 }
 
+/// A value fixed at a proof's top is named at its binder by its level, `f0`, and written so wherever it stands; a `fix`
+/// below is named past it, and its hypothesis's halves are cited inside the binder's block (DESIGN "A value fixed at a
+/// proof's top, named by itself").
+@Test
+func aValueFixedAtTheTopIsNamedByItsBinder() throws {
+    var f = Pf()
+    let proof = try valueAtTheTop(&f)
+    let claim = Declaration(kind: .claim, name: "probe", root: try #require(f.t.conclusion(of: proof)))
+    #expect(try render(proof: proof, of: claim, in: f.t) == """
+        proof probe:
+            _0 = assume exists b0. (set(b0) & P(b0))
+            _1 = assume forall b0. (set(b0) -> (P(b0) -> R))
+            _2 = exists_elim _0, f0
+            fix f1
+            _3 = assume Q(f1)
+            _4 = forall_elim _1, f0
+            _5 = and_elim_l _2
+            _6 = implies_elim _4, _5
+            _7 = and_elim_r _2
+            _8 = implies_elim _6, _7
+            _9 = implies_intro _8
+            _10 = forall_intro _9
+            _11 = exists_intro _10
+            _12 = implies_intro _11
+            _13 = implies_intro _12
+            qed _13
+
+        """)
+}
+
+/// `(∃x. set(x) ∧ P(x)) → (∀x. set(x) → P(x) → R) → ∀y. Q(y) → R`, the existence's value fixed by name below the
+/// hypotheses, its guard and fact discharged under `fix`.
+private func valueAtTheTop(_ f: inout Pf) throws -> NodeID {
+    let x = try f.b(0)
+    let some = try f.n(.folExists(body: try f.n(.folAnd(try f.p("set", x), try f.p("P", x)))))
+    let R = try f.p("R")
+    let every = try f.n(.folForall(body: try f.imp(try f.p("set", x), try f.imp(try f.p("P", x), R))))
+    let v = try f.n(.value(try f.n(.isaConst(.primitive(.zf(.zero)), .i, args: []))))
+    let fact = try f.n(.valueFact(v, try f.n(.folAnd(try f.p("set", v), try f.p("P", v)))))
+    let atV = try f.n(.folImpliesElim(
+        try f.n(.folForallElim(try f.hyp(1, every), v)),
+        try f.n(.folAndElimL(fact)),
+    ))
+    let body = try f.n(.folImpliesElim(atV, try f.n(.folAndElimR(fact))))
+    let under = try f.n(.folForallIntro(body: try f.intro(try f.p("Q", x), body)))
+    return try f.intro(some, try f.intro(every, try f.n(.valueElim(v, try f.hyp(1, some), body: under))))
+}
+
 /// An `assume` opens a block, so one inside another of the same formula is written again: each is its own scope.
 @Test
 func anAssumptionIsNeverShared() throws {
@@ -521,6 +569,7 @@ func theRealCheckerProvesWhatEmissionWrites() throws {
     proofs.append(("p_siblings", try f.intro(aAndB, try siblings(&f, aAndB))))
     proofs.append(("p_closed_hypothesis", try caseSplit(&f, steps: 5)))
     proofs.append(("p_closed_variable", try twoFixes(&f)))
+    proofs.append(("p_value", try valueAtTheTop(&f)))
 
     var def = ""
     var proof = ""

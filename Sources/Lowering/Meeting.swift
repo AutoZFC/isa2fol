@@ -55,7 +55,7 @@ func ordered(_ roots: [NodeID], _ t: inout Table) throws -> [NodeID] {
     var met = Set<NodeID>()
     func add(_ v: NodeID, _ t: inout Table) throws {
         guard !met.contains(v) else { return }
-        for w in try values(in: try valueFact(v, in: &t), &t) where w != v { try add(w, &t) }
+        for w in try values(in: try valueEquation(v, in: &t), &t) where w != v { try add(w, &t) }
         if met.insert(v).inserted { found.append(v) }
     }
     for v in roots { try add(v, &t) }
@@ -138,7 +138,7 @@ func met(
     )
     let skeletonVariables = c.variables
     for v in crossing {
-        guard case .isaValue(let term) = t[v] else { throw MeetingError.unmet(v) }
+        guard case .value(let term) = t[v] else { throw MeetingError.unmet(v) }
         let site = try valueNode(
             try substitute(try instantiateClosed(term, skeletonVariables, replacement, &t), [:], in: &t),
             in: &t,
@@ -564,7 +564,7 @@ struct Meet {
              .folBound, .folForall, .folExists, .folNotIntro, .folNotElim, .folIffElimR, .folForallIntro,
              .folForallElim,
              .folExistsIntro, .folExistsElim, .folCut, .folClassicalAbsurd, .folSchemaInst, .folLetterAll, .folLetter,
-             .folLetterAbs, .isaValue, .isaValueFact:
+             .folLetterAbs, .value, .valueFact, .valueElim:
             throw MeetingError.unmet(phi)
         }
     }
@@ -868,7 +868,7 @@ private struct Atom {
         var moving = [Int]()
         var keep = Set(n..<(n + bound))
         for j in 0..<n {
-            let site = if case .isaValue(let x) = t[refs[j]] { x } else { refs[j] }
+            let site = if case .value(let x) = t[refs[j]] { x } else { refs[j] }
             sites[n - 1 - j] = site
             if looseIndices(site, in: t).contains(where: { $0 < bound }) { keep.insert(n - 1 - j) } else {
                 moving.append(n - 1 - j)
@@ -1389,7 +1389,7 @@ func instantiatedAtLambda(
     lemma = try t.intern(.folImpliesElim(lemma, try g.hypothesis(h, in: &t)))
     let b = try formula(try request.reduced(phi, &t), .proof(0), in: &t)
     for v in try ordered(try values(in: b, &t), &t) {
-        guard case .isaValue(let term) = t[v] else { throw MeetingError.unmet(v) }
+        guard case .value(let term) = t[v] else { throw MeetingError.unmet(v) }
         let site = try valueNode(try lifted(
             try instantiateClosed(term, c.variables, replacement.merging([0: lambda]) { a, _ in a }, &t),
             terms: 1,
@@ -1823,7 +1823,7 @@ func betaCited(
     lemma = try t.intern(.folImpliesElim(lemma, definition))
     let b = try formula(try request.reduced(phi, &t), request.valued, in: &t)
     for v in try ordered(try values(in: b, &t), &t) {
-        guard case .isaValue(let term) = t[v] else { throw MeetingError.unmet(v) }
+        guard case .value(let term) = t[v] else { throw MeetingError.unmet(v) }
         let site = try valueNode(
             try instantiateClosed(term, c.variables, replacement.merging([0: lambda]) { a, _ in a }, &t),
             in: &t,

@@ -12,6 +12,7 @@ public enum RenderError: Error, Equatable, Sendable {
     case proofConcludes(expected: NodeID, found: NodeID)
     case instanceCitation(NodeID)
     case unsurveyed(NodeID?)
+    case unboundValue(NodeID)
 }
 
 public func render(_ d: Declaration, in t: Table) throws -> String {
@@ -119,6 +120,11 @@ private struct Writer {
     var blocks: [Int32: Block]
     var written = [Int32: Int]()
     var closed = [NodeID: Int]()
+    var values = [NodeID: (name: String, line: Int)]()
+
+    var level: Int {
+        terms.count + values.count
+    }
 
     mutating func formula(_ id: NodeID, operand: Bool = false, spine: Bool = false) throws -> String {
         guard
@@ -134,6 +140,7 @@ private struct Writer {
     /// that one would write it again, and cited outside its block, the checker drops it with the block's scope.
     mutating func step(_ id: NodeID, spine: Bool = false) throws -> Int {
         if case .hyp(let k, _) = t[id] { return hyps[hyps.count - 1 - k] }
+        if case .valueFact(let v, _) = t[id] { return try named(v).line }
         let k = try key(id)
         if let done = written[k] { return done }
         guard let s = sharing else { throw RenderError.unsurveyed(id) }
@@ -233,7 +240,7 @@ private struct Writer {
     private mutating func closure(_ id: NodeID, _ c: Closure) throws -> Int {
         if let fact = closed[id] { return fact }
         guard let s = sharing, let l = s.loose[id] else { throw RenderError.unsurveyed(id) }
-        let names = c.terms.indices.map { "f\(terms.count + $0)" }
+        let names = c.terms.indices.map { "f\(level + $0)" }
         let width = max(terms.count + c.terms.count, t.looseBound(of: id))
         var closedTerms = Array(repeating: "", count: width)
         var closedTermOccurrences = Array(repeating: Int32(-1), count: width)
@@ -428,7 +435,7 @@ private struct Writer {
         case .folIffElimR(let p, let q): return emit("iff_elim_r", try step(p), try step(q))
 
         case .folForallIntro(let body):
-            let fixed = "f\(terms.count)"
+            let fixed = "f\(level)"
             let bound = try occurrence(.bound(key: k, hyp: false))
             return try opening(try opened(k)) { w in
                 _ = w.scoped([.text("fix \(fixed)")], named: false)
@@ -450,7 +457,7 @@ private struct Writer {
             return .step(line([.text("exists_intro "), .ref(proved), .text(", \(try formula(v))")]))
 
         case .folExistsElim(let p, let body):
-            let witness = "f\(terms.count)"
+            let witness = "f\(level)"
             let premise = try step(p)
             let bound = try occurrence(.bound(key: k, hyp: false))
             let assumed = try occurrence(.bound(key: k, hyp: true))
@@ -480,6 +487,23 @@ private struct Writer {
                 spine: false,
             )
 
+        case .valueElim(let v, let p, let body):
+            let witness = "f\(level)"
+            let premise = try step(p)
+            return try opening(try opened(k)) { w in
+                let instance = w.scoped([.text("exists_elim "), .ref(premise), .text(", \(witness)")])
+                w.values[v] = (witness, instance)
+                defer { w.values[v] = nil }
+                let proved = try w.step(body)
+                return .step(w.scoped([.text("exists_intro "), .ref(proved)]))
+            }
+
+        case .value:
+            return .formula(try named(id).name)
+
+        case .valueFact(let v, _):
+            return .step(try named(v).line)
+
         case .folSchemaInst:
             return try schemaInstance(id)
 
@@ -494,15 +518,20 @@ private struct Writer {
         case .folLetterAll, .folLetter:
             throw RenderError.schema(id)
 
-        case .folLetterAbs, .isaValue, .isaValueFact:
+        case .folLetterAbs:
             var names = [String]()
             var body = id
             while case .folLetterAbs(let b) = t[body] {
-                names.append("b\(terms.count + names.count)")
+                names.append("b\(level + names.count)")
                 body = b
             }
             return .formula("\\" + names.joined(separator: " ") + ". " + (try lambda(names[...], body)))
         }
+    }
+
+    private func named(_ v: NodeID) throws -> (name: String, line: Int) {
+        guard let n = values[v] else { throw RenderError.unboundValue(v) }
+        return n
     }
 
     private mutating func schemaInstance(_ id: NodeID) throws -> Rendered {
@@ -557,7 +586,7 @@ private struct Writer {
     }
 
     private mutating func quantifier(_ q: String, _ body: NodeID, _ operand: Bool, spine: Bool) throws -> Rendered {
-        let bound = "b\(terms.count)"
+        let bound = "b\(level)"
         let s = "\(q) \(bound). \(try binding(term: bound) { try $0.formula(body, spine: spine) })"
         return .formula(operand ? "(\(s))" : s)
     }

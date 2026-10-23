@@ -71,7 +71,7 @@ private func finished(_ p: NodeID, _ statement: NodeID, base: Base, in t: inout 
         by: .existence(base),
         in: &t,
     )
-    var done = try fixing(try scoped(lettered, closed: true, in: &t), in: lettered, by: .existence(base), in: &t)
+    var done = try naming(try scoped(lettered, closed: true, in: &t), in: lettered, base: base, in: &t)
     for _ in 0..<letters { done = try t.intern(.isaAllIntro(.o, body: done)) }
     return done
 }
@@ -198,7 +198,7 @@ private func piece(_ p: Pattern) -> Piece? {
          .folNotIntro, .folNotElim, .folIffIntro, .folIffElimL, .folIffElimR, .folForallIntro, .folForallElim,
          .folExistsIntro, .folExistsElim, .folCut, .folBottomElim, .folClassicalAbsurd, .folSchemaInst, .folLetterAll,
          .folLetter,
-         .folLetterAbs, .isaValue, .isaValueFact:
+         .folLetterAbs, .value, .valueFact, .valueElim:
         return nil
     }
 }

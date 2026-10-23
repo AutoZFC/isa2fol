@@ -128,14 +128,17 @@ final class Sharing {
         case .folCut(let p, let body):
             [(p, .none), (body, .hyp)]
 
+        case .valueElim(_, let p, let body):
+            [(p, .none), (body, .none)]
+
         case .folSchemaInst:
             chain(x).premises.map { ($0, .none) }
 
         case .ifolAll, .ifolEx, .isaConst, .isaFree, .isaBound, .isaVarApp, .isaAbs, .isaOfClass, .isaAllIntro,
              .isaAllElim, .isaReflexive, .isaSymmetric, .isaTransitive, .isaCombination, .isaAbstract, .isaClassical,
              .isaIffReflection, .isaDefinition, .isaPropAll, .isaPropIntro, .isaPropBound, .isaHidden, .folImplies,
-             .folAnd, .folOr, .folIff, .folBottom, .use, .hyp, .isaGuard, .isaExIntro, .isaExElim, .isaValue,
-             .isaValueFact, .folNot, .folBound, .folPred, .folForall, .folExists, .folLetterAll, .folLetter,
+             .folAnd, .folOr, .folIff, .folBottom, .use, .hyp, .isaGuard, .isaExIntro, .isaExElim, .value,
+             .valueFact, .folNot, .folBound, .folPred, .folForall, .folExists, .folLetterAll, .folLetter,
              .folLetterAbs:
             []
         }
@@ -195,10 +198,17 @@ final class Sharing {
                 }
                 for (c, binds) in premises(x) {
                     let childOccurrences = try resolved(c, under: binds, from: x, o, k)
-                    uses[c, default: []].append((childOccurrences, binds == .none ? b : inner))
+                    uses[c, default: []].append((childOccurrences, isInside(c, of: x, binds) ? inner : b))
                 }
             }
         }
+    }
+
+    /// Whether `c`, a premise of `x`, stands in the block `x` opens: a binder's body — `valueElim`'s too, binding no
+    /// index.
+    private func isInside(_ c: NodeID, of x: NodeID, _ binds: Binds) -> Bool {
+        if case .valueElim(_, _, let body) = t[x] { return c == body }
+        return binds != .none
     }
 
     private func closure(_ x: NodeID, _ distinct: [[Int32]], _ blocks: [[Int32]: [Int32]]) throws
@@ -338,20 +348,20 @@ final class Sharing {
         case .folForallIntro:
             fixBytes + lineBytes
 
-        case .folExistsElim:
+        case .folExistsElim, .valueElim:
             2 * lineBytes
 
         case .folSchemaInst:
             (1 + chain(x).links) * lineBytes + letterInstances(x).reduce(0) { $0 + formulaBytes($1) }
 
-        case .folCut, .hyp, .isaAllIntro:
+        case .folCut, .hyp, .isaAllIntro, .valueFact:
             0
 
         case .ifolAll, .ifolEx, .isaConst, .isaFree, .isaBound, .isaVarApp, .isaAbs, .isaOfClass, .isaAllElim,
              .isaReflexive, .isaSymmetric, .isaTransitive, .isaCombination, .isaAbstract, .isaClassical,
              .isaIffReflection, .isaDefinition, .isaPropAll, .isaPropIntro, .isaPropBound, .isaHidden, .folImplies,
-             .folAnd, .folOr, .folIff, .folBottom, .use, .isaGuard, .isaExIntro, .isaExElim, .isaValue,
-             .isaValueFact, .folNot, .folBound, .folPred, .folForall, .folExists, .folLetterAll, .folLetter,
+             .folAnd, .folOr, .folIff, .folBottom, .use, .isaGuard, .isaExIntro, .isaExElim, .value,
+             .folNot, .folBound, .folPred, .folForall, .folExists, .folLetterAll, .folLetter,
              .folLetterAbs, .folImpliesElim, .folAndIntro, .folAndElimL, .folAndElimR, .folOrElim, .folNotElim,
              .folIffIntro, .folIffElimL, .folIffElimR, .folForallElim, .folExistsIntro:
             lineBytes
@@ -374,7 +384,7 @@ final class Sharing {
                  .isaAllElim, .isaReflexive, .isaSymmetric, .isaTransitive, .isaCombination, .isaAbstract,
                  .isaClassical, .isaIffReflection, .isaDefinition, .isaPropAll, .isaPropIntro, .isaPropBound,
                  .isaHidden, .folImplies, .folAnd, .folOr, .folIff, .folBottom, .use, .hyp, .isaGuard, .isaExIntro,
-                 .isaExElim, .isaValue, .isaValueFact, .folNot, .folBound, .folPred, .folForall, .folExists,
+                 .isaExElim, .value, .valueFact, .valueElim, .folNot, .folBound, .folPred, .folForall, .folExists,
                  .folLetterAll, .folLetter, .folLetterAbs, .folImpliesIntro, .folAndIntro, .folAndElimL,
                  .folAndElimR, .folOrIntroL, .folOrIntroR, .folOrElim, .folNotIntro, .folNotElim, .folIffIntro,
                  .folIffElimL, .folIffElimR, .folForallIntro, .folExistsIntro, .folExistsElim, .folCut,
@@ -389,6 +399,10 @@ final class Sharing {
         var work = [(x, false)]
         while let (y, done) = work.popLast() {
             if formulaNodes[y] != nil { continue }
+            if case .value = t[y] {
+                formulaNodes[y] = 1
+                continue
+            }
             if !done {
                 work.append((y, true))
                 t[y].forEachChild { c, _ in if formulaNodes[c] == nil { work.append((c, false)) } }
@@ -408,13 +422,13 @@ private let nodeBytes = 7
 
 func opensABlock(_ n: Node) -> Bool {
     switch n {
-    case .folForallIntro, .folImpliesIntro, .folNotIntro, .folClassicalAbsurd, .folExistsElim:
+    case .folForallIntro, .folImpliesIntro, .folNotIntro, .folClassicalAbsurd, .folExistsElim, .valueElim:
         true
     case .ifolAll, .ifolEx, .isaConst, .isaFree, .isaBound, .isaVarApp, .isaAbs, .isaOfClass, .isaAllIntro,
          .isaAllElim, .isaReflexive, .isaSymmetric, .isaTransitive, .isaCombination, .isaAbstract, .isaClassical,
          .isaIffReflection, .isaDefinition, .isaPropAll, .isaPropIntro, .isaPropBound, .isaHidden, .folImplies,
-         .folAnd, .folOr, .folIff, .folBottom, .use, .hyp, .isaGuard, .isaExIntro, .isaExElim, .isaValue,
-         .isaValueFact, .folNot, .folBound, .folPred, .folForall, .folExists, .folLetterAll, .folLetter,
+         .folAnd, .folOr, .folIff, .folBottom, .use, .hyp, .isaGuard, .isaExIntro, .isaExElim, .value,
+         .valueFact, .folNot, .folBound, .folPred, .folForall, .folExists, .folLetterAll, .folLetter,
          .folLetterAbs, .folImpliesElim, .folAndIntro, .folAndElimL, .folAndElimR, .folOrIntroL, .folOrIntroR,
          .folOrElim, .folNotElim, .folIffIntro, .folIffElimL, .folIffElimR, .folForallElim, .folExistsIntro,
          .folCut, .folBottomElim, .folSchemaInst:

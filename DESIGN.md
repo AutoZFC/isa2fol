@@ -7751,6 +7751,210 @@ at every depth), and ZF-Induct's 2 and ZF-Resid's 6 refused in the seven session
 run since. A theory axiom stating a type variable, a parameter at a type no object has, and a theorem read at its
 terms with a premise stop the read; the export holds none.
 
+### A value fixed at a proof's top, named by itself — ZF-Constructible's memory  **[AGREED 2026-10-22, decision by decision (user: "Yes", "Agree", "Go ahead"; 4: "a"; 5: "Okay, since 48G works, …"); BUILT 2026-10-22 — `Sources/Lowering/Values.swift`, `Sources/IR/Traversal.swift`, `Table.swift`]**
+
+**The step.** The target is ZF with ZF-Constructible (user, 2026-10-22; `--skip
+ZF-AC,ZF-Coind,ZF-IMP,ZF-Induct,ZF-Resid,ZF-ex`), its memory first. Measured 2026-10-21 ("`combination` under a
+function of a function, read whole", Measured): 15 of its 18 theories go through Logic, 8 whole; Datatype_absolute,
+DPow_absolute and Satisfies_absolute pass 30 GB first. Of the 47.8M nodes Logic adds for `DPow'_iff_sats`, 97% are
+`finished`'s: it fixes the proof's closed values at its top, and `Rebind` writes each value, and each citation of its
+fact, as a de Bruijn index — 62 values, held by 94K nodes met at 1,756 depths, 46.5M copies.
+
+**The root cause.** Isabelle holds a closed term as one node at every depth. Logic holds its value as a variable fixed
+at the proof's top and refers to it by its distance from that binder, which grows with every binder between: a formula
+holding the value, and a step citing its fact, is a node per depth the proof meets it at — the proof's size times its
+depth, not linear in Isabelle's.
+
+**The problem, in target text.** `Nat.nat_1I`, `1 ∈ nat`, as the complete run writes it ("A theory's own parameter,
+…", Measured): its top fixes the values of `0`, `nat` and `succ(0)`.
+
+```
+proof Nat.nat_1I:
+    _0 = use EX_4e7d63c24c87e1ff      exists b0. (set(b0) & (forall b1. (set(b1) -> (ZF_Base.zero(b1) -> eq(b0, b1)))))
+    _1 = exists_elim _0, f0           f0, the value of 0
+    _2 = and_elim_l _1                set(f0)                                                    its guard
+    _3 = and_elim_r _1                forall b1. (set(b1) -> (ZF_Base.zero(b1) -> eq(f0, b1)))   its fact
+    …
+    _9 = forall_elim _8, f0
+    _10 = implies_elim _9, _2         f0's guard
+```
+
+The text names `f0` the same at every depth; the IR does not:
+
+```
+text   elem(f0, A) at depth 4      elem(f0, A) at depth 5      elem(f0, A) at depth 9
+IR     elem(#0, A)                 elem(#1, A)                 elem(#5, A)        #k: the variable k binders up
+```
+
+**1. A value fixed at a statement's proof's top is referred to by itself.** **AGREED 2026-10-22 (user: "Yes").**
+Below the top, a formula and a step hold the value — `value(t)`, the node Logic's walk holds for `t`'s value, closed as
+`t` is — never an index, and cite its fact by it. The top's binder, `exists_elim` over the value's EX as now, names the
+value it fixes (`valueElim`) and binds no index. A node holding the value is one node at every depth; the text names
+the value at its binder by its level, as now, and writes that name wherever the value stands. Names for what is fixed
+outside, indices for what is bound inside: the locally nameless representation. Only a statement's proof's top, where
+every use lies under the binder: a value a lemma's prover fixes inside a branch keeps its index — two branches fixing
+one value by name would share a step written above both.
+
+```
+now     ∃-elim EX⟨nat⟩, binding #        elem(#0, A)   elem(#1, A)   elem(#5, A)
+after   ∃-elim EX⟨nat⟩, naming ⟨nat⟩     elem(⟨nat⟩, A)                           one node
+```
+
+Not by its level, the binder's position from the top, as the text spells it: positional — `finished` would still
+rewrite every node holding a value, once, and Fol inserts hypotheses at each `∃`, so a fact's or a guard's level would
+differ between Logic and Fol, recomputed from the binders above, which a node holding no index is not walked with. The
+value needs no rewrite and is the same in every pass.
+
+**2. The binder's hypothesis is cited by the value.** **AGREED 2026-10-22 (user: "Agree").** Fol guards the value's
+EX as every `∃` at `i`, `∃r. set(r) ∧ ⟦r = t⟧`, and the binder assumes its body at the value, cited by the value,
+`fact⟨t⟩`: its left half, `and_elim_l`, the guard a `∀` instantiated at the value discharges; its right, `and_elim_r`,
+the fact — each one node, with no index. The text writes each once, in the innermost block holding its uses, inside
+the binder. After Fol the value, its hypothesis and its binder are fol-zfc's; the term a value holds is its identity,
+never written.
+
+```
+binder   exists_elim EX⟨0⟩, naming ⟨0⟩        H = set(⟨0⟩) ∧ ⟦⟨0⟩ = 0⟧, cited as fact⟨0⟩
+now      guard = hyp #j+1, fact = hyp #j      j: the hypotheses between the use and the cut — a node per depth
+after    guard ∧E_l fact⟨0⟩, fact ∧E_r fact⟨0⟩                                      one node each
+```
+
+Not Fol's cuts, as now: each half a hypothesis cited by its index, decision 1's copies in the steps. Not a node of its
+own for the guard, as `isaGuard` before Fol: a second name for half of one hypothesis.
+
+**3. Tests first; Logic iterated on the three theories; the complete run under the CI's 32 GB.** **AGREED 2026-10-22
+(user: "Go ahead").** The tests below; then through Logic (`MEM=48G`) Datatype_absolute, DPow_absolute and
+Satisfies_absolute alone, then ZF with ZF-Constructible whole — each one's peak and time, `DPow'_iff_sats`'s nodes
+against the 47.8M, ZF-Constructible's refusals per theory counted anew; then the complete run, `MEM=32G`, emitted and
+kernel-checked: ZF's 3,609 kept name for name, every part exit 0 with empty stderr, every claim and schema Proved, the
+peak under 32 GB. Done when it fits and checks; a stage other than this one past the cap is measured and brought back
+as its own decision, never worked around. The cap is 48 GB since decision 5.
+
+**4. A walk holds its path on the heap.** **AGREED 2026-10-22 (user: "a").** After decisions 1–3 the complete run
+stops in Fol, 1:08:33 in, on a stack overflow: `transform` calls itself once per level of what it walks (`visit`,
+`rewrite`, `mapChildren`, five frames), and the main thread's 8 MB holds about 7,000 levels. A proof of n steps in a
+row is n levels deep, each step holding the rest. The deepest unit Fol meets is
+`Rec_Separation.rtran_closure_mem_fm_CLASS`, the class prover's proof, 7,440 levels — one level per piece of the
+constant's formula code, every numeral a chain of `succ`s, linear in Isabelle's term; then
+`L_axioms.order_isomorphism_fm_CLASS` 5,139, `Internalize.is_recfun_fm_CLASS` 4,978; no theorem's own proof is
+deeper than `DPow'_iff_sats`'s 3,672 (a traced build, never committed). None reached Fol before: Logic ran out of
+memory first. `transform` becomes a loop over an explicit array of frames, each node's children visited in order, the
+rule's `before`, `enter` and `after`, the cache and the memo as now: the same results, and no bound on depth. The
+IR's other whole-unit walks are loops already — Sharing's survey, the import, the memo's count, the loose sets.
+
+```
+proof      step₁ ; step₂ ; … ; step₇₄₄₀              each step's rest nested inside it
+now        visit(step₁) → visit(step₂) → … → visit(step₇₄₄₀)      ~37,000 frames: past 8 MB
+after      a loop: frames pushed on an array, popped and rebuilt      no nesting
+```
+
+Not the pipeline's threads given a larger stack: a bound still, every recursive walk depending on it, and a thread not
+made so — a test runner's, a new worker's — holding 8 MB.
+
+**5. The complete run's cap is 48 GB, emission holding the unit whole.** **AGREED 2026-10-22 (user: "Okay, since 48G
+works, I'd be oaky").** After decision 4 the target lowers within 18.05 GB (lowering alone, 1:34:00), and the
+complete run passes 32 GB in emission: killed at 32.4 GB three minutes into it, and under 48 GB done at 43.2 GB,
+`--threads 16`. Emission renders every statement before it writes one (`concurrently`), so it holds the unit's whole
+text: 19.71 GB for the target, over the 13.71 GB lowering leaves and 8.8 GB more that grows with it, unattributed;
+2.37 GB for the ZF session alone, whose complete run peaks at 7.92 GB (a traced build, each statement's text and the
+RSS logged, never committed). The complete run is capped at 48 GB with `--threads 16`, the count measured; every
+core's, 48, is not.
+
+```
+emission   render 1 … 100,616, every text held (19.71 GB)        then write 1 … 100,616
+```
+
+Not built: emission writing each statement once those before it are written, holding at most `threads` texts — its
+memory bounded whatever the unit's size, which each session added raises. Not first: the locale theorems' size — 116
+statements of 50 MB or more are 10.72 GB of the 19.71, `DPow_absolute.M_Lset.Lset_abs` 149.4 MB at 528,845 steps,
+where ZF's largest is 6.4 MB; written once each, 84.2M steps for the theorems' 76.8M distinct, so the proofs are that
+size. Proof size, a step of its own, its cause unmeasured.
+
+**The contracts (D2):**
+
+| | provides | assumes |
+|---|---|---|
+| IR | `valueElim(v, p, body)`: `exists_elim` over `p`, its witness the closed value `v`, its hypothesis `v`'s fact; it binds no index and concludes its body's conclusion, refused where that holds `v`. `value`, `valueFact` and `valueElim` in both dialects; legalize never reads a value's term | — |
+| Logic | each statement's proof with its closed values fixed at its top by `valueElim`, outermost first, each after the values its EX holds, nothing below rewritten; every other value bound by index where its innermost variable is fixed, as now | — |
+| Fol | `valueElim`'s premise guarded as every `∃` at `i`; a value's fact `and_elim_r` of its hypothesis `valueFact(v, set(v) ∧ φ)`, a `∀` instantiated at the value discharging `and_elim_l` of it; a value never walked into | a value reaching Fol is closed, fixed by a `valueElim` above it |
+| FolDialect | `valueElim` written `exists_elim _p, f<level>`, the value by that name, its hypothesis the `exists_elim` line; every name the text gives counts the values above it; a step placed by its uses, as every step | a value is fixed once on a path |
+
+**Tests, written first.**
+- `ProofSizeTests`: a statement whose proof holds `Pow(0)` at two depths — its proof's top is a `valueElim` naming
+  `Pow(0)`'s value; the formula `elem(⟨Pow(0)⟩, ⟨Pow(0)⟩)` concluded at both depths is one node; the fact cited as
+  `valueFact`, never as a hypothesis; the instance's guard `and_elim_l` of the value's hypothesis, the binder's premise
+  the guarded EX; no lemma's proof holds a `valueElim`; kernel-checked.
+- `ProofEmissionTests`: `valueElim` written `exists_elim _0, f0`, the value `f0` below it, a `fix` below named past
+  it, its hypothesis's halves cited inside the block; the real checker proves it.
+- `TableTests`: `valueElim` concludes its body's conclusion; a body concluding a formula holding the value is refused
+  (`witnessEscapes`).
+- `LegalizeTests`: a proof holding a value, its fact and its binder is legal fol-zfc, the value's term unread.
+- `PatternTests`: `value`, `valueFact` and `valueElim` in both dialects.
+- `TraversalTests` (decision 4): an atom under 200,000 negations renamed, every level rebuilt.
+- ZF-Constructible and the complete run as decision 3 says.
+
+**Built** (`Sources/IR/Node.swift`, `Pattern.swift`, `Table.swift`, `Legalize.swift`, `Pass.swift`;
+`Sources/Lowering/Values.swift`, `Logic.swift`, `Fol.swift`; `Sources/FolDialect/Render.swift`, `Sharing.swift`). IR:
+`valueElim(v, p, body)`; `value`, `valueFact` and `valueElim` in both dialects; the table refuses a binder whose value
+is not closed, whose premise concludes no existence, or whose body concludes a formula holding its value
+(`witnessEscapes`). Logic: `finished` fixes the closed values at the top by `naming` (`Values.swift`), nothing below
+rewritten; `fixing` keeps every other value, by index. Fol: a value is never walked into, one holding a variable
+refused (`openValue`); a value's fact is `and_elim_r` of its hypothesis `valueFact(v, set(v) ∧ φ)`, an instance's
+guard at a value `and_elim_l` of it. FolDialect: `valueElim` written `exists_elim _p, f<level>`, the value by its
+binder's name, its fact the `exists_elim` line; every name the text gives counts the values above it (`Writer.level`);
+Sharing places a binder's body in the block it opens (`isInside`) and weighs a value as one node. Decision 4:
+`transform` a loop over an explicit array of frames (`Sources/IR/Traversal.swift`), each node's children in order, each
+finished before the next starts, as the recursion took them; the frame on top read in place, and the walk compiled per
+rule (`@inlinable`). Tests:
+`aClosedValueIsOneNodeAtEveryDepthItsBinderNamingIt` — every expectation failing with the old top —
+`aValueFixedAtTheTopIsNamedByItsBinder` and `theRealCheckerProvesWhatEmissionWrites`' `p_value`,
+`aValuesBinderConcludesItsBodysConclusionAndRefusesItsEscape`, `aValueItsHypothesisAndItsBinderAreFolZfcsTheValuesTermUnread`,
+the dialects' row; `aWalkGoesAsDeepAsItsUnit`, which the recursive walk crashed (signal 11). 14, 152, 179, 138, 53
+pass, none failing. Sources 18,237 lines, 312 comments.
+
+**Decisions made in the build**, for the user's review:
+1. **The kinds are `value`, `valueFact` and `valueElim`**, renamed from `isaValue` and `isaValueFact`: they stand in
+   both dialects now, and the prefix said otherwise. Reify's `valueFact(_:in:)`, the fact's formula, is
+   `valueEquation(_:in:)`, so the kind and the formula are not one name.
+2. **No scan reads a value's term, by one rule: `Node.forEachHeldChild`**, which the pipeline's two pattern scans and
+   legalize walk. ⚠ **A VALUE'S TERM IS ITS IDENTITY, NEVER A TERM ITS PROOF HOLDS**: the first build scanned it, and
+   `Pow(0)`'s `isaConst` survived Logic (`PipelineError.survived`) — an isa constant no pass lowers and the text never
+   writes. The walks that move indices (`transform`, `shift`, the import) still descend, as a value holding a variable
+   needs.
+3. **Fol builds a value's hypothesis at a guard from the value's fact formula, once per value per statement** (a
+   cache in `FolRule`): Fol's form of `valueEquation(v)`, as its fact rule's is, so the two are one node.
+4. **The renderer keeps its recursion, on emission's workers' 256 MB stacks** (`concurrently`, set by an earlier step,
+   ⚠ "A worker's stack is set"), for the user's review: decision 4's walk is `transform`, where Fol stopped; the
+   renderer's stack is 32 times the main thread's.
+5. **The walk is compiled per rule** (`@inlinable`, its key and frame `@usableFromInline`). The loop alone took Logic
+   longer than the recursion did, the target through Logic, each pair run side by side: 539.8 s against 470.9 s, and
+   518.2 s with the frame on top read in place, not copied — a pass's rule, in another module, reached the walk through
+   runtime type metadata, which a copy of the frame and of its context go through. Compiled per rule, 449.1 s against
+   the recursion's 463.6 s. Every run the same table, 36,621,646 nodes, and the same 5,291 statements.
+
+**Measured** (2026-10-22, the target, ZF with ZF-Constructible, `MEM=48G`, `--threads 16`, the release build, the lint
+first). Tests 14, 152, 179, 138, 53 pass, none failing.
+- **ZF-Constructible lowers and kernel-checks 1,682 of its 2,121, every theory within the cap** (before, three passed
+  30 GB in Logic): whole AC_in_L 70, Datatype_absolute 173, Formula 224, Rank 107, Reflection 45, Relative 283,
+  WF_absolute 35, WFrec 26, Wellorderings 37; in part Normal 63 of 64, DPow_absolute 61 of 83, Satisfies_absolute 78
+  of 110, L_axioms 269 of 357, Internalize 144 of 196, Separation 50 of 167, Rec_Separation 17 of 108; none
+  MetaExists 0 of 3, Rank_Separation 0 of 33. ZF's 3,609 of 3,616, every claim and schema name of the ZF session's own
+  run present. @defs stated 549, refused 0; no lemma refused unbuilt or left out.
+- **Refused, named: 446.** No owner, 17: ZF's 7, the ceiling; 7 ZF-Constructible states at a type no class restricts
+  (`MetaExists`' 3, `Normal.Int_iff_INT2`, three reflection lemmas); 3 whose proofs bind and cite at Isabelle's
+  `dummy` type. Logic, unbuilt, 42: a variable taking a class, `(i ⇒ o) ⇒ i ⇒ … ⇒ o`, and Pure's equality at
+  `((i ⇒ o) ⇒ o) ⇒ o`. Citing a refused statement, 387: 91 cite `Separation.M_basic_L`, 45
+  `L_axioms.FOL_reflections.1`, 33 `Rec_Separation.M_datatypes_L`, ….
+- **The complete run**: 1:17:09, peak 42.6 GB, at emission — read 60.3 s; expand 18.3 s, logic 467.9 s, registry
+  2,650.1 s, fol 946.2 s, link 192.0 s; emitted 285.2 s, 378 parts, 20,262,772,295 bytes; the table 273,459,592 nodes.
+  `check-unit.sh`, on the traced build's unit (decision 5), the same bytes part for part: 2:12:20, peak 9.0 GB, every
+  part exit 0 and empty stderr, claims 87,402 of 87,402 and schemas 12,665 of 12,665 Proved.
+- The theorems' proofs are 84.2M steps written, 76.8M distinct; the unit's, 151.4M and 125.3M.
+
+**Not in this step.** ZF-Constructible's 439 refused, each cause a step: a variable taking a class, Isabelle's `dummy`
+type, the ceiling. Emission's memory, bounded (decision 5, "Not built"), and the locale theorems' size. A letter and
+the variable only a proof uses (`isaHidden`), bound at a proof's top as its closed values are and copied per depth the
+same way: no measurement has found them a cost.
+
 ### Fol — binders, guards and variables  **[BUILT 2026-09-28 as the guard; Fol's 2026-10-14; every object type and `∃` at `i` with "Reify — S1 at the site" — `Sources/Lowering/Fol.swift`]**
 
 **Every isa binder at an object type, its intro, its variable and the guard of its variable become fol-zfc's, with the

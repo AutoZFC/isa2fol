@@ -77,3 +77,22 @@ func anInstantiationOfACitationIsOnItsSpineAndOfAHypothesisIsNot() throws {
     let ofHypothesis = try l.n(.folImpliesIntro(s, body: try l.n(.folSchemaInst(try l.n(.hyp(0, s)), c))))
     #expect(misplacedLetters([ofHypothesis], in: l.t) == [.ifolAll(o, body: o), .folSchemaInst(o, o)])
 }
+
+/// A value, its hypothesis and its binder are fol-zfc's, and the value's term — an isa constant, the value's identity —
+/// is never read (DESIGN "A value fixed at a proof's top, named by itself", decision 2).
+@Test
+func aValueItsHypothesisAndItsBinderAreFolZfcsTheValuesTermUnread() throws {
+    var t = Table()
+    let (v, premise, fact) = try valueOverItsExistence(&t)
+    let b0 = try t.intern(.folBound(0))
+    let every = try t.intern(.folForall(body: try t.intern(.folImplies(
+        try t.intern(.folPred(.base("set"), args: [b0])),
+        try t.intern(.folPred(.base("R"), args: [])),
+    ))))
+    let atV = try t.intern(.folForallElim(try t.intern(.use(.theorem("all"), [], every)), v))
+    let proof = try t.intern(.valueElim(v, premise, body: try t.intern(.folImpliesElim(
+        atV,
+        try t.intern(.folAndElimL(fact)),
+    ))))
+    try legalize(proof, in: t)
+}

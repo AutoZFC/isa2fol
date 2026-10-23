@@ -50,7 +50,9 @@ citation and no instance walks a binder over a proposition; an axiom keeps the e
 argument is its truth set** (`DESIGN.md` "Step 6"): `If`, `bool_of_o` take a proposition, an entry of the argument tuple
 named where it stands. **In a proof, a term is its value** (`DESIGN.md` "Proof size", "Linear proof size"): a term whose
 variables the proof has fixed is fixed once, by `exists_elim` over its EX, and every formula the proof passes holds the
-value; a statement keeps S1's naming, universal (`∀v. ⟦v = t⟧ → φ(v)`); where a formula meets the proof's values, a lemma
+value; **a closed term's value, fixed at a statement's proof's top, is held as itself, never an index** (`DESIGN.md` "A
+value fixed at a proof's top, named by itself"): its binder, `valueElim`, names it, its hypothesis cited by it, and a
+node holding it is one node at every depth; a statement keeps S1's naming, universal (`∀v. ⟦v = t⟧ → φ(v)`); where a formula meets the proof's values, a lemma
 proved once per formula crosses them — `MEET_<fp>`, `BETA_<fp>` at a λ (β at its class variable's arguments' values,
 fixed where the application stands: `DESIGN.md` "β at values"), `SUBST_<fp>` Leibniz, `ARGS_<fp>` — below a statement's
 letters, which stay on its spine. Of the ZF session's 3,616 named theorems (`--skip` the other seven), `lower` lowers
@@ -58,9 +60,11 @@ letters, which stay on its spine. Of the ZF session's 3,616 named theorems (`--s
 class restricts — a ceiling (`DESIGN.md` "A named theorem at a type no class restricts", FOUNDATION §3b): fol-zfc has no
 type variable, and each instance a proof cites is translated there. No lemma they reach is refused unbuilt. ZF-AC
 lowers and kernel-checks whole, 477 of 477, with ZF's 3,609 (`DESIGN.md` "A ZF proposition defined with no arguments",
-Measured). **ZF-IMP, ZF-Coind and ZF-ex, the target now, lower and kernel-check whole**, 284, 288 and 798, with ZF's
-3,609: 72,408 claims and 8,262 schemas Proved, peak 26.8 GB (`DESIGN.md` "A theory's own parameter, a variable of what
-reaches it", Measured). With the other sessions but ZF-Constructible, before those two steps, 6,921 of 7,299 lower and
+Measured). ZF-IMP, ZF-Coind and ZF-ex lower and kernel-check whole, 284, 288 and 798, with ZF's 3,609 (`DESIGN.md` "A
+theory's own parameter, a variable of what reaches it", Measured). **ZF-Constructible, the target now, lowers and
+kernel-checks 1,682 of its 2,121**, with ZF's 3,609: 87,402 claims and 12,665 schemas Proved, peak 42.6 GB under the
+CI's `MEM=48G` (`DESIGN.md` "A value fixed at a proof's top, named by itself", Measured); of its 439 refused, 42 at a
+variable taking a class (Logic, unbuilt), 10 at no owner, 387 citing a refused statement. With the other sessions but ZF-Constructible, before those two steps, 6,921 of 7,299 lower and
 kernel-check, all Proved: ZF-Induct 1,494 of 1,496, ZF-ex 792 of 798, ZF-Resid 334 of 340, ZF-AC 396 of 477, ZF-Coind
 149 of 288, ZF-IMP 147 of 284 (`DESIGN.md` "`combination` under a function of a function, read whole", Measured). **ZF's
 axioms are theorems of base read back into Isabelle's form**
@@ -153,22 +157,23 @@ earliest stage that sees it, so a run stops there (`--through expand|logic|regis
 (`--theorem NAME,…`, `--skip SESSION,…`; the export's load, ~30 s, stays). The complete run, emitted and
 kernel-checked, is the check of a feature believed complete. **Runs target one gap at a time, until it is
 translated** (user): the ZF session alone, then ZF with ZF-AC, both done 2026-10-21; then ZF with ZF-IMP, ZF-Coind
-and ZF-ex (user, 2026-10-21), done 2026-10-22, `$T` below, `--skip ZF-AC,ZF-Constructible,ZF-Induct,ZF-Resid`, ZF kept
-so its 3,609 stay the baseline a run must not lose; the next target is the user's. ⚠ All eight sessions do not fit memory yet (`DESIGN.md` "`combination` under a function
-of a function, read whole", Measured). **Lint before every run** (user, 2026-10-17): `pre-commit run --all-files`
-first.
+and ZF-ex, done 2026-10-22; then ZF with ZF-Constructible (user, 2026-10-22), `$T` below, `--skip
+ZF-AC,ZF-Coind,ZF-IMP,ZF-Induct,ZF-Resid,ZF-ex`, ZF kept so its 3,609 stay the baseline a run must not lose: its memory
+first, done 2026-10-22, fitting `MEM=48G`; then its refused (user, 2026-10-22). ⚠ All eight sessions do not fit memory yet
+(`DESIGN.md` "`combination` under a function of a function, read whole", Measured). **Lint before every run** (user,
+2026-10-17): `pre-commit run --all-files` first.
 
 ```bash
 MEM=48G scripts/capped.sh .build/release/isa2fol lower data/zf_export --through logic $T [--theorem NAME,…]
-MEM=32G scripts/capped.sh .build/release/isa2fol lower data/zf_export $T --emit DIR [--threads N]   # CI; N: every core
+MEM=48G scripts/capped.sh .build/release/isa2fol lower data/zf_export $T --emit DIR --threads 16   # CI: emission holds the unit's text whole
 MEM=32G scripts/capped.sh scripts/check-unit.sh DIR        # each part, against base's and its parts' libraries
 MEM=16G scripts/capped.sh scripts/check-base.sh [LIBDIR]   # base alone, each tier once
 ```
 
 ⚠ **EACH UNIT OF WORK INTERNS INTO A LAYER OVER THE UNIT'S TABLE, WHICH TAKES ONLY WHAT ITS RESULTS REACH** (`DESIGN.md`
-"Memory — a unit of work's nodes leave with it"): the ZF session's complete run fits the CI's `MEM=32G`, peaking at
-17.4 GB at emission (2026-10-21, `--threads 16`, 27:55); lowering stays under 8.0 GB (`DESIGN.md` "Memory under the
-CI's 32 GB"). ⚠ **A NODE IS 16 BYTES, A TYPE ONE WORD**: a kind wider than three children and a type is held behind a
+"Memory — a unit of work's nodes leave with it"): the target's complete run fits the CI's `MEM=48G`, peaking at
+42.6 GB at emission (2026-10-22, `--threads 16`, 1:17:09), which holds the unit's text whole, 19.71 GB; lowering
+alone peaks at 18.05 GB (`DESIGN.md` "A value fixed at a proof's top, named by itself", decision 5). ⚠ **A NODE IS 16 BYTES, A TYPE ONE WORD**: a kind wider than three children and a type is held behind a
 reference (`indirect`). Inline, the widest kind set every node's width, 80 bytes, which put 151M nodes at 20.3 GB
 (`aNodeIsSixteenBytesAndATypeOneWord`). ⚠ **A WALK'S CONTEXT IS A REFERENCE INTO ITS CHAIN OF BINDERS, NEVER A
 COPY**: Fol's keys, each copying the binders above its node, held 9 GB in `Bin.integ_of_add`'s one walk, and the
@@ -326,7 +331,7 @@ determinism R1–R3 (§4.6).
    print(f'{c}/{t} = {100*c/t:.1f}%')"
    ```
 
-   ✓ **CURRENTLY 302/18047 = 1.7%, under the cap.** Keep it there: a breach is
+   ✓ **CURRENTLY 312/18237 = 1.7%, under the cap.** Keep it there: a breach is
    fixed by deleting prose, never by raising the cap.
 
    Does not apply to `base/**/*.fol.def` headers: those record provenance of
@@ -398,7 +403,8 @@ it. That is `DESIGN.md` §4; the framework — formulas AND proof steps — is b
 `Sources/IR`, rendering and proof emission in `Sources/FolDialect`. No pass, no reader.
 `Pattern.dialects` — one exhaustive switch — is the only place naming both vocabularies:
 each kind is isa only, fol-zfc only, or both (a leaf FOL covers; a citation only of a theorem or a lemma at no
-type arguments; a binder, its intro and its variable only at `o`, the schema's letter) — and `Node` declares its kinds in those groups, commented: the first two are exactly the reader's output. `Pattern` (`Sources/IR/Pattern.swift`)
+type arguments; a binder, its intro and its variable only at `o`, the schema's letter; a value, its fact and the
+binder naming it, a value's term its identity, which no scan reads: `Node.forEachHeldChild`) — and `Node` declares its kinds in those groups, commented: the first two are exactly the reader's output. `Pattern` (`Sources/IR/Pattern.swift`)
 is a node with each child replaced by its type and each constant or citation by its kind: what a pass
 switches over (I3). `legalize` reads its `dialects`, and each pass states what it owns by an exhaustive switch
 over it: what rule 11 rests on.

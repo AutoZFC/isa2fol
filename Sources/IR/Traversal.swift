@@ -44,9 +44,16 @@ extension Rule where Context == Depth {
     }
 }
 
-private struct Visit<Context: Hashable>: Hashable {
-    let id: NodeID
-    let context: Context
+@usableFromInline
+struct Visit<Context: Hashable>: Hashable {
+    @usableFromInline
+    init(id: NodeID, context: Context) {
+        self.id = id
+        self.context = context
+    }
+
+    @usableFromInline let id: NodeID
+    @usableFromInline let context: Context
 }
 
 /// The forms at a pass's walk of the nodes its run's units share, each where a unit enters what it shares: the first
@@ -94,15 +101,18 @@ public struct Memo: Sendable {
 
     private(set) var recorded = [(node: NodeID, form: NodeID)]()
 
+    @usableFromInline
     func shares(_ id: NodeID) -> Bool {
         let k = Int(id.raw)
         return k < shared.count && shared[k]
     }
 
+    @usableFromInline
     func form(of id: NodeID) -> NodeID? {
         forms[id]
     }
 
+    @usableFromInline
     mutating func record(_ id: NodeID, _ form: NodeID) {
         forms[id] = form
         recorded.append((id, form))
@@ -118,11 +128,13 @@ public struct Memo: Sendable {
     private var forms = [NodeID: NodeID]()
 }
 
+@inlinable
 public func transform(_ roots: [NodeID], _ rule: some Rule, in t: inout Table) throws -> [NodeID] {
     var memo = Memo()
     return try transform(roots, rule, sharing: &memo, in: &t)
 }
 
+@inlinable
 public func transform<R: Rule>(_ roots: [NodeID], _ rule: R, sharing memo: inout Memo, in t: inout Table) throws
     -> [NodeID]
 {
@@ -130,42 +142,117 @@ public func transform<R: Rule>(_ roots: [NodeID], _ rule: R, sharing memo: inout
     return try roots.map { try visit($0, rule.start, rule, &cache, &memo, &t) }
 }
 
+@inlinable
 public func transform(_ root: NodeID, _ rule: some Rule, in t: inout Table) throws -> NodeID {
     try transform([root], rule, in: &t)[0]
 }
 
-private func visit<R: Rule>(
-    _ id: NodeID,
+@usableFromInline
+struct Frame<Context: Hashable> {
+    @usableFromInline
+    init(key: Visit<Context>, shared: Bool, node: Node, children: Int, count: Int, results: Int) {
+        self.key = key
+        self.shared = shared
+        self.node = node
+        self.children = children
+        self.count = count
+        self.results = results
+    }
+
+    @usableFromInline let key: Visit<Context>
+    @usableFromInline let shared: Bool
+    @usableFromInline let node: Node
+    @usableFromInline let children: Int
+    @usableFromInline let count: Int
+    @usableFromInline let results: Int
+}
+
+/// ⚠ A WALK HOLDS ITS PATH ON THE HEAP, NEVER ON THE STACK: calling itself once per level, it overflowed the main
+/// thread's 8 MB at a class prover's proof 7,440 levels deep. ⚠ IT IS COMPILED PER RULE, NEVER GENERIC: not inlinable,
+/// a pass's rule, in another module, reached it through runtime type metadata, and Logic took 14% longer.
+@inlinable
+func visit<R: Rule>(
+    _ root: NodeID,
     _ outer: R.Context,
     _ rule: R,
     _ cache: inout [Visit<R.Context>: NodeID],
     _ memo: inout Memo,
     _ t: inout Table,
 ) throws -> NodeID {
-    let key = Visit(id: id, context: rule.narrow(outer, id, in: t))
-    if let done = cache[key] { return done }
-    let shared = memo.shares(id) && key.context == rule.start
-    if shared, let form = memo.form(of: id) { return form }
-    let result = try rewrite(id, key.context, rule, &cache, &memo, &t)
-    cache[key] = result
-    if shared { memo.record(id, result) }
-    return result
-}
-
-private func rewrite<R: Rule>(
-    _ id: NodeID,
-    _ c: R.Context,
-    _ rule: R,
-    _ cache: inout [Visit<R.Context>: NodeID],
-    _ memo: inout Memo,
-    _ t: inout Table,
-) throws -> NodeID {
-    if let replaced = try rule.before(id, context: c, in: &t) { return replaced }
-    let n = t[id]
-    let rebuilt = try n.mapChildren { child, binds in
-        let inner = binds == .none ? c : rule.enter(c, n, binds, in: t)
-        return try visit(child, inner, rule, &cache, &memo, &t)
+    var frames = [Frame<R.Context>]()
+    var children = [(NodeID, Binds)]()
+    var results = [NodeID]()
+    var next: (id: NodeID, context: R.Context)? = (root, outer)
+    while true {
+        if let (id, context) = next {
+            next = nil
+            let key = Visit(id: id, context: rule.narrow(context, id, in: t))
+            if let done = cache[key] {
+                results.append(done)
+            } else {
+                let shared = memo.shares(id) && key.context == rule.start
+                if shared, let form = memo.form(of: id) {
+                    results.append(form)
+                } else if let replaced = try rule.before(id, context: key.context, in: &t) {
+                    cache[key] = replaced
+                    if shared { memo.record(id, replaced) }
+                    results.append(replaced)
+                } else {
+                    let n = t[id]
+                    let first = children.count
+                    n.forEachChild { c, binds in children.append((c, binds)) }
+                    frames.append(Frame(
+                        key: key,
+                        shared: shared,
+                        node: n,
+                        children: first,
+                        count: children.count - first,
+                        results: results.count,
+                    ))
+                }
+            }
+        }
+        let f = frames.count - 1
+        guard f >= 0 else { return results[0] }
+        let done = results.count - frames[f].results
+        if done < frames[f].count {
+            let (c, binds) = children[frames[f].children + done]
+            next = (
+                c,
+                binds == .none
+                    ? frames[f].key.context
+                    : rule.enter(
+                        frames[f].key.context,
+                        frames[f].node,
+                        binds,
+                        in: t,
+                    ),
+            )
+            continue
+        }
+        let top = frames.removeLast()
+        var k = top.results
+        let rebuilt = top.node.mapChildren { _, _ in
+            defer { k += 1 }
+            return results[k]
+        }
+        results.removeSubrange(top.results...)
+        children.removeSubrange(top.children...)
+        let result: NodeID =
+            if
+                let rewritten = try rule.after(
+                    rebuilt,
+                    was: top.key.id,
+                    context: top.key.context,
+                    in: &t,
+                )
+            {
+                rewritten
+            } else {
+                try t.intern(rebuilt)
+            }
+        cache[top.key] = result
+        if top.shared { memo.record(top.key.id, result) }
+        results.append(result)
     }
-    if let rewritten = try rule.after(rebuilt, was: id, context: c, in: &t) { return rewritten }
-    return try t.intern(rebuilt)
 }

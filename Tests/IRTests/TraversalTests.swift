@@ -214,6 +214,22 @@ func oneWalkOverSeveralRootsRewritesASharedNodeOnce() throws {
     #expect(count.visits[shared] == 1)
 }
 
+/// An atom under 200,000 negations, renamed: every level rebuilt, deeper than any thread's stack holds — the walk holds
+/// its path on the heap (DESIGN "A value fixed at a proof's top, named by itself", decision 4).
+@Test
+func aWalkGoesAsDeepAsItsUnit() throws {
+    var t = Table()
+    let a = try t.intern(.isaFree("a", i))
+    let b = try t.intern(.isaFree("b", i))
+    var before = try memOf(a, a, &t)
+    var after = try memOf(b, b, &t)
+    for _ in 0..<200_000 {
+        before = try t.intern(.folNot(before))
+        after = try t.intern(.folNot(after))
+    }
+    #expect(try transform(before, Rename(from: "a", to: "b"), in: &t) == after)
+}
+
 @Test
 func rebuildingGoesThroughTheTable() throws {
     var t = Table()

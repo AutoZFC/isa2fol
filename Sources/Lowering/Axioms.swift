@@ -259,7 +259,7 @@ private struct AxiomReading {
              .folPred, .folForall, .folExists, .folAndIntro, .folAndElimL, .folAndElimR, .folOrIntroL, .folOrIntroR,
              .folOrElim, .folNotIntro, .folNotElim, .folIffElimR, .folForallIntro, .folForallElim, .folExistsIntro,
              .folExistsElim, .folCut, .folBottomElim, .folClassicalAbsurd, .folSchemaInst, .folLetterAll, .folLetter,
-             .folLetterAbs, .isaValue, .isaValueFact:
+             .folLetterAbs, .value, .valueFact, .valueElim:
             return try formula(phi, .statement, in: &t)
         }
     }

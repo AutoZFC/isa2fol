@@ -8,6 +8,7 @@ public enum FolError: Error, Equatable {
     case instanceNotAVariable(NodeID)
     case notItsGuard(NodeID)
     case notGuardedExistential(NodeID)
+    case openValue(NodeID)
 }
 
 public struct Fol: Pass, Walk {
@@ -22,7 +23,7 @@ public struct Fol: Pass, Walk {
         case .forall?, .exists?, .intro?, .instance?, .guardOf?, .variable?, .existsIntro?, .existsElim?,
              .hidden?: .rule
         case .unbuilt?: .unbuilt
-        case .renumber?, nil: nil
+        case .renumber?, .fact?, nil: nil
         }
     }
 
@@ -55,6 +56,7 @@ private enum Piece {
     case hidden
     case unbuilt
     case renumber
+    case fact
 }
 
 private func piece(_ p: Pattern) -> Piece? {
@@ -69,6 +71,7 @@ private func piece(_ p: Pattern) -> Piece? {
     case .isaExElim(let T, _, _): isObject(T) ? .existsElim(T) : nil
     case .isaHidden(let T, _): T == .i ? .hidden : nil
     case .hyp: .renumber
+    case .valueFact: .fact
     case .isaConst, .isaFree, .isaVarApp, .isaAbs, .isaOfClass, .isaReflexive, .isaSymmetric, .isaTransitive,
          .isaCombination, .isaAbstract, .isaClassical, .isaIffReflection, .isaDefinition, .isaPropAll, .isaPropIntro,
          .isaPropBound, .folImplies, .folAnd, .folOr, .folIff, .folBottom,
@@ -76,7 +79,7 @@ private func piece(_ p: Pattern) -> Piece? {
          .folAndElimL, .folAndElimR, .folOrIntroL, .folOrIntroR, .folOrElim, .folNotIntro, .folNotElim, .folIffIntro,
          .folIffElimL, .folIffElimR, .folForallIntro, .folForallElim, .folExistsIntro, .folExistsElim, .folCut,
          .folBottomElim,
-         .folClassicalAbsurd, .folSchemaInst, .folLetterAll, .folLetter, .folLetterAbs, .isaValue, .isaValueFact:
+         .folClassicalAbsurd, .folSchemaInst, .folLetterAll, .folLetter, .folLetterAbs, .value, .valueElim:
         nil
     }
 }
@@ -139,7 +142,12 @@ struct FolRule: Rule {
         }
     }
 
+    final class Hypotheses {
+        var of = [NodeID: NodeID]()
+    }
+
     let base: Base
+    let hypotheses = Hypotheses()
 
     var start: Context {
         .empty
@@ -159,7 +167,7 @@ struct FolRule: Rule {
 
             case .hidden?: [.fix(.i), .inserted(guard: true)]
 
-            case .instance?, .guardOf?, .variable?, .existsIntro?, .unbuilt?, .renumber?, nil:
+            case .instance?, .guardOf?, .variable?, .existsIntro?, .unbuilt?, .renumber?, .fact?, nil:
                 Array(repeating: .fix(nil), count: binds.terms) + Array(repeating: .assume, count: binds.hyps)
             }
         return entered.reduce(c) { $0.pushed($1) }
@@ -187,6 +195,12 @@ struct FolRule: Rule {
         return reach == 0 ? .empty : Context(innermost: c.innermost, reach: reach, digest: digest)
     }
 
+    func before(_ id: NodeID, context _: Context, in t: inout Table) throws -> NodeID? {
+        guard case .value = t[id] else { return nil }
+        guard t.looseBound(of: id) == 0 else { throw FolError.openValue(id) }
+        return id
+    }
+
     func after(_ n: Node, was id: NodeID, context c: Context, in t: inout Table) throws -> NodeID? {
         switch piece(Pattern(t[id], in: t)) {
         case .forall(let T)?:
@@ -205,12 +219,12 @@ struct FolRule: Rule {
         case .instance?:
             let p = children(n)[0]
             let x = children(n)[1]
-            return try t.intern(.folImpliesElim(try t.intern(.folForallElim(p, x)), try discharge(x, c, &t)))
+            return try t.intern(.folImpliesElim(try t.intern(.folForallElim(p, x)), try discharge(x, c, self, &t)))
 
         case .guardOf?:
             let x = children(n)[0]
             let g = children(n)[1]
-            let d = try discharge(x, c, &t)
+            let d = try discharge(x, c, self, &t)
             guard t.conclusion(of: d) == g else { throw FolError.notItsGuard(g) }
             return d
 
@@ -227,7 +241,7 @@ struct FolRule: Rule {
             ))
             return try t.intern(.folImpliesElim(
                 try t.intern(.folForallElim(instance, x)),
-                try t.intern(.folAndIntro(try discharge(x, c, &t), q)),
+                try t.intern(.folAndIntro(try discharge(x, c, self, &t), q)),
             ))
 
         case .existsElim(let T)?:
@@ -251,9 +265,20 @@ struct FolRule: Rule {
             let k = try renumbered(hypothesis: h.index, in: c)
             return k == h.index ? nil : try t.intern(h.reindexed(k))
 
+        case .fact?:
+            guard case .valueFact(let v, let a) = n else { throw FolError.notGuardedExistential(id) }
+            return try t.intern(.folAndElimR(try guardedFact(v, a, in: &t)))
+
         case .unbuilt?, nil:
             return nil
         }
+    }
+
+    func hypothesis(of v: NodeID, in t: inout Table) throws -> NodeID {
+        if let h = hypotheses.of[v] { return h }
+        let h = try guardedFact(v, try transform(try valueEquation(v, in: &t), self, in: &t), in: &t)
+        hypotheses.of[v] = h
+        return h
     }
 
     fileprivate struct Entries: Sequence, IteratorProtocol {
@@ -276,7 +301,13 @@ private func guardOfBound0(_ T: IRType, _ t: inout Table) throws -> NodeID? {
     try guarded(try t.intern(.folBound(0)), T, in: &t)
 }
 
-private func discharge(_ x: NodeID, _ c: FolRule.Context, _ t: inout Table) throws -> NodeID {
+private func guardedFact(_ v: NodeID, _ fact: NodeID, in t: inout Table) throws -> NodeID {
+    guard let g = try guarded(v, .i, in: &t) else { throw FolError.unguardedBinder(v) }
+    return try t.intern(.valueFact(v, try t.intern(.folAnd(g, fact))))
+}
+
+private func discharge(_ x: NodeID, _ c: FolRule.Context, _ rule: FolRule, _ t: inout Table) throws -> NodeID {
+    if case .value = t[x] { return try t.intern(.folAndElimL(try rule.hypothesis(of: x, in: &t))) }
     guard case .folBound(let k) = t[x] else { throw FolError.instanceNotAVariable(x) }
     var fixes = 0
     var hyps = 0

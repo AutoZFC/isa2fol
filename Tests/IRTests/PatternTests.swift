@@ -101,6 +101,9 @@ func eachPatternBelongsToTheIsaDialectTheFolDialectOrBoth() {
     #expect(Pattern.ifolEx(.o, body: .o).dialects == [.isa])
     #expect(Pattern.isaAllElim(.o, .o).dialects == [.isa])
     #expect(Pattern.folSchemaInst(.o, .o).dialects == [.fol])
+    #expect(Pattern.value(.i).dialects == [.isa, .fol])
+    #expect(Pattern.valueFact(.o).dialects == [.isa, .fol])
+    #expect(Pattern.valueElim(.i, .o, body: .o).dialects == [.isa, .fol])
 }
 
 @Test
