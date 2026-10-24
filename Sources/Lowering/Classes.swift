@@ -26,9 +26,12 @@ public struct ClassProver: Prover {
             }
 
         case let f as LambdaFact:
-            return f.fact == .classExists ? .rule : nil
+            switch f.fact {
+            case .classExists, .lift: return .rule
+            case .function, .arguments: return nil
+            }
 
-        case is RekeyFact:
+        case is RekeyFact, is LetterFact:
             return .rule
 
         case let f as TupleFact:
@@ -59,9 +62,11 @@ public struct ClassProver: Prover {
                 &t,
             )
 
-        case let f as LambdaFact: proof = try proofs.lambda(f, &t)
+        case let f as LambdaFact: proof = f.fact == .lift ? try proofs.instanceLift(f, &t) : try proofs.lambda(f, &t)
 
-        case let f as RekeyFact: proof = try proofs.rekey(f.width, &t)
+        case let f as RekeyFact: proof = try proofs.rekey(f.width, context: f.context, &t)
+
+        case let f as LetterFact: proof = try proofs.letterCongruence(f, &t)
 
         case let f as TupleFact where f.fact == .row: proof = try proofs.row(f.arity, &t)
 
@@ -92,7 +97,7 @@ struct ClassProofs {
         var roles = [Role]()
         var values = [Int]()
         for T in f.types {
-            let v = top.fix(T)
+            let v = try top.fixClosure(T, in: &t)
             roles.append(T == .i ? .entry(values.count) : .fixed(v))
             if T == .i { values.append(v) }
         }
@@ -187,7 +192,7 @@ struct ClassProofs {
             next: 1,
         ) }
         let W = try g.build(src.raw, sections.map { .section($0) } + (0..<outside).map { .entry(3 + $0) }, k, &t)
-        let rekey = RekeyFact(width: outside)
+        let rekey = RekeyFact(width: outside, context: 0)
         let at = try eliminated(
             try cited(rekey, try statement(rekey, in: &t), &t),
             at: [try g.top.variable(p, in: &t), try g.top.variable(p1, in: &t)],
@@ -237,8 +242,9 @@ struct ClassProofs {
         return try g.top.close(try t.intern(.folExistsIntro(body, try g.top.variable(U, in: &t))), in: &t)
     }
 
-    func rekey(_ m: Int, _ t: inout Table) throws -> NodeID {
+    func rekey(_ m: Int, context: Int, _ t: inout Table) throws -> NodeID {
         var top = Frame()
+        let xs = (0..<context).map { _ in top.fix(.i) }
         let p = top.fix(.i)
         let p1 = top.fix(.i)
         let hn = top.assume(try pred("nsucc", [p, p1], at: top.scope, &t))
@@ -257,7 +263,11 @@ struct ClassProofs {
         let rho = q.fix(.i)
         let binders = 2 + m + mid.count
         var conj = try t.intern(.folAnd(
-            try tuple(try ([p, p1, a] + vs).map { try q.variable($0, in: &t) }, try q.variable(rho, in: &t), in: &t),
+            try tuple(
+                try (xs + [p, p1, a] + vs).map { try q.variable($0, in: &t) },
+                try q.variable(rho, in: &t),
+                in: &t,
+            ),
             try pred("elem", [rho, W], at: q, &t),
         ))
         if m == 2 {
@@ -269,12 +279,12 @@ struct ClassProofs {
         var Q = try t.intern(.folAnd(try pred("elem", [a, T], at: q, &t), conj))
         for _ in 0..<binders { Q = try t.intern(.ifolEx(.i, body: Q)) }
         var g = try Comprehension(base: base, top: top, in: &t)
-        let c = try g.context([p, p1], &t)
+        let c = try g.context(xs + [p, p1], &t)
         let ex = try g.section(
             raw: .formula(Q),
             named: Q,
             outside: 1,
-            roles: [.entry(0), .entry(1), .fixed(W), .fixed(T)],
+            roles: (0..<(context + 2)).map { Role.entry($0) } + [.fixed(W), .fixed(T)],
             depth: depth,
             context: c,
             &t,
@@ -299,7 +309,7 @@ struct ClassProofs {
         var back = Frame(M.scope)
         var inside = back.scope
         let r0 = inside.fix(.i)
-        let entries = try ([p, p1, a0] + values).map { try inside.variable($0, in: &t) }
+        let entries = try (xs + [p, p1, a0] + values).map { try inside.variable($0, in: &t) }
         let y = try t.intern(.ifolEx(
             .i,
             body: try t.intern(.folAnd(
@@ -482,7 +492,7 @@ struct ClassProofs {
         let tupled = try there.proof(part(m + 1, false), in: &t)
         guard let from = t.conclusion(of: tupled) else { throw TableError.expectedStep(tupled) }
         let to = try tuple(
-            try ([p, p1, a0] + values).map { try there.variable($0, in: &t) },
+            try (xs + [p, p1, a0] + values).map { try there.variable($0, in: &t) },
             try there.variable(rho2, in: &t),
             in: &t,
         )
@@ -638,48 +648,7 @@ struct ClassProofs {
         )
     }
 
-    private func source(_ c: Constant, _ T: IRType, _ t: inout Table) throws
-        -> (definition: NodeID, outside: Int, raw: Raw, named: NodeID)
-    {
-        let classes = T.domains.filter { !isEntry($0) }
-        let k = classes.count
-        switch c {
-        case .defined(let d):
-            guard let found = definitions.first(where: { $0.defines == .constant(d) })
-            else { throw ClassError.noDefinition(d.name) }
-            let parameters = try classes.indices.map { try t.intern(.isaBound(k - 1 - $0, classes[$0])) }
-            let lambda = try definedLambda(found, classes: parameters, in: &t)
-            let raw = try classBody(lambda, raw: true, in: &t)
-            let named = try classBody(lambda, raw: false, in: &t)
-            return (
-                try t.intern(.use(.definition(d), [], try atDefinition(d, definitions, in: &t))),
-                named.outside,
-                .body(raw),
-                named.formula,
-            )
-
-        case .primitive(.zf(.pow)), .primitive(.zf(.union)), .primitive(.zf(.primReplace)):
-            let s: BaseStatement = c == .primitive(.zf(.pow))
-                ? .zfPowDef
-                : c == .primitive(.zf(.union)) ? .zfUnionDef : .zfPrimReplaceDef
-            let definition = try base.cite(s, in: &t)
-            guard var inner = t.conclusion(of: definition) else { throw TableError.expectedStep(definition) }
-            for _ in 0...k {
-                guard case .folForall(let body) = t[inner] else { throw ClassError.noDefinition(c.name) }
-                inner = body
-            }
-            var outside = 0
-            var matrix = try iff(inner, t).right
-            while case .ifolAll(.i, let body) = t[matrix] { (outside, matrix) = (outside + 1, body) }
-            let phi = try dropping(try iff(matrix, t).right, k + outside, in: &t)
-            return (definition, outside, .formula(phi), phi)
-
-        case .primitive:
-            throw ClassError.noDefinition(c.name)
-        }
-    }
-
-    private func records(_ rho: Record, _ W: Int, _ reading: Reading, _ f: Frame, _ t: inout Table) throws -> NodeID {
+    func records(_ rho: Record, _ W: Int, _ reading: Reading, _ f: Frame, _ t: inout Table) throws -> NodeID {
         var there = Frame(f.scope)
         let h = there.assume(try pred("elem", [rho.variable, W], at: f.scope, &t))
         let tupled = try reading.tupled(rho, in: there.scope, &t)
@@ -730,7 +699,7 @@ struct ClassProofs {
         return try t.intern(.folIffIntro(forward, backward))
     }
 
-    private func rekeyed(
+    func rekeyed(
         _ hU: Int,
         _ a: Int,
         _ ht: Int,
@@ -784,6 +753,52 @@ struct ClassProofs {
         return try base.applied(.iffSymm, [try sides(read, t).left, try sides(read, t).right], [read], in: &t)
     }
 
+    func chained(_ p: NodeID, _ q: NodeID, _ t: inout Table) throws -> NodeID {
+        let (a, b) = try sides(p, t), c = try sides(q, t).right
+        return try base.applied(.iffTrans, [a, b, c], [p, q], in: &t)
+    }
+
+    private func source(_ c: Constant, _ T: IRType, _ t: inout Table) throws
+        -> (definition: NodeID, outside: Int, raw: Raw, named: NodeID)
+    {
+        let classes = T.domains.filter { !isEntry($0) }
+        let k = classes.count
+        switch c {
+        case .defined(let d):
+            guard let found = definitions.first(where: { $0.defines == .constant(d) })
+            else { throw ClassError.noDefinition(d.name) }
+            let parameters = try classes.indices.map { try t.intern(.isaBound(k - 1 - $0, classes[$0])) }
+            let lambda = try definedLambda(found, classes: parameters, in: &t)
+            let raw = try classBody(lambda, raw: true, in: &t)
+            let named = try classBody(lambda, raw: false, in: &t)
+            return (
+                try t.intern(.use(.definition(d), [], try atDefinition(d, definitions, in: &t))),
+                named.outside,
+                .body(raw),
+                named.formula,
+            )
+
+        case .primitive(.zf(.pow)), .primitive(.zf(.union)), .primitive(.zf(.primReplace)):
+            let s: BaseStatement = c == .primitive(.zf(.pow))
+                ? .zfPowDef
+                : c == .primitive(.zf(.union)) ? .zfUnionDef : .zfPrimReplaceDef
+            let definition = try base.cite(s, in: &t)
+            guard var inner = t.conclusion(of: definition) else { throw TableError.expectedStep(definition) }
+            for _ in 0...k {
+                guard case .folForall(let body) = t[inner] else { throw ClassError.noDefinition(c.name) }
+                inner = body
+            }
+            var outside = 0
+            var matrix = try iff(inner, t).right
+            while case .ifolAll(.i, let body) = t[matrix] { (outside, matrix) = (outside + 1, body) }
+            let phi = try dropping(try iff(matrix, t).right, k + outside, in: &t)
+            return (definition, outside, .formula(phi), phi)
+
+        case .primitive:
+            throw ClassError.noDefinition(c.name)
+        }
+    }
+
     private func carried(
         _ phi: NodeID,
         _ l: NodeID,
@@ -804,10 +819,6 @@ struct ClassProofs {
         return try chained(try chained(dl, walk, &t), back, &t)
     }
 
-    private func chained(_ p: NodeID, _ q: NodeID, _ t: inout Table) throws -> NodeID {
-        let (a, b) = try sides(p, t), c = try sides(q, t).right
-        return try base.applied(.iffTrans, [a, b, c], [p, q], in: &t)
-    }
 }
 
 private let unfolding: [String: BaseStatement] = ["zero": .zeroDef, "Inf": .infDef, "ind": .indDef]

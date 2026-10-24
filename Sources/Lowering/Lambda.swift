@@ -61,7 +61,7 @@ struct LambdaProofs {
         var fr = Frame()
         var guards = [Int: Int]()
         for (j, T) in f.types.enumerated() {
-            let v = fr.fix(T)
+            let v = try fr.fixClosure(T, in: &t)
             if T != .i, let g = try guarded(try fr.variable(v, in: &t), T, in: &t) { guards[j] = fr.assume(g) }
         }
         let vs = try f.types.indices.map { try fr.variable($0, in: &t) }
@@ -380,7 +380,7 @@ struct LambdaProofs {
                     return x == a ? proof : try base.claimed(.eqSymm, [x, y], [proof], in: &t)
                 }
                 throw LambdaError.noBeta(from)
-            }, &t)
+            }, &t, in: s)
             return try t.intern(.folIffElimL(moved, q))
         }.proof(p, from: have, to: wanted, in: f.scope, &t)
     }

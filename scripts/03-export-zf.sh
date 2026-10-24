@@ -35,9 +35,9 @@ command -v "$ISABELLE" >/dev/null || die "no '$ISABELLE' on PATH; set ISABELLE=/
 found=$("$ISABELLE" version)
 [ "$found" = "$VERSION" ] || die "need $VERSION, '$ISABELLE' is $found"
 
+mkdir -p "$STATE"
 tmp=$(mktemp -d "$ROOT/data/.zf_export.XXXXXX")
 trap 'rm -rf "$tmp"' EXIT
-mkdir -p "$STATE"
 
 step "Build ${SESSIONS[*]} with export enabled"
 "$ROOT/scripts/capped.sh" env HOME="$STATE" "$ISABELLE" build "${OPTIONS[@]}" "${SESSIONS[@]}"

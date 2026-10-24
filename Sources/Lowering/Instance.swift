@@ -43,7 +43,8 @@ func units(_ n: NodeID, _ x: Int, _ path: [Int], in t: Table) -> [Unit] {
          .folAndIntro, .folAndElimL, .folAndElimR, .folOrIntroL, .folOrIntroR, .folOrElim, .folNotIntro, .folNotElim,
          .folIffIntro, .folIffElimL, .folIffElimR, .folForallIntro, .folForallElim, .folExistsIntro, .folExistsElim,
          .folCut,
-         .folBottomElim, .folClassicalAbsurd, .folSchemaInst, .folLetterAll, .folLetter, .folLetterAbs, .value,
+         .folBottomElim, .folClassicalAbsurd, .folSchemaInst, .folLetterAll, .folLetter, .folLetterAbs, .folLetterIntro,
+         .value,
          .valueFact, .valueElim:
         return []
     }

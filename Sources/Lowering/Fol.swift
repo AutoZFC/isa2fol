@@ -23,7 +23,7 @@ public struct Fol: Pass, Walk {
         case .forall?, .exists?, .intro?, .instance?, .guardOf?, .variable?, .existsIntro?, .existsElim?,
              .hidden?: .rule
         case .unbuilt?: .unbuilt
-        case .renumber?, .fact?, nil: nil
+        case .renumber?, .fact?, .letterIntro?, nil: nil
         }
     }
 
@@ -54,6 +54,7 @@ private enum Piece {
     case existsIntro
     case existsElim(IRType)
     case hidden
+    case letterIntro
     case unbuilt
     case renumber
     case fact
@@ -65,8 +66,10 @@ private func piece(_ p: Pattern) -> Piece? {
     case .ifolEx(let T, _): isObject(T) ? .exists(T) : nil
     case .isaAllIntro(let T, _): isObject(T) ? .intro(T) : nil
     case .isaAllElim(_, let T): T == .i ? .instance : nil
-    case .isaGuard(let T, _): isObject(T) ? .guardOf : nil
-    case .isaBound(let T): mentionsTypeVariable(T) || T == .o ? nil : isObject(T) ? .variable : .unbuilt
+    case .isaGuard(let T, _): isObject(T) || (letterArity(T) ?? 0) > 0 ? .guardOf : nil
+    case .isaBound(let T):
+        mentionsTypeVariable(T) || T == .o ? nil : isObject(T) || letterArity(T) != nil ? .variable : .unbuilt
+    case .folLetterIntro: .letterIntro
     case .isaExIntro(_, let T, _): T == .i ? .existsIntro : nil
     case .isaExElim(let T, _, _): isObject(T) ? .existsElim(T) : nil
     case .isaHidden(let T, _): T == .i ? .hidden : nil
@@ -86,6 +89,7 @@ private func piece(_ p: Pattern) -> Piece? {
 
 private enum Entry: Hashable {
     case fix(IRType?)
+    case letter
     case assume
     case inserted(guard: Bool)
 }
@@ -167,6 +171,8 @@ struct FolRule: Rule {
 
             case .hidden?: [.fix(.i), .inserted(guard: true)]
 
+            case .letterIntro?: [.letter]
+
             case .instance?, .guardOf?, .variable?, .existsIntro?, .unbuilt?, .renumber?, .fact?, nil:
                 Array(repeating: .fix(nil), count: binds.terms) + Array(repeating: .assume, count: binds.hyps)
             }
@@ -183,7 +189,7 @@ struct FolRule: Rule {
         var next = c.innermost
         while reach < c.reach, terms > 0 || hyps > 0, let b = next {
             switch b.entry {
-            case .fix: terms -= 1
+            case .fix, .letter: terms -= 1
             case .assume: hyps -= 1
             case .inserted: break
             }
@@ -224,7 +230,7 @@ struct FolRule: Rule {
         case .guardOf?:
             let x = children(n)[0]
             let g = children(n)[1]
-            let d = try discharge(x, c, self, &t)
+            let d = try discharge(x, c, self, &t, lift: g)
             guard t.conclusion(of: d) == g else { throw FolError.notItsGuard(g) }
             return d
 
@@ -269,7 +275,7 @@ struct FolRule: Rule {
             guard case .valueFact(let v, let a) = n else { throw FolError.notGuardedExistential(id) }
             return try t.intern(.folAndElimR(try guardedFact(v, a, in: &t)))
 
-        case .unbuilt?, nil:
+        case .letterIntro?, .unbuilt?, nil:
             return nil
         }
     }
@@ -306,12 +312,20 @@ private func guardedFact(_ v: NodeID, _ fact: NodeID, in t: inout Table) throws 
     return try t.intern(.valueFact(v, try t.intern(.folAnd(g, fact))))
 }
 
-private func discharge(_ x: NodeID, _ c: FolRule.Context, _ rule: FolRule, _ t: inout Table) throws -> NodeID {
+/// ⚠ A LETTER'S GUARD IS THE ASSUMPTION ITS INTRO OPENS WITH, ITS LIFT, WRITTEN BY LOGIC: `lift` the formula it cites.
+private func discharge(
+    _ x: NodeID,
+    _ c: FolRule.Context,
+    _ rule: FolRule,
+    _ t: inout Table,
+    lift: NodeID? = nil,
+) throws -> NodeID {
     if case .value = t[x] { return try t.intern(.folAndElimL(try rule.hypothesis(of: x, in: &t))) }
     guard case .folBound(let k) = t[x] else { throw FolError.instanceNotAVariable(x) }
     var fixes = 0
     var hyps = 0
     var guardAt: Int?
+    var opening: Int?
     for e in c.entries {
         switch e {
         case .fix(let T):
@@ -323,13 +337,26 @@ private func discharge(_ x: NodeID, _ c: FolRule.Context, _ rule: FolRule, _ t: 
                 return try t.intern(.hyp(j, g))
             }
             fixes += 1
-            guardAt = nil
+            (guardAt, opening) = (nil, nil)
 
-        case .assume, .inserted(guard: false):
+        case .letter:
+            if fixes == k {
+                guard let j = opening, let lift else { throw FolError.unguardedBinder(x) }
+                return try t.intern(.hyp(j, lift))
+            }
+            fixes += 1
+            (guardAt, opening) = (nil, nil)
+
+        case .assume:
+            opening = hyps
+            hyps += 1
+
+        case .inserted(guard: false):
+            opening = nil
             hyps += 1
 
         case .inserted(guard: true):
-            guardAt = hyps
+            (guardAt, opening) = (hyps, nil)
             hyps += 1
         }
     }
@@ -341,7 +368,7 @@ private func renumbered(hypothesis k: Int, in c: FolRule.Context) throws -> Int 
     var hyps = 0
     for e in c.entries {
         switch e {
-        case .fix:
+        case .fix, .letter:
             break
 
         case .assume:

@@ -5,3 +5,4 @@ data/zf_export/
 data/.isabelle/
 data/.zf_export.*
 *.swp
+data/fol_export/

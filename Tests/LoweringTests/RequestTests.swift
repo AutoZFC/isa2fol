@@ -15,7 +15,7 @@ func eachRequestRemapsEveryIDItHolds() throws {
         (ConstantFact(constant: .primitive(.zf(.pow)), type: .fn(.i, .i), fact: .classExists), []),
         (Unfolding(constant: Defined(.zf, "T.c", .object), statement: ids[0]), [ids[0]]),
         (LambdaFact(lambda: ids[0], types: [.i], fact: .classExists, name: "CLASS"), [ids[0]]),
-        (RekeyFact(width: 2), []),
+        (RekeyFact(width: 2, context: 1), []),
         (TupleFact(arity: 2, fact: .row), []),
         (Meeting(formula: ids[0], types: [.i], moving: .closed, keep: [], toValues: true, name: "MEET"), [ids[0]]),
         (
@@ -27,6 +27,15 @@ func eachRequestRemapsEveryIDItHolds() throws {
                 stated: false,
                 forward: true,
                 name: "BETA",
+            ),
+            [ids[0], ids[1]],
+        ),
+        (
+            LetterInstantiation(
+                formula: ids[0],
+                instances: [LetterInstantiation.Instance(position: 0, lambda: ids[1])],
+                types: [.fn(.fn(.i, .o), .fn(.i, .o))],
+                name: "BETA_L",
             ),
             [ids[0], ids[1]],
         ),

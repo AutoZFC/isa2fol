@@ -27,7 +27,8 @@ public func render(_ d: Declaration, in t: Table) throws -> String {
         var w = Writer(t: t, spineLetters: letters)
         let body = try w.formula(d.root, spine: true)
         guard w.lettersBound == letters.count else { throw RenderError.letters(d.name) }
-        return "schema \(name) [\(letters.map { "\($0)(0)" }.joined(separator: ", "))]: \(body)"
+        let declared = zip(letters, w.arities).map { "\($0)(\($1))" }
+        return "schema \(name) [\(declared.joined(separator: ", "))]: \(body)"
     }
 }
 
@@ -111,6 +112,7 @@ private struct Writer {
     var letters: [String: [String]]
     var spineLetters: [String]
     var lettersBound = 0
+    var arities = [Int]()
     var terms = [String]()
     var termOccurrences = [Int32]()
     var hyps = [Int]()
@@ -354,9 +356,10 @@ private struct Writer {
         return try body(&self)
     }
 
-    private mutating func nextLetter(_ id: NodeID, spine: Bool) throws -> String {
+    private mutating func nextLetter(_ id: NodeID, spine: Bool, arity: Int = 0) throws -> String {
         guard spine, lettersBound < spineLetters.count else { throw RenderError.schema(id) }
         defer { lettersBound += 1 }
+        arities.append(arity)
         return spineLetters[lettersBound]
     }
 
@@ -392,6 +395,14 @@ private struct Writer {
         case .ifolAll(.o, let body):
             let name = try nextLetter(id, spine: spine)
             return .formula(try binding(term: name) { try $0.formula(body, operand: operand, spine: true) })
+
+        case .folLetterAll(let arity, let body):
+            let name = try nextLetter(id, spine: spine, arity: arity)
+            return .formula(try binding(term: name) { try $0.formula(body, operand: operand, spine: true) })
+
+        case .folLetter(let head, let xs):
+            guard case .folBound(let k) = t[head] else { throw RenderError.schema(id) }
+            return .formula("\(terms[terms.count - 1 - k])(\(try xs.map { try formula($0) }.joined(separator: ", ")))")
 
         case .use(let cited, let types, _):
             guard types.isEmpty else { throw RenderError.instanceCitation(id) }
@@ -445,6 +456,11 @@ private struct Writer {
 
         case .isaAllIntro(.o, let body):
             let name = try nextLetter(id, spine: spine)
+            let bound = try occurrence(.bound(key: k, hyp: false))
+            return .step(try binding(term: name, bound: bound) { try $0.step(body, spine: true) })
+
+        case .folLetterIntro(let arity, let body):
+            let name = try nextLetter(id, spine: spine, arity: arity)
             let bound = try occurrence(.bound(key: k, hyp: false))
             return .step(try binding(term: name, bound: bound) { try $0.step(body, spine: true) })
 
@@ -514,9 +530,6 @@ private struct Writer {
              .isaAbstract, .isaClassical, .isaIffReflection, .isaDefinition, .isaPropAll, .isaPropIntro, .isaPropBound,
              .isaHidden:
             throw Pattern(t[id], in: t).dialects.contains(.fol) ? RenderError.schema(id) : RenderError.sourceKind(id)
-
-        case .folLetterAll, .folLetter:
-            throw RenderError.schema(id)
 
         case .folLetterAbs:
             var names = [String]()

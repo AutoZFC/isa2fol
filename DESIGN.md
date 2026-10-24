@@ -129,7 +129,7 @@ cap) is revisited only for a corpus larger than ZF.
 
 | | decided |
 |---|---|
-| **types** | The reader decodes `ztyp` into ITS OWN type, which has `'a` and `prop`. A `ZConst` carries only its type ARGUMENTS (`ZConst1 (a, b) => ([a], list ztyp [b])`, `zterm.ML`'s encoder), so `isaConst`'s instantiated type is the declared scheme from `theory/consts` (`IFOL.eq :: ['a, 'a] ⇒ o`) with those arguments substituted. A file is read AT AN INSTANCE of its `tfrees` header: a named theorem at its own variables — AS STATED, `'a` is `IRType.variable` — an unnamed box at the types its citation gives (§4.3a 3). A type variable the header does not declare is malformed; so is a sorted one — `unconstrainT` made every sort an `OFCLASS` premise. `IRType` has no `prop`: **`prop` converts to `o` in EVERY type** — the coercion is the identity (§4.3). ⚠ Refusing `prop` anywhere split one construct in two — 6 vs 194 theorems for variables, then 192 for constants. `dummy` — `standard_hidden_types` writing every type variable only a proof uses — is ONE type variable, `IRType.variable("dummy")`: the export no longer tells them apart. ⚠ Reading it as `i` chose a type in the reader, which is translation's (§4.3a 3) |
+| **types** | The reader decodes `ztyp` into ITS OWN type, which has `'a` and `prop`. A `ZConst` carries only its type ARGUMENTS (`ZConst1 (a, b) => ([a], list ztyp [b])`, `zterm.ML`'s encoder), so `isaConst`'s instantiated type is the declared scheme from `theory/consts` (`IFOL.eq :: ['a, 'a] ⇒ o`) with those arguments substituted. A file is read AT AN INSTANCE of its `tfrees` header: a named theorem at its own variables — AS STATED, `'a` is `IRType.variable` — an unnamed box at the types its citation gives (§4.3a 3). A type variable the header does not declare is malformed; so is a sorted one — `unconstrainT` made every sort an `OFCLASS` premise. `IRType` has no `prop`: **`prop` converts to `o` in EVERY type** — the coercion is the identity (§4.3). ⚠ Refusing `prop` anywhere split one construct in two — 6 vs 194 theorems for variables, then 192 for constants. `dummy` — `standard_hidden_types` writing every type variable only a proof uses, of the empty sort, as one — is read at `i`, each file's instance there: a type only the proof uses (FOUNDATION §3b; "ZF-Constructible's reflection", 4). ⚠ Reading every file at a ground instance chose a type for what Isabelle STATES, which is translation's (§4.3a 3); a hidden type is stated nowhere |
 | **frees** | **Read CLOSED.** A statement is `∀x⃗. φ` over the `frees` header — Isabelle's closure (`forall_intr_variables_term`, and `prop_of_atom` for a cited axiom or theorem, `proofterm.ML`), the first free outermost; a theorem's propositions first, then its other frees in the header's order,
 the citation's `ZAppt`s permuted alike ("Letters first"), an axiom's and a definiens' in the header's order — and its
 proof is `⋀`-intro over the same `x⃗`. A free `ZVar` reads as the bound variable of its closure binder: the frees are the outermost binders of the file's `Scope`. So a cited statement is the SAME node as the citer's `use`, and the citation's `ZAppt`s instantiate it — checked by ID across every proof. ⚠ Closing in a later pass was the plan; it rewrites the whole proof DAG once per binder depth, where reading closed costs nothing |
@@ -371,11 +371,12 @@ Isabelle's side:
   `OFCLASS` premise (5).
 - A type variable only a proof uses is written as the type `dummy` (`standard_hidden_types`,
   `zterm.ML`) — in 3 named ZF theorems' proofs: `DPow'_reflection`, `satisfies_MH_reflection`,
-  `formula_rec_lambda_replacement_Reflects`.
+  `formula_rec_lambda_replacement_Reflects`. It is read at `i` since 2026-10-22 ("ZF-Constructible's
+  reflection", 4): stated nowhere, it is no part of what Isabelle states.
 
 | | built |
 |---|---|
-| **3a. `IRType.variable(name)`** | a `tfrees` header variable, and `dummy` — ONE variable: the export no longer tells hidden variables apart, and identifying them is a type instance of the proof. No sort: the export has none, and a sorted one is malformed, as is an undeclared one or a header declaring `dummy`. A named theorem is read AS ISABELLE STATES IT, and its proof checked by ID; there is no `polymorphic` outcome. `≡` at a type variable stays `Pure.eq` — nothing covers it |
+| **3a. `IRType.variable(name)`** | a `tfrees` header variable. `dummy`, a type only the proof uses, is read at `i`, each file's instance (FOUNDATION §3b): the export no longer tells hidden variables apart, and identifying them is a type instance of the proof, as `i` is — ⚠ it was ONE variable until "ZF-Constructible's reflection", 4. No sort: the export has none, and a sorted one is malformed, as is an undeclared one or a header declaring `dummy`. A named theorem is read AS ISABELLE STATES IT, and its proof checked by ID; there is no `polymorphic` outcome. `≡` at a type variable stays `Pure.eq` — nothing covers it |
 | **3b. A citation carries its types** | `use(cited, types, root)` — `types` the citation's type arguments, possibly the citer's own variables; `root` the cited statement READ AT `types`, which is what Isabelle's citation concludes. At the cited theorem's own variables `root` IS its statement, the same node. An unnamed box is inlined as now, read at its citation's types — but one binding a proposition, a statement cited by its name ("Boxes binding a proposition, read as schemas") |
 
 Unchanged: `prop` reads as `o` in every type; `itself` stays out — `OFCLASS` is the export's own
@@ -404,7 +405,8 @@ FOL has it natively; it then reads as FOL's, the SAME node. A defined constant i
 | a hypothesis | `ZBoundp` (a free `ZHyp`: 0 in the export) | `hyp` |
 | a citation | `ZConstp` — an axiom or a NAMED theorem, with its type arguments; `root` is its closed statement read at them | `use(Cited, types, root)` |
 | an unnamed box | `ZConstp` of a theorem with no name — logically not a building block | INLINED: its closed proof, read at its citation's types; one binding a proposition on its spine a statement, `use(.theorem("<theory>.BOX_<fingerprint>"), …)` ("Boxes binding a proposition, read as schemas") |
-| a type variable | a `tfrees` header variable; the type `dummy` | `IRType.variable(name)` |
+| a type variable | a `tfrees` header variable | `IRType.variable(name)` |
+| a type only the proof uses | the type `dummy` | read at `i`, each file's instance (FOUNDATION §3b) |
 | class membership | `OFCLASS(T, c)` — a class premise, a class hypothesis, a class fact | `isaOfClass(T, c)` |
 
 **Not a surface primitive, so no construct:** `Trueprop`, the identity coercion, erased. `protect` (`Pure.prop`)
@@ -7954,6 +7956,239 @@ first). Tests 14, 152, 179, 138, 53 pass, none failing.
 type, the ceiling. Emission's memory, bounded (decision 5, "Not built"), and the locale theorems' size. A letter and
 the variable only a proof uses (`isaHidden`), bound at a proof's top as its closed values are and copied per depth the
 same way: no measurement has found them a cost.
+
+### ZF-Constructible's reflection — `t ≡ t` true beyond objects, a letter taking a class and its lift, the hidden type at `i`  **[AGREED 2026-10-22, decision by decision (user: "Agree", "Agree", "agree", "Agree"); BUILT 2026-10-23 — `Sources/Lowering/Letters.swift`, `Logic.swift`, `Meeting.swift`, `Classes.swift`]**
+
+**The step.** The target is ZF with ZF-Constructible, its refused next (user, 2026-10-22: "a"). The complete run of "A
+value fixed at a proof's top, named by itself" (Measured) refuses 446 named theorems. Traced through the statement each
+refusal cites (a throwaway build listing them, not kept), every one of ZF-Constructible's 439 rests on the machinery of
+the reflection theorem, by which it proves its separation instances: `REFLECTS[P,Q] ≡ (⋁Cl. Closed_Unbounded(Cl) ∧
+(∀a. Cl(a) ⟶ (∀x∈Lset(a). P(x) ⟷ Q(a,x))))` (`L_axioms.thy`), `⋁` Pure's existential, `MetaExists.ex`, at `i ⇒ o`.
+
+| piece | refused at it | citing those | |
+|---|---|---|---|
+| Pure's equality at `((i ⇒ o) ⇒ o) ⇒ o`, from `ex` unfolded | 9: `L_axioms`' `Triv_reflection` … `All_reflection`, `ReflectsD` | 279 | 288 |
+| a variable taking a class to a proposition, `is_b :: (i ⇒ o) ⇒ i ⇒ i ⇒ i ⇒ o` | 33: 13 state one, 20 cite one at a λ | 83 | 116 |
+| Isabelle's `dummy` type in a proof | 3 | 25 | 28 |
+| stated at a type no class restricts, the ceiling | 7 | — | 7 |
+
+**1. Pure's equality at a type with an argument taking a function or a proposition, its two sides one term, is true —
+`⊥ → ⊥`, IFOL's `True` unfolded — and `reflexive t` there is its proof.** **AGREED 2026-10-22 (user: "Agree").**
+Between two terms it has no reading, as before: only a `combination` reads one, whole ("`combination` under a function
+of a function, read whole"). It is the formula's twin of Step 9's decision 2, which reads `symmetric` and `transitive`
+there as `reflexive t` where they conclude `t ≡ t` (FOUNDATION §3b).
+
+```
+Isabelle      REFLECTS[P,Q] ≡ (⋁Cl. Closed_Unbounded(Cl) ∧ …)     ex :: ((i ⇒ o) ⇒ prop) ⇒ prop
+              ex(P) ≡ (⋀Q. (⋀Cl. P(Cl) ⟹ Q) ⟹ Q)
+the box       ⋀exa P. exa ≡ ex ⟹ exa(P) ≡ …          cited · ex · P · (reflexive ex)
+read          (ex ≡ ex) ⟹ …                          Step 9: exa is ex
+after Expand  (B ≡ B) ⟹ …                            B = λP. ⋀Q. …; ≡ at ((i ⇒ o) ⇒ prop) ⇒ prop: Logic, unbuilt
+after         (bottom -> bottom) -> …                its discharge implies_intro of bottom
+```
+
+Not the box's hypothesis substituted by `reflexive ex` alone: the congruence steps still state `B ≡ B`. Not the
+definition box's shape recognised (D1).
+
+**2. A statement's variable whose arguments are objects, a class among them, and whose value is a proposition is a
+schema letter of its arity.** **AGREED 2026-10-22 (user: "Agree").** `P` is `A0(2)`, `is_b` and `MH` `A0(4)` and
+`A0(5)`. It is closed at the statement's top with its propositions ("Letters first"); its application is the letter at
+its arguments, each named where it stands, a class as in any class slot; a citation instantiates it at the λ by
+`schema_inst`, as base's `member_class [Q(1)]` is (`schema_inst member_class { Q: \b32. … }`). ⚠ **The proposal said
+"a box that binds one is a schema of the unit".** A box binding one is read at its citation, substituted, as Step 9
+reads every box whose binder takes a function (FOUNDATION §3b): only a named theorem's own variable, which no citation
+substitutes, is a letter.
+
+```
+Isabelle   theorem bool_of_o_reflection:
+             REFLECTS[P(L), λi. P(##Lset(i))] ⟹
+             REFLECTS[λx. is_bool_of_o(L, P(L,x), f(x)), λi x. is_bool_of_o(##Lset(i), P(##Lset(i),x), f(x))]
+           P :: (i ⇒ o) ⇒ i ⇒ o        applied at the class L, and at ##Lset(i) = λu. u ∈ Lset(i)
+now        ifolAll((i ⇒ o) ⇒ i ⇒ o): Logic, unbuilt
+after      schema Internalize.bool_of_o_reflection [A0(2)]: (its lift, 3) -> (forall b0. (function(b0) -> …))
+             P(L, x), P(##Lset(i), x)     A0 at L's class and x, at Lset(i)'s class and x, each class named as in a slot
+a citation Member_Reflects, at P := λM x. nx ∈ ny:  schema_inst Internalize.bool_of_o_reflection { A0: \b0 b1. … }
+```
+
+Not a class of tuples `⟨K, y⃗⟩`: a class is never an entry (R4). Not each lemma's proof read in place at every
+citation: the 13 named ones would join the ceiling, each citation a copy of the lemma's proof, nested
+(`is_wfrec_reflection` cites `is_recfun_reflection`).
+
+**3. The letter's lift is a premise of every statement closed over it, below its letters; the class prover reads the
+letter's atom by it; a citation discharges it by its instance's lift — the citer's own premise at the citer's own
+letter, else `LIFT ⟨λ⟩`, which the class prover proves from the λ's body as it proves `c_LIFT` from a constant's
+`@def`.** **AGREED 2026-10-22 (user: "agree").** FOUNDATION S4, §3's row of a letter with arguments, R2. The lift is a
+class-taking constant's (Class existence — its prover, 4), the letter's atom where the constant's class stood; every
+statement closed over the letter takes it, lowering's lemmas too (`CLASS ⟨λ⟩`, `LAMBDA_<fp>`, …), a statement being
+built from its request alone (I2).
+
+```
+in the unit now    Relative.big_union_LIFT:
+  forall p. (set(p) -> (forall p1. (set(p1) -> (nsucc(p, p1) ->
+    (forall A. exists U. forall a. (set(a) -> (tuple(a, p) ->
+      (forall K. ((K ≈ₐ A) -> (forall C. (Relative.big_union(C, K) -> (C ≈ₐ U))))))))))))
+the letter's lift
+  forall p. (set(p) -> (forall p1. (set(p1) -> (nsucc(p, p1) ->
+    (forall A. exists U. forall a. (set(a) -> (tuple(a, p) ->
+      (forall K. ((K ≈ₐ A) -> (forall y. (set(y) -> (forall τ. (set(τ) -> (⟦τ = ⟨y⟩⟧ ->
+         (A0(K, y) <-> (exists b. (set(b) & (snoc(a, p, τ, b) & elem(b, U)))))))))))))))))))
+K ≈ₐ A     forall u. (set(u) -> (elem(u, K) <-> (exists b. (set(b) & (snoc(a, p, u, b) & elem(b, A))))))
+⟦τ = ⟨y⟩⟧  forall z. (set(z) -> (zero(z) -> snoc(z, z, y, τ)))
+citations  Member_Reflects, P := λM x. nx ∈ ny: schema_inst, then implies_elim at LIFT_<fp>, the lift of λM x. nx ∈ ny
+           is_wfrec_reflection, citing is_recfun_reflection at MH := MH: implies_elim at its own premise
+```
+
+The proofs need it: `bool_of_o_reflection`'s cites `Or_reflection` and `And_reflection` at `Q := λa x. P(##Lset(a),
+x)`, which Lambda instantiates by that λ's class, its class argument varying with `a`; `is_lambda_reflection`'s
+statement holds `λu v. is_b(L, x, u, v)` in `is_lambda`'s slot. At the citer's own letter only its premise discharges:
+a `LIFT ⟨λ⟩` there would be closed over the letter, its premise that same lift again. Not one class per class argument,
+`∀K. ∃C. ∀y. ⟨y⟩ ∈ C ↔ B(K, y)`: no class over the family follows. Not the classes each proof builds as premises: the
+statement would depend on its proof (I2), and Isabelle's carry its proof's internals.
+
+**The citation at a λ, met to Isabelle's form — found building 2, 3 (user: "Go ahead", 2026-10-23).** ⚠ **Above,
+`is_wfrec_reflection` cites `is_recfun_reflection` at `MH := MH`: it cites it at `λM y. MH(M, fst(y))`**, the comment
+before it says so ("It lets MH depend upon x"), and so `is_iterates_reflection` cites `is_wfrec_reflection` at
+`iterates_MH(M, p(M, …), …)`. `schema_inst` writes the λ's body where the letter's application stood, at that
+application's names: its class argument `C` the class `k`, `⟦k = C⟧`, its set arguments their names. Isabelle's
+citation concludes the λ β-reduced into place, which Reify names where each term stands. The two differ where the body
+applies its class parameter — `⟨a⟩ ∈ k` against `a ∈ a` — passes it to a slot, or holds a term of its set parameters.
+That is the difference Lambda's β meets for a class variable instantiated at a λ (Step 3), here at a letter: one lemma
+per cited formula and its instances, `BETA_<fp>_L`, the formula's S1 form at letters `A⃗` against its form at the λs
+holding their values, premised on each letter's definition `∀K⃗ y⃗. A(K⃗, y⃗) ↔ φ(K⃗, y⃗)`, `φ` the λ's body as its
+instance holds it — the class variable's `⟦P = λ⟧`. Meet's walk proves it; at the letter's application, the definition
+at the application's names, then the body met to its reduced form: its set arguments to their values (as `MEET`), each
+class argument by `BETA` at its named class, `⟦k = C⟧` the premise. At the citation the lemma's letters are the
+instances: its lifts are theirs, and each definition is `∀K⃗ y⃗. φ ↔ φ`, by `iff_refl`. An instance that is a letter's
+η is that letter, the cited one renamed, and has no definition; where every instance is one, the cited form is met as
+before. Not each lemma's proof read in place at each citation, which needs neither (user, 2026-10-23): the copies
+nest along `is_iterates_reflection`, `is_wfrec_reflection`, `is_recfun_reflection`, each instance its own.
+
+```
+Isabelle     T.letter: ⋀B a. B(λu. u ∈ a, a) ⟶ B(λu. u ∈ a, a)       cited · (λM y. M(y)) · a  ⊢  a ∈ a ⟶ a ∈ a
+schema_inst  { A0: \K y. ⟨y⟩ ∈ K }, its lift by LIFT_<fp>:
+               forall a. forall k. (⟦k = λu. u ∈ a⟧ -> (⟨a⟩ ∈ k -> ⟨a⟩ ∈ k))
+BETA_<fp>_L  [A0(2)]: (its lift) -> (forall K. forall y. (A0(K, y) <-> ⟨y⟩ ∈ K)) ->
+               (forall a. forall k. (⟦k = λu. u ∈ a⟧ -> (A0(k, a) -> A0(k, a)))) -> forall a. (a ∈ a -> a ∈ a)
+cited        at A0 := \K y. ⟨y⟩ ∈ K: its lift by LIFT_<fp>, its definition by iff_refl, its premise the citation
+```
+
+**`LIFT ⟨λ⟩` is `c_LIFT`'s construction at the λ's body.** The class `W` of the records `⟨x⃗, p, p1, a, τ⟩` at which
+the body's class holds `τ`, its class parameters the bundles' sections at `a`, re-keyed to `U` by `REKEY`: the λ's free
+variables fixed, its sets `x⃗` the records' context as a class's are (`CLASS ⟨λ⟩`), so `REKEY` takes a context, and a
+letter among them read by its lift, the lemma's premise. At `⟦τ = ⟨y⃗⟩⟧`, the body at `y⃗` is `τ ∈ C` by `CLASS ⟨λ′⟩`
+and `ARGS ⟨λ′⟩`, `λ′ = λy⃗. φ(K⃗, y⃗)` at the sections.
+
+**4. A type only a proof uses, Isabelle's `dummy`, is read at `i`.** **AGREED 2026-10-22 (user: "Agree", after asking
+how `dummy` was met before: in ZF only its term twin, `dummy_pattern`, Step 7's).** `standard_hidden_types`
+(`zterm.ML`) writes a type variable a proof uses and its proposition does not, of the empty sort, as `dummy`. It stands
+in 3 proof files of the export, all ZF-Constructible's: boxes citing `Collect_reflection`, `is_formula_case_reflection`
+or `satisfies_reflections.3` at `dummy` and binding `⋀h::dummy` — each lemma's premise `⋀h f g. …` never uses `h`, so
+its type is free. The reader reads each file at its instance, `dummy`'s there `i` (FOUNDATION §3b); the lemma cited at
+`[i]` is read in place, as any theorem cited at a type is, its function-taking binder at its terms (`isReadAtItsTerms`):
+`is_P` substituted by the citer's term. ⚠ **The proposal said its instance at `[i]` is a statement of the unit**: read
+at its terms, it is none. The three lemmas stay in the ceiling, stated at `'a`.
+
+```
+Isabelle   theorem Collect_reflection:
+             assumes "⋀h f g. REFLECTS[λx. is_P(L, f(x), g(x)), λi x. is_P(##Lset(i), f(x), g(x))]"   h unused, so 'a
+           DPow'_reflection's proof:  Collect_reflection[dummy] % … %% (Λh::dummy. Λf g. …)
+now        use(theorem Collect_reflection, [dummy], o) ;; isaAllIntro(dummy): no owner
+after      Collect_reflection's proof at [i], in place, is_P the citer's term; Λh::i, a set the premise never uses
+```
+
+It revises §4.3a 3, where `dummy` is one type variable. The first build read every file at a ground instance, `dummy`
+at `i` (2026-09-25, `82c0739f`), and lost 7 generic theorems nobody cited; `3db7a6e9` read type variables as stated,
+`dummy` with them. A hidden type is stated nowhere, so reading it at `i` loses nothing; the choice is the translation's,
+written in FOUNDATION, and the reader applies it as it applies `prop` read as `o`. Not `dummy` kept a type variable: 28
+to the ceiling, none of their statements holding one. Not a pass instantiating it: the cited lemma at `[i]` is a reading
+of its proof, the reader's.
+
+**FOUNDATION first** (done): R2, a schema may take the class it needs as its premise; S4, a schematic variable taking a
+class a schema letter of its arity, its lift the statement's premise; §3's rows, a letter with arguments, its row a
+premise and never a theorem of base; §3b, the rows of `t ≡ t` beyond objects, of the letter's instance and of the hidden
+type, and Step 9's "the target has no predicate variable to take it" corrected.
+
+**The contracts (D2):**
+
+| | provides | assumes |
+|---|---|---|
+| Reader | letters first over a letter's type — `o`, or objects to `o` with a class among them — a citation's arguments permuted to match; a box binding a function-taking variable read at its terms, as before; `dummy` read at `i` | — |
+| IR | a letter's type, one predicate; a letter of arity `n` at a statement's top, its intro on the proof's spine, its application and its λ instance (`folLetterAll`, `folLetter`, `folLetterAbs`, as base's), the table checking each | — |
+| Logic | decision 1's reading; the letter's binder, intro, application and instance; its lift below the letters, assumed by the proof and discharged at each citation; a cited form met below its letters at their instances, by `BETA_<fp>_L` where one is no letter's η, its definitions by `iff_refl` | Reify's naming of the letter's arguments; the registry's `LIFT ⟨λ⟩` and `BETA_<fp>_L` |
+| the meeting prover | `BETA_<fp>_L` by Meet's walk: a letter's application by its definition, then `MEET` and `BETA` | Facts' statements; `CLASS ⟨λ⟩`, `ARGS ⟨λ⟩`, `BETA_<fp>` |
+| Reify | a letter's application named as a class-taking constant's: a class slot's λ by its class, a term by its value | — |
+| Facts | a lemma closed over a letter with arguments: the letter at its top, its lift below; the letter's lift; `LIFT ⟨λ⟩`'s statement — each from the request alone (I2) | — |
+| the class prover | a letter's atom read through its lift, the statement's own premise, at the class arguments' bundles; `LIFT ⟨λ⟩` from the λ's body, `c_LIFT`'s construction, `REKEY` with a context | Facts' statements; base's rows; `CLASS ⟨λ⟩`, `ARGS ⟨λ⟩` |
+| FolDialect | a schema's letters at their arities; a letter's application, `A0(x, y)`; its λ instance, as base's | — |
+
+**Tests, written first**, each lowered through Fol and kernel-checked where it states a unit:
+- Reader: `aHiddenProofTypeIsReadAtI`, which `aHiddenProofTypeIsATypeVariable` was; a variable taking a class closed
+  first, a citation's arguments permuted to match.
+- Logic: `t ≡ t` at `((i ⇒ o) ⇒ o) ⇒ o`, a hypothesis, discharged by `reflexive t`.
+- A statement over `P :: (i ⇒ o) ⇒ i ⇒ o` whose proof cites a theorem at `λa x. P(λu. u ∈ a, x)`: a schema at
+  `A0(2)`, its lift its premise, the class prover reading `A0`'s atom by it; a citation of it at a λ, `LIFT ⟨λ⟩`
+  discharging; one at the citer's own letter, its premise discharging.
+- Its citation at `λM y. M(y)`, applying the class parameter, and at `λM y. B(λz. M(z), Pow(y))`, passing it to the
+  citer's own letter beside a term of the set parameter (`is_wfrec_reflection`'s instance): `BETA_<fp>_L` and
+  `LIFT ⟨λ⟩`, the second closed over the citer's letter.
+- FolDialect: a schema's header at its letters' arities; a letter's application.
+- The target: through Logic on the refused, then the complete run, emitted and kernel-checked.
+
+**Built 2026-10-23** — `Sources/Lowering/Letters.swift`, `Logic.swift`, `Meeting.swift`, `Classes.swift`,
+`Comprehension.swift`, `Scope.swift`, `Fol.swift`, `Reify.swift`; `Sources/IR` (`folLetterIntro`, `letterArity`);
+`Sources/Reader/Terms.swift`. The build's decisions:
+1. **A `combination` concluding `t ≡ t` where decision 1 reads is `iff_refl`** at the term — the reading Step 9 gives
+   `symmetric` and `transitive` there (FOUNDATION §3b's row).
+2. **The lift is the letter's guard.** Logic writes it as the assumption the letter's intro opens with; a citation at
+   the citer's own letter cites `isaGuard(letter, its lift)`, which Fol resolves to that assumption.
+3. **Every prover proving a lemma closed over a letter assumes its lift right after fixing it** (`Frame.fixClosure`):
+   without it, `BETA` was misproved.
+4. **A letter's congruence, `LETTER_CONG_<code>_<j>`, is derived from its lift**, read twice at one tuple, each class
+   argument through its section at the empty record; `congruent` cites it at a letter's atoms, the scope giving the
+   letter's type — Meet's atoms too.
+5. **A letter's application names its set arguments first, then its class arguments** (`Chain.letter`).
+6. **The index engine rewrites a letter's head to a fol variable where an instantiation substitutes into it.**
+7. **A letter's definition is written as `schema_inst` instantiates the letter** — its body the instance applied at
+   the binders, a class argument a fol variable — so at the citation its two sides are one node.
+8. **`BETA_<fp>_L` takes a letter of one class argument, and `LIFT ⟨λ⟩` one whose class arguments lead** — each of the
+   target's 13; any other is the prover's refusal, never a form left unmet.
+9. **`REKEY` takes a context of set variables**, `REKEY_<w>_<c>`: `LIFT ⟨λ⟩`'s records start with the λ's sets.
+
+**Measured** (2026-10-23; every session but ZF-Constructible 2026-10-24, on the same binary).
+- **ZF-Constructible lowers and kernel-checks 2,114 of its 2,121, every one but the ceiling's 7** (before: 1,682), and
+  ZF's 3,609 of 3,616, each counted by name against its theory's `thms`. @defs stated 549, refused 0; no lemma refused
+  unbuilt or left out.
+- **Refused, named: 14, every one at no owner, the ceiling**: ZF's 7, and ZF-Constructible's `MetaExists.ex_def`,
+  `meta_exI`, `meta_exE`, `Normal.Int_iff_INT2`, `DPow_absolute.Collect_reflection`,
+  `Satisfies_absolute.is_formula_case_reflection` and `satisfies_reflections.3`, each stated at a type no class
+  restricts.
+- **The complete run** (`MEM=64G`, `--threads 16`): 2:08:26, peak 57.2 GB, at emission — read 56.9 s; expand 17.3 s,
+  logic 523.2 s, registry 4,843.3 s, fol 1,565.5 s, link 267.2 s; emitted 423.0 s, 544 parts, 29,483,070,538 bytes;
+  the table 410,225,522 nodes. `check-unit.sh`: 3:52:32, peak 9.3 GB, every part exit 0 and empty stderr, claims
+  104,949 of 104,949 and schemas 14,283 of 14,283 Proved.
+- ⚠ **Under the CI's `MEM=48G` it is killed in emission** (2:07:26, 50.2 GB, signal 9): lowering peaks at 18.5 GB, and
+  emission holds the unit's text whole, 29.5 GB. Decision 3's criterion holds but for the cap, brought back as its own
+  decision (2026-10-23): every box a statement of the unit, or emission bounded ("A value fixed at a proof's top, named
+  by itself", decision 5, "Not built").
+- **The size is the boxes, inlined at every citation** (§4.3a's row). Per named theorem, our proof is at most 4.5×
+  Isabelle's own with the boxes it reaches, each counted once (median 0.12×; `Lset_abs` 149 MB against 168 MB);
+  across theorems it grows as Isabelle's to the power 0.43. ZF-Constructible's theorems reach 9,474 distinct boxes, 463
+  MB of the export, 83.08 GB counted once per citing theorem; its proofs are 26.45 GB, its named theorems 19.85 GB of
+  it, each of the 162 locale theorems of 50 MB or more holding 3,600–4,400 shared boxes. `CLASS ⟨λ⟩` is 3.3 GB and grows
+  as about the power 1.5 of its statement; `MEET`, `BETA`, `SUBST` and `ARGS` stay 3–6× theirs at every size.
+- **Every session but ZF-Constructible** (`--skip ZF-Constructible`, `MEM=64G`, `--threads 16`, the same binary): 7,290
+  of 7,299 — ZF 3,609, ZF-AC 477 of 477, ZF-Coind 288 of 288, ZF-IMP 284 of 284, ZF-Induct 1,494 of 1,496, ZF-Resid
+  340 of 340 (before: 334), ZF-ex 798 of 798. Refused 9, every one at no owner: ZF's 7, and ZF-Induct's
+  `Ntree.maptree_induct` and `maptree2_induct`, whose premise `⋀x n h` never uses `n`, so `n` is at a type no class
+  restricts, the ceiling. 59:14, peak 23.4 GB; 146 parts, 5,871,412,694 bytes; the table 291,061,745 nodes.
+  `check-unit.sh`: 35:48, peak 2.4 GB, every part exit 0 and empty stderr, claims 106,690 of 106,690 and schemas
+  12,120 of 12,120 Proved.
+- **The two runs are one translation**: of what both units hold, 57,151 statements and 56,910 proofs, every one is
+  byte-identical. A part's statements differ: each unit holds the theorems outside the ZF sessions its own sessions
+  cite, and a lemma is written in its first citer's part.
+
+**Not in this step.** The ceiling, 16: ZF's 7, ZF-Constructible's 7, ZF-Induct's 2. Emission's memory over the CI's
+48 GB. `CLASS ⟨λ⟩`'s growth. ZF-UNITY, which the export lacks.
 
 ### Fol — binders, guards and variables  **[BUILT 2026-09-28 as the guard; Fol's 2026-10-14; every object type and `∃` at `i` with "Reify — S1 at the site" — `Sources/Lowering/Fol.swift`]**
 

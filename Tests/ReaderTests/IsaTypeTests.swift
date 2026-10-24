@@ -87,9 +87,10 @@ func aTypeVariableInsideAFunctionTypeConverts() throws {
 }
 
 /// `standard_hidden_types` writes every type variable only a proof uses as `dummy`: the export no
-/// longer tells them apart, so it is ONE type variable.
+/// longer tells them apart, so it converts to ONE variable, which each file's instance reads at `i` (DESIGN
+/// "ZF-Constructible's reflection", 4).
 @Test
-func theHiddenProofTypeIsATypeVariable() throws {
+func theHiddenProofTypeConvertsToOneVariable() throws {
     #expect(try IsaType.type("fun", [.type("dummy", []), .type("IFOL.o", [])]).irType() == .fn(.variable("dummy"), .o))
 }
 

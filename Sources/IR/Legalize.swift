@@ -13,7 +13,10 @@ public func spineLetters(_ root: NodeID, in t: Table) -> Int {
     var at = root
     while true {
         if case .ifolAll(let T, let body) = t[at] {
-            if T == .o { count += 1 }
+            if letterArity(T) != nil { count += 1 }
+            at = body
+        } else if case .folLetterAll(_, let body) = t[at] {
+            count += 1
             at = body
         } else if case .folForall(let body) = t[at] {
             at = body
@@ -33,7 +36,11 @@ public func misplacedLetters(_ roots: [NodeID], in t: Table) -> Set<Pattern> {
         guard seen.insert(at).inserted else { continue }
         let n = t[at.id]
         switch n {
-        case .ifolAll(.o, let body), .isaAllIntro(.o, let body), .folLetterAll(_, let body):
+        case .ifolAll(let T, let body), .isaAllIntro(let T, let body):
+            if letterArity(T) != nil, !at.spine { misplaced.insert(Pattern(n, in: t)) }
+            pending.append(Place(id: body, spine: at.spine && letterArity(T) != nil))
+
+        case .folLetterAll(_, let body), .folLetterIntro(_, let body):
             if !at.spine { misplaced.insert(Pattern(n, in: t)) }
             pending.append(Place(id: body, spine: at.spine))
 
@@ -50,7 +57,7 @@ public func misplacedLetters(_ roots: [NodeID], in t: Table) -> Set<Pattern> {
             if !citesAtItsHead(p, t) { misplaced.insert(Pattern(n, in: t)) }
             pending += [Place(id: p, spine: false), Place(id: a, spine: false)]
 
-        case .ifolAll, .ifolEx, .isaConst, .isaFree, .isaBound, .isaVarApp, .isaAbs, .isaOfClass, .isaAllIntro,
+        case .ifolEx, .isaConst, .isaFree, .isaBound, .isaVarApp, .isaAbs, .isaOfClass,
              .isaAllElim, .isaReflexive, .isaSymmetric, .isaTransitive, .isaCombination, .isaAbstract, .isaClassical,
              .isaIffReflection, .isaDefinition, .isaPropAll, .isaPropIntro, .isaPropBound, .isaHidden, .folAnd, .folOr,
              .folIff,

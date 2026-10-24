@@ -70,7 +70,7 @@ public struct Table: Sendable {
              .folAndElimL, .folAndElimR,
              .folOrIntroL, .folOrIntroR, .folOrElim, .folNotIntro, .folNotElim, .folIffElimR, .folForallIntro,
              .folForallElim, .folExistsIntro, .folExistsElim, .folCut, .folBottomElim, .folClassicalAbsurd,
-             .folSchemaInst, .folLetterAll, .folLetter, .folLetterAbs, .value, .valueFact, .valueElim:
+             .folSchemaInst, .folLetterAll, .folLetter, .folLetterAbs, .folLetterIntro, .value, .valueFact, .valueElim:
             nil
         }
     }
@@ -419,6 +419,9 @@ public struct Table: Sendable {
         case .folLetterAbs(let b):
             try expect(.o, b)
             return .value(.o)
+
+        case .folLetterIntro(let k, let body):
+            return .step(concluding: try intern(.folLetterAll(k, body: try premise(body))))
 
         case .isaReflexive(let x):
             return .step(concluding: try equation(try value(x), x, x))

@@ -11,7 +11,40 @@ func congruent(
     _ base: Base,
     _ equal: (NodeID, NodeID, inout Table) throws -> NodeID,
     _ t: inout Table,
+    in scope: Scope? = nil,
 ) throws -> NodeID {
+    if case .folLetter(let h, let ls) = t[l], case .folLetter(h, let rs) = t[r], ls.count == rs.count {
+        guard
+            let scope, case .folBound(let k) = t[h], let T = scope.type(ofBound: k), (letterArity(T) ?? 0) > 0
+        else { throw CongruenceError.noCongruence(l) }
+        var current = ls
+        var joined: NodeID?
+        for j in ls.indices where ls[j] != rs[j] {
+            var next = current
+            next[j] = rs[j]
+            let f = LetterFact(type: T, position: j)
+            let at = try instantiated(
+                try cited(f, try statement(f, in: &t), &t),
+                at: [try t.intern(.isaBound(k, T))],
+                [T],
+                guards: true,
+                guardOf: isaGuard,
+                in: &t,
+            )
+            let step = try eliminated(at, at: current + [rs[j]], premises: [try equal(ls[j], rs[j], &t)], in: &t)
+            if let previous = joined {
+                let a = try t.intern(.folLetter(head: h, args: ls))
+                let b = try t.intern(.folLetter(head: h, args: current))
+                let c = try t.intern(.folLetter(head: h, args: next))
+                joined = try base.applied(.iffTrans, [a, b, c], [previous, step], in: &t)
+            } else {
+                joined = step
+            }
+            current = next
+        }
+        guard let joined else { return try base.instance(.iffRefl, [l], in: &t) }
+        return joined
+    }
     guard
         case .folPred(let p, let ls) = t[l], case .folPred(let p2, let rs) = t[r], p == p2,
         ls.count == rs.count
@@ -157,7 +190,8 @@ struct Replacement {
              .folAndIntro, .folAndElimL, .folAndElimR, .folOrIntroL, .folOrIntroR, .folOrElim, .folNotIntro,
              .folNotElim, .folIffElimR, .folForallIntro, .folForallElim, .folExistsIntro, .folExistsElim, .folCut,
              .folBottomElim,
-             .folClassicalAbsurd, .folSchemaInst, .folLetterAll, .folLetter, .folLetterAbs, .value, .valueFact,
+             .folClassicalAbsurd, .folSchemaInst, .folLetterAll, .folLetter, .folLetterAbs, .folLetterIntro, .value,
+             .valueFact,
              .valueElim:
             throw CongruenceError.noCongruence(phi)
         }
@@ -203,7 +237,8 @@ private func connective(_ n: Node) -> (BaseStatement, NodeID, NodeID)? {
          .folOrElim,
          .folNotIntro, .folNotElim, .folIffElimR, .folForallIntro, .folForallElim, .folExistsIntro, .folExistsElim,
          .folCut,
-         .folBottomElim, .folClassicalAbsurd, .folSchemaInst, .folLetterAll, .folLetter, .folLetterAbs, .value,
+         .folBottomElim, .folClassicalAbsurd, .folSchemaInst, .folLetterAll, .folLetter, .folLetterAbs, .folLetterIntro,
+         .value,
          .valueFact, .valueElim:
         nil
     }

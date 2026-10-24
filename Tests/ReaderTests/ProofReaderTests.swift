@@ -23,6 +23,12 @@ private func all(_ x: String, _ T: String, _ body: String) -> String {
 }
 
 private let termClass = { (T: String) in ofclass(T, "IFOL.term") }
+/// `B(λu. u ∈ A, A)`, `B` a relativized predicate: its class first, as ZF-Constructible's `is_b`.
+private let relativized = trueprop(app(
+    free("B"),
+    lam("u", i, app(const("ZF_Base.mem"), bound(0), free("A"))),
+    free("A"),
+))
 private let falsum = trueprop(const("IFOL.False"))
 private let dummy = typeT("dummy")
 private let typeB = tfree("'b")
@@ -51,7 +57,8 @@ private let typeB = tfree("'b")
 ///   T.polyPartial  OFCLASS('a, term) ⟹ (⋀h::'b. Q) ⟹ (⋀h::'b. Q)   'b unrestricted: read as stated; cited by
 /// T.usesPartial and T.usesPartialAgain at i, i
 ///   T.defax      a theory's own axiom with a typed free: A ∈ A;   T.useDef  a ∈ a   T.defax % a, its premise
-///   T.vacAx      (⋀h::'a. Q) ⟹ Q, a theorem cited;   T.hidden  Q ⟹ Q   λH. vacAx[dummy] % Q %% (⋀h::dummy. H)
+///   T.vacAx      (⋀h::'a. Q) ⟹ Q   λH. H % dummy_pattern::'a;   T.hidden  Q ⟹ Q   λH. vacAx[dummy] % Q %% (⋀h::dummy.
+/// H)
 ///   T.hiddenTerm (⋀x::i. ⋀R::o. Q) ⟹ Q        λH. H % dummy_pattern::i % dummy_pattern::o   variables only the proof
 ///                uses
 ///   T.hiddenFunctions  (⋀x y::i. ⋀R::o. Q) ⟹ P(a) ⟹ Q   λH K. H % F(λx. P x, Q) % g(c) % C(c), each of F, g, c, C
@@ -99,7 +106,12 @@ private func miniReader() throws -> Reader {
             frees: [],
             prop: imp(termClass(typeA), all("a", typeA, eq(typeA, bound(0)))),
         )),
-        ("T.vacAx", 402, proofFile(tfrees: ["'a"], frees: [("Q", o)], prop: imp(all("h", typeA, Q), Q))),
+        ("T.vacAx", 402, proofFile(
+            tfrees: ["'a"],
+            frees: [("Q", o)],
+            prop: imp(all("h", typeA, Q), Q),
+            proof: pabsp("H", all("h", typeA, Q), pappt(pbound(0), const("Pure.dummy_pattern", typeA))),
+        )),
         ("T.imp", 10, proofFile(frees: [("P", o)], prop: imp(P, P), proof: pabsp("H", P, pbound(0)))),
         (
             "T.fix",
@@ -331,6 +343,19 @@ private func miniReader() throws -> Reader {
                 free("Q"),
             ),
         )),
+        ("T.lateClass", 330, proofFile(
+            frees: [("A", i), ("B", fn(fn(i, o), fn(i, o)))],
+            prop: imp(mem(free("A"), free("A")), imp(relativized, relativized)),
+            proof: pabsp("a", mem(free("A"), free("A")), pabsp("h", relativized, pbound(0))),
+        )),
+        ("T.citesLateClass", 340, proofFile(
+            frees: [("C", i)],
+            prop: imp(mem(free("C"), free("C")), imp(mem(free("C"), free("C")), mem(free("C"), free("C")))),
+            proof: pappt(
+                pappt(pcite(330, "ZF.T", "T.lateClass"), free("C")),
+                lam("M", fn(i, o), lam("y", i, app(bound(1), bound(0)))),
+            ),
+        )),
         ("T.leavesLetter", 320, proofFile(
             frees: [("A", i)],
             prop: all("R", o, imp(all("x", i, mem(bound(0), free("A"))), imp(trueprop(bound(0)), trueprop(bound(0))))),
@@ -538,6 +563,33 @@ func aCitationInstantiatesItsLettersFirst() throws {
     #expect(atTheCitation == [.o])
 }
 
+/// DESIGN "ZF-Constructible's reflection", 2: a variable taking a class to a proposition is a letter too, closed first,
+/// and a citation instantiates it first — `T.lateClass`'s `B` before its `A`, though Isabelle's header lists `A` first.
+@Test
+func aVariableTakingAClassIsALetterInstantiatedFirst() throws {
+    var r = try miniReader()
+    guard
+        let (late, _) = try proved(&r, "T.lateClass"),
+        let (_, proof) = try proved(&r, "T.citesLateClass")
+    else { return }
+    let B = IRType.fn(.fn(.i, .o), .fn(.i, .o))
+    guard case .ifolAll(B, _) = r.table[late] else {
+        Issue.record("T.lateClass: \(r.table[late])")
+        return
+    }
+    var atTheCitation = [IRType]()
+    var seen = Set<NodeID>()
+    var work = [proof]
+    while let n = work.popLast() {
+        guard seen.insert(n).inserted else { continue }
+        if case .isaAllElim(let p, let a) = r.table[n], case .use = r.table[p], let T = r.table.type(of: a) {
+            atTheCitation.append(T)
+        }
+        r.table[n].forEachChild { c, _ in work.append(c) }
+    }
+    #expect(atTheCitation == [B])
+}
+
 /// `T.late` cited at its `P` alone, its letter `R` left: closed letters first, `T.late` has no order that citation
 /// reads
 /// in.
@@ -691,12 +743,29 @@ func aCitationAtIOfATheoremReadAtICitesItsStatement() throws {
     #expect(roots(citing: "T.polyNamed", ground, r.table) == [statement])
 }
 
-/// A ground theorem whose proof uses a type only inside: Isabelle writes it `dummy`.
+/// A ground theorem whose proof uses a type only inside: Isabelle writes it `dummy`, and the reader reads it at `i`
+/// (DESIGN "ZF-Constructible's reflection", 4). `T.vacAx` cited at `[i]` binds `Q` on its spine there: its instance a
+/// statement of the unit, cited with no types, `⋀h::i` its premise, which the citer proves by a binder at `i`.
 @Test
-func aHiddenProofTypeIsATypeVariable() throws {
+func aHiddenProofTypeIsReadAtI() throws {
     var r = try miniReader()
     guard let (_, proof) = try proved(&r, "T.hidden") else { return }
-    #expect(citations(proof, r.table) == [Citation(cited: .theorem("T.vacAx"), types: [.variable("dummy")])])
+    var t = r.table
+    #expect(!citations(proof, t).contains { !$0.types.isEmpty })
+    #expect(uses(proof, t).count(where: { $0.hasPrefix("T.BOX_") }) == 1)
+    let instance = try #require(r.cited.first { $0.at == [.i] })
+    guard case .proved(let stated, _) = try r.read(instance) else {
+        Issue.record("the instance is not proved")
+        return
+    }
+    let q = try t.intern(.isaBound(0, .o))
+    let vacuous = try t.intern(.ifolAll(.i, body: try t.intern(.isaBound(1, .o))))
+    #expect(stated == (try t.intern(.ifolAll(.o, body: try t.intern(.folImplies(vacuous, q))))))
+    #expect(reaches(
+        proof,
+        try t.intern(.isaAllIntro(.i, body: try t.intern(.hyp(0, try t.intern(.isaBound(1, .o)))))),
+        t,
+    ))
 }
 
 /// The exporter writes a variable only the proof uses as `dummy_pattern` (`standard_hidden_terms`), one per type: the
@@ -852,7 +921,7 @@ func theReaderEmitsOnlyTheIsaDialect() throws {
     for theorem in r.population {
         if case .proved(let statement, let proof)? = try? r.read(theorem) { roots += [statement, proof] }
     }
-    #expect(roots.count == 58)
+    #expect(roots.count == 64)
     var seen = Set<NodeID>()
     var work = roots
     while let n = work.popLast() {

@@ -128,13 +128,13 @@ struct Terms {
         self.constants = constants
         self.classes = classes
         var types = Dictionary(uniqueKeysWithValues: zip(e.tfrees, instance))
-        guard types.updateValue(.variable("dummy"), forKey: "dummy") == nil
+        guard types.updateValue(.i, forKey: "dummy") == nil
         else { throw MalformedExport.tfreesHeader(e.tfrees) }
         let typed = try e.frees.map { ($0.0, try $0.1.irType().substituting(types)) }
-        letters = typed.map { $0.1 == .o }
+        letters = typed.map { letterArity($0.1) != nil }
         let (front, rest) =
             switch order {
-            case .lettersFirst: (typed.filter { $0.1 == .o }, typed.filter { $0.1 != .o })
+            case .lettersFirst: (typed.filter { letterArity($0.1) != nil }, typed.filter { letterArity($0.1) == nil })
             case .stated: ([], typed)
             }
         let given = try own.map { name in

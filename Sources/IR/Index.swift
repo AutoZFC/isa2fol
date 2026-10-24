@@ -85,6 +85,9 @@ private struct Instantiate: Rule {
             args,
             in: &t,
         ) }
+        if case .folLetter(let head, let args) = n, case .isaBound(let k, _) = t[head] {
+            return try t.intern(.folLetter(head: try t.intern(.folBound(k)), args: args))
+        }
         guard case .isaVarApp(let head, let args) = n, case .isaAbs = t[head] else { return nil }
         return try beta(head, args, in: &t)
     }

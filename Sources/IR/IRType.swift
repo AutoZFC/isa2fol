@@ -40,6 +40,16 @@ public func takesAFunctionOrProposition(_ T: IRType) -> Bool {
     T.domains.contains { if case .fn = $0 { true } else { $0 == .o } }
 }
 
+/// A schema letter's arity at `T`: `0` at a proposition, `n` at `n` objects to a proposition, one of them no set.
+public func letterArity(_ T: IRType) -> Int? {
+    if T == .o { return 0 }
+    let domains = T.domains
+    guard
+        !domains.isEmpty, result(T) == .o, domains.allSatisfy(isObject), domains.contains(where: { $0 != .i })
+    else { return nil }
+    return domains.count
+}
+
 public func result(_ T: IRType) -> IRType {
     guard case .fn(_, let U) = T else { return T }
     return result(U)

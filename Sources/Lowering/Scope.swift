@@ -19,6 +19,13 @@ struct Scope {
         return hypotheses.count - 1
     }
 
+    /// The type of the variable bound `k` binders up, if it has one.
+    func type(ofBound k: Int) -> IRType? {
+        let level = depth - 1 - k
+        guard level >= 0, level < variables.count else { return nil }
+        return variables[level]
+    }
+
     func variable(_ level: Int, in t: inout Table) throws -> NodeID {
         let k = depth - 1 - level
         guard let T = variables[level] else { return try t.intern(.folBound(k)) }
@@ -167,6 +174,9 @@ struct Frame {
 
     private(set) var scope: Scope
 
+    /// The hypothesis of each letter's lift, by the letter's level.
+    private(set) var lifts = [Int: Int]()
+
     mutating func fix(_ T: IRType?) -> Int {
         steps.append(.forall(T))
         return scope.fix(T)
@@ -175,6 +185,13 @@ struct Frame {
     mutating func assume(_ formula: NodeID) -> Int {
         steps.append(.implies(formula))
         return scope.assume(formula)
+    }
+
+    /// A lemma's closure variable at `T`, a letter's lift assumed right below it, as `universal` states it.
+    mutating func fixClosure(_ T: IRType, in t: inout Table) throws -> Int {
+        let v = fix(T)
+        if let n = letterArity(T), n > 0 { lifts[v] = assume(try lift(at: try t.intern(.folBound(0)), T, in: &t)) }
+        return v
     }
 
     mutating func have(_ p: NodeID, in t: inout Table) throws -> Int {
@@ -239,7 +256,8 @@ struct Frame {
         for step in steps.reversed() {
             switch step {
             case .forall(let T):
-                if
+                if let T, let n = letterArity(T), n > 0 { proof = try t.intern(.folLetterIntro(n, body: proof)) }
+                else if
                     let T,
                     T == .i || T == .o { proof = try t.intern(.isaAllIntro(T, body: proof)) }
                 else { proof = try t.intern(.folForallIntro(body: proof)) }

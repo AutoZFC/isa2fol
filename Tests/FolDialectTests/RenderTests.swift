@@ -147,6 +147,18 @@ func aLetterOutsideASchemaIsRefused() throws {
     #expect(throws: RenderError.schema(schema)) { try f.text(schema) }
 }
 
+/// A schema's letters are written at their arities, each read from its binder, and a letter with arguments is applied
+/// to them (DESIGN "ZF-Constructible's reflection", 2).
+@Test
+func aSchemasLettersAreWrittenAtTheirArities() throws {
+    var f = Fol()
+    let applied = try f.t.intern(.folLetter(head: try f.b(2), args: [try f.b(1), try f.b(0)]))
+    let body = try f.all(try f.all(try f.imp(applied, try f.t.intern(.isaBound(3, .o)))))
+    let root = try f.t.intern(.ifolAll(.o, body: try f.t.intern(.folLetterAll(2, body: body))))
+    let text = try render(Declaration(kind: .schema(letters: ["A0", "A1"]), name: "T.s", root: root), in: f.t)
+    #expect(text == "schema T.s [A0(0), A1(2)]: forall b2. forall b3. (A1(b2, b3) -> A0)")
+}
+
 /// ⚠ THE CHECKER'S GRAMMAR IS THE ONLY AUTHORITY. Every construct `render` emits is fed to
 /// the real checker; `probe_bottom` PROVES something only true if `false` is ⊥ — a mere parse
 /// would accept `False`, which lexes as a nullary predicate.

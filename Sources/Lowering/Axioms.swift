@@ -259,7 +259,7 @@ private struct AxiomReading {
              .folPred, .folForall, .folExists, .folAndIntro, .folAndElimL, .folAndElimR, .folOrIntroL, .folOrIntroR,
              .folOrElim, .folNotIntro, .folNotElim, .folIffElimR, .folForallIntro, .folForallElim, .folExistsIntro,
              .folExistsElim, .folCut, .folBottomElim, .folClassicalAbsurd, .folSchemaInst, .folLetterAll, .folLetter,
-             .folLetterAbs, .value, .valueFact, .valueElim:
+             .folLetterAbs, .folLetterIntro, .value, .valueFact, .valueElim:
             return try formula(phi, .statement, in: &t)
         }
     }
@@ -709,7 +709,7 @@ private struct AxiomReading {
                     throw AxiomError.misread(w)
                 }
                 return try lifted(equal, terms: sc.depth - level, hyps: sc.hyps - bw.scope.hyps, in: &t)
-            }, &t)
+            }, &t, in: sc)
             return try t.intern(.folIffElimL(iff, q))
         }.proof(inNamed, from: from, to: target, in: bw.scope, &t)
         let backward = try bw.close(moved, in: &t)

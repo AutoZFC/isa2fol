@@ -40,7 +40,7 @@ func definition(
     let k = min(letters(stated, t), args.count)
     var proof = try cited(Unfolding(constant: c, statement: statement), statement, &t)
     for a in args.prefix(k) { proof = try t.intern(.folSchemaInst(proof, try valued(a, in: &t))) }
-    proof = try metBelowLetters(proof, stated, at: Array(args.prefix(k)), in: &t)
+    proof = try metBelowLetters(proof, stated, at: Array(args.prefix(k)), base: base, in: &t)
     var at = stated
     for a in args.prefix(k) {
         guard case .ifolAll(.o, let body) = t[at] else { throw UnfoldingError.notADefinition(a) }

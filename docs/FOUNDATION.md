@@ -138,7 +138,9 @@ R2 is a mathematical criterion, not housekeeping. A legitimate schema is proved
 truth for arbitrary `P` follows by pure logic *without* the class `{x : P(x)}`.
 A schema that cannot be proved parametrically is an attempted class over an
 uninterpreted predicate: Morse–Kelley. Delete it and instantiate its uses at
-concrete formulas.
+concrete formulas — or state the class it needs as its premise, as a letter's lift is
+(S4): proved from it parametrically, the schema assumes the class instead of forming
+it, and each use discharges it at its concrete formula.
 
 R7 costs nothing in faithfulness and buys one pattern instead of an
 arity-indexed family. Writing `tup(a₁,…,aₙ, t)` for "`t` is the function with
@@ -930,6 +932,31 @@ instantiated — a variable only the proof uses — it is constant in its argume
 > false of the target — a schema is proved once and instantiated — and the first
 > left every proposition-binding lemma to be re-proved inside each of its uses.
 
+**A schematic variable taking a class is a SCHEMA LETTER of its arity, and its lift
+the statement's premise** (decided 2026-10-22, the user). ZF-Constructible states its
+reflection lemmas for a relativized predicate, `is_b :: (i ⇒ o) ⇒ i ⇒ i ⇒ i ⇒ o`,
+whose first argument is the class it is relativized to, `L` or `Lset(i)`'s. A variable
+whose arguments are objects, a class among them, and whose value is a proposition has
+no class of tuples — a class is never an entry (R4) — and no citation substitutes it,
+a statement being cited by its name. It is a schema letter `A(n)` at its `n`
+arguments, each named where it stands, a class as in any class slot (S1), and a
+citation instantiates it at its λ by `schema_inst`.
+- Its class is no theorem. A proof needs the class of a formula holding the letter
+  with its class argument varying, `λa x. B(Lset(a), x)`, and `{⟨a, x⟩ : B(Lset(a),
+  x)}` of an uninterpreted `B` is a class over an uninterpreted predicate, which R2
+  refuses. A class for each class argument gives none for the family: one for each
+  `a` is no class for all.
+- So the statement's premise is the letter's LIFT, below its letters: for every bundle
+  `A` of its class arguments, a class `U` of the records at which the letter holds at
+  `A`'s sections, uniformly in the record's length — a class-taking constant's lift
+  (§3), the letter's atom where the constant's class stood. Every statement closed
+  over the letter takes it, a statement being stated before its proof is built.
+- The schema is proved with its letter uninterpreted, the class assumed, never formed
+  (R2). Each instance's premise is §3 compiling its concrete formula, where
+  predicativity is enforced, and every instance Isabelle writes is predicative: its
+  formula is object-level, quantifying over `i` only. At the citer's own letter the
+  instance's premise is the citer's own — proved by §3, it would need that same lift.
+
 **S5 — Set-valued meta-function arguments compile to classes**, then to sets by
 Replacement where the domain is a set. No graph is ever passed as an argument.
 `f(x⃗) = r` becomes a lookup in a class parameter — `apply(t, r, C)`, `t` the n-tuple
@@ -1113,6 +1140,7 @@ once, at the top, by intersecting with the class of tuples on `k`.
 | `x = y` | `{a : a(i) = a(j)}` |
 | `x ∈ Y`, `Y` a class parameter | `{a : a(i) ∈ Y}` — S4's `P(x)`, with `a(i)` the argument tuple |
 | a proposition letter `A` (S4, arity 0) | `{a : A}` — every record if `A`, none if not: excluded middle, as S4's truth set; a schema, proved with its letter uninterpreted (R2) |
+| a letter with arguments `B(K⃗, x⃗)`, a class among them (S4) | `{a : B(K⃗ₐ, a(i⃗))}`, each `Kₐ` a class argument's section at the record — the letter's lift at the arguments' bundles: its statement's premise, never a theorem of base |
 | a graph atom `G(x⃗, y)` | `{a : ⟨a(i), a(j)⟩ ∈ G}`, `a(i)` the ARGUMENT TUPLE — a variable the formula binds by its own tuple formation, `∃t. t = ⟨x⃗⟩ ∧ ⟨t,y⟩ ∈ G` (R7, §1a); ONE row at every arity |
 | `φ ∧ ψ` | intersection — B2 |
 | `¬φ` | complement — B3 |
@@ -1164,14 +1192,17 @@ atom carries its own.
 > variables in SCOPE none of that arises. Widening would only let a subformula
 > under two different scopes share one class — an optimisation, never a need.
 
-**Every row is a THEOREM, proved from §1's axioms — never an axiom.** Each is an
+**Every row is a THEOREM, proved from §1's axioms — never an axiom — or, for a letter
+with arguments, its statement's PREMISE.** Each theorem is an
 instance of NBG's class existence theorem (its right side quantifies over sets
 only), so NBG proves it and nothing is added to what NBG says; that is why the
 base stays standard (§1a). Gödel's triples appear in B6/B7 and inside these
 proofs, and nowhere above them. The letter's row is no such instance: `A` mentions
 no entry of the record, so `{a : A}` is the complement of `∅` or `∅`, and it holds
 of every `A`, one quantifying over classes too — no class `{x : A(x)}` of an
-uninterpreted predicate is formed.
+uninterpreted predicate is formed. A letter with arguments mentions entries, so its
+row would be such a class: it is assumed instead, and each instance discharges it by
+the rows above at its concrete formula, which quantifies over sets only.
 
 The rows are the operations of a **cylindric set algebra** (Henkin, Monk, Tarski,
 *Cylindric Algebras* I 1971, II 1985) — a formula as the set of assignments that
@@ -1402,10 +1433,13 @@ specialisation at `kpair`.
 | an application of a definition whose constant is unfolded, `AppT` at its parameters | `reflexive` at its terms: the definiens at them on both sides, no binder introduced (S1) |
 | an application of a definition whose constant is named, `AppT` at its parameters | its pointwise definition, proved once per constant from the `@def`, then `forall_elim` at the terms — at a compound term or a λ, as `AppT` there (S1) |
 | `⋀P` over a proposition, `o` or `prop`, at a statement's top, `AppT` at it | a schema letter, `schema_inst` (S4) |
+| a statement's `⋀` over a variable taking a class to a proposition, `AppT` at a λ | a schema letter of its arity, `schema_inst` at the λ, then `implies_elim` at the instance's lift — the citer's own premise at the citer's own letter, else built by §3 from the λ's body (S4); the λ's body there stands at the letter's named class `k`, `⟦k = C⟧`, and Isabelle's conclusion, the λ β-reduced, follows by β at `k`, as at a class variable's instance |
 | `⋀P` over a proposition anywhere else, `AppT` at it | a truth-set variable; `forall_elim` at `E(φ)`, then β (S4) |
 | a variable only the proof uses (`dummy_pattern`) | constant in its arguments: the witness of an `exists_elim` at the proof's top, below its letters, over its result type's inhabitation, `i` or `o`, each application that witness |
+| a type only the proof uses (`dummy`) | `i`: the proof's instance there, which proves the same statement |
 | `AppT` at a term, of a box's `AbsT` at a type taking a function or a proposition | the box's proof at the term: no binder and no schema, as Isabelle substitutes |
 | Pure's `symmetric`, `transitive` at a type with an argument taking a function or a proposition, concluding `t ≡ t` | `reflexive t`; any other conclusion there has no reading |
+| Pure's equality at a type with an argument taking a function or a proposition, its two sides one term | true, `⊥ → ⊥` — IFOL's `True` unfolded — `reflexive t` its proof; between two terms it has no reading but where a `combination` consumes it |
 | Pure's `combination` at a type with an argument taking a function or a proposition, its head reflexive or such a `combination` | read whole: the head's body at the two argument lists, each argument's equation substituted where it stands applied, at the atom's arguments — no binder over the argument's type; any other head has no reading |
 | `Axm` of ZF — `extension`, `Union_iff`, `Pow_iff`, `replacement`, `foundation`, `infinity` | the base's statement of it in NBG's words, read back into Isabelle's form (S3) |
 
@@ -1428,18 +1462,31 @@ equates — reads each application as `v`; the conclusion, which does not mentio
 or a truth set (S4), `∅` either, proved once in base from Empty, and nothing is admitted; a function of a class, which
 no class of classes could bind, is read so like every other type.
 
+**A TYPE ONLY THE PROOF USES IS `i`.** A proof stays a proof under a type instance, and one at a type variable its
+proposition never mentions proves the same proposition. The exporter writes each such type of the empty sort as one,
+`dummy` — itself an instance. The target has no type, so the proof is read at `i`; a variable only the proof uses at
+that type is then the set witness above. ZF-Constructible meets it where `Collect_reflection`'s premise `⋀h f g. …`
+never uses `h`: its type is free, and a proof citing the lemma fixes it nowhere.
+
 **A VARIABLE WHOSE TYPE TAKES A FUNCTION IS SUBSTITUTED WHERE ISABELLE INSTANTIATES IT.** A constant taking a class,
 `Ball :: i ⇒ (i ⇒ o) ⇒ o`, is a predicate whose class argument is a parameter, `∃C. Ball(C, P) ∧ ⟨A⟩ ∈ C`: the class
-is never a member. A variable of that type has neither: no tuple holds its class argument, and the target has no
-predicate variable to take it as a parameter. Isabelle binds one where its `definition` command fixes a stand-in for
-the constant it defines, `⋀Balla A P. Balla ≡ Ball ⟹ Balla(A, P) ≡ ∀x. x ∈ A ⟶ P(x)`, and instantiates it at the
-constant at once; a box applied to a term is its proof at the term, so there it is that proof, `Ball` where `Balla`
-stood, and no binder is written. Pure's equality between functions of such a variable — `(λg. Ball ≡ g) ≡ (λg. Ball ≡
-g)`, from rewriting under `≡` at `Ball`'s type — would bind one again if stated. It is read only where a `combination`
-consumes it, its head reflexive or itself such a `combination`: the conclusion, the head's body at the two argument
-lists, is the arguments' equations substituted where each stands applied, at each such atom the argument's equation at
-the atom's arguments — an equation between functions of classes, first-order, `∀K. F(K) ↔ G(K)`. No binder over the
-variable is written, and any other conclusion there has no reading.
+is never a member. A variable of that type has no class: no tuple holds its class argument. Isabelle binds one where
+its `definition` command fixes a stand-in for the constant it defines, `⋀Balla A P. Balla ≡ Ball ⟹ Balla(A, P) ≡ ∀x.
+x ∈ A ⟶ P(x)`, and instantiates it at the constant at once; a box applied to a term is its proof at the term, so there
+it is that proof, `Ball` where `Balla` stood, and no binder is written. A statement's own variable of that type, which
+no citation substitutes, is a schema letter instead, its lift the statement's premise (S4). Pure's equality between
+functions of such a variable — `(λg. Ball ≡ g) ≡ (λg. Ball ≡ g)`, from rewriting under `≡` at `Ball`'s type — would
+bind one again if stated, unless its two sides are one term: `t ≡ t` is true at every type, `⊥ → ⊥`, and `reflexive t`
+proves it, so the stand-in's hypothesis at its citation — `ex ≡ ex` for ZF-Constructible's `⋁`, whose argument is a
+function of a class — binds nothing. Between two terms it is read only where a `combination` consumes it, its head
+reflexive or itself such a `combination`: the conclusion, the head's body at the two argument lists, is the arguments'
+equations substituted where each stands applied, at each such atom the argument's equation at the atom's arguments — an
+equation between functions of classes, first-order, `∀K. F(K) ↔ G(K)`. No binder over the variable is written, and any
+other conclusion there has no reading.
+
+> **⚠ THIS SAID "THE TARGET HAS NO PREDICATE VARIABLE TO TAKE IT AS A PARAMETER".** A schema letter is one, at a
+> statement's top: the target has none to quantify, which is why a box's variable is substituted, but a statement's
+> own is a letter of its arity, and the class a proof needs of it is the statement's premise (S4).
 
 **SO IS ONE WHOSE TYPE TAKES A PROPOSITION.** A function of propositions has a reading as a variable, a class of tuples
 of truth sets (S4); where Isabelle instantiates it by substitution the target substitutes, as it does a proposition. The

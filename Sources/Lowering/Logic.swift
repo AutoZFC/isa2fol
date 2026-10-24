@@ -18,7 +18,7 @@ public struct Logic: Pass, Walk {
     public func owns(_ p: Pattern) -> Owned? {
         switch piece(p) {
         case .claimed?, .axiom?, .instance?, .lambda?, .equality?, .classical?, .iffReflection?, .proposition?,
-             .pointwise?: .rule
+             .pointwise?, .letter?: .rule
         case .unbuilt?: .unbuilt
         case nil: Reify().owns(p)
         }
@@ -58,12 +58,22 @@ func valued(_ x: NodeID, in t: inout Table) throws -> NodeID {
 /// A proof's last step: its statement's S1 form from its value form, below the statement's letters, which stay on its
 /// spine — the values holding a letter fixed under them, the closed values above those.
 private func finished(_ p: NodeID, _ statement: NodeID, base: Base, in t: inout Table) throws -> NodeID {
-    var letters = 0
+    var prefix = [(arity: Int, lift: NodeID)?]()
     var proof = p
     var matrix = statement
-    while case .ifolAll(.o, let body) = t[matrix], case .isaAllIntro(.o, let inner) = t[proof] {
-        (letters, proof, matrix) = (letters + 1, inner, body)
+    while true {
+        if case .ifolAll(.o, let body) = t[matrix], case .isaAllIntro(.o, let inner) = t[proof] {
+            (prefix, proof, matrix) = (prefix + [nil], inner, body)
+        } else if
+            case .ifolAll(let T, let body) = t[matrix], let k = letterArity(T), k > 0,
+            case .folLetterIntro(k, let opened) = t[proof], case .folImpliesIntro(let lift, let inner) = t[opened]
+        {
+            (prefix, proof, matrix) = (prefix + [(k, lift)], inner, body)
+        } else {
+            break
+        }
     }
+    let letters = prefix.count
     let named = try met(proof, matrix, moving: .closed, toValues: false, in: &t)
     let lettered = try fixing(
         try scoped(named, closed: false, below: letters, in: &t),
@@ -72,26 +82,45 @@ private func finished(_ p: NodeID, _ statement: NodeID, base: Base, in t: inout 
         in: &t,
     )
     var done = try naming(try scoped(lettered, closed: true, in: &t), in: lettered, base: base, in: &t)
-    for _ in 0..<letters { done = try t.intern(.isaAllIntro(.o, body: done)) }
+    for letter in prefix.reversed() {
+        if let (k, lift) = letter {
+            done = try t.intern(.folLetterIntro(k, body: try t.intern(.folImpliesIntro(lift, body: done))))
+        } else {
+            done = try t.intern(.isaAllIntro(.o, body: done))
+        }
+    }
     return done
 }
 
 /// `p` proving a cited statement's S1 form at its letters' `instances`: its value form, its matrix met once below the
 /// letters, the closed terms and those holding a letter crossing to their values.
-func metBelowLetters(_ p: NodeID, _ stated: NodeID, at instances: [NodeID], in t: inout Table) throws -> NodeID {
+func metBelowLetters(_ p: NodeID, _ stated: NodeID, at instances: [NodeID], base: Base, in t: inout Table) throws
+    -> NodeID
+{
     var matrix = stated
     for _ in instances {
-        guard case .ifolAll(.o, let body) = t[matrix] else { throw LogicError.notTheRule(stated) }
+        guard case .ifolAll(let T, let body) = t[matrix], letterArity(T) != nil else {
+            throw LogicError.notTheRule(stated)
+        }
         matrix = body
+    }
+    if !reducedLetters(matrix, instances, t).isEmpty {
+        return try letterInstantiated(p, matrix, at: instances, base: base, in: &t)
     }
     var sites = [Int: NodeID]()
     for (j, a) in instances.reversed().enumerated() { sites[j] = a }
     return try met(p, matrix, moving: .closed, at: sites, drop: instances.count, toValues: true, in: &t)
 }
 
+/// `⊥ → ⊥`, IFOL's `True` unfolded: Pure's equality between one term where no binder reads it pointwise.
+private func verum(in t: inout Table) throws -> NodeID {
+    let bottom = try t.intern(.folBottom)
+    return try t.intern(.folImplies(bottom, bottom))
+}
+
 /// The letters a statement binds at its top.
 func letters(_ stated: NodeID, _ t: Table) -> Int {
-    guard case .ifolAll(.o, let body) = t[stated] else { return 0 }
+    guard case .ifolAll(let T, let body) = t[stated], letterArity(T) != nil else { return 0 }
     return 1 + letters(body, t)
 }
 
@@ -105,7 +134,14 @@ private enum Piece {
     case iffReflection
     case proposition(Proposition)
     case pointwise(Pointwise)
+    case letter(Letter)
     case unbuilt
+}
+
+private enum Letter {
+    case binder
+    case intro
+    case instance
 }
 
 enum Equality {
@@ -127,6 +163,7 @@ private enum Pointwise {
     case combination
     case abstract
     case chain
+    case oneTerm
 }
 
 private func piece(_ p: Pattern) -> Piece? {
@@ -137,10 +174,11 @@ private func piece(_ p: Pattern) -> Piece? {
 
     case .isaConst(.primitive(.pure(.eq)), let T, _):
         if case .fn(let F, _) = T, overArguments(F) { return .pointwise(.equation) }
+        if case .fn(let F, _) = T, onlyReflexive(F) { return .pointwise(.oneTerm) }
         return mentionsTypeVariable(T) ? nil : .unbuilt
 
     case .isaReflexive(let T):
-        return onlyReflexive(T) ? .pointwise(.chain) : equality(T, .reflexive)
+        return onlyReflexive(T) ? .pointwise(.oneTerm) : equality(T, .reflexive)
 
     case .isaSymmetric(let T, _):
         return onlyReflexive(T) ? nil : equality(T, .symmetric)
@@ -169,14 +207,23 @@ private func piece(_ p: Pattern) -> Piece? {
         return beyondObjects(.fn(T, U)) ? .unbuilt : nil
 
     case .isaVarApp(head: let T, _):
-        return beyondFunctions(T) ? .pointwise(.chain) : nil
+        return letterArity(T) == nil && beyondFunctions(T) ? .pointwise(.chain) : nil
 
     case .isaAllElim(_, let T):
         if T == .o { return .instance }
+        if letterArity(T) != nil { return .letter(.instance) }
         if T != .i && isObject(T) { return .lambda }
         return beyondObjects(T) ? .unbuilt : nil
 
-    case .ifolAll(let T, _), .ifolEx(let T, _), .isaAllIntro(let T, _):
+    case .ifolAll(let T, _):
+        if T != .o, letterArity(T) != nil { return .letter(.binder) }
+        return T != .o && beyondObjects(T) ? .unbuilt : nil
+
+    case .isaAllIntro(let T, _):
+        if T != .o, letterArity(T) != nil { return .letter(.intro) }
+        return T != .o && beyondObjects(T) ? .unbuilt : nil
+
+    case .ifolEx(let T, _):
         return T != .o && beyondObjects(T) ? .unbuilt : nil
 
     case .isaPropAll:
@@ -198,7 +245,7 @@ private func piece(_ p: Pattern) -> Piece? {
          .folNotIntro, .folNotElim, .folIffIntro, .folIffElimL, .folIffElimR, .folForallIntro, .folForallElim,
          .folExistsIntro, .folExistsElim, .folCut, .folBottomElim, .folClassicalAbsurd, .folSchemaInst, .folLetterAll,
          .folLetter,
-         .folLetterAbs, .value, .valueFact, .valueElim:
+         .folLetterAbs, .folLetterIntro, .value, .valueFact, .valueElim:
         return nil
     }
 }
@@ -238,6 +285,11 @@ private struct Formulas: Rule {
         guard t.conclusion(of: id) == nil else { throw LogicError.notAFormula(id) }
         let p = Pattern(t[id], in: t)
         if Reify().names(p) { return try named(atom: t[id], mode: mode.deeper(depth.terms), in: &t) }
+        if case .pointwise(.oneTerm)? = piece(p) {
+            guard case .isaConst(_, _, let args) = t[id], args.count == 2 else { throw LogicError.notTheRule(id) }
+            guard args[0] == args[1] else { throw FunctionsError.noReading(id) }
+            return try verum(in: &t)
+        }
         if case .pointwise(.equation)? = piece(p) {
             guard case .isaConst(_, .fn(let F, _), let args) = t[id], args.count == 2 else {
                 throw LogicError.notTheRule(id)
@@ -264,12 +316,16 @@ private struct Formulas: Rule {
             guard case .isaPropBound(let k) = n else { throw LogicError.notTheRule(id) }
             return try holds(try t.intern(.folBound(k)), in: &t)
 
+        case .letter(.binder)?:
+            guard case .ifolAll(let T, let body) = n, let k = letterArity(T) else { throw LogicError.notTheRule(id) }
+            return try t.intern(.folLetterAll(k, body: try t.intern(.folImplies(try letterLift(T, in: &t), body))))
+
         case .pointwise(.wrapper)?, .pointwise(.chain)?, .unbuilt?, nil:
             return nil
 
-        case .pointwise(.equation)?, .claimed?, .axiom?, .instance?, .lambda?, .equality?, .classical?,
-             .iffReflection?, .proposition(.intro)?, .proposition(.hidden)?, .pointwise(.combination)?,
-             .pointwise(.abstract)?:
+        case .pointwise(.equation)?, .pointwise(.oneTerm)?, .claimed?, .axiom?, .instance?, .lambda?, .equality?,
+             .classical?, .iffReflection?, .proposition(.intro)?, .proposition(.hidden)?, .pointwise(.combination)?,
+             .pointwise(.abstract)?, .letter(.intro)?, .letter(.instance)?:
             throw LogicError.notAFormula(id)
         }
     }
@@ -322,7 +378,7 @@ private struct Steps: Rule {
                 case .axiom?: try axiomCited(.use(cited, types, stated), was: id, in: &t)
                 default: try t.intern(.use(cited, types, stated))
                 }
-            return letters(root, t) == 0 ? try metBelowLetters(citation, root, at: [], in: &t) : citation
+            return letters(root, t) == 0 ? try metBelowLetters(citation, root, at: [], base: base, in: &t) : citation
 
         case .isaDefinition(_, .constant(let c), _, let stated, let args):
             guard Reify().owns(Pattern(t[id], in: t)) == .rule else { return nil }
@@ -331,6 +387,9 @@ private struct Steps: Rule {
 
         case .isaCombination(.fn(_, .o), _, _):
             guard case .pointwise(.chain)? = piece(Pattern(t[id], in: t)) else { return nil }
+            if let c = t.conclusion(of: id), let (_, a, b) = t.sides(ofEquation: c), a == b {
+                return try base.instance(.iffRefl, [try valued(a, in: &t)], in: &t)
+            }
             return try Functions(base: base).chain(id, lowered: { q, t in try transform(q, self, in: &t) }, in: &t)
 
         default:
@@ -372,8 +431,28 @@ private struct Steps: Rule {
             guard case .isaIffReflection(_, _, let h) = n else { throw LogicError.notTheRule(id) }
             return try t.intern(.folIffIntro(try t.intern(.folAndElimL(h)), try t.intern(.folAndElimR(h))))
 
-        case .proposition(.binder)?, .proposition(.variable)?, .pointwise(.wrapper)?, .pointwise(.equation)?:
+        case .proposition(.binder)?, .proposition(.variable)?, .pointwise(.wrapper)?, .pointwise(.equation)?,
+             .letter(.binder)?:
             throw LogicError.notTheRule(id)
+
+        case .letter(.intro)?:
+            guard
+                case .isaAllIntro(let T, let body) = n,
+                let k = letterArity(T)
+            else { throw LogicError.notTheRule(id) }
+            let lifted = try t.intern(.folImpliesIntro(try letterLift(T, in: &t), body: body))
+            return try t.intern(.folLetterIntro(k, body: lifted))
+
+        case .letter(.instance)?:
+            guard
+                case .isaAllElim(let original, let a) = t[id], let stated = t.conclusion(of: original),
+                case .ifolAll(let T, let body) = t[stated]
+            else { throw LogicError.notTheRule(id) }
+            let at = try t.intern(.folImpliesElim(
+                try t.intern(.folSchemaInst(children(n)[0], try instanceAt(a, T, in: &t))),
+                try letterGuard(a, T, in: &t),
+            ))
+            return try lettersMet(at, body, at: a, was: id, in: &t)
 
         case .proposition(.intro)?:
             guard
@@ -397,6 +476,11 @@ private struct Steps: Rule {
 
         case .pointwise(.chain)?:
             throw FunctionsError.noReading(id)
+
+        case .pointwise(.oneTerm)?:
+            guard case .isaReflexive = n else { throw LogicError.notTheRule(id) }
+            let bottom = try t.intern(.folBottom)
+            return try t.intern(.folImpliesIntro(bottom, body: try t.intern(.hyp(0, bottom))))
 
         case .pointwise(.abstract)?:
             guard case .isaAbstract(_, let p) = n else { throw LogicError.notTheRule(id) }
@@ -444,11 +528,18 @@ private struct Steps: Rule {
     private func letterInstance(_ p: NodeID, _ body: NodeID, at a: NodeID, was id: NodeID, in t: inout Table) throws
         -> NodeID
     {
-        let at = try t.intern(.folSchemaInst(p, try valued(a, in: &t)))
+        try lettersMet(try t.intern(.folSchemaInst(p, try valued(a, in: &t))), body, at: a, was: id, in: &t)
+    }
+
+    /// `at`, the citation instantiated at `a`, its next letter: at its last, its matrix met at its letters' instances.
+    private func lettersMet(_ at: NodeID, _ body: NodeID, at a: NodeID, was id: NodeID, in t: inout Table) throws
+        -> NodeID
+    {
         var instances = [NodeID]()
         var head = id
         while
-            case .isaAllElim(let q, let x) = t[head], let c = t.conclusion(of: q), case .ifolAll(.o, _) = t[c]
+            case .isaAllElim(let q, let x) = t[head], let c = t.conclusion(of: q), case .ifolAll(let U, _) = t[c],
+            letterArity(U) != nil
         {
             instances.insert(x, at: 0)
             head = q
@@ -456,8 +547,8 @@ private struct Steps: Rule {
         guard case .use(_, _, let root) = t[head] else {
             return try met(at, body, moving: .variables([0]), at: [0: a], drop: 1, toValues: true, in: &t)
         }
-        if case .ifolAll(.o, _) = t[body] { return at }
-        return try metBelowLetters(at, root, at: instances, in: &t)
+        if case .ifolAll(let U, _) = t[body], letterArity(U) != nil { return at }
+        return try metBelowLetters(at, root, at: instances, base: base, in: &t)
     }
 
     /// ⚠ AN AXIOM BASE CLAIMS STATES ITS CLASS PREMISES, AND BASE'S CLAIM NONE: relabelled whole, the citation

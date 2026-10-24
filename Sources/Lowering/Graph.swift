@@ -30,7 +30,7 @@ struct GraphProofs {
 
     func prove(_ f: LambdaFact, in t: inout Table) throws -> NodeID {
         switch f.fact {
-        case .classExists, .arguments: throw GraphError.notMine(f.name)
+        case .classExists, .arguments, .lift: throw GraphError.notMine(f.name)
         case .function: return try lambdaFunction(f, &t)
         }
     }
@@ -218,7 +218,7 @@ struct GraphProofs {
         var fr = Frame()
         var guards = [Int: Int]()
         for T in f.types {
-            let v = fr.fix(T)
+            let v = try fr.fixClosure(T, in: &t)
             if T != .i, let g = try guarded(try fr.variable(v, in: &t), T, in: &t) { guards[v] = fr.assume(g) }
         }
         let outer = fr.scope.depth
@@ -348,7 +348,7 @@ struct GraphProofs {
                         if x == a, x2 == b { return try s.proof(projection(j), in: &t) }
                     }
                     throw GraphError.unexpected("an atom moved at no entry")
-                }, &t)
+                }, &t, in: s)
                 return try t.intern(.folIffElimL(moved, p))
             }.proof(source, from: from, to: to, in: f.scope, &t)
         }
@@ -767,7 +767,7 @@ struct Carry {
             )
             return try g.close(try t.intern(.folExistsIntro(q, try g.variable(w, in: &t))), in: &t)
 
-        case (.folPred, .folPred):
+        case (.folPred, .folPred), (.folLetter, .folLetter):
             return try atom(p, b, s, &t)
 
         default:

@@ -46,7 +46,12 @@ equality between functions": pointwise, `f ≡ g` read `⋀x⃗. f x⃗ ≡ g x�
 the argument, then the argument's equation substituted into the function by the replacement walk). **A statement's
 letters come first** (`DESIGN.md` "Letters first"): the reader closes a theorem over its propositions before its other
 frees and permutes each citation's leading term arguments to match, so a letter is instantiated by `schema_inst` on the
-citation and no instance walks a binder over a proposition; an axiom keeps the export's order. **A proposition as an
+citation and no instance walks a binder over a proposition; an axiom keeps the export's order. **A variable taking a
+class to a proposition is a schema letter of its arity** (`DESIGN.md` "ZF-Constructible's reflection"): its lift a
+premise below the letters, discharged at a citation by the citer's own premise or by `LIFT ⟨λ⟩`, which the class prover
+proves from the λ's body; a citation at a λ met to Isabelle's form by `BETA_<fp>_L`. Pure's equality at a type with an
+argument taking a function or a proposition, its two sides one term, is true, and Isabelle's `dummy`, a type only a
+proof uses, is read at `i`. **A proposition as an
 argument is its truth set** (`DESIGN.md` "Step 6"): `If`, `bool_of_o` take a proposition, an entry of the argument tuple
 named where it stands. **In a proof, a term is its value** (`DESIGN.md` "Proof size", "Linear proof size"): a term whose
 variables the proof has fixed is fixed once, by `exists_elim` over its EX, and every formula the proof passes holds the
@@ -58,15 +63,13 @@ fixed where the application stands: `DESIGN.md` "β at values"), `SUBST_<fp>` Le
 letters, which stay on its spine. Of the ZF session's 3,616 named theorems (`--skip` the other seven), `lower` lowers
 3,609 to fol-zfc, `AC.AC` and Zorn's lemma among them; the 7 others stop at no owner, each a named theorem at a type no
 class restricts — a ceiling (`DESIGN.md` "A named theorem at a type no class restricts", FOUNDATION §3b): fol-zfc has no
-type variable, and each instance a proof cites is translated there. No lemma they reach is refused unbuilt. ZF-AC
-lowers and kernel-checks whole, 477 of 477, with ZF's 3,609 (`DESIGN.md` "A ZF proposition defined with no arguments",
-Measured). ZF-IMP, ZF-Coind and ZF-ex lower and kernel-check whole, 284, 288 and 798, with ZF's 3,609 (`DESIGN.md` "A
-theory's own parameter, a variable of what reaches it", Measured). **ZF-Constructible, the target now, lowers and
-kernel-checks 1,682 of its 2,121**, with ZF's 3,609: 87,402 claims and 12,665 schemas Proved, peak 42.6 GB under the
-CI's `MEM=48G` (`DESIGN.md` "A value fixed at a proof's top, named by itself", Measured); of its 439 refused, 42 at a
-variable taking a class (Logic, unbuilt), 10 at no owner, 387 citing a refused statement. With the other sessions but ZF-Constructible, before those two steps, 6,921 of 7,299 lower and
-kernel-check, all Proved: ZF-Induct 1,494 of 1,496, ZF-ex 792 of 798, ZF-Resid 334 of 340, ZF-AC 396 of 477, ZF-Coind
-149 of 288, ZF-IMP 147 of 284 (`DESIGN.md` "`combination` under a function of a function, read whole", Measured). **ZF's
+type variable, and each instance a proof cites is translated there. No lemma they reach is refused unbuilt. **Every
+session lowers and kernel-checks but its ceiling, 9,404 of the eight sessions' 9,420 named theorems, from one build**
+(`DESIGN.md` "ZF-Constructible's reflection", Measured): ZF-Constructible 2,114 of 2,121 with ZF's 3,609, 104,949
+claims and 14,283 schemas Proved, peak 57.2 GB at emission, over the CI's `MEM=48G`, which kills it; every other
+session with ZF's 3,609, 7,290 of 7,299, ZF-AC, ZF-Coind, ZF-IMP, ZF-Resid and ZF-ex whole, ZF-Induct 1,494 of 1,496,
+peak 23.4 GB. The ceiling is 16: ZF's 7, ZF-Constructible's 7, ZF-Induct's 2. **The goal is the translated proofs**
+(user, 2026-10-24): each checked unit is kept in `~/isa2fol-units/`, its `README.md` a row per unit. **ZF's
 axioms are theorems of base read back into Isabelle's form**
 (`DESIGN.md` "Step 8 — ZF's axioms, derived from NBG"): base states each in NBG's words — a primitive by its relation,
 a predicate Isabelle defines by its definition — and proves it, Regularity pinned for `foundation`; a lemma per axiom,
@@ -159,7 +162,8 @@ kernel-checked, is the check of a feature believed complete. **Runs target one g
 translated** (user): the ZF session alone, then ZF with ZF-AC, both done 2026-10-21; then ZF with ZF-IMP, ZF-Coind
 and ZF-ex, done 2026-10-22; then ZF with ZF-Constructible (user, 2026-10-22), `$T` below, `--skip
 ZF-AC,ZF-Coind,ZF-IMP,ZF-Induct,ZF-Resid,ZF-ex`, ZF kept so its 3,609 stay the baseline a run must not lose: its memory
-first, done 2026-10-22, fitting `MEM=48G`; then its refused (user, 2026-10-22). ⚠ All eight sessions do not fit memory yet
+first, done 2026-10-22, fitting `MEM=48G`; then its refused (user, 2026-10-22), done 2026-10-23 but the cap; then every
+other session on the same build (user, 2026-10-24), done. ⚠ All eight sessions have never run as one unit
 (`DESIGN.md` "`combination` under a function of a function, read whole", Measured). **Lint before every run** (user,
 2026-10-17): `pre-commit run --all-files` first.
 
@@ -171,9 +175,10 @@ MEM=16G scripts/capped.sh scripts/check-base.sh [LIBDIR]   # base alone, each ti
 ```
 
 ⚠ **EACH UNIT OF WORK INTERNS INTO A LAYER OVER THE UNIT'S TABLE, WHICH TAKES ONLY WHAT ITS RESULTS REACH** (`DESIGN.md`
-"Memory — a unit of work's nodes leave with it"): the target's complete run fits the CI's `MEM=48G`, peaking at
-42.6 GB at emission (2026-10-22, `--threads 16`, 1:17:09), which holds the unit's text whole, 19.71 GB; lowering
-alone peaks at 18.05 GB (`DESIGN.md` "A value fixed at a proof's top, named by itself", decision 5). ⚠ **A NODE IS 16 BYTES, A TYPE ONE WORD**: a kind wider than three children and a type is held behind a
+"Memory — a unit of work's nodes leave with it"): the target's complete run peaks at 57.2 GB at emission (2026-10-23,
+`--threads 16`, 2:08:26), which holds the unit's text whole, 29.5 GB, each box written in every proof citing it; under
+the CI's `MEM=48G` it is killed there. Lowering alone peaks at 18.5 GB (`DESIGN.md` "ZF-Constructible's reflection",
+Measured). ⚠ **A NODE IS 16 BYTES, A TYPE ONE WORD**: a kind wider than three children and a type is held behind a
 reference (`indirect`). Inline, the widest kind set every node's width, 80 bytes, which put 151M nodes at 20.3 GB
 (`aNodeIsSixteenBytesAndATypeOneWord`). ⚠ **A WALK'S CONTEXT IS A REFERENCE INTO ITS CHAIN OF BINDERS, NEVER A
 COPY**: Fol's keys, each copying the binders above its node, held 9 GB in `Bin.integ_of_add`'s one walk, and the
@@ -331,7 +336,7 @@ determinism R1–R3 (§4.6).
    print(f'{c}/{t} = {100*c/t:.1f}%')"
    ```
 
-   ✓ **CURRENTLY 312/18237 = 1.7%, under the cap.** Keep it there: a breach is
+   ✓ **CURRENTLY 366/19563 = 1.9%, under the cap.** Keep it there: a breach is
    fixed by deleting prose, never by raising the cap.
 
    Does not apply to `base/**/*.fol.def` headers: those record provenance of

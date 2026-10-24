@@ -25,7 +25,7 @@ public struct Reify {
             }
 
         case .isaVarApp(head: let T, _):
-            return mentionsTypeVariable(T) ? nil : isObject(T) ? .rule : .unbuilt
+            return mentionsTypeVariable(T) ? nil : isObject(T) || letterArity(T) != nil ? .rule : .unbuilt
 
         case .isaAbs(let T, body: let U):
             return isObject(.fn(T, U)) ? .rule : nil
@@ -42,7 +42,7 @@ public struct Reify {
              .folOrElim, .folNotIntro, .folNotElim, .folIffIntro, .folIffElimL, .folIffElimR, .folForallIntro,
              .folForallElim, .folExistsIntro, .folExistsElim, .folCut, .folBottomElim, .folClassicalAbsurd,
              .folSchemaInst,
-             .folLetterAll, .folLetter, .folLetterAbs, .value, .valueFact, .valueElim:
+             .folLetterAll, .folLetter, .folLetterAbs, .folLetterIntro, .value, .valueFact, .valueElim:
             return nil
         }
     }
@@ -68,7 +68,7 @@ private func value(_ p: Pattern) -> IRType? {
          .folPred, .folForall, .folExists, .folAndIntro, .folAndElimL, .folAndElimR, .folOrIntroL, .folOrIntroR,
          .folOrElim, .folNotIntro, .folNotElim, .folIffIntro, .folIffElimL, .folIffElimR, .folForallIntro,
          .folForallElim, .folExistsIntro, .folExistsElim, .folCut, .folBottomElim, .folClassicalAbsurd, .folSchemaInst,
-         .folLetterAll, .folLetter, .folLetterAbs, .value, .valueFact, .valueElim:
+         .folLetterAll, .folLetter, .folLetterAbs, .folLetterIntro, .value, .valueFact, .valueElim:
         nil
     }
 }
@@ -191,6 +191,16 @@ struct Naming {
             return try chain.predicate(.base("elem"), [tau, C], in: &t)
 
         case .isaVarApp(let P, let args):
+            if let T = t.type(of: P), letterArity(T) != nil {
+                let domains = T.domains
+                var refs = [Int: Ref]()
+                for j in args.indices where domains[j] == .i { refs[j] = try name(args[j], &t) }
+                for j in args.indices where domains[j] != .i { refs[j] = try nameClass(args[j], &t) }
+                return try chain.letter(.outer(P), try args.indices.map { j in
+                    guard let r = refs[j] else { throw ReifyError.notAnAtom(try t.intern(n)) }
+                    return r
+                }, in: &t)
+            }
             let sets = try entries(args, &t)
             let tau = try tupled(sets, &t)
             return try chain.predicate(.base("elem"), [tau, .outer(P)], in: &t)
@@ -204,7 +214,7 @@ struct Naming {
              .folOrIntroR, .folOrElim, .folNotIntro, .folNotElim, .folIffIntro, .folIffElimL, .folIffElimR,
              .folForallIntro, .folForallElim, .folExistsIntro, .folExistsElim, .folCut, .folBottomElim,
              .folClassicalAbsurd,
-             .folSchemaInst, .folLetterAll, .folLetter, .folLetterAbs, .value, .valueFact, .valueElim:
+             .folSchemaInst, .folLetterAll, .folLetter, .folLetterAbs, .folLetterIntro, .value, .valueFact, .valueElim:
             throw ReifyError.notAnAtom(try t.intern(n))
         }
     }
@@ -227,7 +237,7 @@ struct Naming {
              .folOrElim, .folNotIntro, .folNotElim, .folIffIntro, .folIffElimL, .folIffElimR, .folForallIntro,
              .folForallElim, .folExistsIntro, .folExistsElim, .folCut, .folBottomElim, .folClassicalAbsurd,
              .folSchemaInst,
-             .folLetterAll, .folLetter, .folLetterAbs, .valueFact, .valueElim:
+             .folLetterAll, .folLetter, .folLetterAbs, .folLetterIntro, .valueFact, .valueElim:
             throw ReifyError.notATerm(x)
         }
     }
@@ -271,7 +281,7 @@ struct Naming {
              .folOrIntroR, .folOrElim, .folNotIntro, .folNotElim, .folIffIntro, .folIffElimL, .folIffElimR,
              .folForallIntro, .folForallElim, .folExistsIntro, .folExistsElim, .folCut, .folBottomElim,
              .folClassicalAbsurd,
-             .folSchemaInst, .folLetterAll, .folLetter, .folLetterAbs, .value, .valueFact, .valueElim:
+             .folSchemaInst, .folLetterAll, .folLetter, .folLetterAbs, .folLetterIntro, .value, .valueFact, .valueElim:
             throw ReifyError.notATerm(x)
         }
     }
@@ -412,7 +422,7 @@ public struct ReifyProver: Prover {
 
         case let f as LambdaFact:
             switch f.fact {
-            case .classExists, .arguments: nil
+            case .classExists, .arguments, .lift: nil
             case .function: .rule
             }
 

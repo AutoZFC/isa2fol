@@ -124,6 +124,7 @@ func met(
         }
         guard let term = replacement[k] else { throw MeetingError.unmet(x) }
         if t.type(of: term) == .o { return try formula(term, .proof(0), in: &t) }
+        if let T = t.type(of: term), (letterArity(T) ?? 0) > 0 { return term }
         return try value(of: term, in: &t)
     }
     let b = try formula(c.term, request.valued, in: &t)
@@ -219,7 +220,8 @@ public struct MeetingProver: Prover {
     public let name = "meeting"
 
     public func owns(_ l: Lemma) -> Owned? {
-        l.request is Meeting || l.request is Instantiation || l.request is Arguments || l.request is Leibniz
+        l.request is Meeting || l.request is Instantiation || l.request is LetterInstantiation
+            || l.request is Arguments || l.request is Leibniz
             ? .rule
             : nil
     }
@@ -237,6 +239,7 @@ public struct MeetingProver: Prover {
             switch l.request {
             case let m as Meeting: proof = try proofs.prove(m, in: &t)
             case let m as Instantiation: proof = try proofs.prove(m, in: &t)
+            case let m as LetterInstantiation: proof = try proofs.prove(m, in: &t)
             case let a as Arguments: proof = try proofs.prove(a, in: &t)
             case let l as Leibniz: proof = try proofs.prove(l, in: &t)
             default: throw MeetingError.misproved(l.name)
@@ -319,6 +322,40 @@ struct MeetingProofs {
         return try outer.close(try fixing(crossing, in: inner, by: .premise, in: &t), in: &t)
     }
 
+    func prove(_ m: LetterInstantiation, in t: inout Table) throws -> NodeID {
+        var outer = Frame()
+        let guards = try frees(m.types, &outer, &t)
+        let hs = try m.instances.map { i in
+            outer.assume(try letterDefinition(m.index(i), i.lambda, m.types[i.position], in: &t))
+        }
+        var letters = [Meet.Letter]()
+        for (i, h) in zip(m.instances, hs) {
+            letters.append(Meet.Letter(
+                variable: m.index(i),
+                lambda: i.lambda,
+                definition: try outer.hypothesis(h, in: &t),
+                root: outer.scope,
+            ))
+        }
+        let a = try formula(m.formula, .statement, in: &t)
+        let b = try formula(try m.reduced(m.formula, &t), .proof(0), in: &t)
+        let crossing = try ordered(try values(in: b, &t), &t)
+        var f = Frame(outer.scope)
+        let ha = f.assume(a)
+        let walk = Meet(base: base, letters: letters, guards: guards, root: outer.scope, premised: Set(crossing))
+        let p = try walk.convert(
+            m.formula,
+            named: .statement,
+            valued: .proof(0),
+            forward: true,
+            try f.hypothesis(ha, in: &t),
+            f.scope,
+            &t,
+        )
+        let inner = try f.close(p, in: &t)
+        return try outer.close(try fixing(crossing, in: inner, by: .premise, in: &t), in: &t)
+    }
+
     func prove(_ m: Meeting, in t: inout Table) throws -> NodeID {
         var outer = Frame()
         let guards = try frees(m.types, &outer, &t)
@@ -344,7 +381,7 @@ struct MeetingProofs {
     private func frees(_ types: [IRType], _ f: inout Frame, _ t: inout Table) throws -> [Int: Int] {
         var guards = [Int: Int]()
         for T in types {
-            let v = f.fix(T)
+            let v = try f.fixClosure(T, in: &t)
             if T != .i, T != .o, let g = try guarded(try f.variable(v, in: &t), T, in: &t) { guards[v] = f.assume(g) }
         }
         return guards
@@ -364,8 +401,18 @@ struct Meet {
         let root: Scope
     }
 
+    /// A letter the named form holds where the valued form holds its λ, the letter's definition at the λ proved at
+    /// `root`.
+    struct Letter {
+        let variable: Int
+        let lambda: NodeID
+        let definition: NodeID
+        let root: Scope
+    }
+
     let base: Base
     var beta: Beta?
+    var letters = [Letter]()
     var guards = [Int: Int]()
     var root = Scope()
     var premised = Set<NodeID>()
@@ -380,11 +427,27 @@ struct Meet {
     }
 
     func reduced(_ x: NodeID, _ s: Scope, _ t: inout Table) throws -> NodeID {
+        var x = x
+        for l in letters {
+            let k = l.variable + s.depth - l.root.depth
+            guard looseIndices(x, in: t).contains(k) else { continue }
+            x = try instantiate(
+                try abstractIndex(x, k, in: &t),
+                with: try lifted(l.lambda, from: l.root, to: s, in: &t),
+                in: &t,
+            )
+        }
         guard let beta else { return x }
         let k = beta.variable + s.depth - beta.root.depth
         guard looseIndices(x, in: t).contains(k) else { return x }
         let lambda = try lifted(beta.lambda, from: beta.root, to: s, in: &t)
         return try instantiate(try abstractIndex(x, k, in: &t), with: lambda, in: &t)
+    }
+
+    /// The letter `head` is at `s`, if it is one the walk reduces.
+    func letter(at head: NodeID, _ s: Scope, _ t: Table) -> Letter? {
+        guard case .isaBound(let k, _) = t[head] else { return nil }
+        return letters.first { $0.variable + s.depth - $0.root.depth == k }
     }
 
     func holdsP(_ x: NodeID, _ s: Scope, _ t: Table) -> Bool {
@@ -564,7 +627,7 @@ struct Meet {
              .folBound, .folForall, .folExists, .folNotIntro, .folNotElim, .folIffElimR, .folForallIntro,
              .folForallElim,
              .folExistsIntro, .folExistsElim, .folCut, .folClassicalAbsurd, .folSchemaInst, .folLetterAll, .folLetter,
-             .folLetterAbs, .value, .valueFact, .valueElim:
+             .folLetterAbs, .folLetterIntro, .value, .valueFact, .valueElim:
             throw MeetingError.unmet(phi)
         }
     }
@@ -601,6 +664,7 @@ struct Meet {
 
     /// Whether the atom applies the class variable at its own level: `P(t⃗)`, or a term `F(t⃗)` its naming holds.
     private func applies(_ phi: NodeID, _ named: Mode, _ s: Scope, _ t: inout Table) throws -> Bool {
+        if case .isaVarApp(let head, _) = t[phi], letter(at: head, s, t) != nil { return true }
         guard beta != nil else { return false }
         if case .isaVarApp(let head, _) = t[phi], holdsP(head, s, t) { return true }
         var a = Naming(mode: named)
@@ -658,6 +722,17 @@ struct Meet {
         _ t: inout Table,
     ) throws -> NodeID {
         let atom = Atom(meet: self, named: named, valued: .proof(0))
+        if case .isaVarApp(let head, let args) = t[phi], let letter = letter(at: head, s, t) {
+            let sites = try args.map { try reduced($0, s, &t) }
+            let atValues = try t.intern(.isaVarApp(head: head, args: sites))
+            guard let T = t.type(of: head) else { throw MeetingError.unmet(phi) }
+            if forward {
+                let q = try atom.convert(phi, to: atValues, forward: true, p, s, &t)
+                return try letterCore(letter, T, sites, forward: true, q, s, &t)
+            }
+            let q = try letterCore(letter, T, sites, forward: false, p, s, &t)
+            return try atom.convert(phi, to: atValues, forward: false, q, s, &t)
+        }
         guard case .isaVarApp(let head, let args) = t[phi], holdsP(head, s, t) else {
             return try atom.convert(phi, to: try reduced(phi, s, &t), forward: forward, p, s, &t)
         }
@@ -670,6 +745,112 @@ struct Meet {
         }
         let q = try betaCore(refs, sites: sites, forward: false, p, s, &t)
         return try atom.convert(phi, to: atValues, forward: false, q, s, &t)
+    }
+
+    /// The letter's application at `sites` as the valued form holds it, `∀k. ⟦k = C⟧ → A(k, v⃗)`, against its λ's body
+    /// there: the letter's definition at the names, the body's set arguments moved to their values, its class argument
+    /// by β at `k`.
+    private func letterCore(
+        _ letter: Letter,
+        _ T: IRType,
+        _ sites: [NodeID],
+        forward: Bool,
+        _ p: NodeID,
+        _ s: Scope,
+        _ t: inout Table,
+    ) throws -> NodeID {
+        let ds = T.domains
+        let n = ds.count
+        let classes = ds.indices.filter { ds[$0] != .i }
+        guard classes.count == 1, let c = classes.first else { throw MeetingError.unmet(p) }
+        let ex = try classExistence(sites[c], .proof(0), base, &t)
+        var g = Frame(s)
+        let k: Int
+        let h: Int
+        if forward {
+            (k, h) = try g.open(ex, in: &t)
+        } else {
+            guard let e = t.conclusion(of: ex), case .folExists(let body) = t[e] else { throw MeetingError.unmet(p) }
+            k = g.fix(nil)
+            h = g.assume(body)
+        }
+        let inner = g.scope
+        let cls = try g.variable(k, in: &t)
+        let guards = { (x: NodeID, U: IRType, t: inout Table) throws -> NodeID in try guardOf(x, U, inner, &t) }
+        let at = try sites.map { try lifted($0, from: s, to: inner, in: &t) }
+        let refs = try ds.indices.map { j in j == c ? cls : try value(of: at[j], in: &t) }
+        var definition = try lifted(letter.definition, from: letter.root, to: inner, in: &t)
+        for j in ds.indices {
+            definition = try t.intern(ds[j] == .i
+                ? .isaAllElim(definition, refs[j])
+                : .folForallElim(
+                    definition,
+                    refs[j],
+                ))
+        }
+        var body = try lifted(letter.lambda, from: letter.root, to: inner, in: &t)
+        for _ in 0..<n {
+            guard case .isaAbs(_, let b) = t[body] else { throw MeetingError.unmet(body) }
+            body = b
+        }
+        var sitesAt = [Int: NodeID]()
+        for j in ds.indices { sitesAt[n - 1 - j] = j == c ? cls : at[j] }
+        let moving = Moving.variables(ds.indices.filter { $0 != c }.map { n - 1 - $0 })
+        var replacement = [Int: NodeID]()
+        for j in ds.indices where j != c { replacement[n - 1 - j] = try shift(at[j], by: 1, in: &t) }
+        replacement[n - 1 - c] = try t.intern(.isaBound(0, ds[c]))
+        for x in freeVariables(body, in: t) where x.index >= n {
+            replacement[x.index] = try variable(body, x.index, minus: n - 1, &t)
+        }
+        let psi = try substitute(body, replacement, in: &t)
+        let applied = looseIndices(psi, in: t).contains(0)
+        let betaLemma = { (forward: Bool, q: NodeID, t: inout Table) throws -> NodeID in
+            guard applied else { return q }
+            let lemma = try betaCited(
+                psi,
+                ds[c],
+                at: at[c],
+                cls: cls,
+                definition: try g.hypothesis(h, in: &t),
+                stated: false,
+                forward: forward,
+                guardOf: guards,
+                in: &t,
+            )
+            return try t.intern(.folImpliesElim(lemma, q))
+        }
+        if forward {
+            let atom = try t.intern(.folImpliesElim(
+                try t.intern(.folForallElim(try lifted(p, from: s, to: inner, in: &t), cls)),
+                try g.hypothesis(h, in: &t),
+            ))
+            let phi = try t.intern(.folIffElimL(definition, atom))
+            let named = try met(
+                phi,
+                body,
+                moving: moving,
+                at: sitesAt,
+                drop: n,
+                keep: [n - 1 - c],
+                toValues: true,
+                guardOf: guards,
+                in: &t,
+            )
+            return try g.close(try betaLemma(true, named, &t), in: &t)
+        }
+        let named = try betaLemma(false, try lifted(p, from: s, to: inner, in: &t), &t)
+        let phi = try met(
+            named,
+            body,
+            moving: moving,
+            at: sitesAt,
+            drop: n,
+            keep: [n - 1 - c],
+            toValues: false,
+            guardOf: guards,
+            in: &t,
+        )
+        return try g.close(try t.intern(.folIffElimR(definition, phi)), in: &t)
     }
 
     /// `P(refs)` against the λ's body there, `sites` the terms the refs hold: the λ's class at its arguments (`ARGS`),
@@ -797,7 +978,14 @@ private struct Atom {
         var core = have
         if haveCore != want {
             let state = st
-            let moved = try congruent(haveCore, want, base, { l, r, t in try equality(l, r, state, &t) }, &t)
+            let moved = try congruent(
+                haveCore,
+                want,
+                base,
+                { l, r, t in try equality(l, r, state, &t) },
+                &t,
+                in: st.f.scope,
+            )
             core = try t.intern(.folIffElimL(moved, have))
         }
         return try st.f.close(core, in: &t)
@@ -1367,6 +1555,7 @@ func instantiatedAtLambda(
         guard let term = replacement[i] else { throw MeetingError.unmet(x) }
         let at = try lifted(term, terms: 1, hyps: 0, in: &t)
         if t.type(of: term) == .o { return try formula(at, .proof(0), in: &t) }
+        if let T = t.type(of: term), (letterArity(T) ?? 0) > 0 { return at }
         return try value(of: at, in: &t)
     }
     var functional: NodeID?
@@ -1500,7 +1689,7 @@ extension MeetingProofs {
     func prove(_ l: Leibniz, in t: inout Table) throws -> NodeID {
         var f = Frame()
         for T in l.types {
-            let v = f.fix(T)
+            let v = try f.fixClosure(T, in: &t)
             if T != .i, T != .o, let g = try guarded(try f.variable(v, in: &t), T, in: &t) { _ = f.assume(g) }
         }
         let n = l.types.count
@@ -1578,7 +1767,7 @@ private struct LeibnizWalk {
             let iff = try congruent(phi, target, base, { a, b, t in
                 guard a == l, b == r else { throw MeetingError.unmet(phi) }
                 return try equality(forward, s, &t)
-            }, &t)
+            }, &t, in: s)
             return try t.intern(.folIffElimL(iff, p))
 
         case .folAnd(let a, let b):
@@ -1736,6 +1925,7 @@ func leibniz(
         }
         guard let term = replacement[k] else { throw MeetingError.unmet(x) }
         if t.type(of: term) == .o { return try formula(term, .proof(0), in: &t) }
+        if let T = t.type(of: term), (letterArity(T) ?? 0) > 0 { return term }
         return try value(of: term, in: &t)
     }
     var lemma = try instantiated(
@@ -1831,4 +2021,108 @@ func betaCited(
         lemma = try t.intern(.folImpliesElim(try t.intern(.isaAllElim(lemma, site)), try fact(of: site, in: &t)))
     }
     return lemma
+}
+
+/// `p` proving a cited statement's S1 form at its letters' `instances`, outermost first, one a λ no letter's η: `ψ`'s
+/// value form at them, by `BETA_<fp>_L` over `ψ` and those λs' skeleton, each definition by `iff_refl`. `ψ` below the
+/// letters, the instances at the site.
+func letterInstantiated(_ p: NodeID, _ psi: NodeID, at instances: [NodeID], base: Base, in t: inout Table) throws
+    -> NodeID
+{
+    let m = instances.count
+    let reducing = reducedLetters(psi, instances, t)
+    var pairs: NodeID?
+    for r in reducing.reversed() {
+        let eq = try t.intern(.isaConst(
+            .primitive(.pure(.eq)),
+            .fn(r.type, .fn(r.type, .o)),
+            args: [r.lambda, r.lambda],
+        ))
+        pairs = try pairs.map { try t.intern(.folAnd(eq, $0)) } ?? eq
+    }
+    guard let pairs else { throw MeetingError.unmet(psi) }
+    let s = try skeleton(pairs, { x, d, t in isValued(x, t) && Mode.proof(0).deeper(d).valued(x, in: t) }, in: &t)
+    let c = try closed(try t.intern(.folAnd(psi, try shift(s.formula, by: m, in: &t))), in: &t)
+    guard case .folAnd(let phi, var rest) = t[c.term] else { throw MeetingError.unmet(psi) }
+    var lambdas = [NodeID]()
+    for j in reducing.indices {
+        var eq = rest
+        if j < reducing.count - 1 {
+            guard case .folAnd(let l, let r) = t[rest] else { throw MeetingError.unmet(rest) }
+            (eq, rest) = (l, r)
+        }
+        guard case .isaConst(_, _, let args) = t[eq], args.count == 2 else { throw MeetingError.unmet(eq) }
+        lambdas.append(args[0])
+    }
+    let positions = try reducing.map { r in
+        guard
+            let j = c.variables.firstIndex(where: { x in
+                if case .isaBound(r.index, _) = t[x] { return true }
+                return false
+            })
+        else { throw MeetingError.unmet(psi) }
+        return j
+    }
+    let request = LetterInstantiation(
+        formula: phi,
+        instances: zip(positions, lambdas).map { LetterInstantiation.Instance(position: $0, lambda: $1) },
+        types: c.types,
+        name: "BETA_\(fingerprint(c.term, t))_L",
+    )
+    var replacement = [Int: NodeID]()
+    for (j, a) in instances.enumerated() { replacement[m - 1 - j] = a }
+    for j in 0..<s.width { replacement[m + j] = try variable(pairs, j, minus: 0, &t) }
+    for (j, param) in s.params.enumerated() { replacement[m + s.width + j] = param }
+    let frees = try c.variables.map { x -> NodeID in
+        guard let k = t[x].boundVariable?.index, let term = replacement[k] else { throw MeetingError.unmet(x) }
+        if t.type(of: term) == .o { return try formula(term, .proof(0), in: &t) }
+        if let T = t.type(of: term), (letterArity(T) ?? 0) > 0 { return term }
+        return try value(of: term, in: &t)
+    }
+    var lemma = try instantiated(
+        try cited(request, try statement(request, in: &t), &t),
+        at: frees,
+        c.types,
+        guards: true,
+        guardOf: isaGuard,
+        in: &t,
+    )
+    for _ in request.instances {
+        guard let stated = t.conclusion(of: lemma), case .folImplies(let definition, _) = t[stated] else {
+            throw MeetingError.unmet(lemma)
+        }
+        lemma = try t.intern(.folImpliesElim(lemma, try reflexive(definition, base, &t)))
+    }
+    let b = try formula(try request.reduced(phi, &t), .proof(0), in: &t)
+    for v in try ordered(try values(in: b, &t), &t) {
+        guard case .value(let term) = t[v] else { throw MeetingError.unmet(v) }
+        let site = try valueNode(
+            try substitute(try instantiateClosed(term, c.variables, replacement, &t), [:], in: &t),
+            in: &t,
+        )
+        lemma = try t.intern(.folImpliesElim(try t.intern(.isaAllElim(lemma, site)), try fact(of: site, in: &t)))
+    }
+    return try t.intern(.folImpliesElim(lemma, p))
+}
+
+/// The letters `ψ` holds whose instance is a λ no letter's η, each at its index below the letters.
+func reducedLetters(_ psi: NodeID, _ instances: [NodeID], _ t: Table) -> [(index: Int, type: IRType, lambda: NodeID)] {
+    let m = instances.count
+    var types = [Int: IRType]()
+    for v in freeVariables(psi, in: t) { types[v.index] = v.type }
+    return instances.enumerated().compactMap { j, a in
+        let k = m - 1 - j
+        guard
+            let T = types[k], (letterArity(T) ?? 0) > 0, case .isaAbs = t[a], etaLetter(a, T, in: t) == nil
+        else { return nil }
+        return (k, T, a)
+    }
+}
+
+/// `∀x⃗. φ ↔ φ`, by `iff_refl` under its binders.
+private func reflexive(_ x: NodeID, _ base: Base, _ t: inout Table) throws -> NodeID {
+    if case .ifolAll(.i, let body) = t[x] { return try t.intern(.isaAllIntro(.i, body: try reflexive(body, base, &t))) }
+    if case .folForall(let body) = t[x] { return try t.intern(.folForallIntro(body: try reflexive(body, base, &t))) }
+    guard case .folIff(let a, let b) = t[x], a == b else { throw MeetingError.unmet(x) }
+    return try base.instance(.iffRefl, [a], in: &t)
 }

@@ -119,7 +119,7 @@ final class Sharing {
         case .folImpliesIntro(_, let body), .folNotIntro(_, let body), .folClassicalAbsurd(_, let body):
             [(body, .hyp)]
 
-        case .folForallIntro(let body), .isaAllIntro(.o, let body):
+        case .folForallIntro(let body), .isaAllIntro(.o, let body), .folLetterIntro(_, let body):
             [(body, .term)]
 
         case .folExistsElim(let p, let body):
@@ -354,7 +354,7 @@ final class Sharing {
         case .folSchemaInst:
             (1 + chain(x).links) * lineBytes + letterInstances(x).reduce(0) { $0 + formulaBytes($1) }
 
-        case .folCut, .hyp, .isaAllIntro, .valueFact:
+        case .folCut, .hyp, .isaAllIntro, .folLetterIntro, .valueFact:
             0
 
         case .ifolAll, .ifolEx, .isaConst, .isaFree, .isaBound, .isaVarApp, .isaAbs, .isaOfClass, .isaAllElim,
@@ -385,7 +385,8 @@ final class Sharing {
                  .isaClassical, .isaIffReflection, .isaDefinition, .isaPropAll, .isaPropIntro, .isaPropBound,
                  .isaHidden, .folImplies, .folAnd, .folOr, .folIff, .folBottom, .use, .hyp, .isaGuard, .isaExIntro,
                  .isaExElim, .value, .valueFact, .valueElim, .folNot, .folBound, .folPred, .folForall, .folExists,
-                 .folLetterAll, .folLetter, .folLetterAbs, .folImpliesIntro, .folAndIntro, .folAndElimL,
+                 .folLetterAll, .folLetter, .folLetterAbs, .folLetterIntro, .folImpliesIntro, .folAndIntro,
+                 .folAndElimL,
                  .folAndElimR, .folOrIntroL, .folOrIntroR, .folOrElim, .folNotIntro, .folNotElim, .folIffIntro,
                  .folIffElimL, .folIffElimR, .folForallIntro, .folExistsIntro, .folExistsElim, .folCut,
                  .folBottomElim, .folClassicalAbsurd:
@@ -429,9 +430,9 @@ func opensABlock(_ n: Node) -> Bool {
          .isaIffReflection, .isaDefinition, .isaPropAll, .isaPropIntro, .isaPropBound, .isaHidden, .folImplies,
          .folAnd, .folOr, .folIff, .folBottom, .use, .hyp, .isaGuard, .isaExIntro, .isaExElim, .value,
          .valueFact, .folNot, .folBound, .folPred, .folForall, .folExists, .folLetterAll, .folLetter,
-         .folLetterAbs, .folImpliesElim, .folAndIntro, .folAndElimL, .folAndElimR, .folOrIntroL, .folOrIntroR,
-         .folOrElim, .folNotElim, .folIffIntro, .folIffElimL, .folIffElimR, .folForallElim, .folExistsIntro,
-         .folCut, .folBottomElim, .folSchemaInst:
+         .folLetterAbs, .folLetterIntro, .folImpliesElim, .folAndIntro, .folAndElimL, .folAndElimR, .folOrIntroL,
+         .folOrIntroR, .folOrElim, .folNotElim, .folIffIntro, .folIffElimL, .folIffElimR, .folForallElim,
+         .folExistsIntro, .folCut, .folBottomElim, .folSchemaInst:
         false
     }
 }

@@ -60,7 +60,7 @@ func isValued(_ x: NodeID, _ t: Table) -> Bool {
          .folAndElimR, .folOrIntroL, .folOrIntroR, .folOrElim, .folBottomElim, .isaGuard, .isaExIntro, .isaExElim,
          .folNot, .folBound, .folPred, .folForall, .folExists, .folNotIntro, .folNotElim, .folIffElimR, .folForallIntro,
          .folForallElim, .folExistsIntro, .folExistsElim, .folCut, .folClassicalAbsurd, .folSchemaInst, .folLetterAll,
-         .folLetter, .folLetterAbs, .value, .valueFact, .valueElim:
+         .folLetter, .folLetterAbs, .folLetterIntro, .value, .valueFact, .valueElim:
         false
     }
 }

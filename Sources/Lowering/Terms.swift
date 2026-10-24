@@ -18,7 +18,7 @@ struct TermProofs {
         var f = Frame()
         var guards = [Int: Int]()
         for (j, T) in r.types.enumerated() {
-            let v = f.fix(T)
+            let v = try f.fixClosure(T, in: &t)
             if T != .i, T != .o, let g = try guarded(try f.variable(v, in: &t), T, in: &t) { guards[j] = f.assume(g) }
         }
         let outer = f.scope.depth
@@ -109,7 +109,7 @@ struct TermProofs {
         var f = Frame()
         var guards = [Int: Int]()
         for (j, T) in r.types.enumerated() {
-            let v = f.fix(T)
+            let v = try f.fixClosure(T, in: &t)
             if T != .i, let g = try guarded(try f.variable(v, in: &t), T, in: &t) { guards[j] = f.assume(g) }
         }
         let outer = f.scope.depth

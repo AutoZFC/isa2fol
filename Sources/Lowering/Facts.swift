@@ -10,7 +10,7 @@ struct Closed: Hashable {
 /// the statement silently; closed as a `∀`, the table refuses its citation (`propositionAsTerm`).
 func closed(_ a: NodeID, in t: inout Table) throws -> Closed {
     let all = freeVariables(a, in: t)
-    let frees = all.filter { $0.type == .o } + all.filter { $0.type != .o }
+    let frees = all.filter { letterArity($0.type) != nil } + all.filter { letterArity($0.type) == nil }
     var term = try transform(a, Lettered(), in: &t)
     for (j, v) in frees.enumerated() { term = try abstractIndex(term, v.index + j, in: &t) }
     return Closed(term: term, variables: try frees.map { try t.intern($0.variable) }, types: frees.map(\.type))
@@ -115,6 +115,7 @@ struct LambdaFact: Request {
         case classExists
         case function
         case arguments
+        case lift
     }
 
     let lambda: NodeID
@@ -130,9 +131,10 @@ struct LambdaFact: Request {
 
 struct RekeyFact: Request {
     let width: Int
+    let context: Int
 
     var name: String {
-        "REKEY_\(width)"
+        context == 0 ? "REKEY_\(width)" : "REKEY_\(width)_\(context)"
     }
 
     func remapped(_: (NodeID) throws -> NodeID) rethrows -> RekeyFact {
@@ -176,6 +178,7 @@ public func kind(of lemma: Lemma) -> String {
     case let f as LambdaFact: "λ \(f.fact)"
     case let f as TupleFact: "tuple \(f.fact)"
     case is RekeyFact: "rekey"
+    case is LetterFact: "letter congruence"
     case is Existence: "term existence"
     case is Uniqueness: "term uniqueness"
     case let f as AxiomFact: "axiom \(f.axiom.rawValue)"
@@ -200,6 +203,7 @@ func lambdaFact(_ lambda: NodeID, _ fact: LambdaFact.Fact, in t: inout Table) th
         case .classExists: "CLASS_"
         case .function: "FUNC_"
         case .arguments: "LAMBDA_"
+        case .lift: "LIFT_"
         }
     return (LambdaFact(lambda: c.term, types: c.types, fact: fact, name: prefix + fingerprint(c.term, t)), c)
 }
@@ -207,6 +211,10 @@ func lambdaFact(_ lambda: NodeID, _ fact: LambdaFact.Fact, in t: inout Table) th
 func universal(_ types: [IRType], guards: Bool, _ body: NodeID, in t: inout Table) throws -> NodeID {
     var root = body
     for T in types.reversed() {
+        if let n = letterArity(T), n > 0 {
+            root = try t.intern(.folLetterAll(n, body: try t.intern(.folImplies(try letterLift(T, in: &t), root))))
+            continue
+        }
         if T == .i || T == .o {
             root = try t.intern(.ifolAll(T, body: root))
             continue
@@ -230,6 +238,11 @@ func instantiated(
 ) throws -> NodeID {
     var p = lemma
     for (x, T) in zip(xs, types) {
+        if let n = letterArity(T), n > 0 {
+            p = try t.intern(.folSchemaInst(p, try instanceAt(x, T, in: &t)))
+            p = try t.intern(.folImpliesElim(p, try letterGuard(x, T, in: &t)))
+            continue
+        }
         if T == .i || T == .o {
             p = try t.intern(T == .i ? .isaAllElim(p, x) : .folSchemaInst(p, x))
             continue
@@ -240,7 +253,13 @@ func instantiated(
     return p
 }
 
+/// ⚠ A LETTER'S GUARD IS ITS LIFT, CITED AT ITS ISA VARIABLE: the table takes no other as a guard's, and Fol reads it
+/// as the assumption the letter's intro opens with.
 func isaGuard(_ x: NodeID, _ T: IRType, _ t: inout Table) throws -> NodeID {
+    if let n = letterArity(T), n > 0 {
+        guard case .isaBound(let k, _) = t[x] else { throw LetterError.notAnInstance(x) }
+        return try t.intern(.isaGuard(x, try lift(at: try t.intern(.folBound(k)), T, in: &t)))
+    }
     guard let g = try guarded(x, T, in: &t) else { throw ReifyError.notATerm(x) }
     return try t.intern(.isaGuard(x, g))
 }
@@ -412,7 +431,17 @@ func statement(_ f: LambdaFact, base: Base, in t: inout Table) throws -> NodeID 
     case .arguments:
         let at = try atArguments(try shift(f.lambda, by: 1, in: &t), try t.intern(.folBound(0)), base: base, in: &t)
         return try universal(f.types, guards: true, try t.intern(.folExists(body: at)), in: &t)
+
+    case .lift:
+        return try liftStatement(f, in: &t)
     }
+}
+
+/// `LIFT ⟨λ⟩`: the lift of the λ at a letter's type, its instance read as a statement reads it.
+func liftStatement(_ f: LambdaFact, in t: inout Table) throws -> NodeID {
+    guard let T = t.type(of: f.lambda) else { throw LetterError.notAnInstance(f.lambda) }
+    let instance = try letterAbstraction(f.lambda, T, mode: .statement, in: &t)
+    return try universal(f.types, guards: true, try lift(at: instance, T, in: &t), in: &t)
 }
 
 func statement(_ f: TupleFact, in t: inout Table) throws -> NodeID {
@@ -588,6 +617,7 @@ private func lift(_ f: ConstantFact, in t: inout Table) throws -> NodeID {
 func statement(_ f: RekeyFact, in t: inout Table) throws -> NodeID {
     let m = f.width
     var s = Scope()
+    let xs = (0..<f.context).map { _ in s.fix(.i) }
     let p = s.fix(.i)
     let p1 = s.fix(.i)
     let outer = s
@@ -599,7 +629,7 @@ func statement(_ f: RekeyFact, in t: inout Table) throws -> NodeID {
     let records = (0..<m).map { _ in s.fix(.i) }
     var inner = s
     let rho = inner.fix(.i)
-    let entries = try ([p, p1, a] + values).map { try inner.variable($0, in: &t) }
+    let entries = try (xs + [p, p1, a] + values).map { try inner.variable($0, in: &t) }
     let some = try t.intern(.ifolEx(
         .i,
         body: try t.intern(.folAnd(
@@ -618,5 +648,6 @@ func statement(_ f: RekeyFact, in t: inout Table) throws -> NodeID {
     body = try t.intern(.ifolAll(.i, body: try t.intern(.folImplies(try pred("tuple", [a, p], at: atA, &t), body))))
     body = try t.intern(.folForall(body: try t.intern(.folExists(body: body))))
     body = try t.intern(.folImplies(try pred("nsucc", [p, p1], at: outer, &t), body))
-    return try t.intern(.ifolAll(.i, body: try t.intern(.ifolAll(.i, body: body))))
+    for _ in 0..<(f.context + 2) { body = try t.intern(.ifolAll(.i, body: body)) }
+    return body
 }

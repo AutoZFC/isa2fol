@@ -73,6 +73,7 @@ public enum Pattern: Hashable, Sendable {
     case folLetterAll(Int, body: IRType)
     case folLetter(args: [IRType])
     case folLetterAbs(body: IRType)
+    case folLetterIntro(Int, body: IRType)
 
     public init(_ n: Node, in t: Table) {
         let T = { (c: NodeID) in t.patternType(of: c) }
@@ -210,6 +211,8 @@ public enum Pattern: Hashable, Sendable {
         case .folLetter(_, let xs): self = .folLetter(args: Ts(xs))
 
         case .folLetterAbs(let b): self = .folLetterAbs(body: T(b))
+
+        case .folLetterIntro(let k, let b): self = .folLetterIntro(k, body: T(b))
         }
     }
 
@@ -294,7 +297,8 @@ extension Pattern {
              .folForallElim, .folExistsIntro, .folExistsElim, .folCut, .folClassicalAbsurd, .folSchemaInst,
              .folLetterAll,
              .folLetter,
-             .folLetterAbs:
+             .folLetterAbs,
+             .folLetterIntro:
             [.fol]
         }
     }

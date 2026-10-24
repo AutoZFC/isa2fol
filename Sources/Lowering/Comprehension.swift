@@ -74,6 +74,17 @@ struct Lift {
     let lambdas: [Int]
 }
 
+/// A letter's atom at a scope: `∃τ. tuple(v⃗, τ) ∧ ⋆`, `⋆` the records the letter's lift puts in `U` at the class
+/// arguments' bundles.
+struct LetterAtom {
+    let exists: Row
+    let inner: Row
+    let tuple: Row
+    let entries: [Int]
+    let lift: Row
+    let lambdas: [Int]
+}
+
 struct Section {
     let cls: Int
     let function: Bool
@@ -96,9 +107,11 @@ indirect enum Built {
     case lambda(binder: Int, Lambda, Built)
     case lifted(binder: Int, Lift, Built)
     case liftedAtom(binder: Int, Int)
+    case letterAtom(LetterAtom)
 
     var cls: Int {
         switch self {
+        case .letterAtom(let l): l.exists.cls
         case .connective(_, let row, _), .exists(let row, _), .all(let row, _), .atom(let row, _, _),
              .tuple(let row, _), .letter(let row):
             row.cls
@@ -119,6 +132,7 @@ indirect enum Built {
         case .lambda(_, let l, let inner): inner.needs.union(l.bundle.needs)
         case .atom(_, let es, _), .tuple(_, let es): Set(es)
         case .bottom, .liftedAtom, .letter: []
+        case .letterAtom(let l): Set(l.entries.dropLast())
         }
     }
 }
@@ -174,6 +188,7 @@ private enum Key: Hashable {
     case all(Int, Int)
     case witness(BaseStatement)
     case letter(Int)
+    case letterLift(Int, Int, [Int])
     case applied(Int)
     case setConstant(Constant)
     case constantClass(Constant, IRType)
@@ -342,6 +357,9 @@ struct Comprehension {
             let named = try naming.chain.formula(core, in: &t)
             return try chain(named, naming.pieces[...], [:], roles, k, &t)
 
+        case .folLetter(let head, let args):
+            return try letterAtom(head, args, roles, k, &t)
+
         case .ifolAll, .ifolEx, .isaFree, .isaBound, .isaAbs, .isaOfClass, .isaAllIntro, .isaAllElim, .isaReflexive,
              .isaSymmetric, .isaTransitive, .isaCombination, .isaAbstract, .isaClassical, .isaIffReflection,
              .isaDefinition, .isaPropAll, .isaPropIntro, .isaPropBound, .isaHidden, .folImpliesIntro, .folImpliesElim,
@@ -350,7 +368,8 @@ struct Comprehension {
              .folAndElimR, .folOrIntroL, .folOrIntroR, .folOrElim, .folNotIntro, .folNotElim, .folIffIntro,
              .folIffElimL,
              .folIffElimR, .folForallIntro, .folForallElim, .folExistsIntro, .folExistsElim, .folCut, .folBottomElim,
-             .folClassicalAbsurd, .folSchemaInst, .folLetterAll, .folLetter, .folLetterAbs, .value, .valueFact,
+             .folClassicalAbsurd, .folSchemaInst, .folLetterAll, .folLetterAbs, .folLetterIntro, .value,
+             .valueFact,
              .valueElim:
             throw ComprehensionError.unread(phi)
         }
@@ -378,17 +397,7 @@ struct Comprehension {
 
     private mutating func tupled(_ args: [NodeID], _ roles: [Role], _ k: Int, _ t: inout Table) throws -> Built {
         let es = try entries(args, roles, t)
-        let positions = try es.map { try numeral($0, &t) }
-        let length = try numeral(k, &t)
-        let row = try open(.tupleRow(positions, length), &t) { top, t in
-            let f = TupleFact(arity: es.count - 1, fact: .row)
-            return try eliminated(
-                try cited(f, try statement(f, in: &t), &t),
-                at: try (positions + [length]).map { try top.variable($0, in: &t) },
-                in: &t,
-            )
-        }
-        return .tuple(row, es)
+        return .tuple(try tupleRow(es, k, &t), es)
     }
 
     private func role(_ x: NodeID, _ roles: [Role], _ t: Table) throws -> Role {
@@ -616,6 +625,94 @@ struct Comprehension {
         let (c, h) = try top.open(try statement(top, &t), in: &t)
         memo[key] = Row(cls: c, hyp: h)
         return Row(cls: c, hyp: h)
+    }
+
+    /// A letter's atom, read through the letter's lift at its class arguments' bundles, its set arguments' tuple the
+    /// next entry.
+    private mutating func letterAtom(
+        _ head: NodeID,
+        _ args: [NodeID],
+        _ roles: [Role],
+        _ k: Int,
+        _ t: inout Table,
+    ) throws -> Built {
+        guard case .fixed(let letter) = try role(head, roles, t), let hyp = top.lifts[letter] else {
+            throw ComprehensionError.unread(head)
+        }
+        var lambdas = [Int]()
+        var es = [Int]()
+        for x in args {
+            switch try role(x, roles, t) {
+            case .entry(let j): es.append(j)
+            case .binder(let m): lambdas.append(m)
+            case .fixed, .section: throw ComprehensionError.unread(x)
+            }
+        }
+        let bundles = try lambdas.map { m -> Int in
+            guard case .lambda(let A)? = standIns[m] else { throw ComprehensionError.unread(head) }
+            return A
+        }
+        let n = try numeral(k, &t)
+        let n1 = try numeral(k + 1, &t)
+        _ = try numeral(k + 2, &t)
+        let successor = try numerals.successor(k)
+        let lift = try open(.letterLift(letter, k, bundles), &t) { top, t in
+            let at = try eliminated(
+                try top.hypothesis(hyp, in: &t),
+                at: [try top.variable(n, in: &t), try top.variable(n1, in: &t)],
+                premises: [try top.hypothesis(successor, in: &t)],
+                in: &t,
+            )
+            return try eliminated(at, at: try bundles.map { try top.variable($0, in: &t) }, in: &t)
+        }
+        let tuple = try tupleRow(es + [k], k + 1, &t)
+        let inner = try andRow(tuple.cls, lift.cls, &t)
+        let exists = try existsRow(k, inner.cls, &t)
+        return .letterAtom(LetterAtom(
+            exists: exists,
+            inner: inner,
+            tuple: tuple,
+            entries: es + [k],
+            lift: lift,
+            lambdas: lambdas,
+        ))
+    }
+
+    private mutating func tupleRow(_ es: [Int], _ k: Int, _ t: inout Table) throws -> Row {
+        let positions = try es.map { try numeral($0, &t) }
+        let length = try numeral(k, &t)
+        return try open(.tupleRow(positions, length), &t) { top, t in
+            let f = TupleFact(arity: es.count - 1, fact: .row)
+            return try eliminated(
+                try cited(f, try statement(f, in: &t), &t),
+                at: try (positions + [length]).map { try top.variable($0, in: &t) },
+                in: &t,
+            )
+        }
+    }
+
+    private mutating func andRow(_ a: Int, _ b: Int, _ t: inout Table) throws -> Row {
+        let base = base
+        return try open(.connective(.and, [a, b]), &t) { top, t in
+            try eliminated(
+                try base.cite(.b2, in: &t),
+                at: [try top.variable(a, in: &t), try top.variable(b, in: &t)],
+                in: &t,
+            )
+        }
+    }
+
+    private mutating func existsRow(_ k: Int, _ A: Int, _ t: inout Table) throws -> Row {
+        let n = try numeral(k, &t)
+        _ = try numeral(k + 1, &t)
+        let base = base
+        return try open(.exists(n, A), &t) { top, t in
+            try eliminated(
+                try base.cite(.rowEx, in: &t),
+                at: [try top.variable(n, in: &t), try top.variable(A, in: &t)],
+                in: &t,
+            )
+        }
     }
 
     private mutating func connective(_ c: Connective, _ children: [Built], _ t: inout Table) throws -> Built {
@@ -1021,6 +1118,34 @@ struct Reading {
 
         case .liftedAtom(let m, let U):
             return try t.intern(.folIffElimL(try liftedAtom(phi, m, U, f, r, env, &t), p))
+
+        case .letterAtom(let l):
+            var g = Frame(f.scope)
+            let (v, hv) = try g.open(try t.intern(.folIffElimL(try at(l.exists, f, r, &t), p)), in: &t)
+            let (w, hw) = try g.open(try g.hypothesis(hv, in: &t), in: &t)
+            let needs = Set(l.entries.dropLast())
+            let longer = try extend(r, value: v, record: w, snoc: .left(.hypothesis(hw)), needs: needs, in: &g, &t)
+            let both = try t.intern(.folIffElimL(
+                try at(l.inner, g, longer, &t),
+                try g.proof(.right(.hypothesis(hw)), in: &t),
+            ))
+            let tupled = try t.intern(.folIffElimL(
+                try tupleRead(l.tuple, l.entries, g, longer, &t),
+                try t.intern(.folAndElimL(both)),
+            ))
+            let equivalence = try letterLifted(l, g, r, env, v, tupled, &t)
+            guard case .ifolEx(.i, let body) = t[try sides(equivalence, t).right] else {
+                throw ComprehensionError.misread(phi)
+            }
+            let some = try t.intern(.isaExIntro(
+                try t.intern(.folAndIntro(
+                    try g.proof(.left(.hypothesis(hw)), in: &t),
+                    try t.intern(.folAndElimR(both)),
+                )),
+                try g.variable(w, in: &t),
+                body: body,
+            ))
+            return try g.close(try t.intern(.folIffElimR(equivalence, some)), in: &t)
         }
     }
 
@@ -1231,6 +1356,37 @@ struct Reading {
 
         case .liftedAtom(let m, let U):
             return try t.intern(.folIffElimR(try liftedAtom(phi, m, U, f, r, env, &t), p))
+
+        case .letterAtom(let l):
+            let rowAt = try at(l.exists, f, r, &t)
+            var g = Frame(f.scope)
+            let ys = try l.entries.dropLast().map { try g.variable(r.entries[$0], in: &t) }
+            let existence = TupleFact(arity: ys.count, fact: .existence)
+            let (v, hv) = try g.open(
+                try eliminated(try cited(existence, try statement(existence, in: &t), &t), at: ys, in: &t),
+                in: &t,
+            )
+            let equivalence = try letterLifted(l, g, r, env, v, try g.hypothesis(hv, in: &t), &t)
+            let held = try t.intern(.folIffElimL(equivalence, try lifted(p, from: f.scope, to: g.scope, in: &t)))
+            let (w, hw) = try g.open(held, in: &t)
+            let needs = Set(l.entries.dropLast())
+            let longer = try extend(r, value: v, record: w, snoc: .left(.hypothesis(hw)), needs: needs, in: &g, &t)
+            let inTuple = try t.intern(.folIffElimR(
+                try tupleRead(l.tuple, l.entries, g, longer, &t),
+                try g.hypothesis(hv, in: &t),
+            ))
+            let inInner = try t.intern(.folIffElimR(
+                try at(l.inner, g, longer, &t),
+                try t.intern(.folAndIntro(inTuple, try g.proof(.right(.hypothesis(hw)), in: &t))),
+            ))
+            let target = try g.scope.lift(try sides(rowAt, t).right, from: f.scope.depth, in: &t)
+            guard case .ifolEx(.i, let outer) = t[target] else { throw ComprehensionError.misread(phi) }
+            let atX = try instantiate(outer, with: try g.variable(v, in: &t), in: &t)
+            guard case .ifolEx(.i, let inner) = t[atX] else { throw ComprehensionError.misread(phi) }
+            let both = try t.intern(.folAndIntro(try g.proof(.left(.hypothesis(hw)), in: &t), inInner))
+            let some2 = try t.intern(.isaExIntro(both, try g.variable(w, in: &t), body: inner))
+            let some1 = try t.intern(.isaExIntro(some2, try g.variable(v, in: &t), body: outer))
+            return try t.intern(.folIffElimR(rowAt, try g.close(some1, in: &t)))
         }
     }
 
@@ -1315,6 +1471,33 @@ struct Reading {
         }
         let back = try backward.close(proof, in: &t)
         return try each.close(try t.intern(.folIffIntro(there, back)), in: &t)
+    }
+
+    /// The letter's lift at the record `r`, its class arguments' binders at their sections there, its set arguments
+    /// `r`'s entries and their tuple `v`: `A(K⃗, v⃗) ↔ ∃b. snoc(r, k, v, b) ∧ elem(b, U)`.
+    private func letterLifted(
+        _ l: LetterAtom,
+        _ g: Frame,
+        _ r: Record,
+        _ env: Env,
+        _ v: Int,
+        _ tupled: NodeID,
+        _ t: inout Table,
+    ) throws -> NodeID {
+        var q = try t.intern(.isaAllElim(try g.hypothesis(l.lift.hyp, in: &t), try g.variable(r.variable, in: &t)))
+        q = try t.intern(.folImpliesElim(q, try g.proof(r.tuple, in: &t)))
+        let ks = try l.lambdas.map { m -> (variable: Int, approximation: Int) in
+            guard let b = env.binders[m], let a = b.approximation else { throw ComprehensionError.noEntry(m) }
+            return (b.variable, a)
+        }
+        q = try eliminated(
+            q,
+            at: try ks.map { try g.variable($0.variable, in: &t) },
+            premises: try ks.map { try g.hypothesis($0.approximation, in: &t) },
+            in: &t,
+        )
+        let ys = try l.entries.dropLast().map { try g.variable(r.entries[$0], in: &t) }
+        return try eliminated(q, at: ys + [try g.variable(v, in: &t)], premises: [tupled], in: &t)
     }
 
     private func lambdaExactness(

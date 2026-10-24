@@ -55,6 +55,13 @@ struct Chain {
         try t.intern(.folPred(p, args: try refs.map { try here($0, in: &t) }))
     }
 
+    /// A letter with arguments, `head` its variable, applied at `refs`.
+    func letter(_ head: Ref, _ refs: [Ref], in t: inout Table) throws -> NodeID {
+        let h = try here(head, in: &t)
+        guard case .isaBound(let k, _) = t[h] else { throw ChainError.notALetter }
+        return try t.intern(.folLetter(head: try t.intern(.folBound(k)), args: try refs.map { try here($0, in: &t) }))
+    }
+
     func formula(_ core: NodeID, in t: inout Table) throws -> NodeID {
         try folded(core, in: &t) { b, c, body, t in
             let premised = try t.intern(.folImplies(c, body))
@@ -81,4 +88,5 @@ struct Chain {
 @frozen
 public enum ChainError: Error, Equatable, Sendable {
     case unconstrained(Int)
+    case notALetter
 }

@@ -113,11 +113,12 @@ public enum Node: Hashable, Sendable {
     case folCut(NodeID, body: NodeID)
     case folClassicalAbsurd(NodeID, body: NodeID)
     case folSchemaInst(NodeID, NodeID)
-    // A base schema's letter with arguments: its binder, its application, its λ instance. Isa's binder at a class type
-    // is a class (FOUNDATION S4), never a letter.
+    // A schema's letter with arguments: its binder, its application, its λ instance, and its binder on a proof's spine.
+    // Isa's binder at a class type is a class (FOUNDATION S4), never a letter.
     case folLetterAll(Int, body: NodeID)
     indirect case folLetter(head: NodeID, args: [NodeID])
     case folLetterAbs(body: NodeID)
+    case folLetterIntro(Int, body: NodeID)
 
     public var boundVariable: (namespace: Namespace, index: Int, reindexed: (Int) -> Node)? {
         switch self {
@@ -136,6 +137,7 @@ public enum Node: Hashable, Sendable {
              .folNotElim,
              .folIffIntro, .folIffElimL, .folIffElimR, .folForallIntro, .folForallElim, .folExistsIntro, .folExistsElim,
              .folCut, .folBottomElim, .folClassicalAbsurd, .folSchemaInst, .folLetterAll, .folLetter, .folLetterAbs,
+             .folLetterIntro,
              .value, .valueFact, .valueElim:
             nil
         }
@@ -269,6 +271,8 @@ public enum Node: Hashable, Sendable {
         case .folLetter(let h, let xs): .folLetter(head: try f(h, .none), args: try xs.map { try f($0, .none) })
 
         case .folLetterAbs(let b): .folLetterAbs(body: try f(b, .term))
+
+        case .folLetterIntro(let k, let b): .folLetterIntro(k, body: try f(b, .term))
         }
     }
 

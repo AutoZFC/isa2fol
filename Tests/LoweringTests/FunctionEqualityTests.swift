@@ -456,3 +456,52 @@ func equalitysCongruenceAtAFunctionOfPropositionsIsItsSidesBeingOne() throws {
     #expect(unit.refused.isEmpty, "\(unit.refused)")
     try kernelChecks(unit)
 }
+
+/// MetaExists' `ex`, unfolded: `λR. ⋀Q. (⋀K. R K ⟹ Q) ⟹ Q`, at `((i ⇒ o) ⇒ o) ⇒ o`.
+private func ex(_ l: inout LogicTable) throws -> NodeID {
+    let R = fn(P, o)
+    let atK = try l.lam(i, try applied(try l.bound(1, P), try l.bound(0, i), &l))
+    let rk = try l.t.intern(.isaVarApp(head: try l.bound(2, R), args: [atK]))
+    let opened = try l.all(P, try l.imp(rk, try l.t.intern(.isaPropBound(1))))
+    return try l.lam(R, try l.t.intern(.isaPropAll(body: try l.imp(opened, try l.t.intern(.isaPropBound(0))))))
+}
+
+/// Pure's equality at `((i ⇒ o) ⇒ o) ⇒ o` between one term is true, `⊥ → ⊥`, its proof `reflexive`: stated, and as a
+/// hypothesis discharged by `reflexive ex`, as the definition command's `exa ≡ ex` is at its citation (DESIGN
+/// "ZF-Constructible's reflection", 1). The kernel proves the unit.
+@Test
+func anEquationBeyondObjectsBetweenOneTermIsTrue() throws {
+    var l = LogicTable()
+    let T = fn(fn(P, o), o)
+    let e = try ex(&l)
+    let h = try l.equal(T, e, e)
+    let same = Statement(name: "T.same", root: h, proof: try l.t.intern(.isaReflexive(e)), theory: "Test")
+    let member = try l.mem(try l.bound(0, i), try l.bound(0, i))
+    let phi = try l.all(i, try l.imp(member, member))
+    let byPhi = try l.t.intern(.isaAllIntro(
+        i,
+        body: try l.t.intern(.folImpliesIntro(member, body: try l.t.intern(.hyp(0, member)))),
+    ))
+    let discharged = try l.t.intern(.folImpliesElim(
+        try l.t.intern(.folImpliesIntro(h, body: byPhi)),
+        try l.t.intern(.isaReflexive(e)),
+    ))
+    let hypothesis = Statement(name: "T.hypothesis", root: phi, proof: discharged, theory: "Test")
+    let unit = try lowered(l, [same, hypothesis])
+    #expect(unit.refused.isEmpty, "\(unit.refused)")
+    try kernelChecks(unit)
+}
+
+/// Between two terms the equation has no reading: only a `combination` reads one, whole, and the run stops at one
+/// standing alone.
+@Test
+func anEquationBeyondObjectsBetweenTwoTermsHasNoReading() throws {
+    var l = LogicTable()
+    let T = fn(fn(P, o), o)
+    let e = try ex(&l)
+    let other = try l.lam(fn(P, o), try l.t.intern(.isaPropAll(body: try l.t.intern(.isaPropBound(0)))))
+    let h = try l.equal(T, e, other)
+    let proof = try l.t.intern(.folImpliesIntro(h, body: try l.t.intern(.hyp(0, h))))
+    let apart = Statement(name: "T.apart", root: try l.imp(h, h), proof: proof, theory: "Test")
+    #expect(throws: FunctionsError.self) { _ = try lowered(l, [apart]) }
+}
